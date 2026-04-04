@@ -1,0 +1,131 @@
+import 'package:flutter/material.dart';
+import '../../../../core/widgets/cached_avatar.dart';
+import '../../../../sdk/data/gateway.dart';
+
+class CommentItemWidget extends StatelessWidget {
+  final CommentItem comment;
+  final List<CommentItem> replies;
+  final VoidCallback? onReply;
+  final VoidCallback? onLike;
+
+  const CommentItemWidget({
+    super.key,
+    required this.comment,
+    this.replies = const [],
+    this.onReply,
+    this.onLike,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildComment(context, comment, isReply: false),
+          // 子评论
+          if (replies.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 48, top: 4),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  children: replies
+                      .take(3)
+                      .map((r) => _buildComment(context, r, isReply: true))
+                      .toList(),
+                ),
+              ),
+            ),
+          const Divider(height: 1),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComment(BuildContext context, CommentItem item,
+      {required bool isReply}) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.only(bottom: isReply ? 8 : 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CachedAvatar(url: item.userAvatar, radius: isReply ? 12 : 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      item.userName,
+                      style: theme.textTheme.labelMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _formatTime(item.createdAt),
+                      style: theme.textTheme.labelSmall
+                          ?.copyWith(color: theme.colorScheme.outline),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(item.content, style: theme.textTheme.bodyMedium),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: onLike,
+                      child: Row(
+                        children: [
+                          Icon(Icons.thumb_up_outlined,
+                              size: 14, color: theme.colorScheme.outline),
+                          const SizedBox(width: 4),
+                          Text('${item.likeCount}',
+                              style: theme.textTheme.labelSmall),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    InkWell(
+                      onTap: onReply,
+                      child: Row(
+                        children: [
+                          Icon(Icons.reply,
+                              size: 14, color: theme.colorScheme.outline),
+                          const SizedBox(width: 4),
+                          Text('回复', style: theme.textTheme.labelSmall),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(num timestamp) {
+    final date =
+        DateTime.fromMillisecondsSinceEpoch(timestamp.toInt() * 1000);
+    final diff = DateTime.now().difference(date);
+    if (diff.inMinutes < 1) return '刚刚';
+    if (diff.inHours < 1) return '${diff.inMinutes}分钟前';
+    if (diff.inDays < 1) return '${diff.inHours}小时前';
+    if (diff.inDays < 30) return '${diff.inDays}天前';
+    return '${date.month}-${date.day}';
+  }
+}
