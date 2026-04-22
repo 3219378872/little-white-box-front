@@ -58,11 +58,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/feed',
-            builder: (context, state) => const FeedPage(),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: FeedPage()),
           ),
           GoRoute(
             path: '/profile',
-            builder: (context, state) => const ProfilePage(),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: ProfilePage()),
           ),
         ],
       ),

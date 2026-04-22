@@ -5,9 +5,9 @@ import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
-import '../../feed/application/feed_notifier.dart';
-import '../../feed/presentation/widgets/post_card.dart';
+import '../application/user_posts_notifier.dart';
 import '../data/user_repository.dart';
+import 'widgets/user_post_list.dart';
 
 final _userRepoProvider = Provider((ref) => UserRepository());
 
@@ -74,9 +74,19 @@ class _ProfileContentState extends ConsumerState<_ProfileContent>
   @override
   void initState() {
     super.initState();
-    if (widget.isOwnProfile) {
+    // tabController created lazily in build via _ensureTabController
+  }
+
+  TabController? _ensureTabController(bool showFavoritesTab) {
+    if (!showFavoritesTab) {
+      _tabController?.dispose();
+      return _tabController = null;
+    }
+    if (_tabController == null || _tabController!.length != 2) {
+      _tabController?.dispose();
       _tabController = TabController(length: 2, vsync: this);
     }
+    return _tabController;
   }
 
   @override
@@ -129,7 +139,10 @@ class _ProfileContentState extends ConsumerState<_ProfileContent>
           onRetry: () =>
               ref.invalidate(_userProfileProvider(widget.userId)),
         ),
-        data: (user) => NestedScrollView(
+        data: (user) {
+          final showFavoritesTab = widget.isOwnProfile || user.favoritesVisible;
+          _ensureTabController(showFavoritesTab);
+          return NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) => [
             SliverToBoxAdapter(
               child: Padding(
@@ -180,28 +193,41 @@ class _ProfileContentState extends ConsumerState<_ProfileContent>
                 ),
               ),
             ),
-            if (widget.isOwnProfile && _tabController != null)
+            if ((widget.isOwnProfile || user.favoritesVisible) && _tabController != null)
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _TabBarDelegate(
                   TabBar(
                     controller: _tabController,
-                    tabs: const [Tab(text: '我的帖子'), Tab(text: '我的收藏')],
+                    tabs: [
+                      Tab(text: widget.isOwnProfile ? '我的帖子' : '帖子'),
+                      Tab(text: widget.isOwnProfile ? '我的收藏' : '收藏'),
+                    ],
                   ),
                   theme.colorScheme.surface,
                 ),
               ),
           ],
-          body: widget.isOwnProfile && _tabController != null
+          body: (showFavoritesTab && _tabController != null)
               ? TabBarView(
                   controller: _tabController,
                   children: [
-                    _PostListPlaceholder(label: '我的帖子'),
-                    _PostListPlaceholder(label: '我的收藏'),
+                    UserPostList(
+                      userId: widget.userId,
+                      type: UserPostsListType.posts,
+                    ),
+                    UserPostList(
+                      userId: widget.userId,
+                      type: UserPostsListType.favorites,
+                    ),
                   ],
                 )
-              : _PostListPlaceholder(label: '帖子'),
-        ),
+              : UserPostList(
+                  userId: widget.userId,
+                  type: UserPostsListType.posts,
+                ),
+        );
+        },
       ),
     );
   }
@@ -217,16 +243,6 @@ class _ProfileContentState extends ConsumerState<_ProfileContent>
         Text(label, style: Theme.of(context).textTheme.bodySmall),
       ],
     );
-  }
-}
-
-class _PostListPlaceholder extends StatelessWidget {
-  final String label;
-  const _PostListPlaceholder({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: EmptyView(message: '暂无内容'));
   }
 }
 

@@ -485,6 +485,9 @@ class GetUserResp {
   final num followingCount;
 
   final num postCount;
+
+  // 收藏列表可见性：true=公开，false=私密
+  final bool favoritesVisible;
   GetUserResp({
     required this.id,
     required this.username,
@@ -495,6 +498,7 @@ class GetUserResp {
     required this.followerCount,
     required this.followingCount,
     required this.postCount,
+    required this.favoritesVisible,
   });
   factory GetUserResp.fromJson(Map<String, dynamic> m) {
     return GetUserResp(
@@ -507,6 +511,7 @@ class GetUserResp {
       followerCount: m['followerCount'] ?? 0,
       followingCount: m['followingCount'] ?? 0,
       postCount: m['postCount'] ?? 0,
+      favoritesVisible: m['favoritesVisible'] ?? true,
     );
   }
   Map<String, dynamic> toJson() {
@@ -520,6 +525,7 @@ class GetUserResp {
       'followerCount': followerCount,
       'followingCount': followingCount,
       'postCount': postCount,
+      'favoritesVisible': favoritesVisible,
     };
   }
 }

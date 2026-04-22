@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../sdk/data/tokens.dart';
 import '../../../sdk/vars/kv.dart';
+import '../../../core/auth/jwt_decoder.dart';
 
 class AuthState {
   final bool isAuthenticated;
@@ -48,11 +49,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _init() async {
     final tokens = await getTokens();
     if (tokens != null && tokens.accessToken.isNotEmpty) {
-      state = AuthState(
-        isAuthenticated: true,
-        token: tokens.accessToken,
-        isLoading: false,
-      );
+      final userId = extractUserIdFromToken(tokens.accessToken);
+      if (userId == null || userId <= 0) {
+        // token 异常：清掉，按未登录处理
+        await removeTokens();
+        state = const AuthState(isLoading: false);
+      } else {
+        state = AuthState(
+          isAuthenticated: true,
+          userId: userId,
+          token: tokens.accessToken,
+          isLoading: false,
+        );
+      }
     } else {
       state = const AuthState(isLoading: false);
     }
