@@ -2,8 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/api/api_adapter.dart';
-import '../../../sdk/api/gateway.dart' as gw;
 import '../../../sdk/data/gateway.dart';
 import '../data/post_repository.dart';
 import 'widgets/image_picker_grid.dart';
@@ -76,20 +74,39 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   }
 
   Future<List<String>> _uploadLocalImages() async {
-    final urls = <String>[];
-    for (final file in _localImages) {
-      final bytes = await file.readAsBytes();
-      final resp = await apiCall<UploadImageResp>(
-        (ok, fail, eventually) => gw.uploadImage(
-          UploadImageReq(file: bytes.toList()),
-          ok: ok,
-          fail: fail,
-          eventually: eventually,
-        ),
-      );
-      urls.add(resp.url);
+    if (_localImages.isEmpty) return const [];
+
+    final repo = ref.read(_postRepoProvider);
+
+    final futures = <Future<(int, String?, String?)>>[];
+    for (var i = 0; i < _localImages.length; i++) {
+      final idx = i;
+      final file = _localImages[i];
+      futures.add(() async {
+        try {
+          final bytes = await file.readAsBytes();
+          final name = file.path.split(RegExp(r'[/\\]')).last;
+          final url = await repo.uploadImageMultipart(
+            bytes: bytes,
+            filename: name,
+          );
+          return (idx, url, null);
+        } catch (e) {
+          return (idx, null, e.toString());
+        }
+      }());
     }
-    return urls;
+
+    final results = await Future.wait(futures);
+
+    results.sort((a, b) => a.$1.compareTo(b.$1));
+    for (final r in results) {
+      if (r.$2 == null) {
+        throw _UploadTransactionException(r.$1, r.$3 ?? 'unknown');
+      }
+    }
+
+    return [for (final r in results) r.$2!];
   }
 
   Future<void> _publish({int status = 1}) async {
@@ -129,6 +146,24 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
           context.go('/post/${resp.postId.toInt()}');
         }
       }
+    } on _UploadTransactionException catch (e) {
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('图片上传失败'),
+            content: Text(
+              '${e.toString()}\n\n帖子未发布，图片已保留，可修改后重试。',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('知道了'),
+              ),
+            ],
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -150,8 +185,12 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
               onPressed: _isLoading ? null : () => _publish(status: 0),
               child: const Text('存草稿'),
             ),
-          FilledButton(
+          TextButton(
             onPressed: _isLoading ? null : () => _publish(),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.primary,
+              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             child: _isLoading
                 ? const SizedBox(
                     width: 16,
@@ -240,4 +279,14 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
             ),
     );
   }
+}
+
+/// 图片批量上传的事务化异常
+class _UploadTransactionException implements Exception {
+  final int failedIndex;
+  final String reason;
+  const _UploadTransactionException(this.failedIndex, this.reason);
+
+  @override
+  String toString() => '第 ${failedIndex + 1} 张图片上传失败：$reason';
 }

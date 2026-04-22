@@ -98,19 +98,44 @@ Future _apiRequest(
     if (rp.statusCode == 404) {
       if (fail != null) fail('404 not found');
     } else {
-      Map<String, dynamic> base = jsonDecode(body);
-      if (rp.statusCode == 200) {
-        if (base['code'] != 0) {
-          if (fail != null) fail(base['desc']);
-        } else {
-          if (ok != null) ok(base['data']);
-        }
-      } else if (base['code'] != 0) {
-        if (fail != null) fail(base['desc']);
+      dynamic decoded;
+      try {
+        decoded = body.isEmpty ? null : jsonDecode(body);
+      } catch (_) {
+        decoded = null;
+      }
+      if (rp.statusCode >= 200 && rp.statusCode < 300) {
+        final data = decoded is Map<String, dynamic>
+            ? decoded
+            : <String, dynamic>{};
+        if (ok != null) ok(data);
+      } else {
+        final msg = _extractErrorMessage(decoded, body, rp.statusCode);
+        if (fail != null) fail(msg);
       }
     }
   } catch (e) {
     if (fail != null) fail(e.toString());
   }
   if (eventually != null) eventually();
+}
+
+/// 从后端错误响应中尽量挖出人类可读的错误文案。
+/// 优先级：JSON 常见 error 字段 → body 原文 → http 状态码兜底。
+String _extractErrorMessage(dynamic decoded, String body, int statusCode) {
+  if (decoded is Map<String, dynamic>) {
+    final errMsg = decoded['desc'] ??
+        decoded['msg'] ??
+        decoded['message'] ??
+        decoded['error'];
+    if (errMsg != null && errMsg.toString().trim().isNotEmpty) {
+      return errMsg.toString();
+    }
+  }
+  final trimmed = body.trim();
+  if (trimmed.isNotEmpty) {
+    // 避免超长 body 把 UI 撑爆
+    return trimmed.length > 200 ? trimmed.substring(0, 200) : trimmed;
+  }
+  return 'http $statusCode';
 }

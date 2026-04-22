@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../../core/api/api_adapter.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../sdk/data/gateway.dart';
@@ -36,6 +35,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   int _commentPage = 1;
   bool _hasMoreComments = true;
   int _commentSortBy = 1;
+  final ScrollController _scrollCtrl = ScrollController();
 
   // 乐观更新状态
   bool? _optimisticIsLiked;
@@ -50,7 +50,26 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   @override
   void initState() {
     super.initState();
+    _scrollCtrl.addListener(_onScroll);
     _loadComments();
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.removeListener(_onScroll);
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollCtrl.hasClients) return;
+    final threshold = _scrollCtrl.position.maxScrollExtent - 300;
+    if (_scrollCtrl.position.pixels >= threshold &&
+        !_isLoadingComments &&
+        _hasMoreComments) {
+      _commentPage++;
+      _loadComments();
+    }
   }
 
   Future<void> _loadComments() async {
@@ -187,8 +206,22 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
             children: [
               Expanded(
                 child: CustomScrollView(
+                  controller: _scrollCtrl,
                   slivers: [
-                    SliverAppBar(title: const Text('帖子详情'), floating: true),
+                    SliverAppBar(
+                      title: const Text('帖子详情'),
+                      floating: true,
+                      leading: IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go('/feed');
+                          }
+                        },
+                      ),
+                    ),
                     // 帖子内容
                     SliverToBoxAdapter(
                       child: Padding(
@@ -318,6 +351,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                     setState(() {
                                       _commentSortBy = v.first;
                                       _commentPage = 1;
+                                      _hasMoreComments = true;
+                                      _comments = [];
                                     });
                                     _loadComments();
                                   },
@@ -348,20 +383,33 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
                           if (index >= topLevel.length) {
-                            return _isLoadingComments
-                                ? const Padding(
-                                    padding: EdgeInsets.all(16),
-                                    child: Center(
-                                        child:
-                                            CircularProgressIndicator()),
-                                  )
-                                : null;
+                            // tail 位置：优先显示加载中，否则显示"没有更多了"
+                            if (_isLoadingComments) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
+                            if (!_hasMoreComments && topLevel.isNotEmpty) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                child: Center(
+                                  child: Text(
+                                    '— 没有更多了 —',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.outline,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                            return null;
                           }
                           final comment = topLevel[index];
                           return CommentItemWidget(
                             comment: comment,
-                            replies:
-                                repliesMap[comment.id] ?? [],
+                            replies: repliesMap[comment.id] ?? [],
                             onReply: () {
                               setState(() {
                                 _replyToUser = comment.userName;
@@ -371,8 +419,10 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                             },
                           );
                         },
-                        childCount:
-                            topLevel.length + (_isLoadingComments ? 1 : 0),
+                        childCount: topLevel.length +
+                            ((_isLoadingComments || (!_hasMoreComments && topLevel.isNotEmpty))
+                                ? 1
+                                : 0),
                       ),
                     ),
                   ],

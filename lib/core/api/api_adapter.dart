@@ -1,4 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+import '../../sdk/vars/kv.dart';
+import '../../sdk/vars/vars.dart';
 import 'api_exceptions.dart';
 
 /// 将 SDK 的 ok/fail/eventually 回调模式转换为 Future<T>
@@ -47,4 +52,100 @@ Future<T> apiCallWithTimeout<T>(
     timeout,
     onTimeout: () => throw const ApiException('请求超时'),
   );
+}
+
+/// Multipart POST 上传，用于文件上传场景。
+///
+/// [contentType] 为该 part 的 MIME，如 `image/jpeg`；服务端常对此做白名单校验。
+Future<T> apiPostMultipart<T>({
+  required String path,
+  required String fieldName,
+  required String filename,
+  required List<int> bytes,
+  required T Function(Map<String, dynamic>) decodeData,
+  String contentType = 'application/octet-stream',
+  Duration timeout = const Duration(seconds: 60),
+}) async {
+  final boundary = '----dart-xiaobaihe-${_randomBoundary()}';
+  final body = _buildMultipartBody(
+    boundary: boundary,
+    fieldName: fieldName,
+    filename: filename,
+    bytes: bytes,
+    contentType: contentType,
+  );
+
+  final tokens = await getTokens();
+  final client = HttpClient();
+  client.connectionTimeout = timeout;
+
+  try {
+    final req = await client.postUrl(Uri.parse(serverHost + path));
+    req.headers.set('Content-Type', 'multipart/form-data; boundary=$boundary');
+    req.headers.set('Content-Length', body.length);
+    if (tokens != null) {
+      req.headers.set('Authorization', tokens.accessToken);
+    }
+    req.add(body);
+
+    final rp = await req.close().timeout(timeout);
+    final respBody = await rp.transform(utf8.decoder).join();
+
+    if (rp.statusCode == 404) {
+      throw const ApiException('404 not found');
+    }
+
+    dynamic decoded;
+    try {
+      decoded = respBody.isEmpty ? null : jsonDecode(respBody);
+    } catch (_) {
+      decoded = null;
+    }
+    if (rp.statusCode < 200 || rp.statusCode >= 300) {
+      String msg = 'http ${rp.statusCode}';
+      if (decoded is Map<String, dynamic>) {
+        final errMsg = decoded['desc'] ??
+            decoded['msg'] ??
+            decoded['message'] ??
+            decoded['error'];
+        if (errMsg != null) msg = errMsg.toString();
+      }
+      throw ApiException(msg);
+    }
+    final data = decoded is Map<String, dynamic>
+        ? decoded
+        : <String, dynamic>{};
+    return decodeData(data);
+  } on ApiException {
+    rethrow;
+  } catch (e) {
+    throw ApiException(e.toString());
+  } finally {
+    client.close(force: true);
+  }
+}
+
+String _randomBoundary() {
+  final rnd = Random();
+  return List.generate(16, (_) => rnd.nextInt(36).toRadixString(36)).join();
+}
+
+List<int> _buildMultipartBody({
+  required String boundary,
+  required String fieldName,
+  required String filename,
+  required List<int> bytes,
+  required String contentType,
+}) {
+  final crlf = '\r\n';
+  final head = '--$boundary$crlf'
+      'Content-Disposition: form-data; name="$fieldName"; filename="$filename"$crlf'
+      'Content-Type: $contentType$crlf'
+      '$crlf';
+  final tail = '$crlf--$boundary--$crlf';
+  return [
+    ...utf8.encode(head),
+    ...bytes,
+    ...utf8.encode(tail),
+  ];
 }
