@@ -1,1 +1,2 @@
-const serverHost = 'http://go-zero.dev';
+const serverHost =
+    String.fromEnvironment('SERVER_HOST', defaultValue: 'http://go-zero.dev');
