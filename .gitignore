@@ -51,3 +51,12 @@ examination/
 # Local planning scratch docs
 docs/superpowers/specs/2026-04-22-app-centric-repo-organization-finish-design.md
 docs/superpowers/plans/2026-04-22-app-centric-repo-organization-finish-plan.md
+
+# Flutter generated plugin registrants
+**/generated_plugin_registrant.*
+**/generated_plugins.cmake
+**/GeneratedPluginRegistrant.*
+
+# doc
+docs
+CLAUDE.md
