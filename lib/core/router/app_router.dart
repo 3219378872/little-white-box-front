@@ -62,15 +62,16 @@ final routerProvider = Provider<GoRouter>((ref) {
                 const NoTransitionPage(child: FeedPage()),
           ),
           GoRoute(
+            path: '/post/new',
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: PostEditorPage()),
+          ),
+          GoRoute(
             path: '/profile',
             pageBuilder: (context, state) =>
                 const NoTransitionPage(child: ProfilePage()),
           ),
         ],
-      ),
-      GoRoute(
-        path: '/post/new',
-        builder: (context, state) => const PostEditorPage(),
       ),
       GoRoute(
         path: '/post/edit/:postId',
@@ -98,34 +99,83 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class MainShell extends StatelessWidget {
+class MainShell extends ConsumerStatefulWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
   @override
+  ConsumerState<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends ConsumerState<MainShell> {
+  int _selectedIndex = 0;
+
+  void _onDestinationSelected(int index) {
+    final auth = ref.read(authNotifierProvider);
+    final isLoggedIn = auth.isAuthenticated;
+
+    if (index == 1) {
+      // 发布 Tab
+      if (!isLoggedIn) {
+        context.push('/auth/login');
+        return;
+      }
+      context.go('/post/new');
+      setState(() => _selectedIndex = index);
+      return;
+    }
+
+    if (index == 2) {
+      // 我的 Tab
+      if (!isLoggedIn) {
+        context.push('/auth/login');
+        return;
+      }
+      context.go('/profile');
+      setState(() => _selectedIndex = index);
+      return;
+    }
+
+    // 首页
+    context.go('/feed');
+    setState(() => _selectedIndex = index);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final location = GoRouterState.of(context).matchedLocation;
+    final index = _calculateIndex(location);
+
     return Scaffold(
-      body: child,
+      body: widget.child,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _calculateIndex(GoRouterState.of(context).matchedLocation),
-        onDestinationSelected: (index) {
-          switch (index) {
-            case 0:
-              context.go('/feed');
-            case 1:
-              context.go('/profile');
-          }
-        },
+        selectedIndex: index,
+        onDestinationSelected: _onDestinationSelected,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: '首页'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: '我的'),
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: '首页',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.add_circle_outline, size: 28),
+            selectedIcon: Icon(Icons.add_circle, size: 28),
+            label: '发布',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: '我的',
+          ),
         ],
       ),
     );
   }
 
   int _calculateIndex(String location) {
-    if (location.startsWith('/profile')) return 1;
-    return 0;
+    if (location.startsWith('/profile')) return 2;
+    if (location.startsWith('/post/new')) return 1;
+    if (location.startsWith('/feed')) return 0;
+    return _selectedIndex;
   }
 }
