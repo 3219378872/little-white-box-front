@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/api/api_exceptions.dart';
 import '../../../sdk/data/gateway.dart';
 import '../data/post_list_repository.dart';
 
@@ -58,7 +59,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
         hasMore: resp.list.length >= _pageSize,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
     }
   }
 
@@ -76,7 +77,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
         isLoadingMore: false,
       );
     } catch (e) {
-      state = state.copyWith(isLoadingMore: false, error: e.toString());
+      state = state.copyWith(isLoadingMore: false, error: friendlyErrorMessage(e));
     }
   }
 

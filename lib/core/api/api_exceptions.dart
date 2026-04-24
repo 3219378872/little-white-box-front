@@ -25,3 +25,10 @@ class ApiException implements Exception {
   @override
   String toString() => message;
 }
+
+String friendlyErrorMessage(Object error) {
+  if (error is ApiException) return error.message;
+  final str = error.toString();
+  if (str.startsWith('Exception: ')) return str.substring(11);
+  return str;
+}

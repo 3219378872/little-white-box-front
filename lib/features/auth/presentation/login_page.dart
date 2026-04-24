@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/api/api_exceptions.dart';
 import '../application/auth_notifier.dart';
 import '../data/auth_repository.dart';
 import 'widgets/verify_code_button.dart';
@@ -73,7 +74,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
           .read(authNotifierProvider.notifier)
           .onLoginSuccess(resp.userId, resp.token);
     } catch (e) {
-      _showError(e.toString());
+      _showError(friendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

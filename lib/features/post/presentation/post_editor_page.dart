@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/api/api_exceptions.dart';
 import '../../../sdk/data/gateway.dart';
 import '../data/post_repository.dart';
 import 'widgets/image_picker_grid.dart';
@@ -60,7 +61,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('加载失败: $e')));
+            .showSnackBar(SnackBar(content: Text('加载失败: ${friendlyErrorMessage(e)}')));
         context.pop();
       }
     }
@@ -167,7 +168,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('发布失败: $e')));
+            .showSnackBar(SnackBar(content: Text('发布失败: ${friendlyErrorMessage(e)}')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

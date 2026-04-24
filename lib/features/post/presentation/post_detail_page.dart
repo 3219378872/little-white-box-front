@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/api/api_exceptions.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../sdk/data/gateway.dart';
@@ -116,7 +117,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('操作失败: $e')));
+            .showSnackBar(SnackBar(content: Text('操作失败: ${friendlyErrorMessage(e)}')));
       }
     }
   }
@@ -141,7 +142,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('操作失败: $e')));
+            .showSnackBar(SnackBar(content: Text('操作失败: ${friendlyErrorMessage(e)}')));
       }
     }
   }
@@ -171,7 +172,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('评论失败: $e')));
+            .showSnackBar(SnackBar(content: Text('评论失败: ${friendlyErrorMessage(e)}')));
       }
     }
   }
@@ -185,7 +186,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       body: postAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorView(
-          message: e.toString(),
+          message: friendlyErrorMessage(e),
           onRetry: () => ref.invalidate(_postDetailProvider(widget.postId)),
         ),
         data: (post) {

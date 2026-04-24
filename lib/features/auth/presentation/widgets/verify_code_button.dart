@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../../core/api/api_exceptions.dart';
 
 class VerifyCodeButton extends StatefulWidget {
   final Future<void> Function() onSend;
@@ -30,7 +31,7 @@ class _VerifyCodeButtonState extends State<VerifyCodeButton> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('发送失败: $e')),
+          SnackBar(content: Text('发送失败: ${friendlyErrorMessage(e)}')),
         );
       }
     } finally {

@@ -56,4 +56,19 @@ void main() {
       expect(const ApiException('').isAuthError, isFalse);
     });
   });
+
+  group('friendlyErrorMessage', () {
+    test('ApiException 直接返回 message', () {
+      const e = ApiException('密码错误', code: 1003);
+      expect(friendlyErrorMessage(e), '密码错误');
+    });
+
+    test('普通 Exception 去掉前缀', () {
+      expect(friendlyErrorMessage(Exception('网络超时')), '网络超时');
+    });
+
+    test('非 Exception 对象返回 toString', () {
+      expect(friendlyErrorMessage('some error'), 'some error');
+    });
+  });
 }
