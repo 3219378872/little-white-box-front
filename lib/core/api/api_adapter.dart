@@ -6,6 +6,9 @@ import '../../sdk/vars/kv.dart';
 import '../../sdk/vars/vars.dart';
 import 'api_exceptions.dart';
 
+typedef AuthErrorCallback = Future<void> Function();
+AuthErrorCallback? onAuthError;
+
 /// 将 SDK 的 ok/fail/eventually 回调模式转换为 Future<T>
 ///
 /// 用法示例:
@@ -29,7 +32,11 @@ Future<T> apiCall<T>(
     },
     (error) {
       if (!completer.isCompleted) {
-        completer.completeError(ApiException.parse(error));
+        final exception = ApiException.parse(error);
+        if (exception.isAuthError) {
+          onAuthError?.call();
+        }
+        completer.completeError(exception);
       }
     },
     () {
@@ -105,7 +112,9 @@ Future<T> apiPostMultipart<T>({
       if (decoded is Map<String, dynamic>) {
         code = decoded['code'] as int?;
       }
-      throw ApiException('404 not found', code: code);
+      final ex = ApiException('404 not found', code: code);
+      if (ex.isAuthError) onAuthError?.call();
+      throw ex;
     }
 
     if (rp.statusCode < 200 || rp.statusCode >= 300) {
@@ -119,7 +128,9 @@ Future<T> apiPostMultipart<T>({
             decoded['error'];
         if (errMsg != null) msg = errMsg.toString();
       }
-      throw ApiException(msg, code: code);
+      final ex = ApiException(msg, code: code);
+      if (ex.isAuthError) onAuthError?.call();
+      throw ex;
     }
     final data = decoded is Map<String, dynamic>
         ? decoded

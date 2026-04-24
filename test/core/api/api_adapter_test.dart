@@ -59,6 +59,48 @@ void main() {
     });
   });
 
+  group('auth error interception', () {
+    tearDown(() {
+      onAuthError = null;
+    });
+
+    test('fail 携带认证错误码时触发 onAuthError 回调', () async {
+      bool called = false;
+      onAuthError = () async {
+        called = true;
+      };
+
+      try {
+        await apiCall<String>(
+          (ok, fail, eventually) {
+            fail(jsonEncode({'code': 1004, 'message': 'token 已过期'}));
+            eventually();
+          },
+        );
+      } on ApiException catch (_) {}
+
+      expect(called, isTrue);
+    });
+
+    test('非认证错误不触发 onAuthError', () async {
+      bool called = false;
+      onAuthError = () async {
+        called = true;
+      };
+
+      try {
+        await apiCall<String>(
+          (ok, fail, eventually) {
+            fail(jsonEncode({'code': 1003, 'message': '密码错误'}));
+            eventually();
+          },
+        );
+      } on ApiException catch (_) {}
+
+      expect(called, isFalse);
+    });
+  });
+
   group('apiCallWithTimeout', () {
     test('超时抛出 ApiException', () async {
       try {
