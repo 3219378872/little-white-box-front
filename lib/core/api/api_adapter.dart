@@ -28,7 +28,9 @@ Future<T> apiCall<T>(
       if (!completer.isCompleted) completer.complete(data);
     },
     (error) {
-      if (!completer.isCompleted) completer.completeError(ApiException(error));
+      if (!completer.isCompleted) {
+        completer.completeError(ApiException.parse(error));
+      }
     },
     () {
       if (!completer.isCompleted) {
