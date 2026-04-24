@@ -134,7 +134,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
             );
         if (mounted) context.pop();
       } else {
-        final resp = await ref.read(_postRepoProvider).createNewPost(
+        await ref.read(_postRepoProvider).createNewPost(
               CreatePostReq(
                 title: _titleCtrl.text.trim(),
                 content: _contentCtrl.text.trim(),
@@ -144,7 +144,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
               ),
             );
         if (mounted) {
-          context.go('/post/${resp.postId.toInt()}');
+          context.go('/feed');
         }
       }
     } on _UploadTransactionException catch (e) {
