@@ -149,11 +149,11 @@ class _ProfileContentState extends ConsumerState<_ProfileContent>
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    CachedAvatar(url: user.avatarUrl, radius: 40),
+                    CachedAvatar(url: user.avatarUrl, radius: 28),
                     const SizedBox(height: 12),
                     Text(
                       user.nickname.isNotEmpty ? user.nickname : user.username,
-                      style: theme.textTheme.titleLarge,
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     if (user.bio.isNotEmpty) ...[
                       const SizedBox(height: 4),
@@ -235,12 +235,18 @@ class _ProfileContentState extends ConsumerState<_ProfileContent>
   Widget _statColumn(String label, int count) {
     return Column(
       children: [
-        Text('$count',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.bold)),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          '$count',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+        ),
       ],
     );
   }
