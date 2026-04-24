@@ -210,7 +210,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                   controller: _scrollCtrl,
                   slivers: [
                     SliverAppBar(
-                      title: const Text('帖子详情'),
+                      title: Text(post.authorName),
                       floating: true,
                       leading: IconButton(
                         icon: const Icon(Icons.arrow_back),
