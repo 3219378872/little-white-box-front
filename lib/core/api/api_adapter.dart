@@ -93,26 +93,33 @@ Future<T> apiPostMultipart<T>({
     final rp = await req.close().timeout(timeout);
     final respBody = await rp.transform(utf8.decoder).join();
 
-    if (rp.statusCode == 404) {
-      throw const ApiException('404 not found');
-    }
-
     dynamic decoded;
     try {
       decoded = respBody.isEmpty ? null : jsonDecode(respBody);
     } catch (_) {
       decoded = null;
     }
+
+    if (rp.statusCode == 404) {
+      int? code;
+      if (decoded is Map<String, dynamic>) {
+        code = decoded['code'] as int?;
+      }
+      throw ApiException('404 not found', code: code);
+    }
+
     if (rp.statusCode < 200 || rp.statusCode >= 300) {
+      int? code;
       String msg = 'http ${rp.statusCode}';
       if (decoded is Map<String, dynamic>) {
-        final errMsg = decoded['desc'] ??
+        code = decoded['code'] as int?;
+        final errMsg = decoded['message'] ??
             decoded['msg'] ??
-            decoded['message'] ??
+            decoded['desc'] ??
             decoded['error'];
         if (errMsg != null) msg = errMsg.toString();
       }
-      throw ApiException(msg);
+      throw ApiException(msg, code: code);
     }
     final data = decoded is Map<String, dynamic>
         ? decoded
