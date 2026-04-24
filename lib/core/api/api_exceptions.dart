@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'error_codes.dart';
+
 class ApiException implements Exception {
   final String message;
   final int? code;
@@ -18,8 +20,7 @@ class ApiException implements Exception {
     }
   }
 
-  bool get isAuthError =>
-      code != null && (code == 1004 || code == 1005 || code == 1006);
+  bool get isAuthError => ErrorCodes.isAuthError(code);
 
   @override
   String toString() => message;
