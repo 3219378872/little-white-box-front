@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/skeleton_loader.dart';
-import '../../../features/auth/application/auth_notifier.dart';
 import '../application/feed_notifier.dart';
 import 'widgets/post_card.dart';
 
@@ -18,9 +16,8 @@ class _FeedPageState extends ConsumerState<FeedPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   static const _tabs = [
-    _TabInfo('最新', 1),
-    _TabInfo('热门', 2),
     _TabInfo('推荐', 3),
+    _TabInfo('关注', -1),
   ];
 
   @override
@@ -37,30 +34,79 @@ class _FeedPageState extends ConsumerState<FeedPage>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('小白盒'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: _tabs.map((t) => Tab(text: t.label)).toList(),
+        toolbarHeight: 0,
+        elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            color: theme.colorScheme.surfaceContainerLowest,
+            child: TabBar(
+              controller: _tabController,
+              indicator: const BoxDecoration(),
+              dividerColor: Colors.transparent,
+              tabs: _tabs.asMap().entries.map((entry) {
+                final index = entry.key;
+                final label = entry.value.label;
+                return _AnimatedTab(
+                  label: label,
+                  index: index,
+                  controller: _tabController,
+                );
+              }).toList(),
+            ),
+          ),
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children:
-            _tabs.map((t) => _FeedListView(sortBy: t.sortBy)).toList(),
+        children: _tabs.map((t) => _FeedContent(sortBy: t.sortBy)).toList(),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          final auth = ref.read(authNotifierProvider);
-          if (!auth.isAuthenticated) {
-            context.push('/auth/login');
-            return;
-          }
-          context.push('/post/new');
-        },
-        child: const Icon(Icons.edit),
-      ),
+    );
+  }
+}
+
+class _AnimatedTab extends StatelessWidget {
+  final String label;
+  final int index;
+  final TabController controller;
+
+  const _AnimatedTab({
+    required this.label,
+    required this.index,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final unselectedColor = Theme.of(context).colorScheme.outline;
+
+    return AnimatedBuilder(
+      animation: controller.animation!,
+      builder: (context, child) {
+        final value = controller.animation!.value;
+        final selectedness = 1.0 - (value - index).abs().clamp(0.0, 1.0);
+        final scale = 0.9 + 0.15 * selectedness;
+        final color = Color.lerp(unselectedColor, primaryColor, selectedness)!;
+
+        return Transform.scale(
+          scale: scale,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: selectedness > 0.5 ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -71,15 +117,15 @@ class _TabInfo {
   const _TabInfo(this.label, this.sortBy);
 }
 
-class _FeedListView extends ConsumerStatefulWidget {
+class _FeedContent extends ConsumerStatefulWidget {
   final int sortBy;
-  const _FeedListView({required this.sortBy});
+  const _FeedContent({required this.sortBy});
 
   @override
-  ConsumerState<_FeedListView> createState() => _FeedListViewState();
+  ConsumerState<_FeedContent> createState() => _FeedContentState();
 }
 
-class _FeedListViewState extends ConsumerState<_FeedListView> {
+class _FeedContentState extends ConsumerState<_FeedContent> {
   final _scrollController = ScrollController();
 
   @override
@@ -104,6 +150,10 @@ class _FeedListViewState extends ConsumerState<_FeedListView> {
   @override
   Widget build(BuildContext context) {
     final feedState = ref.watch(feedNotifierProvider(widget.sortBy));
+
+    if (widget.sortBy == -1) {
+      return const EmptyView(message: '关注流功能开发中');
+    }
 
     if (feedState.isLoading && feedState.posts.isEmpty) {
       return const PostCardSkeletonList();
