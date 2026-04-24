@@ -13,21 +13,21 @@ class PostCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () => context.push('/post/${post.id.toInt()}'),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 作者信息
+              // 作者信息行（更紧凑）
               Row(
                 children: [
                   GestureDetector(
                     onTap: () => context.push('/user/${post.authorId.toInt()}'),
-                    child: CachedAvatar(url: post.authorAvatar, radius: 16),
+                    child: CachedAvatar(url: post.authorAvatar, radius: 14),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -44,64 +44,38 @@ class PostCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               // 标题
               if (post.title.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    post.title,
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                Text(
+                  post.title,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               // 内容摘要
               if (post.content.isNotEmpty)
-                Text(
-                  post.content,
-                  style: theme.textTheme.bodyMedium,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              // 图片预览
-              if (post.images.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 100,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: post.images.length > 3 ? 3 : post.images.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) => ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: CachedNetworkImage(
-                        imageUrl: post.images[index],
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(
-                          width: 100,
-                          height: 100,
-                          color: theme.colorScheme.surfaceContainerHighest,
-                        ),
-                        errorWidget: (_, __, ___) => Container(
-                          width: 100,
-                          height: 100,
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          child: const Icon(Icons.broken_image_outlined),
-                        ),
-                      ),
-                    ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    post.content,
+                    style: theme.textTheme.bodyMedium,
+                    maxLines: post.title.isNotEmpty ? 2 : 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+              // 图片展示（首张占满宽度）
+              if (post.images.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildImagePreview(theme),
               ],
               // 标签
               if (post.tags.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Wrap(
                   spacing: 6,
+                  runSpacing: 4,
                   children: post.tags
                       .map((tag) => Chip(
                             label: Text(tag),
@@ -113,22 +87,64 @@ class PostCard extends StatelessWidget {
                 ),
               ],
               // 底部统计
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _statItem(
-                      context, Icons.thumb_up_outlined, post.likeCount.toInt()),
-                  const SizedBox(width: 16),
-                  _statItem(
-                      context, Icons.chat_bubble_outline, post.commentCount.toInt()),
-                  const SizedBox(width: 16),
-                  _statItem(
-                      context, Icons.remove_red_eye_outlined, post.viewCount.toInt()),
+                  _statItem(context, Icons.thumb_up_outlined, post.likeCount.toInt()),
+                  _statItem(context, Icons.chat_bubble_outline, post.commentCount.toInt()),
+                  _statItem(context, Icons.remove_red_eye_outlined, post.viewCount.toInt()),
                 ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildImagePreview(ThemeData theme) {
+    final firstImage = post.images.first;
+    final hasMore = post.images.length > 1;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Stack(
+        children: [
+          CachedNetworkImage(
+            imageUrl: firstImage,
+            width: double.infinity,
+            height: 180,
+            fit: BoxFit.cover,
+            placeholder: (_, _) => Container(
+              width: double.infinity,
+              height: 180,
+              color: theme.colorScheme.surfaceContainerHighest,
+            ),
+            errorWidget: (_, _, _) => Container(
+              width: double.infinity,
+              height: 180,
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: const Icon(Icons.broken_image_outlined),
+            ),
+          ),
+          if (hasMore)
+            Positioned(
+              right: 8,
+              bottom: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '+${post.images.length - 1}',
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
