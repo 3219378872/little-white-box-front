@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/features/feed/presentation/widgets/post_card.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
 
+import '../../../../helpers/forui_test_builder.dart';
+
 void main() {
   testWidgets('PostCard renders title and stats', (tester) async {
     final post = PostItem(
@@ -21,7 +23,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: PostCard(post: post))),
+      MaterialApp(builder: foruiTestBuilder, home: Scaffold(body: PostCard(post: post))),
     );
 
     expect(find.text('Hello World'), findsOneWidget);
@@ -48,7 +50,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: PostCard(post: post))),
+      MaterialApp(builder: foruiTestBuilder, home: Scaffold(body: PostCard(post: post))),
     );
 
     expect(find.text('+2'), findsOneWidget);

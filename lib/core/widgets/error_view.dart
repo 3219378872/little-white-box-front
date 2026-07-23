@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:forui/forui.dart';
 
 class ErrorView extends StatelessWidget {
   final String message;
@@ -8,6 +9,7 @@ class ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.theme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -15,20 +17,21 @@ class ErrorView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.error_outline,
+              FLucideIcons.circleAlert,
               size: 48,
-              color: Theme.of(context).colorScheme.error,
+              color: theme.colors.error,
             ),
             const SizedBox(height: 16),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
+              style: theme.typography.body.lg,
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 16),
-              FilledButton.tonal(
-                onPressed: onRetry,
+              FButton(
+                variant: FButtonVariant.secondary,
+                onPress: onRetry!,
                 child: const Text('重试'),
               ),
             ],
@@ -46,24 +49,24 @@ class EmptyView extends StatelessWidget {
   const EmptyView({
     super.key,
     this.message = '暂无内容',
-    this.icon = Icons.inbox_outlined,
+    this.icon = FLucideIcons.inbox,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.theme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 64, color: Theme.of(context).colorScheme.outline),
+            Icon(icon, size: 64, color: theme.colors.mutedForeground),
             const SizedBox(height: 16),
             Text(
               message,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+              style: theme.typography.body.lg
+                  .copyWith(color: theme.colors.mutedForeground),
             ),
           ],
         ),

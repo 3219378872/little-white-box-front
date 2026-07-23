@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/presentation/login_page.dart';
@@ -154,29 +155,27 @@ class _MainShellState extends ConsumerState<MainShell> {
     final location = GoRouterState.of(context).matchedLocation;
     final index = _calculateIndex(location);
 
-    return Scaffold(
-      body: ContentConstraint(child: widget.child),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: _onDestinationSelected,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: '首页',
+    return FScaffold(
+      childPad: false,
+      footer: FBottomNavigationBar(
+        index: index,
+        onChange: _onDestinationSelected,
+        children: const [
+          FBottomNavigationBarItem(
+            icon: Icon(FLucideIcons.house),
+            label: Text('首页'),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.add_circle_outline, size: 28),
-            selectedIcon: Icon(Icons.add_circle, size: 28),
-            label: '发布',
+          FBottomNavigationBarItem(
+            icon: Icon(FLucideIcons.circlePlus),
+            label: Text('发布'),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: '我的',
+          FBottomNavigationBarItem(
+            icon: Icon(FLucideIcons.userRound),
+            label: Text('我的'),
           ),
         ],
       ),
+      child: ContentConstraint(child: widget.child),
     );
   }
 

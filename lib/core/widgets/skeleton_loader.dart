@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:forui/forui.dart';
 import 'package:shimmer/shimmer.dart';
 
 class SkeletonLoader extends StatelessWidget {
@@ -8,9 +9,10 @@ class SkeletonLoader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.theme.colors;
     return Shimmer.fromColors(
-      baseColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-      highlightColor: Theme.of(context).colorScheme.surface,
+      baseColor: colors.secondary,
+      highlightColor: colors.background,
       child: child,
     );
   }
@@ -24,9 +26,9 @@ class PostCardSkeleton extends StatelessWidget {
     return SkeletonLoader(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+        child: FCard(
+          builder: (context, style, _) => Padding(
+            padding: style.padding,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

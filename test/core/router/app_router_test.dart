@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:xiaobaihe_app/core/router/app_router.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 
+import '../../helpers/forui_test_builder.dart';
+
 void main() {
   testWidgets('MainShell renders 3 navigation destinations', (tester) async {
     final container = ProviderContainer();
@@ -13,7 +15,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: MaterialApp.router(routerConfig: router),
+        child: MaterialApp.router(routerConfig: router, builder: foruiTestBuilder),
       ),
     );
     await tester.pump();

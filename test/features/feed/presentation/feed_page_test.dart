@@ -3,10 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/features/feed/presentation/feed_page.dart';
 
+import '../../../helpers/forui_test_builder.dart';
+
 void main() {
   testWidgets('FeedPage shows 推荐 and 关注 tabs', (tester) async {
     await tester.pumpWidget(
-      const ProviderScope(child: MaterialApp(home: FeedPage())),
+      const ProviderScope(
+        child: MaterialApp(builder: foruiTestBuilder, home: FeedPage()),
+      ),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -17,7 +21,9 @@ void main() {
 
   testWidgets('关注 tab shows placeholder', (tester) async {
     await tester.pumpWidget(
-      const ProviderScope(child: MaterialApp(home: FeedPage())),
+      const ProviderScope(
+        child: MaterialApp(builder: foruiTestBuilder, home: FeedPage()),
+      ),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
