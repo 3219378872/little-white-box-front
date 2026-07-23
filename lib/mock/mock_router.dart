@@ -107,6 +107,9 @@ String _buildFakeJwt(int userId) {
   return '$header.$payload.fake-sig';
 }
 
+/// Default account used when the Mock web entry point starts.
+String mockAccessTokenForUser(int userId) => _buildFakeJwt(userId);
+
 Map<String, dynamic> _handleAuth(
   List<String> segments,
   Map<String, dynamic> body,

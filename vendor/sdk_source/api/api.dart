@@ -13,6 +13,13 @@ void setApiClient(http.Client client) {
 
 http.Client get apiClient => _apiClient;
 
+/// Supports the gateway envelope used by both the real API and Mock router.
+Map<String, dynamic> apiResponseData(dynamic decoded) {
+  if (decoded is! Map<String, dynamic>) return <String, dynamic>{};
+  final nested = decoded['data'];
+  return nested is Map<String, dynamic> ? nested : decoded;
+}
+
 /// send request with post method
 ///
 /// data: any request class that will be converted to json automatically
@@ -107,9 +114,7 @@ Future _apiRequest(
         decoded = null;
       }
       if (rp.statusCode >= 200 && rp.statusCode < 300) {
-        final data = decoded is Map<String, dynamic>
-            ? decoded
-            : <String, dynamic>{};
+      final data = apiResponseData(decoded);
         if (ok != null) ok(data);
       } else {
         final msg = _extractErrorMessage(decoded, body, rp.statusCode);

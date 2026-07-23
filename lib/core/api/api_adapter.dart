@@ -125,9 +125,7 @@ Future<T> apiPostMultipart<T>({
       if (ex.isAuthError) onAuthError?.call();
       throw ex;
     }
-    final data = decoded is Map<String, dynamic>
-        ? decoded
-        : <String, dynamic>{};
+    final data = sdk_api.apiResponseData(decoded);
     return decodeData(data);
   } on ApiException {
     rethrow;

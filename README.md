@@ -46,6 +46,8 @@ flutter build apk
 The browser development entry point uses the in-repo mock API and does not
 require the Go backend or local middleware services:
 
+Mock mode starts authenticated as the seed user `1` (`小白鸽`).
+
 ```bash
 flutter pub get
 flutter run -d web-server \
