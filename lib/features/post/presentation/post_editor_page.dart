@@ -1,7 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../sdk/data/gateway.dart';
 import '../data/post_repository.dart';
@@ -23,7 +23,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   final List<String> _tags = [];
   final _tagCtrl = TextEditingController();
   final List<String> _networkImages = [];
-  final List<File> _localImages = [];
+  final List<XFile> _localImages = [];
   bool _isLoading = false;
   bool _isInitialized = false;
 
@@ -86,7 +86,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
       futures.add(() async {
         try {
           final bytes = await file.readAsBytes();
-          final name = file.path.split(RegExp(r'[/\\]')).last;
+          final name = file.name;
           final url = await repo.uploadImageMultipart(
             bytes: bytes,
             filename: name,

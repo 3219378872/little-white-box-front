@@ -1,12 +1,13 @@
-import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class ImagePickerGrid extends StatelessWidget {
   final List<String> networkImages;
-  final List<File> localImages;
-  final ValueChanged<File> onAdd;
+  final List<XFile> localImages;
+  final ValueChanged<XFile> onAdd;
   final ValueChanged<int> onRemoveNetwork;
   final ValueChanged<int> onRemoveLocal;
   final int maxCount;
@@ -52,7 +53,19 @@ class ImagePickerGrid extends StatelessWidget {
         if (localIndex < localImages.length) {
           return _imageItem(
             context,
-            child: Image.file(localImages[localIndex], fit: BoxFit.cover),
+            child: FutureBuilder<Uint8List>(
+              future: localImages[localIndex].readAsBytes(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return Image.memory(
+                  snapshot.data!,
+                  fit: BoxFit.cover,
+                  gaplessPlayback: true,
+                );
+              },
+            ),
             onRemove: () => onRemoveLocal(localIndex),
           );
         }
@@ -101,7 +114,7 @@ class ImagePickerGrid extends StatelessWidget {
           imageQuality: 85,
         );
         if (xFile != null) {
-          onAdd(File(xFile.path));
+          onAdd(xFile);
         }
       },
       child: Container(

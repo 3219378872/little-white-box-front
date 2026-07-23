@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'dart:math';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../../sdk/vars/kv.dart';
 import '../../sdk/vars/vars.dart';
+import '../../sdk/api/api.dart' as sdk_api;
 import 'api_exceptions.dart';
 
 typedef AuthErrorCallback = Future<void> Function();
@@ -75,30 +76,22 @@ Future<T> apiPostMultipart<T>({
   String contentType = 'application/octet-stream',
   Duration timeout = const Duration(seconds: 60),
 }) async {
-  final boundary = '----dart-xiaobaihe-${_randomBoundary()}';
-  final body = _buildMultipartBody(
-    boundary: boundary,
-    fieldName: fieldName,
-    filename: filename,
-    bytes: bytes,
-    contentType: contentType,
-  );
-
   final tokens = await getTokens();
-  final client = HttpClient();
-  client.connectionTimeout = timeout;
-
   try {
-    final req = await client.postUrl(Uri.parse(serverHost + path));
-    req.headers.set('Content-Type', 'multipart/form-data; boundary=$boundary');
-    req.headers.set('Content-Length', body.length);
+    final req = http.MultipartRequest('POST', Uri.parse(serverHost + path));
     if (tokens != null) {
-      req.headers.set('Authorization', tokens.accessToken);
+      req.headers['Authorization'] = tokens.accessToken;
     }
-    req.add(body);
+    req.files.add(http.MultipartFile.fromBytes(
+      fieldName,
+      bytes,
+      filename: filename,
+      contentType: MediaType.parse(contentType),
+    ));
 
-    final rp = await req.close().timeout(timeout);
-    final respBody = await rp.transform(utf8.decoder).join();
+    final streamed = await sdk_api.apiClient.send(req).timeout(timeout);
+    final rp = await http.Response.fromStream(streamed);
+    final respBody = utf8.decode(rp.bodyBytes);
 
     dynamic decoded;
     try {
@@ -140,32 +133,5 @@ Future<T> apiPostMultipart<T>({
     rethrow;
   } catch (e) {
     throw ApiException(e.toString());
-  } finally {
-    client.close(force: true);
   }
-}
-
-String _randomBoundary() {
-  final rnd = Random();
-  return List.generate(16, (_) => rnd.nextInt(36).toRadixString(36)).join();
-}
-
-List<int> _buildMultipartBody({
-  required String boundary,
-  required String fieldName,
-  required String filename,
-  required List<int> bytes,
-  required String contentType,
-}) {
-  final crlf = '\r\n';
-  final head = '--$boundary$crlf'
-      'Content-Disposition: form-data; name="$fieldName"; filename="$filename"$crlf'
-      'Content-Type: $contentType$crlf'
-      '$crlf';
-  final tail = '$crlf--$boundary--$crlf';
-  return [
-    ...utf8.encode(head),
-    ...bytes,
-    ...utf8.encode(tail),
-  ];
 }

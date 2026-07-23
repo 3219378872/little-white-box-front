@@ -1,7 +1,17 @@
-import 'dart:io';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../vars/kv.dart';
 import '../vars/vars.dart';
+
+http.Client _apiClient = http.Client();
+
+/// Overrides the shared client, primarily for local mock mode and tests.
+void setApiClient(http.Client client) {
+  _apiClient.close();
+  _apiClient = client;
+}
+
+http.Client get apiClient => _apiClient;
 
 /// send request with post method
 ///
@@ -62,34 +72,26 @@ Future _apiRequest(
 }) async {
   var tokens = await getTokens();
   try {
-    var client = HttpClient();
-    HttpClientRequest r;
-    if (method == 'POST') {
-      r = await client.postUrl(Uri.parse(serverHost + path));
-    } else {
-      r = await client.getUrl(Uri.parse(serverHost + path));
-    }
-
     var strData = '';
     if (data != null) {
       strData = jsonEncode(data);
     }
+    final headers = <String, String>{};
     if (method == 'POST') {
-      r.headers.set('Content-Type', 'application/json; charset=utf-8');
-      r.headers.set('Content-Length', utf8.encode(strData).length);
+      headers['Content-Type'] = 'application/json; charset=utf-8';
     }
     if (tokens != null) {
-      r.headers.set('Authorization', tokens.accessToken);
+      headers['Authorization'] = tokens.accessToken;
     }
     if (header != null) {
-      header.forEach((k, v) {
-        r.headers.set(k, v);
-      });
+      headers.addAll(header);
     }
 
-    r.write(strData);
-    var rp = await r.close();
-    var body = await rp.transform(utf8.decoder).join();
+    final uri = Uri.parse(serverHost + path);
+    final rp = method == 'POST'
+        ? await _apiClient.post(uri, headers: headers, body: strData)
+        : await _apiClient.get(uri, headers: headers);
+    final body = utf8.decode(rp.bodyBytes);
     print('${rp.statusCode} - $path');
     print('-- request --');
     print(strData);
