@@ -34,11 +34,9 @@ This repository is app-centric:
 ## Common Commands
 
 ```bash
-flutter pub get
-flutter analyze
-flutter test
-flutter run
-flutter build apk
+make setup
+make analyze
+make test
 ```
 
 ## Web Development
@@ -48,27 +46,32 @@ require the Go backend or local middleware services:
 
 Mock mode starts authenticated as the seed user `1` (`小白鸽`).
 
-```bash
-flutter pub get
-flutter run -d web-server \
-  --web-hostname 0.0.0.0 \
-  --web-port 8080 \
-  -t lib/main_mock.dart
-```
-
-Open `http://localhost:8080` from the host browser. For a release artifact:
+For foreground development with hot reload:
 
 ```bash
-flutter build web --release -t lib/main_mock.dart
-python3 -m http.server 8080 --directory build/web
+make dev
 ```
+
+The default development port is `3000`; override it with `make dev PORT=8080`.
+
+For a release-style background server:
+
+```bash
+make start
+make status
+make stop
+```
+
+Open `http://localhost:3000` from the host browser. `make start` builds
+`build/web/`, starts a background static server, and records its PID under
+`.dart_tool/`. `make restart` rebuilds and restarts it. Use `make serve` when a
+foreground static server is preferred.
 
 To use a real API instead of Mock, run the normal entry point and provide the
 gateway URL explicitly:
 
 ```bash
-flutter run -d web-server \
-  --dart-define=SERVER_HOST=http://127.0.0.1:8888
+make dev-real SERVER_HOST=http://127.0.0.1:8888
 ```
 
 The API gateway must allow the browser origin through CORS for this mode.
