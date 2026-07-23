@@ -237,7 +237,9 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                               child: Row(
                                 children: [
                                   CachedAvatar(
-                                      url: post.authorAvatar, radius: 20),
+                                      url: post.authorAvatar,
+                                      name: post.authorName,
+                                      radius: 20),
                                   const SizedBox(width: 12),
                                   Column(
                                     crossAxisAlignment:

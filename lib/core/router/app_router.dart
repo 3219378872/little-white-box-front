@@ -9,6 +9,7 @@ import '../../features/post/presentation/post_detail_page.dart';
 import '../../features/post/presentation/post_editor_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
 import '../../features/profile/presentation/edit_profile_page.dart';
+import '../widgets/content_constraint.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -46,11 +47,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/auth/login',
-        builder: (context, state) => const LoginPage(),
+        builder: (context, state) =>
+            const ContentConstraint(child: LoginPage()),
       ),
       GoRoute(
         path: '/auth/register',
-        builder: (context, state) => const RegisterPage(),
+        builder: (context, state) =>
+            const ContentConstraint(child: RegisterPage()),
       ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
@@ -81,19 +84,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/post/:postId',
-        builder: (context, state) => PostDetailPage(
-          postId: int.parse(state.pathParameters['postId']!),
+        builder: (context, state) => ContentConstraint(
+          child: PostDetailPage(
+            postId: int.parse(state.pathParameters['postId']!),
+          ),
         ),
       ),
       GoRoute(
         path: '/user/:userId',
-        builder: (context, state) => ProfilePage(
-          userId: int.parse(state.pathParameters['userId']!),
+        builder: (context, state) => ContentConstraint(
+          child: ProfilePage(
+            userId: int.parse(state.pathParameters['userId']!),
+          ),
         ),
       ),
       GoRoute(
         path: '/profile/edit',
-        builder: (context, state) => const EditProfilePage(),
+        builder: (context, state) =>
+            const ContentConstraint(child: EditProfilePage()),
       ),
     ],
   );
@@ -147,7 +155,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     final index = _calculateIndex(location);
 
     return Scaffold(
-      body: widget.child,
+      body: ContentConstraint(child: widget.child),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: _onDestinationSelected,

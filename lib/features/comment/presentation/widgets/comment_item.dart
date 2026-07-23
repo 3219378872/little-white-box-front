@@ -58,7 +58,10 @@ class CommentItemWidget extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CachedAvatar(url: item.userAvatar, radius: isReply ? 12 : 16),
+          CachedAvatar(
+              url: item.userAvatar,
+              name: item.userName,
+              radius: isReply ? 12 : 16),
           const SizedBox(width: 8),
           Expanded(
             child: Column(

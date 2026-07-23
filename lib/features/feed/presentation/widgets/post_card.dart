@@ -27,7 +27,10 @@ class PostCard extends StatelessWidget {
                 children: [
                   GestureDetector(
                     onTap: () => context.push('/user/${post.authorId.toInt()}'),
-                    child: CachedAvatar(url: post.authorAvatar, radius: 14),
+                    child: CachedAvatar(
+                        url: post.authorAvatar,
+                        name: post.authorName,
+                        radius: 14),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -89,10 +92,11 @@ class PostCard extends StatelessWidget {
               // 底部统计
               const SizedBox(height: 10),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _statItem(context, Icons.thumb_up_outlined, post.likeCount.toInt()),
+                  const SizedBox(width: 24),
                   _statItem(context, Icons.chat_bubble_outline, post.commentCount.toInt()),
+                  const Spacer(),
                   _statItem(context, Icons.remove_red_eye_outlined, post.viewCount.toInt()),
                 ],
               ),
@@ -125,7 +129,10 @@ class PostCard extends StatelessWidget {
               width: double.infinity,
               height: 180,
               color: theme.colorScheme.surfaceContainerHighest,
-              child: const Icon(Icons.broken_image_outlined),
+              child: Icon(
+                Icons.image_outlined,
+                color: theme.colorScheme.outline,
+              ),
             ),
           ),
           if (hasMore)

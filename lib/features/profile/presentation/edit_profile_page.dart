@@ -106,7 +106,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
               padding: const EdgeInsets.all(24),
               children: [
                 Center(
-                  child: CachedAvatar(url: _avatarUrl, radius: 48),
+                  child: CachedAvatar(
+                      url: _avatarUrl, name: _nicknameCtrl.text, radius: 48),
                 ),
                 const SizedBox(height: 24),
                 TextField(

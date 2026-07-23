@@ -50,7 +50,10 @@ final List<Map<String, dynamic>> seedPosts = [
     'title': '探店｜藏在巷子里的宝藏面馆',
     'content':
         '今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。',
-    'images': <String>[],
+    'images': <String>[
+      'https://picsum.photos/seed/noodle-shop/600/400',
+      'https://picsum.photos/seed/beef-noodles/600/400',
+    ],
     'tags': ['美食', '探店'],
     'viewCount': 1234,
     'likeCount': 89,
@@ -65,8 +68,10 @@ final List<Map<String, dynamic>> seedPosts = [
     'authorAvatar': '',
     'title': '2026年最值得入手的三款手机',
     'content':
-        '最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。第一款是...详细评测请看正文。',
-    'images': <String>[],
+        '最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。',
+    'images': <String>[
+      'https://picsum.photos/seed/smartphone-2026/600/400',
+    ],
     'tags': ['科技', '数码', '手机'],
     'viewCount': 5678,
     'likeCount': 234,
@@ -82,7 +87,11 @@ final List<Map<String, dynamic>> seedPosts = [
     'title': '周末去了趟西湖，太美了',
     'content':
         '趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。',
-    'images': <String>[],
+    'images': <String>[
+      'https://picsum.photos/seed/west-lake/600/400',
+      'https://picsum.photos/seed/hangzhou-spring/600/400',
+      'https://picsum.photos/seed/lake-boat/600/400',
+    ],
     'tags': ['旅行', '杭州', '周末'],
     'viewCount': 890,
     'likeCount': 56,
@@ -98,7 +107,10 @@ final List<Map<String, dynamic>> seedPosts = [
     'title': '教你在家做正宗日式拉面',
     'content':
         '在家也能做出拉面店级别的拉面！今天分享我研究了很久的配方。汤底用猪骨+鸡架熬制4小时，加入味噌和酱油调味。面条用高筋面粉加碱水手工制作，口感更Q弹。配上溏心蛋、叉烧和葱花，完美！',
-    'images': <String>[],
+    'images': <String>[
+      'https://picsum.photos/seed/ramen-bowl/600/400',
+      'https://picsum.photos/seed/ramen-egg/600/400',
+    ],
     'tags': ['美食', '教程', '日料'],
     'viewCount': 3456,
     'likeCount': 178,
@@ -114,7 +126,9 @@ final List<Map<String, dynamic>> seedPosts = [
     'title': 'AI 编程助手横评：谁才是最强辅助？',
     'content':
         '最近市面上涌现了大量 AI 编程助手，我花了一周时间深度体验了几款主流产品。从代码补全准确度、上下文理解能力、多语言支持等方面进行了详细对比，结果还挺出乎意料的。',
-    'images': <String>[],
+    'images': <String>[
+      'https://picsum.photos/seed/code-screen/600/400',
+    ],
     'tags': ['科技', 'AI', '编程'],
     'viewCount': 8901,
     'likeCount': 456,
@@ -130,7 +144,10 @@ final List<Map<String, dynamic>> seedPosts = [
     'title': '分享我的极简主义房间改造',
     'content':
         '花了一个月时间把自己的房间改造成了极简风格。扔掉了一半以上的东西，重新规划了收纳空间。现在每天回到家心情都特别好，整洁的环境真的能影响人的状态。分享一下改造前后的对比~',
-    'images': <String>[],
+    'images': <String>[
+      'https://picsum.photos/seed/minimal-room/600/400',
+      'https://picsum.photos/seed/tidy-desk/600/400',
+    ],
     'tags': ['生活', '极简', '家居'],
     'viewCount': 2345,
     'likeCount': 123,
@@ -146,7 +163,9 @@ final List<Map<String, dynamic>> seedPosts = [
     'title': '一个人的咖啡时光',
     'content':
         '今天下午一个人去了新开的咖啡馆，点了一杯手冲埃塞俄比亚。坐在窗边看着外面来来往往的人，听着轻音乐，翻了几页书。偶尔这样独处的时光，真的很治愈。',
-    'images': <String>[],
+    'images': <String>[
+      'https://picsum.photos/seed/coffee-pour/600/400',
+    ],
     'tags': ['生活', '咖啡', '日常'],
     'viewCount': 678,
     'likeCount': 45,
@@ -162,7 +181,10 @@ final List<Map<String, dynamic>> seedPosts = [
     'title': '入门摄影必看：手机拍照技巧大全',
     'content':
         '很多人觉得拍好照片一定要用相机，其实现在手机的拍照能力已经非常强了。今天分享几个我常用的手机摄影技巧：构图法则、光线运用、后期调色。掌握这些，你也能用手机拍出大片感！',
-    'images': <String>[],
+    'images': <String>[
+      'https://picsum.photos/seed/camera-phone/600/400',
+      'https://picsum.photos/seed/photo-walk/600/400',
+    ],
     'tags': ['摄影', '教程', '手机'],
     'viewCount': 4567,
     'likeCount': 267,

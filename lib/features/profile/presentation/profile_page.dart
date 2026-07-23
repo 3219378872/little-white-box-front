@@ -126,6 +126,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent>
             ? [
                 IconButton(
                   icon: const Icon(Icons.logout),
+                  tooltip: '退出登录',
                   onPressed: () =>
                       ref.read(authNotifierProvider.notifier).logout(),
                 ),
@@ -149,7 +150,13 @@ class _ProfileContentState extends ConsumerState<_ProfileContent>
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    CachedAvatar(url: user.avatarUrl, radius: 28),
+                    CachedAvatar(
+                      url: user.avatarUrl,
+                      name: user.nickname.isNotEmpty
+                          ? user.nickname
+                          : user.username,
+                      radius: 28,
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       user.nickname.isNotEmpty ? user.nickname : user.username,
