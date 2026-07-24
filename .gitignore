@@ -59,5 +59,8 @@ docs/superpowers/plans/2026-04-22-app-centric-repo-organization-finish-plan.md
 
 # doc
 docs
+!docs/
+docs/*
+!docs/forui.md
 CLAUDE.md
 .worktrees/

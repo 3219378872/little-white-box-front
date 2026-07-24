@@ -84,5 +84,6 @@ The API gateway must allow the browser origin through CORS for this mode.
 
 ## Documentation
 
+- Forui component usage and official LLM documentation links live in [`docs/forui.md`](docs/forui.md)
 - Design specs and plans live under `docs/superpowers/`
 - Backend coordination notes live under `docs/backend/`
