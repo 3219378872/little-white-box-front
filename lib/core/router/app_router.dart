@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
@@ -18,9 +18,15 @@ final _shellNavigatorKey = GlobalKey<NavigatorState>();
 const _publicRoutes = ['/feed', '/auth/login', '/auth/register'];
 
 bool _isPublicRoute(String location) {
-  if (_publicRoutes.contains(location)) return true;
-  if (location.startsWith('/post/') && !location.contains('/edit/')) return true;
-  if (location.startsWith('/user/')) return true;
+  if (_publicRoutes.contains(location)) {
+    return true;
+  }
+  if (location.startsWith('/post/') && !location.contains('/edit/')) {
+    return true;
+  }
+  if (location.startsWith('/user/')) {
+    return true;
+  }
   return false;
 }
 

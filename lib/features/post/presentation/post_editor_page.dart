@@ -1,8 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/widgets/app_dialog.dart';
+import '../../../core/widgets/app_tag_badge.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../../../sdk/data/gateway.dart';
 import '../data/post_repository.dart';
 import 'widgets/image_picker_grid.dart';
@@ -49,8 +53,9 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
 
   Future<void> _loadExistingPost() async {
     try {
-      final post =
-          await ref.read(_postRepoProvider).getPostDetail(widget.postId!);
+      final post = await ref
+          .read(_postRepoProvider)
+          .getPostDetail(widget.postId!);
       setState(() {
         _titleCtrl.text = post.title;
         _contentCtrl.text = post.content;
@@ -60,8 +65,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('加载失败: ${friendlyErrorMessage(e)}')));
+        showAppError(context, '加载失败: ${friendlyErrorMessage(e)}');
         context.pop();
       }
     }
@@ -112,8 +116,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
 
   Future<void> _publish({int status = 1}) async {
     if (_titleCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('请输入标题')));
+      showAppError(context, '请输入标题');
       return;
     }
     setState(() => _isLoading = true);
@@ -122,7 +125,9 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
       final allImages = [..._networkImages, ...uploadedUrls];
 
       if (_isEditMode) {
-        await ref.read(_postRepoProvider).updateExistingPost(
+        await ref
+            .read(_postRepoProvider)
+            .updateExistingPost(
               widget.postId!,
               UpdatePostReq(
                 postId: widget.postId!,
@@ -134,7 +139,9 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
             );
         if (mounted) context.pop();
       } else {
-        await ref.read(_postRepoProvider).createNewPost(
+        await ref
+            .read(_postRepoProvider)
+            .createNewPost(
               CreatePostReq(
                 title: _titleCtrl.text.trim(),
                 content: _contentCtrl.text.trim(),
@@ -149,26 +156,15 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
       }
     } on _UploadTransactionException catch (e) {
       if (mounted) {
-        await showDialog<void>(
+        await showAppAlert(
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('图片上传失败'),
-            content: Text(
-              '${e.toString()}\n\n帖子未发布，图片已保留，可修改后重试。',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('知道了'),
-              ),
-            ],
-          ),
+          title: '图片上传失败',
+          message: '${e.toString()}\n\n帖子未发布，图片已保留，可修改后重试。',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('发布失败: ${friendlyErrorMessage(e)}')));
+        showAppError(context, '发布失败: ${friendlyErrorMessage(e)}');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -177,75 +173,76 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    final theme = context.theme;
+    return FScaffold(
+      childPad: false,
+      header: FHeader.nested(
         title: Text(_isEditMode ? '编辑帖子' : '发布帖子'),
-        actions: [
+        prefixes: [
+          FHeaderAction.back(
+            onPress: () =>
+                context.canPop() ? context.pop() : context.go('/feed'),
+          ),
+        ],
+        suffixes: [
           if (!_isEditMode)
-            TextButton(
-              onPressed: _isLoading ? null : () => _publish(status: 0),
+            FButton(
+              variant: .ghost,
+              size: .sm,
+              mainAxisSize: MainAxisSize.min,
+              onPress: _isLoading ? null : () => _publish(status: 0),
               child: const Text('存草稿'),
             ),
-          TextButton(
-            onPressed: _isLoading ? null : () => _publish(),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.primary,
-              textStyle: const TextStyle(fontWeight: FontWeight.bold),
-            ),
+          FButton(
+            size: .sm,
+            mainAxisSize: MainAxisSize.min,
+            onPress: _isLoading ? null : () => _publish(),
             child: _isLoading
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? const FCircularProgress(size: .sm)
                 : const Text('发布'),
           ),
-          const SizedBox(width: 8),
         ],
       ),
-      body: !_isInitialized
-          ? const Center(child: CircularProgressIndicator())
+      child: !_isInitialized
+          ? const Center(child: FCircularProgress())
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                TextField(
-                  controller: _titleCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '标题',
-                    hintText: '请输入标题（最多100字）',
-                  ),
+                FTextField(
+                  control: FTextFieldControl.managed(controller: _titleCtrl),
+                  label: const Text('标题'),
+                  hint: '请输入标题（最多100字）',
                   maxLength: 100,
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: _contentCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '内容',
-                    hintText: '分享你的想法...',
-                    alignLabelWithHint: true,
-                  ),
+                FTextField.multiline(
+                  control: FTextFieldControl.managed(controller: _contentCtrl),
+                  label: const Text('内容'),
+                  hint: '分享你的想法...',
+                  minLines: 8,
                   maxLines: 8,
                   maxLength: 10000,
                 ),
                 const SizedBox(height: 16),
                 // 标签
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: _tagCtrl,
-                        decoration: const InputDecoration(
-                          labelText: '添加标签',
-                          hintText: '输入标签后点击添加',
-                          isDense: true,
+                      child: FTextField(
+                        control: FTextFieldControl.managed(
+                          controller: _tagCtrl,
                         ),
-                        onSubmitted: (_) => _addTag(),
+                        label: const Text('添加标签'),
+                        hint: '输入标签后点击添加',
+                        onSubmit: (_) => _addTag(),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: _addTag,
-                      icon: const Icon(Icons.add_circle_outline),
+                    FButton.icon(
+                      onPress: _addTag,
+                      semanticsLabel: '添加标签',
+                      child: const Icon(FLucideIcons.plus),
                     ),
                   ],
                 ),
@@ -256,16 +253,18 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                     children: _tags
                         .asMap()
                         .entries
-                        .map((e) => Chip(
-                              label: Text(e.value),
-                              onDeleted: () =>
-                                  setState(() => _tags.removeAt(e.key)),
-                            ))
+                        .map(
+                          (e) => AppTagBadge(
+                            label: e.value,
+                            onRemove: () =>
+                                setState(() => _tags.removeAt(e.key)),
+                          ),
+                        )
                         .toList(),
                   ),
                 ],
                 const SizedBox(height: 16),
-                Text('图片', style: Theme.of(context).textTheme.titleSmall),
+                Text('图片', style: theme.typography.body.md),
                 const SizedBox(height: 8),
                 ImagePickerGrid(
                   networkImages: _networkImages,

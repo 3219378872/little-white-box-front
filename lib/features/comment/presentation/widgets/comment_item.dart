@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:forui/forui.dart';
 import '../../../../core/widgets/cached_avatar.dart';
 import '../../../../sdk/data/gateway.dart';
 
@@ -18,7 +19,7 @@ class CommentItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = context.theme.colors;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -31,8 +32,7 @@ class CommentItemWidget extends StatelessWidget {
               padding: const EdgeInsets.only(left: 48, top: 4),
               child: Container(
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.3),
+                  color: colors.secondary.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 padding: const EdgeInsets.all(8),
@@ -44,24 +44,29 @@ class CommentItemWidget extends StatelessWidget {
                 ),
               ),
             ),
-          const Divider(height: 1),
+          const FDivider(),
         ],
       ),
     );
   }
 
-  Widget _buildComment(BuildContext context, CommentItem item,
-      {required bool isReply}) {
-    final theme = Theme.of(context);
+  Widget _buildComment(
+    BuildContext context,
+    CommentItem item, {
+    required bool isReply,
+  }) {
+    final theme = context.theme;
+    final muted = theme.colors.mutedForeground;
     return Padding(
       padding: EdgeInsets.only(bottom: isReply ? 8 : 0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CachedAvatar(
-              url: item.userAvatar,
-              name: item.userName,
-              radius: isReply ? 12 : 16),
+            url: item.userAvatar,
+            name: item.userName,
+            radius: isReply ? 12 : 16,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -71,43 +76,50 @@ class CommentItemWidget extends StatelessWidget {
                   children: [
                     Text(
                       item.userName,
-                      style: theme.textTheme.labelMedium
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                      style: theme.typography.body.sm.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const Spacer(),
                     Text(
                       _formatTime(item.createdAt),
-                      style: theme.textTheme.labelSmall
-                          ?.copyWith(color: theme.colorScheme.outline),
+                      style: theme.typography.body.xs.copyWith(color: muted),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(item.content, style: theme.textTheme.bodyMedium),
+                Text(item.content, style: theme.typography.body.sm),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    InkWell(
-                      onTap: onLike,
+                    FTappable(
+                      onPress: onLike,
                       child: Row(
                         children: [
-                          Icon(Icons.thumb_up_outlined,
-                              size: 14, color: theme.colorScheme.outline),
+                          Icon(FLucideIcons.thumbsUp, size: 14, color: muted),
                           const SizedBox(width: 4),
-                          Text('${item.likeCount}',
-                              style: theme.textTheme.labelSmall),
+                          Text(
+                            '${item.likeCount}',
+                            style: theme.typography.body.xs.copyWith(
+                              color: muted,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 16),
-                    InkWell(
-                      onTap: onReply,
+                    FTappable(
+                      onPress: onReply,
                       child: Row(
                         children: [
-                          Icon(Icons.reply,
-                              size: 14, color: theme.colorScheme.outline),
+                          Icon(FLucideIcons.reply, size: 14, color: muted),
                           const SizedBox(width: 4),
-                          Text('回复', style: theme.textTheme.labelSmall),
+                          Text(
+                            '回复',
+                            style: theme.typography.body.xs.copyWith(
+                              color: muted,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -122,8 +134,7 @@ class CommentItemWidget extends StatelessWidget {
   }
 
   String _formatTime(num timestamp) {
-    final date =
-        DateTime.fromMillisecondsSinceEpoch(timestamp.toInt() * 1000);
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp.toInt() * 1000);
     final diff = DateTime.now().difference(date);
     if (diff.inMinutes < 1) return '刚刚';
     if (diff.inHours < 1) return '${diff.inMinutes}分钟前';

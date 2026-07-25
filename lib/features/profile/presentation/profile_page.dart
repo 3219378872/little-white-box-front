@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../sdk/data/gateway.dart';
@@ -11,8 +13,10 @@ import 'widgets/user_post_list.dart';
 
 final _userRepoProvider = Provider((ref) => UserRepository());
 
-final _userProfileProvider =
-    FutureProvider.family<GetUserResp, int>((ref, userId) {
+final _userProfileProvider = FutureProvider.family<GetUserResp, int>((
+  ref,
+  userId,
+) {
   return ref.read(_userRepoProvider).getUserProfile(userId);
 });
 
@@ -26,16 +30,16 @@ class ProfilePage extends ConsumerWidget {
     final targetUserId = userId ?? auth.userId?.toInt();
 
     if (targetUserId == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('个人中心')),
-        body: Center(
+      return FScaffold(
+        header: const FHeader(title: Text('个人中心')),
+        child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text('请先登录'),
               const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => context.push('/auth/login'),
+              FButton(
+                onPress: () => context.push('/auth/login'),
                 child: const Text('去登录'),
               ),
             ],
@@ -46,10 +50,7 @@ class ProfilePage extends ConsumerWidget {
 
     final isOwnProfile = userId == null || userId == auth.userId?.toInt();
 
-    return _ProfileContent(
-      userId: targetUserId,
-      isOwnProfile: isOwnProfile,
-    );
+    return _ProfileContent(userId: targetUserId, isOwnProfile: isOwnProfile);
   }
 }
 
@@ -57,42 +58,45 @@ class _ProfileContent extends ConsumerStatefulWidget {
   final int userId;
   final bool isOwnProfile;
 
-  const _ProfileContent({
-    required this.userId,
-    required this.isOwnProfile,
-  });
+  const _ProfileContent({required this.userId, required this.isOwnProfile});
 
   @override
   ConsumerState<_ProfileContent> createState() => _ProfileContentState();
 }
 
-class _ProfileContentState extends ConsumerState<_ProfileContent>
-    with SingleTickerProviderStateMixin {
-  TabController? _tabController;
+class _ProfileContentState extends ConsumerState<_ProfileContent> {
   bool _isFollowing = false;
+  int _tabIndex = 0;
+  late final PageController _pageController;
 
   @override
   void initState() {
     super.initState();
-    // tabController created lazily in build via _ensureTabController
-  }
-
-  TabController? _ensureTabController(bool showFavoritesTab) {
-    if (!showFavoritesTab) {
-      _tabController?.dispose();
-      return _tabController = null;
-    }
-    if (_tabController == null || _tabController!.length != 2) {
-      _tabController?.dispose();
-      _tabController = TabController(length: 2, vsync: this);
-    }
-    return _tabController;
+    _pageController = PageController();
   }
 
   @override
   void dispose() {
-    _tabController?.dispose();
+    _pageController.dispose();
     super.dispose();
+  }
+
+  void _selectTab(int index) {
+    if (index == _tabIndex) return;
+    setState(() => _tabIndex = index);
+    if (_pageController.hasClients) {
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  void _handlePageChanged(int index) {
+    if (index != _tabIndex) {
+      setState(() => _tabIndex = index);
+    }
   }
 
   Future<void> _toggleFollow() async {
@@ -108,8 +112,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent>
     } catch (e) {
       setState(() => _isFollowing = wasFollowing);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('操作失败: $e')));
+        showAppError(context, '操作失败: $e');
       }
     }
   }
@@ -117,164 +120,172 @@ class _ProfileContentState extends ConsumerState<_ProfileContent>
   @override
   Widget build(BuildContext context) {
     final userAsync = ref.watch(_userProfileProvider(widget.userId));
-    final theme = Theme.of(context);
+    final theme = context.theme;
+    final canPop = context.canPop();
 
-    return Scaffold(
-      appBar: AppBar(
+    return FScaffold(
+      childPad: false,
+      header: FHeader.nested(
         title: const Text('个人中心'),
-        actions: widget.isOwnProfile
+        prefixes: canPop
+            ? [FHeaderAction.back(onPress: () => context.pop())]
+            : const [],
+        suffixes: widget.isOwnProfile
             ? [
-                IconButton(
-                  icon: const Icon(Icons.logout),
-                  tooltip: '退出登录',
-                  onPressed: () =>
+                FHeaderAction(
+                  icon: const Icon(FLucideIcons.logOut),
+                  semanticsLabel: '退出登录',
+                  onPress: () =>
                       ref.read(authNotifierProvider.notifier).logout(),
                 ),
               ]
-            : null,
+            : const [],
       ),
-      body: userAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+      child: userAsync.when(
+        loading: () => const Center(child: FCircularProgress()),
         error: (e, _) => ErrorView(
           message: e.toString(),
-          onRetry: () =>
-              ref.invalidate(_userProfileProvider(widget.userId)),
+          onRetry: () => ref.invalidate(_userProfileProvider(widget.userId)),
         ),
         data: (user) {
           final showFavoritesTab = widget.isOwnProfile || user.favoritesVisible;
-          _ensureTabController(showFavoritesTab);
           return NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    CachedAvatar(
-                      url: user.avatarUrl,
-                      name: user.nickname.isNotEmpty
-                          ? user.nickname
-                          : user.username,
-                      radius: 28,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      user.nickname.isNotEmpty ? user.nickname : user.username,
-                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    if (user.bio.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(user.bio,
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(color: theme.colorScheme.outline)),
-                    ],
-                    const SizedBox(height: 16),
-                    // 统计
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _statColumn('帖子', user.postCount.toInt()),
-                        _statColumn('粉丝', user.followerCount.toInt()),
-                        _statColumn('关注', user.followingCount.toInt()),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // 操作按钮
-                    if (widget.isOwnProfile)
-                      OutlinedButton(
-                        onPressed: () => context.push('/profile/edit'),
-                        child: const Text('编辑资料'),
-                      )
-                    else
-                      FilledButton(
-                        onPressed: _toggleFollow,
-                        style: _isFollowing
-                            ? FilledButton.styleFrom(
-                                backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                                foregroundColor: theme.colorScheme.onSurface,
-                              )
-                            : null,
-                        child: Text(_isFollowing ? '已关注' : '关注'),
+            floatHeaderSlivers: false,
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      CachedAvatar(
+                        url: user.avatarUrl,
+                        name: user.nickname.isNotEmpty
+                            ? user.nickname
+                            : user.username,
+                        radius: 28,
                       ),
-                  ],
-                ),
-              ),
-            ),
-            if ((widget.isOwnProfile || user.favoritesVisible) && _tabController != null)
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _TabBarDelegate(
-                  TabBar(
-                    controller: _tabController,
-                    tabs: [
-                      Tab(text: widget.isOwnProfile ? '我的帖子' : '帖子'),
-                      Tab(text: widget.isOwnProfile ? '我的收藏' : '收藏'),
+                      const SizedBox(height: 12),
+                      Text(
+                        user.nickname.isNotEmpty
+                            ? user.nickname
+                            : user.username,
+                        style: theme.typography.display.sm.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (user.bio.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          user.bio,
+                          style: theme.typography.body.sm.copyWith(
+                            color: theme.colors.mutedForeground,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _statColumn('帖子', user.postCount.toInt()),
+                          _statColumn('粉丝', user.followerCount.toInt()),
+                          _statColumn('关注', user.followingCount.toInt()),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      if (widget.isOwnProfile)
+                        FButton(
+                          variant: .outline,
+                          mainAxisSize: MainAxisSize.min,
+                          onPress: () => context.push('/profile/edit'),
+                          child: const Text('编辑资料'),
+                        )
+                      else
+                        FButton(
+                          variant: _isFollowing
+                              ? FButtonVariant.secondary
+                              : FButtonVariant.primary,
+                          mainAxisSize: MainAxisSize.min,
+                          onPress: _toggleFollow,
+                          child: Text(_isFollowing ? '已关注' : '关注'),
+                        ),
                     ],
                   ),
-                  theme.colorScheme.surface,
                 ),
               ),
-          ],
-          body: (showFavoritesTab && _tabController != null)
-              ? TabBarView(
-                  controller: _tabController,
-                  children: [
-                    UserPostList(
-                      userId: widget.userId,
-                      type: UserPostsListType.posts,
-                    ),
-                    UserPostList(
-                      userId: widget.userId,
-                      type: UserPostsListType.favorites,
-                    ),
-                  ],
-                )
-              : UserPostList(
-                  userId: widget.userId,
-                  type: UserPostsListType.posts,
+              SliverOverlapAbsorber(
+                handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                  context,
                 ),
-        );
+                sliver: showFavoritesTab
+                    ? PinnedHeaderSliver(
+                        child: ColoredBox(
+                          color: theme.colors.background,
+                          child: FTabs(
+                            control: FTabControl.lifted(
+                              index: _tabIndex,
+                              onChange: _selectTab,
+                            ),
+                            style: const FTabsStyleDelta.delta(spacing: 0),
+                            children: [
+                              FTabEntry(
+                                label: Text(
+                                  widget.isOwnProfile ? '我的帖子' : '帖子',
+                                ),
+                                child: const SizedBox.shrink(),
+                              ),
+                              FTabEntry(
+                                label: Text(
+                                  widget.isOwnProfile ? '我的收藏' : '收藏',
+                                ),
+                                child: const SizedBox.shrink(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : const SliverToBoxAdapter(child: SizedBox.shrink()),
+              ),
+            ],
+            body: showFavoritesTab
+                ? PageView(
+                    controller: _pageController,
+                    onPageChanged: _handlePageChanged,
+                    children: [
+                      UserPostList(
+                        userId: widget.userId,
+                        type: UserPostsListType.posts,
+                      ),
+                      UserPostList(
+                        userId: widget.userId,
+                        type: UserPostsListType.favorites,
+                      ),
+                    ],
+                  )
+                : UserPostList(
+                    userId: widget.userId,
+                    type: UserPostsListType.posts,
+                  ),
+          );
         },
       ),
     );
   }
 
   Widget _statColumn(String label, int count) {
+    final theme = context.theme;
     return Column(
       children: [
         Text(
           '$count',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: theme.typography.body.md.copyWith(fontWeight: FontWeight.bold),
         ),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
+          style: theme.typography.body.xs.copyWith(
+            color: theme.colors.mutedForeground,
+          ),
         ),
       ],
     );
   }
-}
-
-class _TabBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabBar tabBar;
-  final Color backgroundColor;
-  _TabBarDelegate(this.tabBar, this.backgroundColor);
-
-  @override
-  double get minExtent => tabBar.preferredSize.height;
-  @override
-  double get maxExtent => tabBar.preferredSize.height;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(color: backgroundColor, child: tabBar);
-  }
-
-  @override
-  bool shouldRebuild(covariant _TabBarDelegate oldDelegate) => false;
 }

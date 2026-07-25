@@ -10,12 +10,14 @@ class _FakeUserPostsRepo implements UserPostsRepository {
   String failReason = 'boom';
 
   void addPage(List<PostItem> items, {int total = 100}) {
-    pages.add(GetPostListResp(
-      list: items,
-      total: total,
-      page: pages.length + 1,
-      pageSize: items.length,
-    ));
+    pages.add(
+      GetPostListResp(
+        list: items,
+        total: total,
+        page: pages.length + 1,
+        pageSize: items.length,
+      ),
+    );
   }
 
   @override
@@ -29,7 +31,12 @@ class _FakeUserPostsRepo implements UserPostsRepository {
     if (shouldFail) throw Exception(failReason);
     final idx = page - 1;
     if (idx >= pages.length) {
-      return GetPostListResp(list: [], total: 100, page: page, pageSize: pageSize);
+      return GetPostListResp(
+        list: [],
+        total: 100,
+        page: page,
+        pageSize: pageSize,
+      );
     }
     return pages[idx];
   }
@@ -56,6 +63,7 @@ PostItem _post(num id) {
     tags: const [],
     viewCount: 0,
     likeCount: 0,
+    isLiked: false,
     commentCount: 0,
     createdAt: 0,
   );

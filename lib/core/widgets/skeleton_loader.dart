@@ -1,19 +1,41 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
-import 'package:shimmer/shimmer.dart';
 
-class SkeletonLoader extends StatelessWidget {
+class SkeletonLoader extends StatefulWidget {
   final Widget child;
 
   const SkeletonLoader({super.key, required this.child});
 
   @override
+  State<SkeletonLoader> createState() => _SkeletonLoaderState();
+}
+
+class _SkeletonLoaderState extends State<SkeletonLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.theme.colors;
-    return Shimmer.fromColors(
-      baseColor: colors.secondary,
-      highlightColor: colors.background,
-      child: child,
+    return AnimatedBuilder(
+      animation: _controller,
+      child: widget.child,
+      builder: (context, child) => ColorFiltered(
+        colorFilter: ColorFilter.mode(
+          Color.lerp(colors.secondary, colors.background, _controller.value)!,
+          BlendMode.srcIn,
+        ),
+        child: child,
+      ),
     );
   }
 }
@@ -34,28 +56,59 @@ class PostCardSkeleton extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const CircleAvatar(radius: 16),
+                    FAvatar.raw(size: 32),
                     const SizedBox(width: 8),
-                    Container(width: 80, height: 14, color: Colors.white),
+                    Container(
+                      width: 80,
+                      height: 14,
+                      color: const Color(0xFFFFFFFF),
+                    ),
                     const Spacer(),
-                    Container(width: 40, height: 12, color: Colors.white),
+                    Container(
+                      width: 40,
+                      height: 12,
+                      color: const Color(0xFFFFFFFF),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Container(
-                    width: double.infinity, height: 16, color: Colors.white),
+                  width: double.infinity,
+                  height: 16,
+                  color: const Color(0xFFFFFFFF),
+                ),
                 const SizedBox(height: 8),
-                Container(width: 200, height: 14, color: Colors.white),
+                Container(
+                  width: 200,
+                  height: 14,
+                  color: const Color(0xFFFFFFFF),
+                ),
                 const SizedBox(height: 8),
-                Container(width: 160, height: 14, color: Colors.white),
+                Container(
+                  width: 160,
+                  height: 14,
+                  color: const Color(0xFFFFFFFF),
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Container(width: 40, height: 12, color: Colors.white),
+                    Container(
+                      width: 40,
+                      height: 12,
+                      color: const Color(0xFFFFFFFF),
+                    ),
                     const SizedBox(width: 16),
-                    Container(width: 40, height: 12, color: Colors.white),
+                    Container(
+                      width: 40,
+                      height: 12,
+                      color: const Color(0xFFFFFFFF),
+                    ),
                     const SizedBox(width: 16),
-                    Container(width: 40, height: 12, color: Colors.white),
+                    Container(
+                      width: 40,
+                      height: 12,
+                      color: const Color(0xFFFFFFFF),
+                    ),
                   ],
                 ),
               ],
@@ -76,7 +129,7 @@ class PostCardSkeletonList extends StatelessWidget {
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8),
       itemCount: count,
-      itemBuilder: (_, __) => const PostCardSkeleton(),
+      itemBuilder: (_, _) => const PostCardSkeleton(),
     );
   }
 }

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
 import 'package:xiaobaihe_app/core/router/app_router.dart';
-import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 
 import '../../helpers/forui_test_builder.dart';
 
@@ -15,7 +13,10 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: MaterialApp.router(routerConfig: router, builder: foruiTestBuilder),
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: foruiTestBuilder,
+        ),
       ),
     );
     await tester.pump();

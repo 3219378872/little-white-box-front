@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:forui/forui.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -57,7 +58,7 @@ class ImagePickerGrid extends StatelessWidget {
               future: localImages[localIndex].readAsBytes(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: FCircularProgress());
                 }
                 return Image.memory(
                   snapshot.data!,
@@ -75,10 +76,13 @@ class ImagePickerGrid extends StatelessWidget {
     );
   }
 
-  Widget _imageItem(BuildContext context,
-      {required Widget child, required VoidCallback onRemove}) {
+  Widget _imageItem(
+    BuildContext context, {
+    required Widget child,
+    required VoidCallback onRemove,
+  }) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: context.theme.style.borderRadius.md,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -86,15 +90,20 @@ class ImagePickerGrid extends StatelessWidget {
           Positioned(
             top: 4,
             right: 4,
-            child: GestureDetector(
-              onTap: onRemove,
+            child: FTappable(
+              onPress: onRemove,
+              semanticsLabel: '移除图片',
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: const BoxDecoration(
-                  color: Colors.black54,
+                  color: Color(0x8A000000),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.close, size: 16, color: Colors.white),
+                child: const Icon(
+                  FLucideIcons.x,
+                  size: 16,
+                  color: Color(0xFFFFFFFF),
+                ),
               ),
             ),
           ),
@@ -104,8 +113,8 @@ class ImagePickerGrid extends StatelessWidget {
   }
 
   Widget _addButton(BuildContext context) {
-    return GestureDetector(
-      onTap: () async {
+    return FTappable(
+      onPress: () async {
         final picker = ImagePicker();
         final xFile = await picker.pickImage(
           source: ImageSource.gallery,
@@ -119,11 +128,14 @@ class ImagePickerGrid extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).colorScheme.outline),
-          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: context.theme.colors.border),
+          borderRadius: context.theme.style.borderRadius.md,
         ),
-        child: Icon(Icons.add_photo_alternate_outlined,
-            size: 32, color: Theme.of(context).colorScheme.outline),
+        child: Icon(
+          FLucideIcons.imagePlus,
+          size: 32,
+          color: context.theme.colors.mutedForeground,
+        ),
       ),
     );
   }

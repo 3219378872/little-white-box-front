@@ -1,10 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/widgets/app_tag_badge.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../comment/data/comment_repository.dart';
@@ -17,8 +20,10 @@ final _postRepoProvider = Provider((ref) => PostRepository());
 final _commentRepoProvider = Provider((ref) => CommentRepository());
 final _interactionRepoProvider = Provider((ref) => InteractionRepository());
 
-final _postDetailProvider =
-    FutureProvider.family<GetPostResp, int>((ref, postId) {
+final _postDetailProvider = FutureProvider.family<GetPostResp, int>((
+  ref,
+  postId,
+) {
   return ref.read(_postRepoProvider).getPostDetail(postId);
 });
 
@@ -77,7 +82,9 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     if (_isLoadingComments) return;
     setState(() => _isLoadingComments = true);
     try {
-      final resp = await ref.read(_commentRepoProvider).fetchComments(
+      final resp = await ref
+          .read(_commentRepoProvider)
+          .fetchComments(
             postId: widget.postId,
             page: _commentPage,
             pageSize: 20,
@@ -116,8 +123,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
         _likeCountDelta += currentlyLiked ? 1 : -1;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('操作失败: ${friendlyErrorMessage(e)}')));
+        showAppError(context, '操作失败: ${friendlyErrorMessage(e)}');
       }
     }
   }
@@ -141,8 +147,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
         _favoriteCountDelta += currentlyFav ? 1 : -1;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('操作失败: ${friendlyErrorMessage(e)}')));
+        showAppError(context, '操作失败: ${friendlyErrorMessage(e)}');
       }
     }
   }
@@ -154,7 +159,9 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       return;
     }
     try {
-      await ref.read(_commentRepoProvider).createNewComment(
+      await ref
+          .read(_commentRepoProvider)
+          .createNewComment(
             CreateCommentReq(
               postId: widget.postId,
               parentId: _replyParentId,
@@ -171,8 +178,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       _loadComments();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('评论失败: ${friendlyErrorMessage(e)}')));
+        showAppError(context, '评论失败: ${friendlyErrorMessage(e)}');
       }
     }
   }
@@ -180,11 +186,12 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   @override
   Widget build(BuildContext context) {
     final postAsync = ref.watch(_postDetailProvider(widget.postId));
-    final theme = Theme.of(context);
+    final theme = context.theme;
 
-    return Scaffold(
-      body: postAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+    return FScaffold(
+      childPad: false,
+      child: postAsync.when(
+        loading: () => const Center(child: FCircularProgress()),
         error: (e, _) => ErrorView(
           message: friendlyErrorMessage(e),
           onRetry: () => ref.invalidate(_postDetailProvider(widget.postId)),
@@ -194,10 +201,12 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
           final isFavorited = _optimisticIsFavorited ?? post.isFavorited;
           final likeCount = post.likeCount.toInt() + _likeCountDelta;
           final favCount = post.favoriteCount.toInt() + _favoriteCountDelta;
+          final headerExtent =
+              MediaQuery.paddingOf(context).top +
+              (context.platformVariant.touch ? 62.0 : 54.0);
 
           // 按 parentId 分组评论
-          final topLevel =
-              _comments.where((c) => c.parentId == 0).toList();
+          final topLevel = _comments.where((c) => c.parentId == 0).toList();
           final repliesMap = <num, List<CommentItem>>{};
           for (final c in _comments.where((c) => c.parentId != 0)) {
             repliesMap.putIfAbsent(c.parentId, () => []).add(c);
@@ -209,18 +218,20 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                 child: CustomScrollView(
                   controller: _scrollCtrl,
                   slivers: [
-                    SliverAppBar(
-                      title: Text(post.authorName),
+                    SliverPersistentHeader(
                       floating: true,
-                      leading: IconButton(
-                        icon: const Icon(Icons.arrow_back),
-                        onPressed: () {
-                          if (context.canPop()) {
-                            context.pop();
-                          } else {
-                            context.go('/feed');
-                          }
-                        },
+                      delegate: _ForuiHeaderDelegate(
+                        extent: headerExtent,
+                        child: FHeader.nested(
+                          title: Text(post.authorName),
+                          prefixes: [
+                            FHeaderAction.back(
+                              onPress: () => context.canPop()
+                                  ? context.pop()
+                                  : context.go('/feed'),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     // 帖子内容
@@ -231,28 +242,36 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // 作者
-                            GestureDetector(
-                              onTap: () => context
-                                  .push('/user/${post.authorId.toInt()}'),
+                            FTappable(
+                              onPress: () => context.push(
+                                '/user/${post.authorId.toInt()}',
+                              ),
                               child: Row(
                                 children: [
                                   CachedAvatar(
-                                      url: post.authorAvatar,
-                                      name: post.authorName,
-                                      radius: 20),
+                                    url: post.authorAvatar,
+                                    name: post.authorName,
+                                    radius: 20,
+                                  ),
                                   const SizedBox(width: 12),
                                   Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(post.authorName,
-                                          style: theme.textTheme.titleSmall),
+                                      Text(
+                                        post.authorName,
+                                        style: theme.typography.body.md
+                                            .copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
                                       Text(
                                         _formatTime(post.createdAt),
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                                color: theme
-                                                    .colorScheme.outline),
+                                        style: theme.typography.body.xs
+                                            .copyWith(
+                                              color:
+                                                  theme.colors.mutedForeground,
+                                            ),
                                       ),
                                     ],
                                   ),
@@ -264,12 +283,13 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                             if (post.title.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
-                                child: Text(post.title,
-                                    style: theme.textTheme.headlineSmall),
+                                child: Text(
+                                  post.title,
+                                  style: theme.typography.display.sm,
+                                ),
                               ),
                             // 正文
-                            Text(post.content,
-                                style: theme.textTheme.bodyLarge),
+                            Text(post.content, style: theme.typography.body.lg),
                             // 图片
                             if (post.images.isNotEmpty) ...[
                               const SizedBox(height: 16),
@@ -277,7 +297,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                 (url) => Padding(
                                   padding: const EdgeInsets.only(bottom: 8),
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: theme.style.borderRadius.md,
                                     child: CachedNetworkImage(
                                       imageUrl: url,
                                       width: double.infinity,
@@ -293,77 +313,66 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                               Wrap(
                                 spacing: 6,
                                 children: post.tags
-                                    .map((t) => Chip(
-                                          label: Text(t),
-                                          visualDensity:
-                                              VisualDensity.compact,
-                                        ))
+                                    .map((tag) => AppTagBadge(label: tag))
                                     .toList(),
                               ),
                             ],
                             const SizedBox(height: 16),
                             // 操作栏
                             Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceAround,
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
                                 _actionButton(
-                                  icon: isLiked
-                                      ? Icons.thumb_up
-                                      : Icons.thumb_up_outlined,
+                                  icon: FLucideIcons.thumbsUp,
                                   label: '$likeCount',
                                   active: isLiked,
                                   onTap: () => _toggleLike(post),
                                 ),
                                 _actionButton(
-                                  icon: isFavorited
-                                      ? Icons.bookmark
-                                      : Icons.bookmark_outline,
+                                  icon: FLucideIcons.bookmark,
                                   label: '$favCount',
                                   active: isFavorited,
                                   onTap: () => _toggleFavorite(post),
                                 ),
                                 _actionButton(
-                                  icon: Icons.chat_bubble_outline,
+                                  icon: FLucideIcons.messageCircle,
                                   label: '${post.commentCount}',
                                   onTap: () {},
                                 ),
                                 _actionButton(
-                                  icon: Icons.remove_red_eye_outlined,
+                                  icon: FLucideIcons.eye,
                                   label: '${post.viewCount}',
                                   onTap: () {},
                                 ),
                               ],
                             ),
-                            const Divider(height: 32),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: FDivider(),
+                            ),
                             // 评论区标题
                             Row(
                               children: [
-                                Text('评论',
-                                    style: theme.textTheme.titleMedium),
+                                Text('评论', style: theme.typography.body.md),
                                 const Spacer(),
-                                SegmentedButton<int>(
-                                  segments: const [
-                                    ButtonSegment(
-                                        value: 1, label: Text('最新')),
-                                    ButtonSegment(
-                                        value: 2, label: Text('最热')),
-                                  ],
-                                  selected: {_commentSortBy},
-                                  onSelectionChanged: (v) {
-                                    setState(() {
-                                      _commentSortBy = v.first;
-                                      _commentPage = 1;
-                                      _hasMoreComments = true;
-                                      _comments = [];
-                                    });
-                                    _loadComments();
-                                  },
-                                  style: ButtonStyle(
-                                    visualDensity: VisualDensity.compact,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  ),
+                                FButton(
+                                  size: .xs,
+                                  mainAxisSize: MainAxisSize.min,
+                                  variant: _commentSortBy == 1
+                                      ? FButtonVariant.secondary
+                                      : FButtonVariant.ghost,
+                                  onPress: () => _selectCommentSort(1),
+                                  child: const Text('最新'),
+                                ),
+                                const SizedBox(width: 4),
+                                FButton(
+                                  size: .xs,
+                                  mainAxisSize: MainAxisSize.min,
+                                  variant: _commentSortBy == 2
+                                      ? FButtonVariant.secondary
+                                      : FButtonVariant.ghost,
+                                  onPress: () => _selectCommentSort(2),
+                                  child: const Text('最热'),
                                 ),
                               ],
                             ),
@@ -373,13 +382,17 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                     ),
                     // 评论列表
                     if (topLevel.isEmpty && !_isLoadingComments)
-                      const SliverToBoxAdapter(
+                      SliverToBoxAdapter(
                         child: Padding(
-                          padding: EdgeInsets.all(32),
+                          padding: const EdgeInsets.all(32),
                           child: Center(
-                              child: Text('还没有评论',
-                                  style:
-                                      TextStyle(color: Colors.grey))),
+                            child: Text(
+                              '还没有评论',
+                              style: theme.typography.body.sm.copyWith(
+                                color: theme.colors.mutedForeground,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     SliverList(
@@ -390,17 +403,19 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                             if (_isLoadingComments) {
                               return const Padding(
                                 padding: EdgeInsets.all(16),
-                                child: Center(child: CircularProgressIndicator()),
+                                child: Center(child: FCircularProgress()),
                               );
                             }
                             if (!_hasMoreComments && topLevel.isNotEmpty) {
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 20,
+                                ),
                                 child: Center(
                                   child: Text(
                                     '— 没有更多了 —',
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.outline,
+                                      color: theme.colors.mutedForeground,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -422,8 +437,10 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                             },
                           );
                         },
-                        childCount: topLevel.length +
-                            ((_isLoadingComments || (!_hasMoreComments && topLevel.isNotEmpty))
+                        childCount:
+                            topLevel.length +
+                            ((_isLoadingComments ||
+                                    (!_hasMoreComments && topLevel.isNotEmpty))
                                 ? 1
                                 : 0),
                       ),
@@ -431,15 +448,23 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                   ],
                 ),
               ),
-              CommentInput(
-                replyTo: _replyToUser,
-                onSubmit: _submitComment,
-              ),
+              CommentInput(replyTo: _replyToUser, onSubmit: _submitComment),
             ],
           );
         },
       ),
     );
+  }
+
+  void _selectCommentSort(int value) {
+    if (value == _commentSortBy) return;
+    setState(() {
+      _commentSortBy = value;
+      _commentPage = 1;
+      _hasMoreComments = true;
+      _comments = [];
+    });
+    _loadComments();
   }
 
   Widget _actionButton({
@@ -448,23 +473,17 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     bool active = false,
     required VoidCallback onTap,
   }) {
-    final color = active
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.outline;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+    final theme = context.theme;
+    final color = active ? theme.colors.primary : theme.colors.mutedForeground;
+    return FTappable(
+      onPress: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
             Icon(icon, size: 20, color: color),
             const SizedBox(width: 4),
-            Text(label,
-                style: Theme.of(context)
-                    .textTheme
-                    .labelMedium
-                    ?.copyWith(color: color)),
+            Text(label, style: theme.typography.body.sm.copyWith(color: color)),
           ],
         ),
       ),
@@ -472,13 +491,39 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   }
 
   String _formatTime(num timestamp) {
-    final date =
-        DateTime.fromMillisecondsSinceEpoch(timestamp.toInt() * 1000);
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp.toInt() * 1000);
     final diff = DateTime.now().difference(date);
     if (diff.inMinutes < 1) return '刚刚';
     if (diff.inHours < 1) return '${diff.inMinutes}分钟前';
     if (diff.inDays < 1) return '${diff.inHours}小时前';
     if (diff.inDays < 30) return '${diff.inDays}天前';
     return '${date.year}-${date.month}-${date.day}';
+  }
+}
+
+class _ForuiHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double extent;
+  final Widget child;
+
+  const _ForuiHeaderDelegate({required this.extent, required this.child});
+
+  @override
+  double get minExtent => extent;
+
+  @override
+  double get maxExtent => extent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return ColoredBox(color: context.theme.colors.background, child: child);
+  }
+
+  @override
+  bool shouldRebuild(covariant _ForuiHeaderDelegate oldDelegate) {
+    return extent != oldDelegate.extent || child != oldDelegate.child;
   }
 }

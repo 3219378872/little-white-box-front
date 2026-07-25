@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
+import 'package:forui/forui.dart';
 
 class CommentInput extends StatefulWidget {
   final String? replyTo;
@@ -28,39 +30,31 @@ class _CommentInputState extends State<CommentInput> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.theme.colors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
-        ),
+        color: colors.background,
+        border: Border(top: BorderSide(color: colors.border)),
       ),
       child: SafeArea(
         child: Row(
           children: [
             Expanded(
-              child: TextField(
-                controller: _controller,
-                decoration: InputDecoration(
-                  hintText:
-                      widget.replyTo != null ? '回复 ${widget.replyTo}' : '写评论...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  isDense: true,
-                ),
-                maxLines: 1,
+              child: FTextField(
+                control: FTextFieldControl.managed(controller: _controller),
+                hint: widget.replyTo != null
+                    ? '回复 ${widget.replyTo}'
+                    : '写评论...',
                 textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _submit(),
+                onSubmit: (_) => _submit(),
               ),
             ),
             const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: _submit,
-              icon: const Icon(Icons.send, size: 20),
+            FButton.icon(
+              onPress: _submit,
+              semanticsLabel: '发送评论',
+              child: const Icon(FLucideIcons.send, size: 20),
             ),
           ],
         ),

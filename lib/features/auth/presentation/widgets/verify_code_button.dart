@@ -1,6 +1,8 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:forui/forui.dart';
 import '../../../../core/api/api_exceptions.dart';
+import '../../../../core/widgets/app_toast.dart';
 
 class VerifyCodeButton extends StatefulWidget {
   final Future<void> Function() onSend;
@@ -30,9 +32,7 @@ class _VerifyCodeButtonState extends State<VerifyCodeButton> {
       _startCountdown();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('发送失败: ${friendlyErrorMessage(e)}')),
-        );
+        showAppError(context, '发送失败: ${friendlyErrorMessage(e)}');
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
@@ -54,14 +54,19 @@ class _VerifyCodeButtonState extends State<VerifyCodeButton> {
   @override
   Widget build(BuildContext context) {
     final enabled = _countdown == 0 && !_isSending;
-    return TextButton(
-      onPressed: enabled ? _handleSend : null,
-      child: Text(
-        _isSending
-            ? '发送中...'
-            : _countdown > 0
-                ? '${_countdown}s'
-                : '获取验证码',
+    return SizedBox(
+      width: 112,
+      child: FButton(
+        variant: .outline,
+        size: .sm,
+        onPress: enabled ? _handleSend : null,
+        child: Text(
+          _isSending
+              ? '发送中...'
+              : _countdown > 0
+              ? '${_countdown}s'
+              : '获取验证码',
+        ),
       ),
     );
   }

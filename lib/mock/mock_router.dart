@@ -6,8 +6,9 @@ import 'mock_data.dart';
 int _nextPostId = 100;
 int _nextCommentId = 200;
 
-final List<Map<String, dynamic>> _posts =
-    seedPosts.map((p) => Map<String, dynamic>.from(p)).toList();
+final List<Map<String, dynamic>> _posts = seedPosts
+    .map((p) => Map<String, dynamic>.from(p))
+    .toList();
 
 final Map<int, List<Map<String, dynamic>>> _comments = seedComments.map(
   (k, v) => MapEntry(k, v.map((c) => Map<String, dynamic>.from(c)).toList()),
@@ -17,7 +18,10 @@ final Map<int, Map<String, dynamic>> _users = seedUsers.map(
   (k, v) => MapEntry(k, Map<String, dynamic>.from(v)),
 );
 
-final Set<int> _likedPostIds = {};
+final Set<int> _likedPostIds = seedPosts
+    .where((post) => post['isLiked'] == true)
+    .map((post) => (post['id'] as num).toInt())
+    .toSet();
 final Set<int> _favoritedPostIds = {};
 final Set<int> _followedUserIds = {};
 
@@ -139,8 +143,9 @@ Map<String, dynamic> _handlePostList(Map<String, String> query) {
 
   final start = (page - 1) * pageSize;
   final end = start + pageSize;
-  final slice =
-      start >= sorted.length ? <Map<String, dynamic>>[] : sorted.sublist(start, end.clamp(0, sorted.length));
+  final slice = start >= sorted.length
+      ? <Map<String, dynamic>>[]
+      : sorted.sublist(start, end.clamp(0, sorted.length));
 
   return {
     'list': slice,
@@ -171,6 +176,7 @@ Map<String, dynamic> _handlePost(
       'tags': body?['tags'] ?? <String>[],
       'viewCount': 0,
       'likeCount': 0,
+      'isLiked': false,
       'commentCount': 0,
       'favoriteCount': 0,
       'createdAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
@@ -224,7 +230,9 @@ Map<String, dynamic> _handleCommentList(
   List<String> segments,
   Map<String, String> query,
 ) {
-  if (segments.length < 4) return {'list': [], 'total': 0, 'page': 1, 'pageSize': 20};
+  if (segments.length < 4) {
+    return {'list': [], 'total': 0, 'page': 1, 'pageSize': 20};
+  }
 
   final postId = int.tryParse(segments[3]) ?? 0;
   final page = int.tryParse(query['page'] ?? '1') ?? 1;
@@ -233,8 +241,9 @@ Map<String, dynamic> _handleCommentList(
   final all = _comments[postId] ?? [];
   final start = (page - 1) * pageSize;
   final end = start + pageSize;
-  final slice =
-      start >= all.length ? <Map<String, dynamic>>[] : all.sublist(start, end.clamp(0, all.length));
+  final slice = start >= all.length
+      ? <Map<String, dynamic>>[]
+      : all.sublist(start, end.clamp(0, all.length));
 
   return {
     'list': slice,
@@ -311,7 +320,9 @@ Map<String, dynamic> _handleLike(Map<String, dynamic> body) {
       if (postIdx >= 0) {
         _posts[postIdx] = {
           ..._posts[postIdx],
-          'likeCount': ((_posts[postIdx]['likeCount'] as num).toInt() - 1).clamp(0, 999999),
+          'likeCount': ((_posts[postIdx]['likeCount'] as num).toInt() - 1)
+              .clamp(0, 999999),
+          'isLiked': false,
         };
       }
     } else {
@@ -320,6 +331,7 @@ Map<String, dynamic> _handleLike(Map<String, dynamic> body) {
         _posts[postIdx] = {
           ..._posts[postIdx],
           'likeCount': (_posts[postIdx]['likeCount'] as num).toInt() + 1,
+          'isLiked': true,
         };
       }
     }
@@ -339,7 +351,8 @@ Map<String, dynamic> _handleFavorite(Map<String, dynamic> body) {
     if (postIdx >= 0) {
       _posts[postIdx] = {
         ..._posts[postIdx],
-        'favoriteCount': ((_posts[postIdx]['favoriteCount'] as num).toInt() - 1).clamp(0, 999999),
+        'favoriteCount': ((_posts[postIdx]['favoriteCount'] as num).toInt() - 1)
+            .clamp(0, 999999),
       };
     }
   } else {
@@ -432,8 +445,11 @@ Map<String, dynamic> _handleUsersList(
 
   List<Map<String, dynamic>> filtered;
   if (kind == 'posts') {
-    filtered = _posts.where((p) => (p['authorId'] as num).toInt() == userId).toList()
-      ..sort((a, b) => (b['createdAt'] as int).compareTo(a['createdAt'] as int));
+    filtered =
+        _posts.where((p) => (p['authorId'] as num).toInt() == userId).toList()
+          ..sort(
+            (a, b) => (b['createdAt'] as int).compareTo(a['createdAt'] as int),
+          );
   } else if (kind == 'favorites') {
     if (userId == 1) {
       filtered = _posts

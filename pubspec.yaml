@@ -9,13 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.6.1
   go_router: ^14.8.1
   shared_preferences: ^2.3.4
   cached_network_image: ^3.4.1
   image_picker: ^1.1.2
   connectivity_plus: ^6.1.1
-  shimmer: ^3.0.0
   intl: ^0.20.2
   http: ^1.6.0
   http_parser: ^4.1.2
@@ -30,4 +30,5 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
+  # Forui 0.24.2 delegates adaptive text-selection affordances to Flutter.
   uses-material-design: true

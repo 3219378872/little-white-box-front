@@ -5,5 +5,8 @@ import 'package:forui/forui.dart';
 ///
 /// 用法：MaterialApp(builder: foruiTestBuilder, home: ...)
 Widget foruiTestBuilder(BuildContext context, Widget? child) {
-  return FTheme(data: FTheme.neutral.light.touch, child: child!);
+  return FTheme(
+    data: FTheme.neutral.light.touch,
+    child: FToaster(child: FTooltipGroup(child: child!)),
+  );
 }

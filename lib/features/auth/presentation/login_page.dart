@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../application/auth_notifier.dart';
 import '../data/auth_repository.dart';
 import 'widgets/verify_code_button.dart';
@@ -15,10 +17,7 @@ class LoginPage extends ConsumerStatefulWidget {
   ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends ConsumerState<LoginPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
+class _LoginPageState extends ConsumerState<LoginPage> {
   // 密码登录
   final _usernameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -28,17 +27,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
   final _codeCtrl = TextEditingController();
 
   bool _isLoading = false;
-  final _formKey = GlobalKey<FormState>();
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
   @override
   void dispose() {
-    _tabController.dispose();
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
     _phoneCtrl.dispose();
@@ -51,9 +41,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
       _showError('请填写用户名和密码');
       return;
     }
-    await _doLogin(() => ref
-        .read(_authRepoProvider)
-        .loginWithPassword(_usernameCtrl.text, _passwordCtrl.text));
+    await _doLogin(
+      () => ref
+          .read(_authRepoProvider)
+          .loginWithPassword(_usernameCtrl.text, _passwordCtrl.text),
+    );
   }
 
   Future<void> _loginWithCode() async {
@@ -61,9 +53,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
       _showError('请填写手机号和验证码');
       return;
     }
-    await _doLogin(() => ref
-        .read(_authRepoProvider)
-        .loginWithVerifyCode(_phoneCtrl.text, _codeCtrl.text));
+    await _doLogin(
+      () => ref
+          .read(_authRepoProvider)
+          .loginWithVerifyCode(_phoneCtrl.text, _codeCtrl.text),
+    );
   }
 
   Future<void> _doLogin(Future<dynamic> Function() loginFn) async {
@@ -81,35 +75,38 @@ class _LoginPageState extends ConsumerState<LoginPage>
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    showAppError(context, msg);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
+    final theme = context.theme;
+    return FScaffold(
+      childPad: false,
+      child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             children: [
               const SizedBox(height: 60),
               Icon(
-                Icons.all_inclusive,
+                FLucideIcons.infinity,
                 size: 64,
-                color: Theme.of(context).colorScheme.primary,
+                color: theme.colors.primary,
               ),
               const SizedBox(height: 12),
-              Text('小白盒', style: Theme.of(context).textTheme.headlineMedium),
+              Text('小白盒', style: theme.typography.display.xl2),
               const SizedBox(height: 32),
-              TabBar(
-                controller: _tabController,
-                tabs: const [Tab(text: '密码登录'), Tab(text: '验证码登录')],
-              ),
-              const SizedBox(height: 24),
               Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [_passwordForm(), _codeForm()],
+                child: FTabs(
+                  expands: true,
+                  children: [
+                    FTabEntry(
+                      label: const Text('密码登录'),
+                      child: _passwordForm(),
+                    ),
+                    FTabEntry(label: const Text('验证码登录'), child: _codeForm()),
+                  ],
                 ),
               ),
             ],
@@ -120,69 +117,80 @@ class _LoginPageState extends ConsumerState<LoginPage>
   }
 
   Widget _passwordForm() {
-    return Form(
-      key: _formKey,
-      child: ListView(
-        children: [
-          TextField(
-            controller: _usernameCtrl,
-            decoration: const InputDecoration(
-              labelText: '用户名',
-              prefixIcon: Icon(Icons.person_outline),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _passwordCtrl,
-            obscureText: true,
-            decoration: const InputDecoration(
-              labelText: '密码',
-              prefixIcon: Icon(Icons.lock_outline),
-            ),
-          ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _isLoading ? null : _loginWithPassword,
-            child: _isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('登录'),
-          ),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () => context.go('/auth/register'),
-            child: const Text('没有账号？去注册'),
-          ),
-        ],
-      ),
+    return ListView(
+      padding: const EdgeInsets.only(top: 24),
+      children: [
+        FTextField(
+          control: FTextFieldControl.managed(controller: _usernameCtrl),
+          label: const Text('用户名'),
+          prefixBuilder: (context, style, variants) =>
+              FTextField.prefixIconBuilder(
+                context,
+                style,
+                variants,
+                const Icon(FLucideIcons.userRound),
+              ),
+        ),
+        const SizedBox(height: 16),
+        FTextField.password(
+          control: FTextFieldControl.managed(controller: _passwordCtrl),
+          label: const Text('密码'),
+          prefixBuilder: (context, style, _, variants) =>
+              FTextField.prefixIconBuilder(
+                context,
+                style,
+                variants,
+                const Icon(FLucideIcons.lock),
+              ),
+        ),
+        const SizedBox(height: 24),
+        FButton(
+          onPress: _isLoading ? null : _loginWithPassword,
+          child: _isLoading
+              ? const FCircularProgress(size: .sm)
+              : const Text('登录'),
+        ),
+        const SizedBox(height: 16),
+        FButton(
+          variant: .ghost,
+          onPress: () => context.go('/auth/register'),
+          child: const Text('没有账号？去注册'),
+        ),
+      ],
     );
   }
 
   Widget _codeForm() {
     return ListView(
+      padding: const EdgeInsets.only(top: 24),
       children: [
-        TextField(
-          controller: _phoneCtrl,
+        FTextField(
+          control: FTextFieldControl.managed(controller: _phoneCtrl),
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: '手机号',
-            prefixIcon: Icon(Icons.phone_outlined),
-          ),
+          label: const Text('手机号'),
+          prefixBuilder: (context, style, variants) =>
+              FTextField.prefixIconBuilder(
+                context,
+                style,
+                variants,
+                const Icon(FLucideIcons.phone),
+              ),
         ),
         const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
-              child: TextField(
-                controller: _codeCtrl,
+              child: FTextField(
+                control: FTextFieldControl.managed(controller: _codeCtrl),
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: '验证码',
-                  prefixIcon: Icon(Icons.sms_outlined),
-                ),
+                label: const Text('验证码'),
+                prefixBuilder: (context, style, variants) =>
+                    FTextField.prefixIconBuilder(
+                      context,
+                      style,
+                      variants,
+                      const Icon(FLucideIcons.messageSquareText),
+                    ),
               ),
             ),
             const SizedBox(width: 12),
@@ -193,19 +201,16 @@ class _LoginPageState extends ConsumerState<LoginPage>
           ],
         ),
         const SizedBox(height: 24),
-        FilledButton(
-          onPressed: _isLoading ? null : _loginWithCode,
+        FButton(
+          onPress: _isLoading ? null : _loginWithCode,
           child: _isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+              ? const FCircularProgress(size: .sm)
               : const Text('登录'),
         ),
         const SizedBox(height: 16),
-        TextButton(
-          onPressed: () => context.go('/auth/register'),
+        FButton(
+          variant: .ghost,
+          onPress: () => context.go('/auth/register'),
           child: const Text('没有账号？去注册'),
         ),
       ],

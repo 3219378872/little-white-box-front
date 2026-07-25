@@ -1,14 +1,92 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/api/api_exceptions.dart';
+import '../../../../core/widgets/app_tag_badge.dart';
+import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/cached_avatar.dart';
+import '../../../auth/application/auth_notifier.dart';
+import '../../../interaction/data/interaction_repository.dart';
 import '../../../../sdk/data/gateway.dart';
 
-class PostCard extends StatelessWidget {
+final postCardInteractionRepositoryProvider = Provider<InteractionRepository>(
+  (ref) => InteractionRepository(),
+);
+
+class PostCard extends ConsumerStatefulWidget {
   final PostItem post;
 
   const PostCard({super.key, required this.post});
+
+  @override
+  ConsumerState<PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends ConsumerState<PostCard> {
+  late bool _isLiked;
+  bool _isLikePending = false;
+  late int _likeCount;
+
+  PostItem get post => widget.post;
+
+  @override
+  void initState() {
+    super.initState();
+    _isLiked = post.isLiked;
+    _likeCount = post.likeCount.toInt();
+  }
+
+  @override
+  void didUpdateWidget(covariant PostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.post.id != post.id) {
+      _isLiked = post.isLiked;
+      _isLikePending = false;
+      _likeCount = post.likeCount.toInt();
+    } else if (!_isLikePending &&
+        (oldWidget.post.isLiked != post.isLiked ||
+            oldWidget.post.likeCount != post.likeCount)) {
+      _isLiked = post.isLiked;
+      _likeCount = post.likeCount.toInt();
+    }
+  }
+
+  Future<void> _toggleLike() async {
+    if (_isLikePending) return;
+    if (!ref.read(authNotifierProvider).isAuthenticated) {
+      context.push('/auth/login');
+      return;
+    }
+
+    final wasLiked = _isLiked;
+    setState(() {
+      _isLiked = !wasLiked;
+      _likeCount += wasLiked ? -1 : 1;
+      _isLikePending = true;
+    });
+
+    try {
+      final repo = ref.read(postCardInteractionRepositoryProvider);
+      if (wasLiked) {
+        await repo.unlikeTarget(post.id.toInt(), 1);
+      } else {
+        await repo.likeTarget(post.id.toInt(), 1);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLiked = wasLiked;
+        _likeCount += wasLiked ? 1 : -1;
+      });
+      showAppError(context, '操作失败: ${friendlyErrorMessage(e)}');
+    } finally {
+      if (mounted) {
+        setState(() => _isLikePending = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,26 +107,29 @@ class PostCard extends StatelessWidget {
                 // 作者信息行（更紧凑）
                 Row(
                   children: [
-                    GestureDetector(
-                      onTap: () =>
+                    FTappable(
+                      onPress: () =>
                           context.push('/user/${post.authorId.toInt()}'),
                       child: CachedAvatar(
-                          url: post.authorAvatar,
-                          name: post.authorName,
-                          radius: 14),
+                        url: post.authorAvatar,
+                        name: post.authorName,
+                        radius: 14,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         post.authorName,
-                        style: typography.body.sm
-                            .copyWith(fontWeight: FontWeight.w500),
+                        style: typography.body.sm.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                     Text(
                       _formatTime(post.createdAt),
-                      style: typography.body.xs
-                          .copyWith(color: colors.mutedForeground),
+                      style: typography.body.xs.copyWith(
+                        color: colors.mutedForeground,
+                      ),
                     ),
                   ],
                 ),
@@ -57,8 +138,9 @@ class PostCard extends StatelessWidget {
                 if (post.title.isNotEmpty)
                   Text(
                     post.title,
-                    style: typography.body.md
-                        .copyWith(fontWeight: FontWeight.w600),
+                    style: typography.body.md.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -68,8 +150,9 @@ class PostCard extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       post.content,
-                      style: typography.body.sm
-                          .copyWith(color: colors.mutedForeground),
+                      style: typography.body.sm.copyWith(
+                        color: colors.mutedForeground,
+                      ),
                       maxLines: post.title.isNotEmpty ? 2 : 3,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -85,7 +168,9 @@ class PostCard extends StatelessWidget {
                   Wrap(
                     spacing: 6,
                     runSpacing: 4,
-                    children: post.tags.map((tag) => _TagChip(tag: tag)).toList(),
+                    children: post.tags
+                        .map((tag) => AppTagBadge(label: tag))
+                        .toList(),
                   ),
                 ],
                 // 底部统计
@@ -93,13 +178,28 @@ class PostCard extends StatelessWidget {
                 Row(
                   children: [
                     _statItem(
-                        context, FLucideIcons.thumbsUp, post.likeCount.toInt()),
+                      context,
+                      FLucideIcons.thumbsUp,
+                      _likeCount,
+                      key: ValueKey('post-like-${post.id.toInt()}'),
+                      active: _isLiked,
+                      onPress: _toggleLike,
+                      semanticsLabel: _isLiked
+                          ? '取消点赞，当前 $_likeCount 赞'
+                          : '点赞，当前 $_likeCount 赞',
+                    ),
                     const SizedBox(width: 24),
-                    _statItem(context, FLucideIcons.messageCircle,
-                        post.commentCount.toInt()),
+                    _statItem(
+                      context,
+                      FLucideIcons.messageCircle,
+                      post.commentCount.toInt(),
+                    ),
                     const Spacer(),
                     _statItem(
-                        context, FLucideIcons.eye, post.viewCount.toInt()),
+                      context,
+                      FLucideIcons.eye,
+                      post.viewCount.toInt(),
+                    ),
                   ],
                 ),
               ],
@@ -133,10 +233,7 @@ class PostCard extends StatelessWidget {
               width: double.infinity,
               height: 180,
               color: colors.secondary,
-              child: Icon(
-                FLucideIcons.image,
-                color: colors.mutedForeground,
-              ),
+              child: Icon(FLucideIcons.image, color: colors.mutedForeground),
             ),
           ),
           if (hasMore)
@@ -146,12 +243,15 @@ class PostCard extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.black54,
+                  color: const Color(0x8A000000),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   '+${post.images.length - 1}',
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                  style: const TextStyle(
+                    color: Color(0xFFFFFFFF),
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ),
@@ -160,25 +260,43 @@ class PostCard extends StatelessWidget {
     );
   }
 
-  Widget _statItem(BuildContext context, IconData icon, int count) {
+  Widget _statItem(
+    BuildContext context,
+    IconData icon,
+    int count, {
+    Key? key,
+    bool active = false,
+    VoidCallback? onPress,
+    String? semanticsLabel,
+  }) {
     final theme = context.theme;
-    final color = theme.colors.mutedForeground;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 4),
-        Text(
-          count > 999 ? '${(count / 1000).toStringAsFixed(1)}k' : '$count',
-          style: theme.typography.body.xs.copyWith(color: color),
-        ),
-      ],
+    final color = active ? theme.colors.primary : theme.colors.mutedForeground;
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 4),
+          Text(
+            count > 999 ? '${(count / 1000).toStringAsFixed(1)}k' : '$count',
+            style: theme.typography.body.xs.copyWith(color: color),
+          ),
+        ],
+      ),
+    );
+
+    if (onPress == null) return content;
+    return FTappable(
+      key: key,
+      onPress: onPress,
+      semanticsLabel: semanticsLabel,
+      child: content,
     );
   }
 
   String _formatTime(num timestamp) {
-    final date =
-        DateTime.fromMillisecondsSinceEpoch(timestamp.toInt() * 1000);
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp.toInt() * 1000);
     final now = DateTime.now();
     final diff = now.difference(date);
     if (diff.inMinutes < 1) return '刚刚';
@@ -186,35 +304,5 @@ class PostCard extends StatelessWidget {
     if (diff.inDays < 1) return '${diff.inHours}小时前';
     if (diff.inDays < 30) return '${diff.inDays}天前';
     return '${date.month}-${date.day}';
-  }
-}
-
-/// 标签 pill，视觉对齐 forui 的 secondary badge。
-/// 不直接用 FBadge：其 IntrinsicWidth 布局在 Web/CanvasKit 下会把
-/// CJK 文本压成单字宽（"美食" 只显示 "美"），故自绘规避。
-class _TagChip extends StatelessWidget {
-  final String tag;
-
-  const _TagChip({required this.tag});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: ShapeDecoration(
-        shape: RoundedSuperellipseBorder(
-          borderRadius: theme.style.borderRadius.pill,
-        ),
-        color: theme.colors.secondary,
-      ),
-      child: Text(
-        tag,
-        style: theme.typography.body.xs.copyWith(
-          color: theme.colors.secondaryForeground,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
   }
 }

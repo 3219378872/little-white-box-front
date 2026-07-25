@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
@@ -50,8 +52,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('加载失败: $e')));
+        showAppError(context, '加载失败: $e');
       }
     }
   }
@@ -59,7 +60,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   Future<void> _save() async {
     setState(() => _isLoading = true);
     try {
-      await ref.read(_userRepoProvider).updateUserProfile(
+      await ref
+          .read(_userRepoProvider)
+          .updateUserProfile(
             UpdateProfileReq(
               nickname: _nicknameCtrl.text.trim(),
               avatarUrl: _avatarUrl,
@@ -67,14 +70,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
             ),
           );
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('保存成功')));
+        showAppSuccess(context, '保存成功');
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('保存失败: $e')));
+        showAppError(context, '保存失败: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -83,45 +84,45 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return FScaffold(
+      childPad: false,
+      header: FHeader.nested(
         title: const Text('编辑资料'),
-        actions: [
-          FilledButton(
-            onPressed: _isLoading ? null : _save,
+        prefixes: [FHeaderAction.back(onPress: () => context.pop())],
+        suffixes: [
+          FButton(
+            size: .sm,
+            mainAxisSize: MainAxisSize.min,
+            onPress: _isLoading ? null : _save,
             child: _isLoading
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? const FCircularProgress(size: .sm)
                 : const Text('保存'),
           ),
-          const SizedBox(width: 8),
         ],
       ),
-      body: !_isInitialized
-          ? const Center(child: CircularProgressIndicator())
+      child: !_isInitialized
+          ? const Center(child: FCircularProgress())
           : ListView(
               padding: const EdgeInsets.all(24),
               children: [
                 Center(
                   child: CachedAvatar(
-                      url: _avatarUrl, name: _nicknameCtrl.text, radius: 48),
+                    url: _avatarUrl,
+                    name: _nicknameCtrl.text,
+                    radius: 48,
+                  ),
                 ),
                 const SizedBox(height: 24),
-                TextField(
-                  controller: _nicknameCtrl,
-                  decoration: const InputDecoration(labelText: '昵称'),
+                FTextField(
+                  control: FTextFieldControl.managed(controller: _nicknameCtrl),
+                  label: const Text('昵称'),
                   maxLength: 20,
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: _bioCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '个人简介',
-                    alignLabelWithHint: true,
-                  ),
+                FTextField.multiline(
+                  control: FTextFieldControl.managed(controller: _bioCtrl),
+                  label: const Text('个人简介'),
+                  minLines: 4,
                   maxLines: 4,
                   maxLength: 200,
                 ),

@@ -1,4 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:forui/forui.dart';
+
+import 'forui_pull_to_refresh.dart';
 
 class PaginatedListView<T> extends StatefulWidget {
   final List<T> items;
@@ -53,24 +56,36 @@ class _PaginatedListViewState<T> extends State<PaginatedListView<T>> {
   @override
   Widget build(BuildContext context) {
     if (widget.isLoading && widget.items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: FCircularProgress());
     }
 
     if (widget.items.isEmpty) {
-      return widget.emptyWidget ?? const Center(child: Text('暂无内容'));
+      return ForuiPullToRefresh(
+        onRefresh: () async => widget.onRefresh(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: widget.emptyWidget ?? const Center(child: Text('暂无内容')),
+            ),
+          ],
+        ),
+      );
     }
 
-    return RefreshIndicator(
+    return ForuiPullToRefresh(
       onRefresh: () async => widget.onRefresh(),
       child: ListView.builder(
         controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(top: 8, bottom: 80),
         itemCount: widget.items.length + (widget.hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= widget.items.length) {
             return const Padding(
               padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: FCircularProgress()),
             );
           }
           return widget.itemBuilder(context, widget.items[index]);

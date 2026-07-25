@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../application/auth_notifier.dart';
 import '../data/auth_repository.dart';
 import 'widgets/verify_code_button.dart';
@@ -47,7 +49,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
     setState(() => _isLoading = true);
     try {
-      final resp = await ref.read(_authRepoProvider).registerUser(
+      final resp = await ref
+          .read(_authRepoProvider)
+          .registerUser(
             username: _usernameCtrl.text,
             password: _passwordCtrl.text,
             phone: _phoneCtrl.text,
@@ -64,64 +68,93 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    showAppError(context, msg);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('注册')),
-      body: SafeArea(
+    return FScaffold(
+      childPad: false,
+      header: FHeader.nested(
+        title: const Text('注册'),
+        prefixes: [
+          FHeaderAction.back(
+            onPress: () =>
+                context.canPop() ? context.pop() : context.go('/auth/login'),
+          ),
+        ],
+      ),
+      child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: ListView(
             children: [
               const SizedBox(height: 24),
-              TextField(
-                controller: _usernameCtrl,
-                decoration: const InputDecoration(
-                  labelText: '用户名',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
+              FTextField(
+                control: FTextFieldControl.managed(controller: _usernameCtrl),
+                label: const Text('用户名'),
+                prefixBuilder: (context, style, variants) =>
+                    FTextField.prefixIconBuilder(
+                      context,
+                      style,
+                      variants,
+                      const Icon(FLucideIcons.userRound),
+                    ),
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _passwordCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: '密码',
-                  prefixIcon: Icon(Icons.lock_outline),
-                ),
+              FTextField.password(
+                control: FTextFieldControl.managed(controller: _passwordCtrl),
+                label: const Text('密码'),
+                prefixBuilder: (context, style, _, variants) =>
+                    FTextField.prefixIconBuilder(
+                      context,
+                      style,
+                      variants,
+                      const Icon(FLucideIcons.lock),
+                    ),
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _confirmPasswordCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: '确认密码',
-                  prefixIcon: Icon(Icons.lock_outline),
+              FTextField.password(
+                control: FTextFieldControl.managed(
+                  controller: _confirmPasswordCtrl,
                 ),
+                label: const Text('确认密码'),
+                prefixBuilder: (context, style, _, variants) =>
+                    FTextField.prefixIconBuilder(
+                      context,
+                      style,
+                      variants,
+                      const Icon(FLucideIcons.lock),
+                    ),
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _phoneCtrl,
+              FTextField(
+                control: FTextFieldControl.managed(controller: _phoneCtrl),
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: '手机号',
-                  prefixIcon: Icon(Icons.phone_outlined),
-                ),
+                label: const Text('手机号'),
+                prefixBuilder: (context, style, variants) =>
+                    FTextField.prefixIconBuilder(
+                      context,
+                      style,
+                      variants,
+                      const Icon(FLucideIcons.phone),
+                    ),
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _codeCtrl,
+                    child: FTextField(
+                      control: FTextFieldControl.managed(controller: _codeCtrl),
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: '验证码',
-                        prefixIcon: Icon(Icons.sms_outlined),
-                      ),
+                      label: const Text('验证码'),
+                      prefixBuilder: (context, style, variants) =>
+                          FTextField.prefixIconBuilder(
+                            context,
+                            style,
+                            variants,
+                            const Icon(FLucideIcons.messageSquareText),
+                          ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -133,19 +166,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 ],
               ),
               const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _isLoading ? null : _register,
+              FButton(
+                onPress: _isLoading ? null : _register,
                 child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const FCircularProgress(size: .sm)
                     : const Text('注册'),
               ),
               const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => context.go('/auth/login'),
+              FButton(
+                variant: .ghost,
+                onPress: () => context.go('/auth/login'),
                 child: const Text('已有账号？去登录'),
               ),
             ],

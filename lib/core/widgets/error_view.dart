@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
 class ErrorView extends StatelessWidget {
@@ -16,11 +16,7 @@ class ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              FLucideIcons.circleAlert,
-              size: 48,
-              color: theme.colors.error,
-            ),
+            Icon(FLucideIcons.circleAlert, size: 48, color: theme.colors.error),
             const SizedBox(height: 16),
             Text(
               message,
@@ -65,8 +61,9 @@ class EmptyView extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               message,
-              style: theme.typography.body.lg
-                  .copyWith(color: theme.colors.mutedForeground),
+              style: theme.typography.body.lg.copyWith(
+                color: theme.colors.mutedForeground,
+              ),
             ),
           ],
         ),

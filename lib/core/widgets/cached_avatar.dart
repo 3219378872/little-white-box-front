@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:forui/forui.dart';
 
 class CachedAvatar extends StatelessWidget {
   final String? url;
@@ -24,44 +25,38 @@ class CachedAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fallback = _fallback();
+    final style = FAvatarStyleDelta.delta(backgroundColor: _fallbackColor());
     if (url == null || url!.isEmpty) {
-      return _fallback();
+      return FAvatar.raw(size: radius * 2, style: style, child: fallback);
     }
-    return CachedNetworkImage(
-      imageUrl: url!,
-      imageBuilder: (context, imageProvider) => CircleAvatar(
-        radius: radius,
-        backgroundImage: imageProvider,
-      ),
-      placeholder: (context, url) => CircleAvatar(
-        radius: radius,
-        child: const CircularProgressIndicator(strokeWidth: 2),
-      ),
-      errorWidget: (context, url, error) => _fallback(),
+    return FAvatar(
+      image: CachedNetworkImageProvider(url!),
+      size: radius * 2,
+      style: style,
+      fallback: fallback,
     );
   }
 
   Widget _fallback() {
     final trimmed = name?.trim() ?? '';
     if (trimmed.isEmpty) {
-      return CircleAvatar(
-        radius: radius,
-        child: Icon(Icons.person, size: radius),
-      );
+      return Icon(FLucideIcons.userRound, size: radius);
     }
-    // 按首字符码位取色：String.hashCode 在 Web 与 VM 上结果不同，码位更稳定
-    final color = _palette[trimmed.codeUnitAt(0) % _palette.length];
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: color,
-      child: Text(
-        trimmed.characters.first,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: radius * 0.9,
-          fontWeight: FontWeight.w600,
-        ),
+    return Text(
+      trimmed.characters.first,
+      style: TextStyle(
+        color: const Color(0xFFFFFFFF),
+        fontSize: radius * 0.9,
+        fontWeight: FontWeight.w600,
       ),
     );
+  }
+
+  Color _fallbackColor() {
+    final trimmed = name?.trim() ?? '';
+    if (trimmed.isEmpty) return const Color(0xFFE5E7EB);
+    // String.hashCode differs between Web and VM; the first code unit is stable.
+    return _palette[trimmed.codeUnitAt(0) % _palette.length];
   }
 }

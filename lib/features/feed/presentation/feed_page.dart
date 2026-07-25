@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/forui_pull_to_refresh.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../application/feed_notifier.dart';
 import 'widgets/post_card.dart';
@@ -76,21 +77,34 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
     }
 
     if (feedState.posts.isEmpty) {
-      return const EmptyView(message: '还没有帖子，快来发布第一篇吧');
+      return ForuiPullToRefresh(
+        onRefresh: () =>
+            ref.read(feedNotifierProvider(widget.sortBy).notifier).refresh(),
+        child: const CustomScrollView(
+          physics: AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: EmptyView(message: '还没有帖子，快来发布第一篇吧'),
+            ),
+          ],
+        ),
+      );
     }
 
-    return RefreshIndicator(
+    return ForuiPullToRefresh(
       onRefresh: () =>
           ref.read(feedNotifierProvider(widget.sortBy).notifier).refresh(),
       child: ListView.builder(
         controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(top: 8, bottom: 80),
         itemCount: feedState.posts.length + (feedState.hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= feedState.posts.length) {
             return const Padding(
               padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: FCircularProgress()),
             );
           }
           return PostCard(post: feedState.posts[index]);

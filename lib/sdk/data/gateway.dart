@@ -650,6 +650,8 @@ class PostItem {
 
   final num likeCount;
 
+  final bool isLiked;
+
   final num commentCount;
 
   final num createdAt;
@@ -664,6 +666,7 @@ class PostItem {
     required this.tags,
     required this.viewCount,
     required this.likeCount,
+    required this.isLiked,
     required this.commentCount,
     required this.createdAt,
   });
@@ -679,6 +682,7 @@ class PostItem {
       tags: m['tags']?.cast<String>() ?? [],
       viewCount: m['viewCount'] ?? 0,
       likeCount: m['likeCount'] ?? 0,
+      isLiked: m['isLiked'] ?? false,
       commentCount: m['commentCount'] ?? 0,
       createdAt: m['createdAt'] ?? 0,
     );
@@ -695,6 +699,7 @@ class PostItem {
       'tags': tags,
       'viewCount': viewCount,
       'likeCount': likeCount,
+      'isLiked': isLiked,
       'commentCount': commentCount,
       'createdAt': createdAt,
     };
