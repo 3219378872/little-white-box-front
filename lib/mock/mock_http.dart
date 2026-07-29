@@ -24,13 +24,18 @@ class MockHttpClient extends http.BaseClient {
     debugPrint('[Mock] ${request.method} $path');
     if (body.isNotEmpty) debugPrint('[Mock] body: $body');
 
-    final responseJson = router.dispatch(request.method, path, body);
-    debugPrint('[Mock] response: $responseJson\n');
+    final response = router.dispatchResponse(
+      request.method,
+      path,
+      body,
+      headers: request.headers,
+    );
+    debugPrint('[Mock] response: ${response.body}\n');
 
     return http.StreamedResponse(
-      Stream<List<int>>.value(utf8.encode(responseJson)),
-      200,
-      headers: const {'content-type': 'application/json; charset=utf-8'},
+      Stream<List<int>>.value(utf8.encode(response.body)),
+      response.statusCode,
+      headers: response.headers,
     );
   }
 }

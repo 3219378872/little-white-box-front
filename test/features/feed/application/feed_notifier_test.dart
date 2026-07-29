@@ -1,0 +1,192 @@
+import 'dart:async';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:xiaobaihe_app/features/feed/application/feed_notifier.dart';
+import 'package:xiaobaihe_app/features/feed/data/feed_models.dart';
+import 'package:xiaobaihe_app/features/feed/data/feed_repository.dart';
+import 'package:xiaobaihe_app/sdk/data/gateway.dart';
+
+void main() {
+  test('loads, paginates by cursor, and deduplicates posts', () async {
+    final repository = _FakeFeedRepository([
+      page([entry(1), entry(2)], requestId: 'request-1', cursor: 'cursor-1'),
+      page([entry(2), entry(3)], requestId: 'request-1', hasMore: false),
+    ]);
+    final notifier = FeedNotifier(
+      repository: repository,
+      kind: FeedKind.recommend,
+      pageSize: 2,
+      loadImmediately: false,
+    );
+
+    await notifier.loadInitial();
+    await notifier.loadMore();
+
+    expect(notifier.state.entries.map((item) => item.post.id), [1, 2, 3]);
+    expect(notifier.state.hasMore, isFalse);
+    expect(repository.calls[1].requestId, 'request-1');
+    expect(repository.calls[1].recommendCursor, 'cursor-1');
+    expect(repository.calls[1].positionOffset, 2);
+  });
+
+  test('refresh starts a new snapshot without reusing request id', () async {
+    final repository = _FakeFeedRepository([
+      page([entry(1)], requestId: 'request-1'),
+      page([entry(2)], requestId: 'request-2'),
+    ]);
+    final notifier = FeedNotifier(
+      repository: repository,
+      kind: FeedKind.recommend,
+      loadImmediately: false,
+    );
+
+    await notifier.loadInitial();
+    await notifier.refresh();
+
+    expect(repository.calls.map((call) => call.requestId), ['', '']);
+    expect(notifier.state.requestId, 'request-2');
+    expect(notifier.state.entries.single.post.id, 2);
+  });
+
+  test('ignores an older initial response after a refresh wins', () async {
+    final first = Completer<FeedPageResult>();
+    final second = Completer<FeedPageResult>();
+    final repository = _CompleterFeedRepository([first, second]);
+    final notifier = FeedNotifier(
+      repository: repository,
+      kind: FeedKind.recommend,
+      loadImmediately: false,
+    );
+
+    final older = notifier.loadInitial();
+    final newer = notifier.refresh();
+    second.complete(page([entry(2)], requestId: 'request-2'));
+    await newer;
+    first.complete(page([entry(1)], requestId: 'request-1'));
+    await older;
+
+    expect(notifier.state.requestId, 'request-2');
+    expect(notifier.state.entries.single.post.id, 2);
+  });
+
+  test('exposes a friendly initial failure', () async {
+    final notifier = FeedNotifier(
+      repository: _FailingFeedRepository(),
+      kind: FeedKind.follow,
+      loadImmediately: false,
+    );
+
+    await notifier.loadInitial();
+
+    expect(notifier.state.isLoading, isFalse);
+    expect(notifier.state.error, 'feed failed');
+  });
+}
+
+FeedPageResult page(
+  List<FeedEntry> items, {
+  required String requestId,
+  String cursor = '',
+  bool hasMore = true,
+}) => FeedPageResult(
+  items: items,
+  hasMore: hasMore,
+  requestId: requestId,
+  recommendCursor: cursor,
+);
+
+FeedEntry entry(int id) => FeedEntry(
+  post: PostItem(
+    id: id,
+    authorId: 1,
+    authorName: 'Author',
+    authorAvatar: '',
+    title: 'Post $id',
+    content: '',
+    images: const [],
+    tags: const [],
+    viewCount: 0,
+    likeCount: 0,
+    isLiked: false,
+    commentCount: 0,
+    createdAt: 1700000000,
+  ),
+  context: FeedRecommendationContext(
+    requestId: 'request',
+    scene: 'home',
+    position: id,
+    recallSource: 'popular',
+    modelVersion: 'rule-v1',
+    experimentId: '',
+  ),
+);
+
+class _FeedCall {
+  final String requestId;
+  final String recommendCursor;
+  final int positionOffset;
+
+  const _FeedCall({
+    required this.requestId,
+    required this.recommendCursor,
+    required this.positionOffset,
+  });
+}
+
+class _FakeFeedRepository implements FeedPageRepository {
+  final List<FeedPageResult> responses;
+  final List<_FeedCall> calls = [];
+
+  _FakeFeedRepository(this.responses);
+
+  @override
+  Future<FeedPageResult> fetchPage({
+    required FeedKind kind,
+    required int pageSize,
+    String requestId = '',
+    String recommendCursor = '',
+    FollowFeedCursor followCursor = const FollowFeedCursor(),
+    int positionOffset = 0,
+  }) async {
+    calls.add(
+      _FeedCall(
+        requestId: requestId,
+        recommendCursor: recommendCursor,
+        positionOffset: positionOffset,
+      ),
+    );
+    return responses.removeAt(0);
+  }
+}
+
+class _CompleterFeedRepository implements FeedPageRepository {
+  final List<Completer<FeedPageResult>> responses;
+
+  _CompleterFeedRepository(this.responses);
+
+  @override
+  Future<FeedPageResult> fetchPage({
+    required FeedKind kind,
+    required int pageSize,
+    String requestId = '',
+    String recommendCursor = '',
+    FollowFeedCursor followCursor = const FollowFeedCursor(),
+    int positionOffset = 0,
+  }) {
+    return responses.removeAt(0).future;
+  }
+}
+
+class _FailingFeedRepository implements FeedPageRepository {
+  @override
+  Future<FeedPageResult> fetchPage({
+    required FeedKind kind,
+    required int pageSize,
+    String requestId = '',
+    String recommendCursor = '',
+    FollowFeedCursor followCursor = const FollowFeedCursor(),
+    int positionOffset = 0,
+  }) {
+    throw Exception('feed failed');
+  }
+}

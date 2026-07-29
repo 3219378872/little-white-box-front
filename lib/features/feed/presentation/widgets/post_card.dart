@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
@@ -8,6 +10,8 @@ import '../../../../core/widgets/app_tag_badge.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/cached_avatar.dart';
 import '../../../auth/application/auth_notifier.dart';
+import '../../../behavior/application/behavior_tracker.dart';
+import '../../data/feed_models.dart';
 import '../../../interaction/data/interaction_repository.dart';
 import '../../../../sdk/data/gateway.dart';
 
@@ -17,30 +21,69 @@ final postCardInteractionRepositoryProvider = Provider<InteractionRepository>(
 
 class PostCard extends ConsumerStatefulWidget {
   final PostItem post;
+  final FeedRecommendationContext? recommendationContext;
+  final bool trackingActive;
 
-  const PostCard({super.key, required this.post});
+  const PostCard({
+    super.key,
+    required this.post,
+    this.recommendationContext,
+    this.trackingActive = true,
+  });
 
   @override
   ConsumerState<PostCard> createState() => _PostCardState();
 }
 
-class _PostCardState extends ConsumerState<PostCard> {
+class _PostCardState extends ConsumerState<PostCard>
+    with WidgetsBindingObserver {
+  static const _visibilityThreshold = 0.5;
+  static const _exposureThreshold = Duration(seconds: 1);
+  static const _visibilityPollInterval = Duration(milliseconds: 100);
+
   late bool _isLiked;
   bool _isLikePending = false;
   late int _likeCount;
+  Timer? _visibilityPoller;
+  Timer? _exposureTimer;
+  DateTime? _visibleSince;
+  DateTime? _dwellStartedAt;
+  bool _exposureReported = false;
 
   PostItem get post => widget.post;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _isLiked = post.isLiked;
     _likeCount = post.likeCount.toInt();
+    _startVisibilityTracking();
   }
 
   @override
   void didUpdateWidget(covariant PostCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final contextChanged =
+        oldWidget.post.id != post.id ||
+        oldWidget.recommendationContext?.requestId !=
+            widget.recommendationContext?.requestId;
+    if (contextChanged || oldWidget.trackingActive && !widget.trackingActive) {
+      _endVisibilitySession(
+        postId: oldWidget.post.id.toInt(),
+        recommendationContext: oldWidget.recommendationContext,
+      );
+    }
+    if (contextChanged) {
+      _exposureTimer?.cancel();
+      _exposureTimer = null;
+      _visibleSince = null;
+      _dwellStartedAt = null;
+      _exposureReported = false;
+    }
+    if (widget.recommendationContext != null && _visibilityPoller == null) {
+      _startVisibilityTracking();
+    }
     if (oldWidget.post.id != post.id) {
       _isLiked = post.isLiked;
       _isLikePending = false;
@@ -51,6 +94,24 @@ class _PostCardState extends ConsumerState<PostCard> {
       _isLiked = post.isLiked;
       _likeCount = post.likeCount.toInt();
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _evaluateVisibility();
+      return;
+    }
+    _endVisibilitySession();
+  }
+
+  @override
+  void dispose() {
+    _visibilityPoller?.cancel();
+    _exposureTimer?.cancel();
+    _endVisibilitySession();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _toggleLike() async {
@@ -74,6 +135,15 @@ class _PostCardState extends ConsumerState<PostCard> {
       } else {
         await repo.likeTarget(post.id.toInt(), 1);
       }
+      final trackingContext = widget.recommendationContext;
+      if (trackingContext != null) {
+        _trackSafely(() {
+          final tracker = ref.read(behaviorTrackerProvider);
+          return wasLiked
+              ? tracker.trackUnlike(post.id.toInt(), trackingContext)
+              : tracker.trackLike(post.id.toInt(), trackingContext);
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -88,6 +158,115 @@ class _PostCardState extends ConsumerState<PostCard> {
     }
   }
 
+  void _openPost() {
+    final trackingContext = widget.recommendationContext;
+    if (trackingContext != null) {
+      _trackSafely(
+        () => ref
+            .read(behaviorTrackerProvider)
+            .trackClick(post.id.toInt(), trackingContext),
+      );
+    }
+    _endVisibilitySession();
+    context.push('/post/${post.id.toInt()}');
+  }
+
+  void _startVisibilityTracking() {
+    if (widget.recommendationContext == null || _visibilityPoller != null) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.recommendationContext == null) return;
+      _evaluateVisibility();
+      _visibilityPoller = Timer.periodic(
+        _visibilityPollInterval,
+        (_) => _evaluateVisibility(),
+      );
+    });
+  }
+
+  void _evaluateVisibility() {
+    final trackingContext = widget.recommendationContext;
+    if (!mounted || trackingContext == null || !widget.trackingActive) {
+      _endVisibilitySession();
+      return;
+    }
+    final renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox ||
+        !renderObject.attached ||
+        !renderObject.hasSize ||
+        renderObject.size.isEmpty) {
+      _endVisibilitySession();
+      return;
+    }
+
+    final cardRect =
+        renderObject.localToGlobal(Offset.zero) & renderObject.size;
+    final viewportRect = Offset.zero & MediaQuery.sizeOf(context);
+    final intersection = cardRect.intersect(viewportRect);
+    final visibleArea = intersection.isEmpty
+        ? 0.0
+        : intersection.width * intersection.height;
+    final cardArea = cardRect.width * cardRect.height;
+    final visibleFraction = cardArea <= 0 ? 0.0 : visibleArea / cardArea;
+    if (visibleFraction < _visibilityThreshold) {
+      _endVisibilitySession();
+      return;
+    }
+
+    final now = DateTime.now();
+    _visibleSince ??= now;
+    _dwellStartedAt ??= now;
+    if (_exposureReported || _exposureTimer != null) return;
+    _exposureTimer = Timer(_exposureThreshold, () {
+      _exposureTimer = null;
+      if (!mounted ||
+          !widget.trackingActive ||
+          _visibleSince == null ||
+          widget.recommendationContext == null) {
+        return;
+      }
+      _exposureReported = true;
+      _trackSafely(
+        () => ref
+            .read(behaviorTrackerProvider)
+            .trackExposure(post.id.toInt(), trackingContext),
+      );
+    });
+  }
+
+  void _endVisibilitySession({
+    int? postId,
+    FeedRecommendationContext? recommendationContext,
+  }) {
+    _exposureTimer?.cancel();
+    _exposureTimer = null;
+    _visibleSince = null;
+    final startedAt = _dwellStartedAt;
+    _dwellStartedAt = null;
+    final trackingContext =
+        recommendationContext ?? widget.recommendationContext;
+    if (!_exposureReported || startedAt == null || trackingContext == null) {
+      return;
+    }
+    final duration = DateTime.now().difference(startedAt);
+    _trackSafely(
+      () => ref
+          .read(behaviorTrackerProvider)
+          .trackDwell(postId ?? post.id.toInt(), trackingContext, duration),
+    );
+  }
+
+  void _trackSafely(Future<void> Function() track) {
+    unawaited(() async {
+      try {
+        await track();
+      } catch (_) {
+        // Analytics failures must not interrupt the user action.
+      }
+    }());
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
@@ -98,7 +277,7 @@ class _PostCardState extends ConsumerState<PostCard> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: FCard(
         builder: (context, style, _) => FTappable(
-          onPress: () => context.push('/post/${post.id.toInt()}'),
+          onPress: _openPost,
           child: Padding(
             padding: style.padding,
             child: Column(

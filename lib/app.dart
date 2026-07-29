@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/behavior/application/behavior_tracker.dart';
 
 class XiaobaiheApp extends ConsumerWidget {
   const XiaobaiheApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(behaviorInitializationProvider);
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
