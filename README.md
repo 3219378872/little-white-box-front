@@ -26,6 +26,7 @@ This repository is app-centric:
 │   └── sdk/
 ├── test/
 ├── docs/
+│   └── knowledge/
 ├── tools/
 └── vendor/
     └── sdk_source/
@@ -37,6 +38,7 @@ This repository is app-centric:
 make setup
 make analyze
 make test
+make knowledge-check
 ```
 
 ## Web Development
@@ -84,6 +86,14 @@ The API gateway must allow the browser origin through CORS for this mode.
 
 ## Documentation
 
-- Forui component usage and official LLM documentation links live in [`docs/forui.md`](docs/forui.md)
-- Design specs and plans live under `docs/superpowers/`
-- Backend coordination notes live under `docs/backend/`
+Project knowledge follows one governed chain:
+
+```text
+intent -> specification -> design -> implementation <-> evidence
+```
+
+- Start at the [knowledge router](docs/knowledge/README.md).
+- Forui integration guidance lives in the [implementation layer](docs/knowledge/implementation/IMP-forui-ui.md).
+- Historical MVP plans, repository-migration records, and backend coordination snapshots live in the
+  [non-authoritative archive](docs/knowledge/archive/README.md).
+- Run `make knowledge-check` after changing governed knowledge or tracked behavior.

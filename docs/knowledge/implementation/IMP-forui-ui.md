@@ -1,4 +1,22 @@
-# Forui 开发指南
+---
+id: IMP-forui-ui
+layer: implementation
+title: Forui UI 实现指南
+status: aligned
+owner: agent
+upstream:
+  - DES-flutter-client
+tracks:
+  - FQ-004
+  - FQ-005
+  - FQ-007
+evidence:
+  - EVD-client-baseline-2026-08-13
+updated_at: 2026-08-13
+observed_commit: edf598f291c889c3ec3bbdc597ab3acff6a0c9fd
+---
+
+# Forui UI 实现指南
 
 Forui 是本项目新建和迁移界面的首选组件库。本文记录官方文档入口、当前集成方式以及项目内的使用约束；它不复制官方完整教程。
 
@@ -58,3 +76,6 @@ make test
 ```
 
 涉及依赖升级时，先更新约束并运行 `make setup`，检查 `pubspec.lock` 差异，再执行静态分析和完整测试。升级后还应核对 Forui 的 upgrading 指南和 data-driven fixes，避免保留已废弃 API。
+
+本页在五层知识链中的设计上游是 [DES-flutter-client](../design/DES-flutter-client.md)，当前验证记录见
+[EVD-client-baseline-2026-08-13](../evidence/EVD-client-baseline-2026-08-13.md)。
