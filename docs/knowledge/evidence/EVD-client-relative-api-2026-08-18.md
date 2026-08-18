@@ -12,7 +12,7 @@ covers:
   - FQ-007
   - FQ-008
 updated_at: 2026-08-18
-observed_commit: 8d01b7598c1b5ed47cbc0bf24ad4c1cd64ba2163
+observed_commit: b3a10ff065d5bb8269781636e3ebba84e44ea76b
 ---
 
 # 前端 API 改为相对路径 2026-08-18
