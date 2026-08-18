@@ -24,10 +24,6 @@ abstract interface class BehaviorTracker {
     FeedRecommendationContext context,
     Duration duration,
   );
-
-  Future<void> trackLike(int postId, FeedRecommendationContext context);
-
-  Future<void> trackUnlike(int postId, FeedRecommendationContext context);
 }
 
 class PersistentBehaviorTracker implements BehaviorTracker {
@@ -105,16 +101,6 @@ class PersistentBehaviorTracker implements BehaviorTracker {
       context: context,
       durationMs: duration.inMilliseconds,
     );
-  }
-
-  @override
-  Future<void> trackLike(int postId, FeedRecommendationContext context) {
-    return _track('like', postId, context);
-  }
-
-  @override
-  Future<void> trackUnlike(int postId, FeedRecommendationContext context) {
-    return _track('unlike', postId, context);
   }
 
   Future<void> _track(

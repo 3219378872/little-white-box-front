@@ -85,12 +85,16 @@ class SearchResults {
   final List<SearchUserResult> users;
   final List<SearchTagResult> tags;
   final int total;
+  final bool degraded;
+  final List<String> unavailableTypes;
 
   const SearchResults({
     this.posts = const [],
     this.users = const [],
     this.tags = const [],
     this.total = 0,
+    this.degraded = false,
+    this.unavailableTypes = const [],
   });
 
   bool get isEmpty => posts.isEmpty && users.isEmpty && tags.isEmpty;

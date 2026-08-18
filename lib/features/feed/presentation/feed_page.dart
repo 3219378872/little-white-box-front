@@ -23,31 +23,25 @@ class _FeedPageState extends ConsumerState<FeedPage> {
 
   @override
   Widget build(BuildContext context) {
-    return FScaffold(
-      childPad: false,
-      child: FTabs(
-        control: FTabControl.managed(
-          onChange: (index) => setState(() => _selectedTab = index),
-        ),
-        expands: true,
-        contentPhysics: const BouncingScrollPhysics(),
-        children: [
-          FTabEntry(
-            label: const Text('推荐'),
-            child: _FeedContent(
-              kind: FeedKind.recommend,
-              active: _selectedTab == 0,
-            ),
-          ),
-          FTabEntry(
-            label: const Text('关注'),
-            child: _FeedContent(
-              kind: FeedKind.follow,
-              active: _selectedTab == 1,
-            ),
-          ),
-        ],
+    return FTabs(
+      control: FTabControl.managed(
+        onChange: (index) => setState(() => _selectedTab = index),
       ),
+      expands: true,
+      contentPhysics: const BouncingScrollPhysics(),
+      children: [
+        FTabEntry(
+          label: const Text('推荐'),
+          child: _FeedContent(
+            kind: FeedKind.recommend,
+            active: _selectedTab == 0,
+          ),
+        ),
+        FTabEntry(
+          label: const Text('关注'),
+          child: _FeedContent(kind: FeedKind.follow, active: _selectedTab == 1),
+        ),
+      ],
     );
   }
 }
@@ -125,32 +119,69 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
       );
     }
 
+    final isDesktop =
+        MediaQuery.sizeOf(context).width >= context.theme.breakpoints.lg;
     return ForuiPullToRefresh(
       onRefresh: notifier.refresh,
-      child: ListView.builder(
-        key: PageStorageKey('feed-${widget.kind.name}'),
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(top: 8, bottom: 80),
-        itemCount: feedState.entries.length + (feedState.isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index >= feedState.entries.length) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: FCircularProgress()),
-            );
-          }
-          final entry = feedState.entries[index];
-          return PostCard(
-            key: ValueKey(
-              '${widget.kind.name}-${entry.context.requestId}-${entry.post.id}',
+      child: isDesktop
+          ? ListView.builder(
+              key: PageStorageKey('feed-grid-${widget.kind.name}'),
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
+              itemCount:
+                  (feedState.entries.length + 1) ~/ 2 +
+                  (feedState.isLoadingMore ? 1 : 0),
+              itemBuilder: (context, row) {
+                final start = row * 2;
+                if (start >= feedState.entries.length) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: FCircularProgress()),
+                  );
+                }
+                final left = _feedItem(feedState, start);
+                final right = start + 1 < feedState.entries.length
+                    ? _feedItem(feedState, start + 1)
+                    : const SizedBox.shrink();
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: left),
+                    Expanded(child: right),
+                  ],
+                );
+              },
+            )
+          : ListView.builder(
+              key: PageStorageKey('feed-${widget.kind.name}'),
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(top: 8, bottom: 80),
+              itemCount:
+                  feedState.entries.length + (feedState.isLoadingMore ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index >= feedState.entries.length) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: FCircularProgress()),
+                  );
+                }
+                return _feedItem(feedState, index);
+              },
             ),
-            post: entry.post,
-            recommendationContext: entry.context,
-            trackingActive: widget.active,
-          );
-        },
+    );
+  }
+
+  Widget _feedItem(FeedState feedState, int index) {
+    final entry = feedState.entries[index];
+    return PostCard(
+      key: ValueKey(
+        '${widget.kind.name}-${entry.context.requestId}-${entry.post.id}',
       ),
+      post: entry.post,
+      recommendationContext: entry.context,
+      trackingActive: widget.active,
     );
   }
 }

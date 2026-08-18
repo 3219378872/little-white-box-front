@@ -68,6 +68,66 @@ Future apiGet(
   );
 }
 
+/// send request with put method
+Future apiPut(
+  String path,
+  dynamic data, {
+  Map<String, String>? header,
+  Function(Map<String, dynamic>)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await _apiRequest(
+    'PUT',
+    path,
+    data,
+    header: header,
+    ok: ok,
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// send request with delete method
+Future apiDelete(
+  String path,
+  dynamic data, {
+  Map<String, String>? header,
+  Function(Map<String, dynamic>)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await _apiRequest(
+    'DELETE',
+    path,
+    data,
+    header: header,
+    ok: ok,
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// send request with patch method
+Future apiPatch(
+  String path,
+  dynamic data, {
+  Map<String, String>? header,
+  Function(Map<String, dynamic>)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await _apiRequest(
+    'PATCH',
+    path,
+    data,
+    header: header,
+    ok: ok,
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 Future _apiRequest(
   String method,
   String path,
@@ -84,7 +144,7 @@ Future _apiRequest(
       strData = jsonEncode(data);
     }
     final headers = <String, String>{};
-    if (method == 'POST') {
+    if (method != 'GET') {
       headers['Content-Type'] = 'application/json; charset=utf-8';
     }
     if (tokens != null) {
@@ -95,30 +155,37 @@ Future _apiRequest(
     }
 
     final uri = Uri.parse(serverHost + path);
-    final rp = method == 'POST'
-        ? await _apiClient.post(uri, headers: headers, body: strData)
-        : await _apiClient.get(uri, headers: headers);
+    final rp = switch (method) {
+      'POST' => await _apiClient.post(uri, headers: headers, body: strData),
+      'PUT' => await _apiClient.put(uri, headers: headers, body: strData),
+      'DELETE' => await _apiClient.delete(uri, headers: headers, body: strData),
+      'PATCH' => await _apiClient.patch(uri, headers: headers, body: strData),
+      _ => await _apiClient.get(uri, headers: headers),
+    };
     final body = utf8.decode(rp.bodyBytes);
     print('${rp.statusCode} - $path');
     print('-- request --');
     print(strData);
     print('-- response --');
     print('$body \n');
+    dynamic decoded;
+    try {
+      decoded = body.isEmpty ? null : jsonDecode(body);
+    } catch (_) {
+      decoded = null;
+    }
     if (rp.statusCode == 404) {
-      if (fail != null) fail('404 not found');
-    } else {
-      dynamic decoded;
-      try {
-        decoded = body.isEmpty ? null : jsonDecode(body);
-      } catch (_) {
-        decoded = null;
+      final (code, msg) = _extractError(decoded, body, 404);
+      if (fail != null) {
+        fail(jsonEncode({'code': code, 'message': msg}));
       }
-      if (rp.statusCode >= 200 && rp.statusCode < 300) {
+    } else if (rp.statusCode >= 200 && rp.statusCode < 300) {
       final data = apiResponseData(decoded);
-        if (ok != null) ok(data);
-      } else {
-        final msg = _extractErrorMessage(decoded, body, rp.statusCode);
-        if (fail != null) fail(msg);
+      if (ok != null) ok(data);
+    } else {
+      final (code, msg) = _extractError(decoded, body, rp.statusCode);
+      if (fail != null) {
+        fail(jsonEncode({'code': code, 'message': msg}));
       }
     }
   } catch (e) {
@@ -127,21 +194,20 @@ Future _apiRequest(
   if (eventually != null) eventually();
 }
 
-/// 从后端错误响应中尽量挖出人类可读的错误文案。
-/// 优先级：JSON 常见 error 字段 → body 原文 → http 状态码兜底。
-String _extractErrorMessage(dynamic decoded, String body, int statusCode) {
+(int?, String) _extractError(dynamic decoded, String body, int statusCode) {
   if (decoded is Map<String, dynamic>) {
-    final errMsg = decoded['desc'] ??
+    final code = decoded['code'];
+    final errMsg = decoded['message'] ??
         decoded['msg'] ??
-        decoded['message'] ??
+        decoded['desc'] ??
         decoded['error'];
     if (errMsg != null && errMsg.toString().trim().isNotEmpty) {
-      return errMsg.toString();
+      return (code is int ? code : null, errMsg.toString());
     }
   }
   final trimmed = body.trim();
   if (trimmed.isNotEmpty) {
-    return trimmed.length > 200 ? trimmed.substring(0, 200) : trimmed;
+    return (null, trimmed.length > 200 ? trimmed.substring(0, 200) : trimmed);
   }
-  return 'http $statusCode';
+  return (null, 'http $statusCode');
 }

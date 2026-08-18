@@ -25,10 +25,14 @@ void main() {
     content: 'This is a test post',
     images: const [],
     tags: const ['test'],
+    status: 1,
     likeCount: likeCount,
     isLiked: isLiked,
+    isFavorited: false,
+    favoriteCount: 0,
     commentCount: 5,
     viewCount: 100,
+    revision: 1,
     createdAt: 1700000000,
   );
 
@@ -118,10 +122,14 @@ void main() {
       content: 'Post with images',
       images: ['http://a.jpg', 'http://b.jpg', 'http://c.jpg'],
       tags: [],
+      status: 1,
       likeCount: 0,
       isLiked: false,
+      isFavorited: false,
+      favoriteCount: 0,
       commentCount: 0,
       viewCount: 0,
+      revision: 1,
       createdAt: 1700000000,
     );
 

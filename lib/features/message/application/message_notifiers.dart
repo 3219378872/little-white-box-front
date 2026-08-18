@@ -305,9 +305,14 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     }
   }
 
-  Future<bool> send(String content) async {
+  Future<bool> send(
+    String content, {
+    int msgType = MessageTypes.text,
+    int mediaId = 0,
+  }) async {
     final normalized = content.trim();
     if (normalized.isEmpty ||
+        (msgType == MessageTypes.text && normalized.length > 1000) ||
         state.isSending ||
         conversationId <= 0 ||
         targetUserId <= 0 ||
@@ -318,11 +323,15 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     final command =
         failed != null &&
             failed.receiverId == targetUserId &&
-            failed.content == normalized
+            failed.content == normalized &&
+            failed.msgType == msgType &&
+            failed.mediaId == mediaId
         ? failed
         : SendMessageCommand(
             receiverId: targetUserId,
             content: normalized,
+            msgType: msgType,
+            mediaId: mediaId,
             idempotencyKey: _createKey(),
           );
     return _send(command);

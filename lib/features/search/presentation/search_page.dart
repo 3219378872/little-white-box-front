@@ -51,58 +51,56 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(searchNotifierProvider);
-    return FScaffold(
-      header: const FHeader(title: Text('搜索')),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: FTextField(
-                    control: FTextFieldControl.managed(controller: _controller),
-                    label: const Text('搜索内容'),
-                    hint: '输入关键词',
-                    textInputAction: TextInputAction.search,
-                    onSubmit: _submit,
-                    prefixBuilder: (context, style, variants) =>
-                        FTextField.prefixIconBuilder(
-                          context,
-                          style,
-                          variants,
-                          const Icon(FLucideIcons.search),
-                        ),
-                  ),
+    return Column(
+      children: [
+        const FHeader(title: Text('搜索')),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: FTextField(
+                  control: FTextFieldControl.managed(controller: _controller),
+                  label: const Text('搜索内容'),
+                  hint: '输入关键词',
+                  textInputAction: TextInputAction.search,
+                  onSubmit: _submit,
+                  prefixBuilder: (context, style, variants) =>
+                      FTextField.prefixIconBuilder(
+                        context,
+                        style,
+                        variants,
+                        const Icon(FLucideIcons.search),
+                      ),
                 ),
-                const SizedBox(width: 8),
-                FButton.icon(
-                  key: const Key('search-submit'),
-                  onPress: state.phase == SearchPhase.loading ? null : _submit,
-                  child: const Icon(FLucideIcons.search, semanticLabel: '搜索'),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: FTabs(
-              control: FTabControl.lifted(
-                index: state.scope.index,
-                onChange: _selectScope,
               ),
-              children: const [
-                FTabEntry(label: Text('综合'), child: SizedBox.shrink()),
-                FTabEntry(label: Text('用户'), child: SizedBox.shrink()),
-                FTabEntry(label: Text('标签'), child: SizedBox.shrink()),
-              ],
-            ),
+              const SizedBox(width: 8),
+              FButton.icon(
+                key: const Key('search-submit'),
+                onPress: state.phase == SearchPhase.loading ? null : _submit,
+                child: const Icon(FLucideIcons.search, semanticLabel: '搜索'),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Expanded(child: _buildBody(state)),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: FTabs(
+            control: FTabControl.lifted(
+              index: state.scope.index,
+              onChange: _selectScope,
+            ),
+            children: const [
+              FTabEntry(label: Text('综合'), child: SizedBox.shrink()),
+              FTabEntry(label: Text('用户'), child: SizedBox.shrink()),
+              FTabEntry(label: Text('标签'), child: SizedBox.shrink()),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(child: _buildBody(state)),
+      ],
     );
   }
 
@@ -123,15 +121,33 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         message: '没有找到相关结果',
         icon: FLucideIcons.searchX,
       ),
-      SearchPhase.success => _SearchResultList(
-        results: state.results,
-        scope: state.scope,
-        onOpenPost: _openPost,
-        onOpenUser: _openUser,
-        onSearchTag: (tag) {
-          _controller.text = tag;
-          _submit(tag);
-        },
+      SearchPhase.success => Column(
+        children: [
+          if (state.results.degraded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: FAlert(
+                title: const Text('部分结果暂不可用'),
+                subtitle: Text(
+                  state.results.unavailableTypes.isEmpty
+                      ? '搜索已降级，部分类型未能返回'
+                      : '暂不可用：${state.results.unavailableTypes.join('、')}',
+                ),
+              ),
+            ),
+          Expanded(
+            child: _SearchResultList(
+              results: state.results,
+              scope: state.scope,
+              onOpenPost: _openPost,
+              onOpenUser: _openUser,
+              onSearchTag: (tag) {
+                _controller.text = tag;
+                _submit(tag);
+              },
+            ),
+          ),
+        ],
       ),
     };
   }

@@ -33,21 +33,23 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
-updated_at: 2026-08-13
-observed_commit: edf598f291c889c3ec3bbdc597ab3acff6a0c9fd
+updated_at: 2026-08-18
+observed_commit: f97bb47eb43ef9a3eba0e1c2b72407deef668880
 ---
 
 # Flutter 客户端实现映射
 
 ## 结论
 
-当前实现具备完整 Flutter feature 分层、响应式 Forui 应用壳、v1/v2/Assistant 三种接口适配、真实与
-Mock 双入口，以及推荐反馈持久队列。它没有完全满足已批准规格，故整体状态为 `diverged`，而不是因为
-测试存在与否自动标记 `aligned`。
+当前实现已用 `goctl api dart` 同步后端 `gateway.api`（观察提交
+`380a734f90f374fb884ac68edc4edd037e959670`），帖子写入走 `/api/v2/post*`，PUT/DELETE
+由同步脚本修补，搜索降级、Assistant 帖子来源、行为事件所有权和输入边界已跟进。桌面 Feed
+双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
+仍为 `diverged`。
 
-本页观察基准是主分支提交 `edf598f291c889c3ec3bbdc597ab3acff6a0c9fd`；后续知识整理文件不改变
-本页所描述的运行时代码。
+本页观察基准是本轮 task 提交 `f97bb47eb43ef9a3eba0e1c2b72407deef668880`。
 
 ## 代码入口
 
@@ -91,26 +93,25 @@ Mock 双入口，以及推荐反馈持久队列。它没有完全满足已批准
 
 | ID | 条款 | 当前事实 | 影响与收敛条件 |
 | --- | --- | --- | --- |
-| `DIV-001` | `FX-060` | `PostCard._toggleLike()` 在权威点赞接口成功后仍调用 `trackLike/trackUnlike`；tracker 和 Mock 也接受这两个客户端动作 | 与后端 `SPEC-feedback-reliability` 的事件所有权冲突，可能重复归因。应删除客户端上报并调整测试，服务端 outbox 作为唯一来源 |
-| `DIV-002` | `FX-030` | v1 `CreatePostReq` 没有幂等键；`GetPostResp`、`UpdatePostReq` 和删除命令没有 revision | 创建重试可能重复，编辑无法检测并发覆盖。需先更新后端契约并重新生成 SDK，再接入编辑冲突状态 |
-| `DIV-003` | `FX-032` | PostEditor 限制标题 100、正文 10,000、标签 5；图片上限 9，未在选择后显式校验 10 MiB | 拒绝一部分后端允许输入，且超大文件只能依赖服务端失败。需统一边界并为失败保留编辑状态 |
-| `DIV-004` | `FX-022` | `SearchResults` 不包含 `degraded` 或 `unavailableTypes`，综合搜索无法区分部分降级和完整成功 | 可能把缺失类型解释为零结果。需扩展 v2 model、repository、UI 和 Mock/测试 |
-| `DIV-005` | `FX-040` | MessageThread 只发送文本，输入上限 4,000；repository 未执行 1,000 字符边界 | 超出当前后端规格，且图片/视频/语音没有 UI/媒体引用流程。需收紧文本校验并另行设计媒体消息 |
-| `DIV-006` | `FX-051` | `AssistantSourceReference` 只有 `sourceType/sourceId/title`，页面还能打开 `user` 来源；没有 excerpt、revision/hash 或来源变化状态 | 无法在客户端证明事实片段和版本，也扩大了帖子证据边界。需与 SSE 契约同步后仅接受可验证帖子来源 |
+| `DIV-001` | `FX-060` | 已收敛：点赞成功不再 `trackLike/Unlike`；Mock 拒绝权威动作 | 无 |
+| `DIV-002` | `FX-030` | 已收敛：创建带幂等键，编辑/删除带 `expectedRevision`，409 保留输入 | 无 |
+| `DIV-003` | `FX-032` | 已收敛：标题 120、正文 20000、标签 10，选择后校验类型与 10 MiB | 无 |
+| `DIV-004` | `FX-022` | 已收敛：综合搜索展示 `degraded` 与 `unavailableTypes` | 无 |
+| `DIV-005` | `FX-040` | 部分收敛：文本上限 1000，图片可上传发送；视频/语音无网关上传，发送入口禁用 | 需后端补 `POST /api/v1/media/video` 及语音上传后再闭环发送 |
+| `DIV-006` | `FX-051` | 部分收敛：来源带 `revision`，只打开 `post`；仍无 excerpt 与来源已变化状态 | 等 SSE 契约补 excerpt/变化标记后再展示 |
 
 ## 对齐摘要
 
 | 范围 | 状态 | 说明 |
 | --- | --- | --- |
 | 访问、认证、推荐/关注基本流 | aligned | 路由、游标、归因上下文和陈旧响应抑制已有实现与测试 |
-| 搜索 | diverged | 基本类型与状态齐全，部分降级字段缺失 |
-| 内容核心 | diverged | 草稿/发布入口和 multipart 已有，revision/创建幂等与部分边界未对齐 |
-| 私信 | diverged | 分页、未读和幂等重试已有，媒体类型与文本上限未对齐 |
-| Assistant | diverged | 流式状态可靠，证据元数据与来源边界不足 |
-| 行为反馈 | diverged | 曝光、停留和队列可靠性较完整，权威互动被客户端重复上报 |
+| 搜索 | aligned | 已建模并展示部分降级 |
+| 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐 |
+| 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |
+| Assistant | diverged | 仅帖子来源可点，仍缺 excerpt 与来源变化 |
+| 行为反馈 | aligned | 客户端不再上报 like/unlike |
 | UI/工程分层 | aligned | 详见 [Forui 实现指南](IMP-forui-ui.md) |
 | Mock/真实同路径 | aligned | transport 注入而非 feature 分叉；真实网关仍需独立证据 |
 
 验证范围和命令见
-[EVD-client-baseline-2026-08-13](../evidence/EVD-client-baseline-2026-08-13.md)。修复偏离时必须先确认
-任务范围和变更顺序；上游规格现已批准，但本次批准本身不授权自动修改运行时代码。
+[EVD-client-api-followup-2026-08-18](../evidence/EVD-client-api-followup-2026-08-18.md)。

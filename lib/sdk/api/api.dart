@@ -68,6 +68,66 @@ Future apiGet(
   );
 }
 
+/// send request with put method
+Future apiPut(
+  String path,
+  dynamic data, {
+  Map<String, String>? header,
+  Function(Map<String, dynamic>)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await _apiRequest(
+    'PUT',
+    path,
+    data,
+    header: header,
+    ok: ok,
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// send request with delete method
+Future apiDelete(
+  String path,
+  dynamic data, {
+  Map<String, String>? header,
+  Function(Map<String, dynamic>)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await _apiRequest(
+    'DELETE',
+    path,
+    data,
+    header: header,
+    ok: ok,
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// send request with patch method
+Future apiPatch(
+  String path,
+  dynamic data, {
+  Map<String, String>? header,
+  Function(Map<String, dynamic>)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await _apiRequest(
+    'PATCH',
+    path,
+    data,
+    header: header,
+    ok: ok,
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 Future _apiRequest(
   String method,
   String path,
@@ -84,7 +144,7 @@ Future _apiRequest(
       strData = jsonEncode(data);
     }
     final headers = <String, String>{};
-    if (method == 'POST') {
+    if (method != 'GET') {
       headers['Content-Type'] = 'application/json; charset=utf-8';
     }
     if (tokens != null) {
@@ -95,9 +155,13 @@ Future _apiRequest(
     }
 
     final uri = Uri.parse(serverHost + path);
-    final rp = method == 'POST'
-        ? await _apiClient.post(uri, headers: headers, body: strData)
-        : await _apiClient.get(uri, headers: headers);
+    final rp = switch (method) {
+      'POST' => await _apiClient.post(uri, headers: headers, body: strData),
+      'PUT' => await _apiClient.put(uri, headers: headers, body: strData),
+      'DELETE' => await _apiClient.delete(uri, headers: headers, body: strData),
+      'PATCH' => await _apiClient.patch(uri, headers: headers, body: strData),
+      _ => await _apiClient.get(uri, headers: headers),
+    };
     final body = utf8.decode(rp.bodyBytes);
     print('${rp.statusCode} - $path');
     print('-- request --');
@@ -133,7 +197,8 @@ Future _apiRequest(
 (int?, String) _extractError(dynamic decoded, String body, int statusCode) {
   if (decoded is Map<String, dynamic>) {
     final code = decoded['code'];
-    final errMsg = decoded['message'] ??
+    final errMsg =
+        decoded['message'] ??
         decoded['msg'] ??
         decoded['desc'] ??
         decoded['error'];

@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/idempotency.dart';
 import '../../../core/widgets/app_tag_badge.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
@@ -167,6 +168,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
               parentId: _replyParentId,
               replyUserId: _replyUserId,
               content: content,
+              idempotencyKey: newIdempotencyKey(),
             ),
           );
       setState(() {

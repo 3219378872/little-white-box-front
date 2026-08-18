@@ -27,7 +27,7 @@ void main() {
     expect(firstPost().isLiked, isTrue);
     expect(firstPost().likeCount, 89);
 
-    request('POST', '/api/v1/like', {'targetId': 1, 'targetType': 1});
+    request('DELETE', '/api/v1/like', {'targetId': 1, 'targetType': 1});
 
     expect(firstPost().isLiked, isFalse);
     expect(firstPost().likeCount, 88);

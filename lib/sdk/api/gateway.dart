@@ -22,6 +22,87 @@ Future health({
   );
 }
 
+/// --/api/v1/health/ready--
+///
+/// request: HealthReq
+/// response: HealthReadyResp
+Future healthReady({
+  Function(HealthReadyResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v1/health/ready",
+    ok: (data) {
+      if (ok != null) ok(HealthReadyResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/chat--
+///
+/// request: AssistantChatReq
+/// response: AssistantChatEvent
+Future assistantChat(
+  AssistantChatReq request, {
+  Function(AssistantChatEvent)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/assistant/chat",
+    request,
+    ok: (data) {
+      if (ok != null) ok(AssistantChatEvent.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/behavior/events--
+///
+/// request: RecordBehaviorEventsReq
+/// response: RecordBehaviorEventsResp
+Future recordBehaviorEvents(
+  RecordBehaviorEventsReq request, {
+  Function(RecordBehaviorEventsResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/behavior/events",
+    request,
+    ok: (data) {
+      if (ok != null) ok(RecordBehaviorEventsResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v1/comments/:postId--
+///
+/// request: GetCommentListReq
+/// response: GetCommentListResp
+Future getCommentList(
+  int postId, {
+  Function(GetCommentListResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v1/comments/${postId}",
+    ok: (data) {
+      if (ok != null) ok(GetCommentListResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 /// --/api/v1/comment--
 ///
 /// request: CreateCommentReq
@@ -54,7 +135,7 @@ Future deleteComment(
   Function(String)? fail,
   Function? eventually,
 }) async {
-  await apiPost(
+  await apiDelete(
     "/api/v1/comment/${commentId}",
     request,
     ok: (data) {
@@ -65,20 +146,38 @@ Future deleteComment(
   );
 }
 
-/// --/api/v1/comments/:postId--
+/// --/api/v2/feed/follow--
 ///
-/// request: GetCommentListReq
-/// response: GetCommentListResp
-Future getCommentList(
-  int postId, {
-  Function(GetCommentListResp)? ok,
+/// request: GetFollowFeedReq
+/// response: GetFollowFeedResp
+Future getFollowFeed({
+  Function(GetFollowFeedResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
   await apiGet(
-    "/api/v1/comments/${postId}",
+    "/api/v2/feed/follow",
     ok: (data) {
-      if (ok != null) ok(GetCommentListResp.fromJson(data));
+      if (ok != null) ok(GetFollowFeedResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/feed/recommend--
+///
+/// request: GetRecommendFeedReq
+/// response: GetRecommendFeedResp
+Future getRecommendFeed({
+  Function(GetRecommendFeedResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/feed/recommend",
+    ok: (data) {
+      if (ok != null) ok(GetRecommendFeedResp.fromJson(data));
     },
     fail: fail,
     eventually: eventually,
@@ -137,7 +236,7 @@ Future unfavorite(
   Function(String)? fail,
   Function? eventually,
 }) async {
-  await apiPost(
+  await apiDelete(
     "/api/v1/favorite",
     request,
     ok: (data) {
@@ -179,7 +278,7 @@ Future unlike(
   Function(String)? fail,
   Function? eventually,
 }) async {
-  await apiPost(
+  await apiDelete(
     "/api/v1/like",
     request,
     ok: (data) {
@@ -253,21 +352,101 @@ Future sendVerifyCode(
   );
 }
 
-/// --/api/v1/post--
+/// --/api/v2/messages--
 ///
-/// request: CreatePostReq
-/// response: CreatePostResp
-Future createPost(
-  CreatePostReq request, {
-  Function(CreatePostResp)? ok,
+/// request: SendMessageReq
+/// response: SendMessageResp
+Future sendMessage(
+  SendMessageReq request, {
+  Function(SendMessageResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
   await apiPost(
-    "/api/v1/post",
+    "/api/v2/messages",
     request,
     ok: (data) {
-      if (ok != null) ok(CreatePostResp.fromJson(data));
+      if (ok != null) ok(SendMessageResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/messages/conversations--
+///
+/// request: GetConversationsReq
+/// response: GetConversationsResp
+Future getConversations({
+  Function(GetConversationsResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/messages/conversations",
+    ok: (data) {
+      if (ok != null) ok(GetConversationsResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/messages/conversations/:id--
+///
+/// request: GetMessagesReq
+/// response: GetMessagesResp
+Future getMessages(
+  int id, {
+  Function(GetMessagesResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/messages/conversations/${id}",
+    ok: (data) {
+      if (ok != null) ok(GetMessagesResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/messages/conversations/:id/read--
+///
+/// request: MarkConversationReadReq
+/// response: MarkConversationReadResp
+Future markConversationRead(
+  int id,
+  MarkConversationReadReq request, {
+  Function(MarkConversationReadResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/messages/conversations/${id}/read",
+    request,
+    ok: (data) {
+      if (ok != null) ok(MarkConversationReadResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/messages/unread--
+///
+/// request:
+/// response: GetUnreadSummaryResp
+Future getUnreadSummary({
+  Function(GetUnreadSummaryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/messages/unread",
+    ok: (data) {
+      if (ok != null) ok(GetUnreadSummaryResp.fromJson(data));
     },
     fail: fail,
     eventually: eventually,
@@ -294,50 +473,6 @@ Future getPost(
   );
 }
 
-/// --/api/v1/post/:postId--
-///
-/// request: UpdatePostReq
-/// response: UpdatePostResp
-Future updatePost(
-  int postId,
-  UpdatePostReq request, {
-  Function(UpdatePostResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v1/post/${postId}",
-    request,
-    ok: (data) {
-      if (ok != null) ok(UpdatePostResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/post/:postId--
-///
-/// request: DeletePostReq
-/// response: DeletePostResp
-Future deletePost(
-  int postId,
-  DeletePostReq request, {
-  Function(DeletePostResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v1/post/${postId}",
-    request,
-    ok: (data) {
-      if (ok != null) ok(DeletePostResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
 /// --/api/v1/posts--
 ///
 /// request: GetPostListReq
@@ -351,6 +486,128 @@ Future getPostList({
     "/api/v1/posts",
     ok: (data) {
       if (ok != null) ok(GetPostListResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/post--
+///
+/// request: CreatePostReq
+/// response: CreatePostResp
+Future createPostV2(
+  CreatePostReq request, {
+  Function(CreatePostResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/post",
+    request,
+    ok: (data) {
+      if (ok != null) ok(CreatePostResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/post/:postId--
+///
+/// request: UpdatePostV2Req
+/// response: UpdatePostResp
+Future updatePostV2(
+  int postId,
+  UpdatePostV2Req request, {
+  Function(UpdatePostResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPut(
+    "/api/v2/post/${postId}",
+    request,
+    ok: (data) {
+      if (ok != null) ok(UpdatePostResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/post/:postId--
+///
+/// request: DeletePostV2Req
+/// response: DeletePostResp
+Future deletePostV2(
+  int postId,
+  DeletePostV2Req request, {
+  Function(DeletePostResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiDelete(
+    "/api/v2/post/${postId}",
+    request,
+    ok: (data) {
+      if (ok != null) ok(DeletePostResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/search--
+///
+/// request: SearchReq
+/// response: SearchResp
+Future search({
+  Function(SearchResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/search",
+    ok: (data) {
+      if (ok != null) ok(SearchResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/search/tags--
+///
+/// request: SearchTagsReq
+/// response: SearchTagsResp
+Future searchTags({
+  Function(SearchTagsResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/search/tags",
+    ok: (data) {
+      if (ok != null) ok(SearchTagsResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/search/users--
+///
+/// request: SearchUsersReq
+/// response: SearchUsersResp
+Future searchUsers({
+  Function(SearchUsersResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/search/users",
+    ok: (data) {
+      if (ok != null) ok(SearchUsersResp.fromJson(data));
     },
     fail: fail,
     eventually: eventually,
@@ -371,6 +628,46 @@ Future getUser(
     "/api/v1/user/${userId}",
     ok: (data) {
       if (ok != null) ok(GetUserResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v1/users/:userId/favorites--
+///
+/// request: GetUserFavoritesReq
+/// response: GetPostListResp
+Future getUserFavorites(
+  int userId, {
+  Function(GetPostListResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v1/users/${userId}/favorites",
+    ok: (data) {
+      if (ok != null) ok(GetPostListResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v1/users/:userId/posts--
+///
+/// request: GetUserPostsReq
+/// response: GetPostListResp
+Future getUserPosts(
+  int userId, {
+  Function(GetPostListResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v1/users/${userId}/posts",
+    ok: (data) {
+      if (ok != null) ok(GetPostListResp.fromJson(data));
     },
     fail: fail,
     eventually: eventually,
@@ -408,7 +705,7 @@ Future unfollow(
   Function(String)? fail,
   Function? eventually,
 }) async {
-  await apiPost(
+  await apiDelete(
     "/api/v1/user/follow",
     request,
     ok: (data) {
@@ -429,11 +726,51 @@ Future updateProfile(
   Function(String)? fail,
   Function? eventually,
 }) async {
-  await apiPost(
+  await apiPut(
     "/api/v1/user/profile",
     request,
     ok: (data) {
       if (ok != null) ok(UpdateProfileResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/me/personalization--
+///
+/// request:
+/// response: GetPersonalizationPreferenceResp
+Future getPersonalizationPreference({
+  Function(GetPersonalizationPreferenceResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/me/personalization",
+    ok: (data) {
+      if (ok != null) ok(GetPersonalizationPreferenceResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/me/personalization--
+///
+/// request: SetPersonalizationPreferenceReq
+/// response: SetPersonalizationPreferenceResp
+Future setPersonalizationPreference(
+  SetPersonalizationPreferenceReq request, {
+  Function(SetPersonalizationPreferenceResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPut(
+    "/api/v2/me/personalization",
+    request,
+    ok: (data) {
+      if (ok != null) ok(SetPersonalizationPreferenceResp.fromJson(data));
     },
     fail: fail,
     eventually: eventually,

@@ -1,10 +1,15 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../../../core/api/api_exceptions.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../auth/application/auth_notifier.dart';
+import '../../post/data/post_repository.dart';
 import '../application/message_notifiers.dart';
 import '../data/message_models.dart';
 
@@ -48,6 +53,38 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     if (!mounted || !sent) return;
     _controller.clear();
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
+  }
+
+  Future<void> _sendImage(MessageThreadKey key) async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: ImageSource.gallery);
+    if (file == null || !mounted) return;
+    try {
+      final bytes = await file.readAsBytes();
+      if (bytes.length > 10 * 1024 * 1024) {
+        if (mounted) showAppError(context, '图片不能超过 10 MiB');
+        return;
+      }
+      final uploaded = await PostRepository().uploadImageMultipart(
+        bytes: bytes,
+        filename: file.name,
+      );
+      if (!mounted) return;
+      final sent = await ref
+          .read(messageThreadProvider(key).notifier)
+          .send(
+            uploaded.url,
+            msgType: MessageTypes.image,
+            mediaId: uploaded.mediaId,
+          );
+      if (sent) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
+      }
+    } catch (error) {
+      if (mounted) {
+        showAppError(context, '图片发送失败: ${friendlyErrorMessage(error)}');
+      }
+    }
   }
 
   void _scrollToEnd() {
@@ -162,7 +199,31 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
                       hint: '输入消息',
                       minLines: 1,
                       maxLines: 4,
-                      maxLength: 4000,
+                      maxLength: 1000,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FButton.icon(
+                    onPress: state.isSending || currentUserId <= 0
+                        ? null
+                        : () => _sendImage(key),
+                    child: const Icon(
+                      FLucideIcons.image,
+                      semanticLabel: '发送图片',
+                    ),
+                  ),
+                  FButton.icon(
+                    onPress: null,
+                    child: const Icon(
+                      FLucideIcons.video,
+                      semanticLabel: '视频发送暂不可用',
+                    ),
+                  ),
+                  FButton.icon(
+                    onPress: null,
+                    child: const Icon(
+                      FLucideIcons.mic,
+                      semanticLabel: '语音发送暂不可用',
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -253,14 +314,7 @@ class _MessageBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    message.content,
-                    style: theme.typography.body.md.copyWith(
-                      color: own
-                          ? theme.colors.primaryForeground
-                          : theme.colors.secondaryForeground,
-                    ),
-                  ),
+                  _MessageBody(message: message, own: own),
                   const SizedBox(height: 3),
                   Text(
                     _messageTime(message.createdAt),
@@ -278,6 +332,52 @@ class _MessageBubble extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MessageBody extends StatelessWidget {
+  final DirectMessage message;
+  final bool own;
+
+  const _MessageBody({required this.message, required this.own});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final foreground = own
+        ? theme.colors.primaryForeground
+        : theme.colors.secondaryForeground;
+    final looksLikeUrl =
+        message.content.startsWith('http://') ||
+        message.content.startsWith('https://');
+    if (message.msgType == MessageTypes.image && looksLikeUrl) {
+      return ClipRRect(
+        borderRadius: theme.style.borderRadius.md,
+        child: CachedNetworkImage(
+          imageUrl: message.content,
+          fit: BoxFit.cover,
+          width: 220,
+        ),
+      );
+    }
+    if ((message.msgType == MessageTypes.video ||
+            message.msgType == MessageTypes.audio) &&
+        looksLikeUrl) {
+      return Text(
+        message.msgType == MessageTypes.video ? '视频消息' : '语音消息',
+        style: theme.typography.body.md.copyWith(color: foreground),
+      );
+    }
+    if (message.msgType != MessageTypes.text && !looksLikeUrl) {
+      return Text(
+        '媒体不可用',
+        style: theme.typography.body.md.copyWith(color: foreground),
+      );
+    }
+    return Text(
+      message.content,
+      style: theme.typography.body.md.copyWith(color: foreground),
     );
   }
 }

@@ -135,15 +135,6 @@ class _PostCardState extends ConsumerState<PostCard>
       } else {
         await repo.likeTarget(post.id.toInt(), 1);
       }
-      final trackingContext = widget.recommendationContext;
-      if (trackingContext != null) {
-        _trackSafely(() {
-          final tracker = ref.read(behaviorTrackerProvider);
-          return wasLiked
-              ? tracker.trackUnlike(post.id.toInt(), trackingContext)
-              : tracker.trackLike(post.id.toInt(), trackingContext);
-        });
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

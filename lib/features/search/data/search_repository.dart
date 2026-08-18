@@ -53,6 +53,8 @@ class SearchRepository implements SearchDataSource {
           posts: _list(response['posts'], SearchPostResult.fromJson),
           users: _list(response['users'], SearchUserResult.fromJson),
           tags: _list(response['tags'], SearchTagResult.fromJson),
+          degraded: response['degraded'] == true,
+          unavailableTypes: _strings(response['unavailableTypes']),
         ),
         SearchScope.users => SearchResults(
           users: _list(response['users'], SearchUserResult.fromJson),
@@ -83,5 +85,12 @@ class SearchRepository implements SearchDataSource {
   static int _integer(Object? value) {
     if (value is num) return value.toInt();
     return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static List<String> _strings(Object? value) {
+    if (value == null) return const [];
+    if (value is! List)
+      throw const FormatException('invalid unavailable types');
+    return value.map((item) => item.toString()).toList(growable: false);
   }
 }

@@ -28,6 +28,8 @@ final Set<int> _likedPostIds = seedPosts
     .toSet();
 final Set<int> _favoritedPostIds = {};
 final Set<int> _followedUserIds = {};
+bool _personalizationEnabled = true;
+final Map<String, int> _postIdempotencyKeys = {};
 final Map<String, int> _behaviorEventIds = {};
 final Map<String, int> _messageIdempotencyKeys = {};
 final int _messageSeedTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -184,7 +186,12 @@ MockRouterResponse _routeV2(
     case 'api/v2/assistant/chat':
       if (method != 'POST') return _methodNotAllowed();
       return _handleAssistantChat(body, authState);
+    case 'api/v2/me/personalization':
+      return _handlePersonalization(method, body, authState);
     default:
+      if (segments.length >= 3 && segments[2] == 'post') {
+        return _handleV2Post(method, segments, body, authState);
+      }
       if (segments.length >= 3 && segments[2] == 'messages') {
         return _handleV2Messages(method, segments, query, body, authState);
       }
@@ -344,7 +351,17 @@ MockRouterResponse _handleBehaviorEvents(
   for (final rawEvent in rawEvents) {
     final event = rawEvent is Map ? rawEvent : const <String, dynamic>{};
     final clientEventId = event['clientEventId']?.toString().trim() ?? '';
-    final accepted = clientEventId.isNotEmpty;
+    final action = event['action']?.toString() ?? '';
+    const forbidden = {
+      'like',
+      'unlike',
+      'favorite',
+      'unfavorite',
+      'comment',
+      'follow',
+      'unfollow',
+    };
+    final accepted = clientEventId.isNotEmpty && !forbidden.contains(action);
     if (accepted) acceptedCount++;
     results.add({
       'clientEventId': clientEventId,
@@ -356,7 +373,11 @@ MockRouterResponse _handleBehaviorEvents(
           : 0,
       'accepted': accepted,
       'code': accepted ? 0 : 2,
-      'reason': accepted ? '' : 'clientEventId is required',
+      'reason': accepted
+          ? ''
+          : (forbidden.contains(action)
+                ? 'client must not submit authoritative actions'
+                : 'clientEventId is required'),
     });
   }
 
@@ -462,6 +483,8 @@ MockRouterResponse _handleV2Search(
       'posts': postResults,
       'users': userResults,
       'tags': tags.take(pageSize).toList(growable: false),
+      'degraded': false,
+      'unavailableTypes': <String>[],
     });
   }
   return _errorResponse(404, 4, 'resource not found');
@@ -578,7 +601,7 @@ MockRouterResponse _sendMockMessage(
       receiverId <= 0 ||
       content.isEmpty ||
       msgType < 1 ||
-      msgType > 3 ||
+      msgType > 4 ||
       idempotencyKey.isEmpty) {
     return _errorResponse(400, 2, 'invalid message', authState);
   }
@@ -689,9 +712,124 @@ Map<String, dynamic> _postSnapshot(Map<String, dynamic> post) {
   final postId = (post['id'] as num).toInt();
   return {
     ...post,
+    'status': post['status'] ?? 1,
+    'revision': post['revision'] ?? 1,
+    'favoriteCount': post['favoriteCount'] ?? 0,
     'isLiked': _likedPostIds.contains(postId),
     'isFavorited': _favoritedPostIds.contains(postId),
   };
+}
+
+MockRouterResponse _handlePersonalization(
+  String method,
+  Map<String, dynamic>? body,
+  String authState,
+) {
+  if (authState != 'authenticated') {
+    return _errorResponse(401, 1006, 'login required', authState);
+  }
+  if (method == 'GET') {
+    return _jsonResponse(
+      {
+        'enabled': _personalizationEnabled,
+        'optedOutAt': _personalizationEnabled
+            ? 0
+            : DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      },
+      headers: {'x-auth-state': authState},
+    );
+  }
+  if (method == 'PUT') {
+    _personalizationEnabled = body?['enabled'] == true;
+    return _jsonResponse(const {}, headers: {'x-auth-state': authState});
+  }
+  return _methodNotAllowed();
+}
+
+MockRouterResponse _handleV2Post(
+  String method,
+  List<String> segments,
+  Map<String, dynamic>? body,
+  String authState,
+) {
+  if (authState != 'authenticated') {
+    return _errorResponse(401, 1006, 'login required', authState);
+  }
+  if (method == 'POST' && segments.length == 3) {
+    final key = body?['idempotencyKey']?.toString().trim() ?? '';
+    if (key.isNotEmpty && _postIdempotencyKeys.containsKey(key)) {
+      final existingId = _postIdempotencyKeys[key]!;
+      final existing = _posts.firstWhere((post) => post['id'] == existingId);
+      return _jsonResponse(
+        {
+          'postId': existingId,
+          'status': existing['status'] ?? 1,
+          'revision': existing['revision'] ?? 1,
+        },
+        headers: {'x-auth-state': authState},
+      );
+    }
+    final newId = _nextPostId++;
+    final newPost = {
+      'id': newId,
+      'authorId': 1,
+      'authorName': _users[1]!['nickname'],
+      'authorAvatar': _users[1]!['avatarUrl'],
+      'title': body?['title'] ?? '',
+      'content': body?['content'] ?? '',
+      'images': body?['images'] ?? <String>[],
+      'tags': body?['tags'] ?? <String>[],
+      'status': body?['status'] ?? 1,
+      'revision': 1,
+      'viewCount': 0,
+      'likeCount': 0,
+      'isLiked': false,
+      'commentCount': 0,
+      'favoriteCount': 0,
+      'createdAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    };
+    _posts.insert(0, newPost);
+    if (key.isNotEmpty) _postIdempotencyKeys[key] = newId;
+    return _jsonResponse(
+      {'postId': newId, 'status': newPost['status'], 'revision': 1},
+      headers: {'x-auth-state': authState},
+    );
+  }
+  if (segments.length < 4) {
+    return _errorResponse(404, 4, 'resource not found', authState);
+  }
+  final postId = int.tryParse(segments[3]) ?? 0;
+  final idx = _posts.indexWhere((post) => post['id'] == postId);
+  if (idx < 0) return _errorResponse(404, 2001, '帖子不存在', authState);
+  final expected = (body?['expectedRevision'] as num?)?.toInt() ?? 0;
+  final current = (_posts[idx]['revision'] as num?)?.toInt() ?? 1;
+  if (expected <= 0) {
+    return _errorResponse(400, 2, 'expectedRevision required', authState);
+  }
+  if (expected != current) {
+    return _errorResponse(409, 2007, '内容版本冲突', authState);
+  }
+  if (method == 'PUT') {
+    _posts[idx] = {
+      ..._posts[idx],
+      'title': body?['title'] ?? _posts[idx]['title'],
+      'content': body?['content'] ?? _posts[idx]['content'],
+      'images': body?['images'] ?? _posts[idx]['images'],
+      'tags': body?['tags'] ?? _posts[idx]['tags'],
+      'status': body?['status'] ?? _posts[idx]['status'] ?? 1,
+      'revision': current + 1,
+    };
+    return _jsonResponse(
+      {'status': _posts[idx]['status'], 'revision': current + 1},
+      headers: {'x-auth-state': authState},
+    );
+  }
+  if (method == 'DELETE') {
+    _posts.removeAt(idx);
+    _comments.remove(postId);
+    return _jsonResponse(const {}, headers: {'x-auth-state': authState});
+  }
+  return _methodNotAllowed();
 }
 
 int? _pageSize(Map<String, String> query) {
@@ -790,10 +928,10 @@ Map<String, dynamic> _route(
       return _handleComment(method, segments, body);
 
     case 'like':
-      return _handleLike(body ?? {});
+      return _handleLike(method, body ?? {});
 
     case 'favorite':
-      return _handleFavorite(body ?? {});
+      return _handleFavorite(method, body ?? {});
 
     case 'user':
       return _handleUser(method, segments, body);
@@ -873,66 +1011,16 @@ Map<String, dynamic> _handlePost(
   List<String> segments,
   Map<String, dynamic>? body,
 ) {
-  // POST /api/v1/post (create)
-  if (method == 'POST' && segments.length == 3) {
-    final newId = _nextPostId++;
-    final newPost = {
-      'id': newId,
-      'authorId': 1,
-      'authorName': _users[1]!['nickname'],
-      'authorAvatar': _users[1]!['avatarUrl'],
-      'title': body?['title'] ?? '',
-      'content': body?['content'] ?? '',
-      'images': body?['images'] ?? <String>[],
-      'tags': body?['tags'] ?? <String>[],
-      'viewCount': 0,
-      'likeCount': 0,
-      'isLiked': false,
-      'commentCount': 0,
-      'favoriteCount': 0,
-      'createdAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-    };
-    _posts.insert(0, newPost);
-    return {'postId': newId};
+  if (method != 'GET' || segments.length < 4) {
+    throw Exception('use /api/v2/post');
   }
-
-  // /api/v1/post/:id
-  if (segments.length < 4) return {};
   final postId = int.tryParse(segments[3]) ?? 0;
-
-  // GET — detail
-  if (method == 'GET') {
-    final post = _posts.firstWhere(
-      (p) => p['id'] == postId,
-      orElse: () => <String, dynamic>{},
-    );
-    if (post.isEmpty) throw Exception('帖子不存在');
-    return {
-      ...post,
-      'isLiked': _likedPostIds.contains(postId),
-      'isFavorited': _favoritedPostIds.contains(postId),
-    };
-  }
-
-  // POST — update or delete (body 含 title 则为更新)
-  if (body != null && body.containsKey('title')) {
-    final idx = _posts.indexWhere((p) => p['id'] == postId);
-    if (idx >= 0) {
-      _posts[idx] = {
-        ..._posts[idx],
-        'title': body['title'],
-        'content': body['content'] ?? _posts[idx]['content'],
-        'images': body['images'] ?? _posts[idx]['images'],
-        'tags': body['tags'] ?? _posts[idx]['tags'],
-      };
-    }
-    return {};
-  }
-
-  // delete
-  _posts.removeWhere((p) => p['id'] == postId);
-  _comments.remove(postId);
-  return {};
+  final post = _posts.firstWhere(
+    (p) => p['id'] == postId,
+    orElse: () => <String, dynamic>{},
+  );
+  if (post.isEmpty) throw Exception('帖子不存在');
+  return _postSnapshot(post);
 }
 
 // ─── Comment List ───
@@ -1001,8 +1089,7 @@ Map<String, dynamic> _handleComment(
     return {'commentId': newId};
   }
 
-  // POST /api/v1/comment/:id (delete)
-  if (segments.length >= 4) {
+  if (method == 'DELETE' && segments.length >= 4) {
     final commentId = int.tryParse(segments[3]) ?? 0;
     for (final list in _comments.values) {
       final idx = list.indexWhere((c) => c['id'] == commentId);
@@ -1019,45 +1106,47 @@ Map<String, dynamic> _handleComment(
 
 // ─── Like (toggle) ───
 
-Map<String, dynamic> _handleLike(Map<String, dynamic> body) {
+Map<String, dynamic> _handleLike(String method, Map<String, dynamic> body) {
   final targetId = (body['targetId'] as num?)?.toInt() ?? 0;
   final targetType = (body['targetType'] as num?)?.toInt() ?? 1;
-
-  if (targetType == 1) {
-    // 帖子点赞 toggle
-    final postIdx = _posts.indexWhere((p) => p['id'] == targetId);
-    if (_likedPostIds.contains(targetId)) {
-      _likedPostIds.remove(targetId);
-      if (postIdx >= 0) {
-        _posts[postIdx] = {
-          ..._posts[postIdx],
-          'likeCount': ((_posts[postIdx]['likeCount'] as num).toInt() - 1)
-              .clamp(0, 999999),
-          'isLiked': false,
-        };
-      }
-    } else {
-      _likedPostIds.add(targetId);
-      if (postIdx >= 0) {
-        _posts[postIdx] = {
-          ..._posts[postIdx],
-          'likeCount': (_posts[postIdx]['likeCount'] as num).toInt() + 1,
-          'isLiked': true,
-        };
-      }
+  if (targetType != 1 || targetId <= 0) return {};
+  final postIdx = _posts.indexWhere((p) => p['id'] == targetId);
+  final liked = _likedPostIds.contains(targetId);
+  if (method == 'DELETE') {
+    if (!liked) return {};
+    _likedPostIds.remove(targetId);
+    if (postIdx >= 0) {
+      _posts[postIdx] = {
+        ..._posts[postIdx],
+        'likeCount': ((_posts[postIdx]['likeCount'] as num).toInt() - 1).clamp(
+          0,
+          999999,
+        ),
+        'isLiked': false,
+      };
     }
+    return {};
   }
-
+  if (liked) return {};
+  _likedPostIds.add(targetId);
+  if (postIdx >= 0) {
+    _posts[postIdx] = {
+      ..._posts[postIdx],
+      'likeCount': (_posts[postIdx]['likeCount'] as num).toInt() + 1,
+      'isLiked': true,
+    };
+  }
   return {};
 }
 
 // ─── Favorite (toggle) ───
 
-Map<String, dynamic> _handleFavorite(Map<String, dynamic> body) {
+Map<String, dynamic> _handleFavorite(String method, Map<String, dynamic> body) {
   final postId = (body['postId'] as num?)?.toInt() ?? 0;
   final postIdx = _posts.indexWhere((p) => p['id'] == postId);
-
-  if (_favoritedPostIds.contains(postId)) {
+  final favorited = _favoritedPostIds.contains(postId);
+  if (method == 'DELETE') {
+    if (!favorited) return {};
     _favoritedPostIds.remove(postId);
     if (postIdx >= 0) {
       _posts[postIdx] = {
@@ -1066,16 +1155,16 @@ Map<String, dynamic> _handleFavorite(Map<String, dynamic> body) {
             .clamp(0, 999999),
       };
     }
-  } else {
-    _favoritedPostIds.add(postId);
-    if (postIdx >= 0) {
-      _posts[postIdx] = {
-        ..._posts[postIdx],
-        'favoriteCount': (_posts[postIdx]['favoriteCount'] as num).toInt() + 1,
-      };
-    }
+    return {};
   }
-
+  if (favorited) return {};
+  _favoritedPostIds.add(postId);
+  if (postIdx >= 0) {
+    _posts[postIdx] = {
+      ..._posts[postIdx],
+      'favoriteCount': (_posts[postIdx]['favoriteCount'] as num).toInt() + 1,
+    };
+  }
   return {};
 }
 
@@ -1096,8 +1185,7 @@ Map<String, dynamic> _handleUser(
     return Map<String, dynamic>.from(user);
   }
 
-  // POST /api/v1/user/profile
-  if (segments[3] == 'profile' && body != null) {
+  if (segments[3] == 'profile' && method == 'PUT' && body != null) {
     final user = _users[1]!;
     if (body.containsKey('nickname')) user['nickname'] = body['nickname'];
     if (body.containsKey('avatarUrl')) user['avatarUrl'] = body['avatarUrl'];
@@ -1105,22 +1193,24 @@ Map<String, dynamic> _handleUser(
     return {};
   }
 
-  // POST /api/v1/user/follow (toggle)
   if (segments[3] == 'follow' && body != null) {
     final targetUserId = (body['targetUserId'] as num?)?.toInt() ?? 0;
     final targetUser = _users[targetUserId];
-    if (_followedUserIds.contains(targetUserId)) {
+    final following = _followedUserIds.contains(targetUserId);
+    if (method == 'DELETE') {
+      if (!following) return {};
       _followedUserIds.remove(targetUserId);
       if (targetUser != null) {
         targetUser['followerCount'] =
             ((targetUser['followerCount'] as num).toInt() - 1).clamp(0, 999999);
       }
-    } else {
-      _followedUserIds.add(targetUserId);
-      if (targetUser != null) {
-        targetUser['followerCount'] =
-            (targetUser['followerCount'] as num).toInt() + 1;
-      }
+      return {};
+    }
+    if (following) return {};
+    _followedUserIds.add(targetUserId);
+    if (targetUser != null) {
+      targetUser['followerCount'] =
+          (targetUser['followerCount'] as num).toInt() + 1;
     }
     return {};
   }

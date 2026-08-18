@@ -17,6 +17,8 @@ abstract final class ErrorCodes {
   static const int contentForbidden = 2002;
   static const int contentEmpty = 2004;
   static const int postAlreadyDeleted = 2006;
+  static const int contentVersionConflict = 2007;
+  static const int idempotencyConflict = 2008;
 
   static const int alreadyLiked = 3001;
   static const int alreadyFavorited = 3002;

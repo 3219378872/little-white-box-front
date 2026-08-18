@@ -37,15 +37,8 @@ void main() {
         context,
         const Duration(milliseconds: 1350),
       );
-      await behaviorTracker.trackLike(9, context);
-      await behaviorTracker.trackUnlike(9, context);
 
-      expect(queue.events.map((item) => item.event.action), [
-        'click',
-        'dwell',
-        'like',
-        'unlike',
-      ]);
+      expect(queue.events.map((item) => item.event.action), ['click', 'dwell']);
       final dwell = queue.events[1].event;
       expect(dwell.durationMs, 1350);
       expect(dwell.requestId, 'request-1');

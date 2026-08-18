@@ -78,7 +78,9 @@ class MessageRepository implements MessageDataSource {
     if (command.receiverId <= 0 ||
         content.isEmpty ||
         command.msgType < 1 ||
-        command.msgType > 3 ||
+        command.msgType > 4 ||
+        (command.msgType == MessageTypes.text && content.length > 1000) ||
+        (command.msgType != MessageTypes.text && command.mediaId <= 0) ||
         key.isEmpty ||
         key.length > 128) {
       throw const ApiException('消息参数无效');
@@ -88,6 +90,7 @@ class MessageRepository implements MessageDataSource {
       'content': content,
       'msgType': command.msgType,
       'idempotencyKey': key,
+      if (command.mediaId > 0) 'mediaId': command.mediaId,
     });
     final messageId = _integer(response['messageId']);
     if (messageId <= 0) throw const ApiException('发送消息响应格式无效');

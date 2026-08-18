@@ -4,12 +4,21 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/error_codes.dart';
+import '../../../core/api/idempotency.dart';
 import '../../../core/widgets/app_dialog.dart';
 import '../../../core/widgets/app_tag_badge.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../sdk/data/gateway.dart';
 import '../data/post_repository.dart';
 import 'widgets/image_picker_grid.dart';
+
+const _maxTitleLength = 120;
+const _maxContentLength = 20000;
+const _maxTagCount = 10;
+const _maxTagLength = 32;
+const _maxImageBytes = 10 * 1024 * 1024;
+const _allowedImageTypes = {'image/jpeg', 'image/png', 'image/webp'};
 
 final _postRepoProvider = Provider((ref) => PostRepository());
 
@@ -27,7 +36,9 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   final List<String> _tags = [];
   final _tagCtrl = TextEditingController();
   final List<String> _networkImages = [];
+  final List<int> _networkMediaIds = [];
   final List<XFile> _localImages = [];
+  int _revision = 0;
   bool _isLoading = false;
   bool _isInitialized = false;
 
@@ -61,6 +72,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
         _contentCtrl.text = post.content;
         _tags.addAll(post.tags);
         _networkImages.addAll(post.images);
+        _revision = post.revision.toInt();
         _isInitialized = true;
       });
     } catch (e) {
@@ -73,17 +85,22 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
 
   void _addTag() {
     final tag = _tagCtrl.text.trim();
-    if (tag.isEmpty || _tags.length >= 5 || _tags.contains(tag)) return;
+    if (tag.isEmpty ||
+        tag.length > _maxTagLength ||
+        _tags.length >= _maxTagCount ||
+        _tags.contains(tag)) {
+      return;
+    }
     setState(() => _tags.add(tag));
     _tagCtrl.clear();
   }
 
-  Future<List<String>> _uploadLocalImages() async {
+  Future<List<UploadedImage>> _uploadLocalImages() async {
     if (_localImages.isEmpty) return const [];
 
     final repo = ref.read(_postRepoProvider);
 
-    final futures = <Future<(int, String?, String?)>>[];
+    final futures = <Future<(int, UploadedImage?, String?)>>[];
     for (var i = 0; i < _localImages.length; i++) {
       final idx = i;
       final file = _localImages[i];
@@ -91,11 +108,18 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
         try {
           final bytes = await file.readAsBytes();
           final name = file.name;
-          final url = await repo.uploadImageMultipart(
+          final mime = _inferLocalImageMime(name, bytes);
+          if (!_allowedImageTypes.contains(mime)) {
+            return (idx, null, '仅支持 JPEG、PNG 或 WebP');
+          }
+          if (bytes.length > _maxImageBytes) {
+            return (idx, null, '单张图片不能超过 10 MiB');
+          }
+          final uploaded = await repo.uploadImageMultipart(
             bytes: bytes,
             filename: name,
           );
-          return (idx, url, null);
+          return (idx, uploaded, null);
         } catch (e) {
           return (idx, null, e.toString());
         }
@@ -115,26 +139,45 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   }
 
   Future<void> _publish({int status = 1}) async {
-    if (_titleCtrl.text.trim().isEmpty) {
-      showAppError(context, '请输入标题');
+    final title = _titleCtrl.text.trim();
+    final content = _contentCtrl.text.trim();
+    if (title.isEmpty || title.length > _maxTitleLength) {
+      showAppError(context, '标题需为 1～$_maxTitleLength 个字符');
+      return;
+    }
+    if (content.isEmpty || content.length > _maxContentLength) {
+      showAppError(context, '正文需为 1～$_maxContentLength 个字符');
       return;
     }
     setState(() => _isLoading = true);
     try {
-      final uploadedUrls = await _uploadLocalImages();
-      final allImages = [..._networkImages, ...uploadedUrls];
+      final uploaded = await _uploadLocalImages();
+      final allImages = [
+        ..._networkImages,
+        ...uploaded.map((item) => item.url),
+      ];
+      final mediaIds = [
+        ..._networkMediaIds.where((id) => id > 0),
+        ...uploaded.map((item) => item.mediaId).where((id) => id > 0),
+      ];
 
       if (_isEditMode) {
+        if (_revision <= 0) {
+          throw const ApiException('缺少帖子版本，请刷新后重试');
+        }
         await ref
             .read(_postRepoProvider)
             .updateExistingPost(
               widget.postId!,
-              UpdatePostReq(
+              UpdatePostV2Req(
                 postId: widget.postId!,
-                title: _titleCtrl.text.trim(),
-                content: _contentCtrl.text.trim(),
+                title: title,
+                content: content,
                 images: allImages,
                 tags: _tags,
+                status: status,
+                expectedRevision: _revision,
+                mediaIds: mediaIds,
               ),
             );
         if (mounted) context.pop();
@@ -143,11 +186,13 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
             .read(_postRepoProvider)
             .createNewPost(
               CreatePostReq(
-                title: _titleCtrl.text.trim(),
-                content: _contentCtrl.text.trim(),
+                title: title,
+                content: content,
                 images: allImages,
                 tags: _tags,
                 status: status,
+                idempotencyKey: newIdempotencyKey(),
+                mediaIds: mediaIds,
               ),
             );
         if (mounted) {
@@ -160,6 +205,15 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
           context: context,
           title: '图片上传失败',
           message: '${e.toString()}\n\n帖子未发布，图片已保留，可修改后重试。',
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        showAppError(
+          context,
+          e.code == ErrorCodes.contentVersionConflict
+              ? '内容已被更新，请刷新后再提交'
+              : '发布失败: ${friendlyErrorMessage(e)}',
         );
       }
     } catch (e) {
@@ -211,8 +265,8 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                 FTextField(
                   control: FTextFieldControl.managed(controller: _titleCtrl),
                   label: const Text('标题'),
-                  hint: '请输入标题（最多100字）',
-                  maxLength: 100,
+                  hint: '请输入标题（最多$_maxTitleLength字）',
+                  maxLength: _maxTitleLength,
                 ),
                 const SizedBox(height: 16),
                 FTextField.multiline(
@@ -221,7 +275,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                   hint: '分享你的想法...',
                   minLines: 8,
                   maxLines: 8,
-                  maxLength: 10000,
+                  maxLength: _maxContentLength,
                 ),
                 const SizedBox(height: 16),
                 // 标签
@@ -279,6 +333,33 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
             ),
     );
   }
+}
+
+String _inferLocalImageMime(String filename, List<int> bytes) {
+  final ext = filename.toLowerCase().split('.').last;
+  switch (ext) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+  }
+  if (bytes.length >= 3 &&
+      bytes[0] == 0xFF &&
+      bytes[1] == 0xD8 &&
+      bytes[2] == 0xFF) {
+    return 'image/jpeg';
+  }
+  if (bytes.length >= 8 &&
+      bytes[0] == 0x89 &&
+      bytes[1] == 0x50 &&
+      bytes[2] == 0x4E &&
+      bytes[3] == 0x47) {
+    return 'image/png';
+  }
+  return 'application/octet-stream';
 }
 
 /// 图片批量上传的事务化异常

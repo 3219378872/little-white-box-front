@@ -2,32 +2,36 @@ import '../../../core/api/api_adapter.dart';
 import '../../../sdk/api/gateway.dart' as gw;
 import '../../../sdk/data/gateway.dart';
 
+class UploadedImage {
+  final int mediaId;
+  final String url;
+  final String thumbnailUrl;
+
+  const UploadedImage({
+    required this.mediaId,
+    required this.url,
+    this.thumbnailUrl = '',
+  });
+}
+
 class PostRepository {
   Future<GetPostResp> getPostDetail(int postId) {
     return apiCall<GetPostResp>(
-      (ok, fail, eventually) => gw.getPost(
-        postId,
-        ok: ok,
-        fail: fail,
-        eventually: eventually,
-      ),
+      (ok, fail, eventually) =>
+          gw.getPost(postId, ok: ok, fail: fail, eventually: eventually),
     );
   }
 
   Future<CreatePostResp> createNewPost(CreatePostReq req) {
     return apiCall<CreatePostResp>(
-      (ok, fail, eventually) => gw.createPost(
-        req,
-        ok: ok,
-        fail: fail,
-        eventually: eventually,
-      ),
+      (ok, fail, eventually) =>
+          gw.createPostV2(req, ok: ok, fail: fail, eventually: eventually),
     );
   }
 
-  Future<void> updateExistingPost(int postId, UpdatePostReq req) {
+  Future<UpdatePostResp> updateExistingPost(int postId, UpdatePostV2Req req) {
     return apiCall<UpdatePostResp>(
-      (ok, fail, eventually) => gw.updatePost(
+      (ok, fail, eventually) => gw.updatePostV2(
         postId,
         req,
         ok: ok,
@@ -37,11 +41,11 @@ class PostRepository {
     );
   }
 
-  Future<void> deleteExistingPost(int postId) {
+  Future<void> deleteExistingPost(int postId, {required int expectedRevision}) {
     return apiCall<DeletePostResp>(
-      (ok, fail, eventually) => gw.deletePost(
+      (ok, fail, eventually) => gw.deletePostV2(
         postId,
-        DeletePostReq(postId: postId),
+        DeletePostV2Req(postId: postId, expectedRevision: expectedRevision),
         ok: ok,
         fail: fail,
         eventually: eventually,
@@ -49,18 +53,28 @@ class PostRepository {
     );
   }
 
-  /// 以 multipart 协议上传单张图片，返回图片 URL。
-  Future<String> uploadImageMultipart({
+  /// 以 multipart 协议上传单张图片，返回媒体标识和 URL。
+  Future<UploadedImage> uploadImageMultipart({
     required List<int> bytes,
     required String filename,
   }) {
-    return apiPostMultipart<String>(
+    return apiPostMultipart<UploadedImage>(
       path: '/api/v1/media/image',
       fieldName: 'file',
       filename: filename,
       bytes: bytes,
       contentType: _inferImageMime(filename, bytes),
-      decodeData: (data) => data['url'] as String,
+      decodeData: (data) {
+        final url = data['url'] as String? ?? '';
+        if (url.isEmpty) {
+          throw const FormatException('upload response missing url');
+        }
+        return UploadedImage(
+          mediaId: (data['mediaId'] as num?)?.toInt() ?? 0,
+          url: url,
+          thumbnailUrl: data['thumbnailUrl'] as String? ?? '',
+        );
+      },
     );
   }
 }
@@ -78,7 +92,6 @@ String _inferImageMime(String filename, List<int> bytes) {
     case 'webp':
       return 'image/webp';
   }
-  // 扩展名缺失时回退到 magic bytes 识别
   if (bytes.length >= 3 &&
       bytes[0] == 0xFF &&
       bytes[1] == 0xD8 &&

@@ -95,7 +95,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/messages',
             pageBuilder: (context, state) =>
-                const NoTransitionPage(child: ConversationsPage()),
+                const NoTransitionPage(child: MessagesShell()),
           ),
           GoRoute(
             path: '/messages/:conversationId',
@@ -113,14 +113,17 @@ final routerProvider = Provider<GoRouter>((ref) {
                   ? '/messages'
                   : null;
             },
-            builder: (context, state) => MessageThreadPage(
-              conversationId: int.parse(
-                state.pathParameters['conversationId']!,
+            builder: (context, state) => MessagesShell(
+              thread: MessageThreadPage(
+                conversationId: int.parse(
+                  state.pathParameters['conversationId']!,
+                ),
+                targetUserId: int.parse(
+                  state.uri.queryParameters['targetUserId']!,
+                ),
+                targetUserName:
+                    state.uri.queryParameters['targetUserName'] ?? '',
               ),
-              targetUserId: int.parse(
-                state.uri.queryParameters['targetUserId']!,
-              ),
-              targetUserName: state.uri.queryParameters['targetUserName'] ?? '',
             ),
           ),
           GoRoute(
@@ -228,7 +231,7 @@ class MainShell extends ConsumerWidget {
             )
           : null,
       child: ContentConstraint(
-        maxWidth: _contentMaxWidth(location),
+        maxWidth: _contentMaxWidth(location, width),
         horizontalPadding: horizontalPadding,
         child: child,
       ),
@@ -254,14 +257,17 @@ class MainShell extends ConsumerWidget {
         location == '/profile';
   }
 
-  double _contentMaxWidth(String location) {
+  double _contentMaxWidth(String location, double width) {
     if (location.startsWith('/post/new') || location.startsWith('/post/edit')) {
       return 760;
     }
     if (location.startsWith('/post/')) return 720;
-    if (location.startsWith('/messages/')) return 720;
+    if (location == '/messages' || location.startsWith('/messages/')) {
+      return width >= 1024 ? 1100 : 720;
+    }
     if (location == '/assistant') return 760;
     if (location == '/profile/edit') return 560;
+    if (location == '/feed' && width >= 1024) return 1100;
     return 680;
   }
 }

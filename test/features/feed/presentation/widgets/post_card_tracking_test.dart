@@ -198,7 +198,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(interactions.likeCalls, 1);
-    expect(tracker.actions, contains('like'));
+    expect(tracker.actions, isNot(contains('like')));
   });
 }
 
@@ -222,10 +222,14 @@ final post = PostItem(
   content: 'Content',
   images: [],
   tags: [],
+  status: 1,
   viewCount: 10,
   likeCount: 2,
   isLiked: false,
+  isFavorited: false,
+  favoriteCount: 0,
   commentCount: 1,
+  revision: 1,
   createdAt: 1700000000,
 );
 
@@ -269,16 +273,6 @@ class _RecordingTracker implements BehaviorTracker {
     actions.add('dwell');
     dwellDurations.add(duration);
   }
-
-  @override
-  Future<void> trackLike(int postId, FeedRecommendationContext context) async =>
-      actions.add('like');
-
-  @override
-  Future<void> trackUnlike(
-    int postId,
-    FeedRecommendationContext context,
-  ) async => actions.add('unlike');
 }
 
 class _RecordingInteractionRepository extends InteractionRepository {

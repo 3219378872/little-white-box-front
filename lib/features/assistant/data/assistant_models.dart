@@ -4,12 +4,16 @@ class AssistantSourceReference {
   final String sourceType;
   final String sourceId;
   final String title;
+  final int revision;
 
   const AssistantSourceReference({
     required this.sourceType,
     required this.sourceId,
     required this.title,
+    this.revision = 0,
   });
+
+  bool get isVerifiedPost => sourceType == 'post' && sourceId.isNotEmpty;
 
   factory AssistantSourceReference.fromJson(Map<String, dynamic> json) {
     final sourceType = _string(json['sourceType']).trim();
@@ -21,6 +25,7 @@ class AssistantSourceReference {
       sourceType: sourceType,
       sourceId: sourceId,
       title: _string(json['title']),
+      revision: _integer(json['revision']),
     );
   }
 
@@ -94,3 +99,8 @@ class AssistantChatEvent {
 }
 
 String _string(Object? value) => value?.toString() ?? '';
+
+int _integer(Object? value) {
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}

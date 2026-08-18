@@ -41,18 +41,13 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
       return;
     }
     final id = Uri.encodeComponent(source.sourceId);
-    switch (source.sourceType) {
-      case 'post':
-        context.push('/post/$id');
-      case 'user':
-        context.push('/user/$id');
+    if (source.isVerifiedPost) {
+      context.push('/post/$id');
     }
   }
 
   bool _canOpen(AssistantSourceReference source) {
-    return widget.onOpenSource != null ||
-        source.sourceType == 'post' ||
-        source.sourceType == 'user';
+    return widget.onOpenSource != null || source.isVerifiedPost;
   }
 
   void _scheduleScroll() {

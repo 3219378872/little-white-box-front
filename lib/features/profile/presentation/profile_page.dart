@@ -8,10 +8,14 @@ import '../../../core/widgets/error_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/user_posts_notifier.dart';
+import '../data/personalization_repository.dart';
 import '../data/user_repository.dart';
 import 'widgets/user_post_list.dart';
 
 final _userRepoProvider = Provider((ref) => UserRepository());
+final _personalizationRepoProvider = Provider(
+  (ref) => PersonalizationRepository(),
+);
 
 final _userProfileProvider = FutureProvider.family<GetUserResp, int>((
   ref,
@@ -66,6 +70,8 @@ class _ProfileContent extends ConsumerStatefulWidget {
 
 class _ProfileContentState extends ConsumerState<_ProfileContent> {
   bool _isFollowing = false;
+  bool? _personalizationEnabled;
+  bool _personalizationBusy = false;
   int _tabIndex = 0;
   late final PageController _pageController;
 
@@ -73,6 +79,9 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
   void initState() {
     super.initState();
     _pageController = PageController();
+    if (widget.isOwnProfile) {
+      _loadPersonalization();
+    }
   }
 
   @override
@@ -96,6 +105,39 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
   void _handlePageChanged(int index) {
     if (index != _tabIndex) {
       setState(() => _tabIndex = index);
+    }
+  }
+
+  Future<void> _loadPersonalization() async {
+    try {
+      final preference = await ref
+          .read(_personalizationRepoProvider)
+          .getPreference();
+      if (!mounted) return;
+      setState(() => _personalizationEnabled = preference.enabled);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _personalizationEnabled = null);
+    }
+  }
+
+  Future<void> _setPersonalization(bool enabled) async {
+    if (_personalizationBusy) return;
+    final previous = _personalizationEnabled;
+    setState(() {
+      _personalizationEnabled = enabled;
+      _personalizationBusy = true;
+    });
+    try {
+      await ref
+          .read(_personalizationRepoProvider)
+          .setPreference(enabled: enabled);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _personalizationEnabled = previous);
+      showAppError(context, '个性化设置失败: $e');
+    } finally {
+      if (mounted) setState(() => _personalizationBusy = false);
     }
   }
 
@@ -192,14 +234,32 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      if (widget.isOwnProfile)
+                      if (widget.isOwnProfile) ...[
                         FButton(
                           variant: .outline,
                           mainAxisSize: MainAxisSize.min,
                           onPress: () => context.push('/profile/edit'),
                           child: const Text('编辑资料'),
-                        )
-                      else
+                        ),
+                        const SizedBox(height: 12),
+                        FButton(
+                          variant: .ghost,
+                          mainAxisSize: MainAxisSize.min,
+                          prefix: const Icon(FLucideIcons.sparkles),
+                          onPress: () => context.go('/assistant'),
+                          child: const Text('Assistant'),
+                        ),
+                        if (_personalizationEnabled != null) ...[
+                          const SizedBox(height: 16),
+                          FSwitch(
+                            label: const Text('个性化推荐'),
+                            description: const Text('关闭后不再用你的行为做个性化'),
+                            value: _personalizationEnabled!,
+                            enabled: !_personalizationBusy,
+                            onChange: _setPersonalization,
+                          ),
+                        ],
+                      ] else
                         FButton(
                           variant: _isFollowing
                               ? FButtonVariant.secondary

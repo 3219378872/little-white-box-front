@@ -61,10 +61,14 @@ PostItem _post(num id) {
     content: 'c',
     images: const [],
     tags: const [],
+    status: 1,
     viewCount: 0,
     likeCount: 0,
     isLiked: false,
+    isFavorited: false,
+    favoriteCount: 0,
     commentCount: 0,
+    revision: 1,
     createdAt: 0,
   );
 }

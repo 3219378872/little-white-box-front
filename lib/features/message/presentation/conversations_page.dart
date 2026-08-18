@@ -9,6 +9,38 @@ import '../../../core/widgets/paginated_list.dart';
 import '../application/message_notifiers.dart';
 import '../data/message_models.dart';
 
+class MessagesShell extends StatelessWidget {
+  final Widget? thread;
+
+  const MessagesShell({super.key, this.thread});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDesktop =
+        MediaQuery.sizeOf(context).width >= context.theme.breakpoints.lg;
+    if (!isDesktop) {
+      return thread ?? const ConversationsPage();
+    }
+    return Row(
+      children: [
+        const SizedBox(width: 320, child: ConversationsPage()),
+        ColoredBox(
+          color: context.theme.colors.border,
+          child: const SizedBox(width: 1, height: double.infinity),
+        ),
+        Expanded(
+          child:
+              thread ??
+              const EmptyView(
+                message: '选择一个会话开始聊天',
+                icon: FLucideIcons.messagesSquare,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
 class ConversationsPage extends ConsumerWidget {
   final ValueChanged<ConversationSummary>? onOpenConversation;
 
@@ -20,66 +52,70 @@ class ConversationsPage extends ConsumerWidget {
     final unread = ref.watch(unreadSummaryProvider);
     final notifier = ref.read(conversationListProvider.notifier);
     final unreadNotifier = ref.read(unreadSummaryProvider.notifier);
-    return FScaffold(
-      header: FHeader(
-        title: const Text('私信'),
-        suffixes: [
-          if (unread.summary.notificationUnread > 0)
-            Center(
-              child: FBadge(
-                variant: FBadgeVariant.secondary,
-                child: Text('通知 ${unread.summary.notificationUnread}'),
+    return Column(
+      children: [
+        FHeader(
+          title: const Text('私信'),
+          suffixes: [
+            if (unread.summary.notificationUnread > 0)
+              Center(
+                child: FBadge(
+                  variant: FBadgeVariant.secondary,
+                  child: Text('通知 ${unread.summary.notificationUnread}'),
+                ),
               ),
+            FHeaderAction(
+              icon: const Icon(FLucideIcons.sparkles),
+              semanticsLabel: '打开 Assistant',
+              onPress: () => context.go('/assistant'),
             ),
-          FHeaderAction(
-            icon: const Icon(FLucideIcons.sparkles),
-            semanticsLabel: '打开 Assistant',
-            onPress: () => context.go('/assistant'),
-          ),
-        ],
-      ),
-      child: state.error != null && state.conversations.isEmpty
-          ? ErrorView(message: state.error!, onRetry: notifier.refresh)
-          : PaginatedListView<ConversationSummary>(
-              items: state.conversations,
-              hasMore: state.hasMore,
-              isLoading: state.isLoading,
-              isLoadingMore: state.isLoadingMore,
-              error: state.error,
-              onLoadMore: notifier.loadMore,
-              onRefresh: () async {
-                await Future.wait([
-                  notifier.refresh(),
-                  unreadNotifier.refresh(),
-                ]);
-              },
-              emptyWidget: const EmptyView(
-                message: '暂无私信',
-                icon: FLucideIcons.messagesSquare,
-              ),
-              itemBuilder: (context, conversation) => FItem(
-                prefix: CachedAvatar(
-                  url: conversation.targetUserAvatar,
-                  name: conversation.targetUserName,
-                  radius: 22,
+          ],
+        ),
+        Expanded(
+          child: state.error != null && state.conversations.isEmpty
+              ? ErrorView(message: state.error!, onRetry: notifier.refresh)
+              : PaginatedListView<ConversationSummary>(
+                  items: state.conversations,
+                  hasMore: state.hasMore,
+                  isLoading: state.isLoading,
+                  isLoadingMore: state.isLoadingMore,
+                  error: state.error,
+                  onLoadMore: notifier.loadMore,
+                  onRefresh: () async {
+                    await Future.wait([
+                      notifier.refresh(),
+                      unreadNotifier.refresh(),
+                    ]);
+                  },
+                  emptyWidget: const EmptyView(
+                    message: '暂无私信',
+                    icon: FLucideIcons.messagesSquare,
+                  ),
+                  itemBuilder: (context, conversation) => FItem(
+                    prefix: CachedAvatar(
+                      url: conversation.targetUserAvatar,
+                      name: conversation.targetUserName,
+                      radius: 22,
+                    ),
+                    title: Text(
+                      conversation.targetUserName.isEmpty
+                          ? '用户 ${conversation.targetUserId}'
+                          : conversation.targetUserName,
+                    ),
+                    subtitle: Text(
+                      conversation.lastMessage.isEmpty
+                          ? '暂无消息'
+                          : conversation.lastMessage,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    details: _ConversationDetails(conversation: conversation),
+                    suffix: const Icon(FLucideIcons.chevronRight),
+                    onPress: () => _open(context, conversation),
+                  ),
                 ),
-                title: Text(
-                  conversation.targetUserName.isEmpty
-                      ? '用户 ${conversation.targetUserId}'
-                      : conversation.targetUserName,
-                ),
-                subtitle: Text(
-                  conversation.lastMessage.isEmpty
-                      ? '暂无消息'
-                      : conversation.lastMessage,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                details: _ConversationDetails(conversation: conversation),
-                suffix: const Icon(FLucideIcons.chevronRight),
-                onPress: () => _open(context, conversation),
-              ),
-            ),
+        ),
+      ],
     );
   }
 

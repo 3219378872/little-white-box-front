@@ -110,13 +110,22 @@ class SendMessageCommand {
   final String content;
   final int msgType;
   final String idempotencyKey;
+  final int mediaId;
 
   const SendMessageCommand({
     required this.receiverId,
     required this.content,
     this.msgType = 1,
     required this.idempotencyKey,
+    this.mediaId = 0,
   });
+}
+
+abstract final class MessageTypes {
+  static const int text = 1;
+  static const int image = 2;
+  static const int video = 3;
+  static const int audio = 4;
 }
 
 String _string(Object? value) => value?.toString() ?? '';

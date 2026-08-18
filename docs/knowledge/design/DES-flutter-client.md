@@ -33,7 +33,7 @@ tracks:
   - FQ-006
   - FQ-007
   - FQ-008
-updated_at: 2026-08-13
+updated_at: 2026-08-18
 ---
 
 # Flutter 内容社区客户端设计
@@ -97,8 +97,9 @@ flowchart LR
 ### v1 社区核心
 
 生成 SDK 的 callback API 通过 `apiCall<T>` 转为 Future；文件上传使用 repository 调用 multipart
-adapter。生成来源与应用副本保持清晰，契约新增 revision 或幂等字段时先改后端定义、重新生成来源，
-再同步副本和 repository，不能只手改 `lib/sdk/`。
+adapter。生成来源与应用副本保持清晰，契约新增 revision 或幂等字段时先改后端定义、运行
+`tools/sync_gateway_sdk.py` 重新生成来源并补齐 PUT/DELETE，再同步副本和 repository，
+不能只手改 `lib/sdk/`。goctl Dart 生成器仍只发出 GET/POST，动词修补属于同步脚本的固定步骤。
 
 ### v2 发现、消息与行为
 
@@ -136,7 +137,8 @@ Assistant 使用独立 SSE transport，因为它需要逐事件消费并支持�
 ### 私信与 Assistant
 
 - 私信线程先加载并独立标记已读；发送失败保存原命令，用户重试复用幂等键。列表、线程和导航未读数通过
-  明确刷新收敛。
+  明确刷新收敛。文本上限 1000；图片先上传再带 `mediaId` 发送，并把 URL 写入 `content`。视频/语音
+  仅在 `content` 为 URL 时展示，当前网关无对应上传接口，发送入口保持不可用。
 - Assistant 每次只允许一个活跃流；取消先增加 generation 再关闭订阅。断流保留部分文本但不标记完成，
   source、done、error 都携带并更新会话上下文。
 
@@ -146,7 +148,9 @@ Assistant 使用独立 SSE transport，因为它需要逐事件消费并支持�
 `FTooltipGroup`。`AppTheme` 同时维护 Material 与 Forui 的亮暗主题，并按平台选择 touch 或 desktop
 variant。
 
-主壳在 Forui `lg` 断点切换底部导航和桌面侧栏；正文由 `ContentConstraint` 限宽。新增 feature 页面
+主壳在 Forui `lg` 断点切换底部导航和桌面侧栏；正文由 `ContentConstraint` 限宽。`lg` 及以上
+Feed 使用双列卡片、私信使用左列表右线程，Feed/私信内容宽放宽到 1100。移动端底栏仍为 5 项，
+Assistant 从「我的」和消息页进入。主 Tab 页不再嵌套第二层 `FScaffold`。新增 feature 页面
 优先使用 Forui/`FLucideIcons`，无法等价时才使用 Material，不为局部需求创建第二套主题或 overlay 根。
 
 ## 失败与恢复
