@@ -5,5 +5,6 @@
 
 当前页面：
 
+- [EVD-client-relative-api-2026-08-18](EVD-client-relative-api-2026-08-18.md)
 - [EVD-client-api-followup-2026-08-18](EVD-client-api-followup-2026-08-18.md)
 - [EVD-client-baseline-2026-08-13](EVD-client-baseline-2026-08-13.md)

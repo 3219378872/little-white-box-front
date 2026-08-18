@@ -46,7 +46,8 @@
 - `make test`：运行测试套件。
 - `make knowledge-check`：校验五层知识 ID、引用、条款覆盖、本地链接和实现—证据闭环。
 - `make dev`：使用仓库内 Mock API 启动 Web 开发模式。
-- `make dev-real SERVER_HOST=http://127.0.0.1:8888`：连接真实网关启动 Web。
+- `make dev-real`：以相对路径 `/api/...` 连接当前源上的真实网关启动 Web。
+- `make dev-real SERVER_HOST=http://127.0.0.1:8888`：仍可显式指定绝对网关地址。
 - `make help`：查看完整命令列表。
 
 根据变更范围执行相关检查；完成任务时报告实际运行的命令和结果。

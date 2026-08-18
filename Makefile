@@ -6,7 +6,7 @@ HOST ?= 0.0.0.0
 PORT ?= 3000
 TARGET ?= lib/main_mock.dart
 BUILD_DIR ?= build/web
-SERVER_HOST ?= http://127.0.0.1:8888
+SERVER_HOST ?=
 PID_FILE ?= .dart_tool/web-server-$(PORT).pid
 LOG_FILE ?= .dart_tool/web-server-$(PORT).log
 
@@ -19,7 +19,7 @@ help:
 		'make test        Run the test suite' \
 		'make knowledge-check  Validate five-layer project knowledge' \
 		'make dev         Start Mock Web in foreground with hot reload' \
-		'make dev-real    Start Web against SERVER_HOST' \
+		'make dev-real    Start Web with relative /api paths (optional SERVER_HOST)' \
 		'make build-web   Build the Mock Web release artifact' \
 		'make start       Build and serve release Web in background' \
 		'make stop        Stop the release Web server started by make' \
@@ -48,7 +48,7 @@ dev-real:
 	$(FLUTTER) run -d web-server \
 		--web-hostname "$(HOST)" \
 		--web-port "$(PORT)" \
-		--dart-define=SERVER_HOST="$(SERVER_HOST)" \
+		$(if $(SERVER_HOST),--dart-define=SERVER_HOST="$(SERVER_HOST)",) \
 		-t lib/main.dart
 
 build-web:

@@ -69,14 +69,21 @@ Open `http://localhost:3000` from the host browser. `make start` builds
 `.dart_tool/`. `make restart` rebuilds and restarts it. Use `make serve` when a
 foreground static server is preferred.
 
-To use a real API instead of Mock, run the normal entry point and provide the
-gateway URL explicitly:
+To use a real API instead of Mock, run the normal entry point. Requests use
+relative paths such as `/api/v1/health`, so the page origin must reverse-proxy
+or otherwise serve the gateway:
+
+```bash
+make dev-real
+```
+
+To call an absolute gateway instead (for example a local process on another
+port), pass `SERVER_HOST` explicitly. That mode requires CORS for the browser
+origin:
 
 ```bash
 make dev-real SERVER_HOST=http://127.0.0.1:8888
 ```
-
-The API gateway must allow the browser origin through CORS for this mode.
 
 ## SDK Workflow
 

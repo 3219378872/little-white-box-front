@@ -78,7 +78,7 @@ Future<T> apiPostMultipart<T>({
 }) async {
   final tokens = await getTokens();
   try {
-    final req = http.MultipartRequest('POST', Uri.parse(serverHost + path));
+    final req = http.MultipartRequest('POST', apiUri(path));
     if (tokens != null) {
       req.headers['Authorization'] = tokens.accessToken;
     }

@@ -33,10 +33,11 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-client-relative-api-2026-08-18
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
 updated_at: 2026-08-18
-observed_commit: f97bb47eb43ef9a3eba0e1c2b72407deef668880
+observed_commit: 8d01b7598c1b5ed47cbc0bf24ad4c1cd64ba2163
 ---
 
 # Flutter 客户端实现映射
@@ -55,7 +56,7 @@ observed_commit: f97bb47eb43ef9a3eba0e1c2b72407deef668880
 
 | 运行面 | 当前实现 |
 | --- | --- |
-| 真实入口 | `lib/main.dart` 设置认证错误回调，使用默认 HTTP client 和 `SERVER_HOST` |
+| 真实入口 | `lib/main.dart` 设置认证错误回调；`apiUri` 默认发相对路径 `/api/...`，可选 `SERVER_HOST` |
 | Mock 入口 | `lib/main_mock.dart` 注入 `MockHttpClient`，种子用户 1 默认登录 |
 | 应用壳 | `lib/app.dart`：`MaterialApp.router`、全局 Forui 主题/本地化/toast/tooltip、行为队列初始化 |
 | 路由/导航 | `lib/core/router/app_router.dart`：GoRouter guard、公开与保护路由、底栏/侧栏切换、内容限宽 |
@@ -114,4 +115,6 @@ observed_commit: f97bb47eb43ef9a3eba0e1c2b72407deef668880
 | Mock/真实同路径 | aligned | transport 注入而非 feature 分叉；真实网关仍需独立证据 |
 
 验证范围和命令见
+[EVD-client-relative-api-2026-08-18](../evidence/EVD-client-relative-api-2026-08-18.md)
+与
 [EVD-client-api-followup-2026-08-18](../evidence/EVD-client-api-followup-2026-08-18.md)。

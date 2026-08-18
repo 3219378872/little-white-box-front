@@ -154,7 +154,7 @@ Future _apiRequest(
       headers.addAll(header);
     }
 
-    final uri = Uri.parse(serverHost + path);
+    final uri = apiUri(path);
     final rp = switch (method) {
       'POST' => await _apiClient.post(uri, headers: headers, body: strData),
       'PUT' => await _apiClient.put(uri, headers: headers, body: strData),

@@ -59,7 +59,7 @@ flowchart LR
     V1 --> TRANSPORT[Shared HTTP transport]
     V2 --> TRANSPORT
     SSE --> TRANSPORT
-    TRANSPORT --> REAL[Real gateway]
+    TRANSPORT --> REAL[Real gateway\nrelative /api paths]
     TRANSPORT --> MOCK[In-memory Mock router]
     UI --> TRACK[Behavior tracker]
     TRACK --> QUEUE[Persistent event queue]
@@ -67,7 +67,8 @@ flowchart LR
 ```
 
 真实入口与 Mock 入口在 transport 之前汇合，因此 feature 不出现 `isMockMode` 分支。实现事实与该设计
-不一致时，在实现层登记，而不是给图补例外。
+不一致时，在实现层登记，而不是给图补例外。默认请求 URI 是相对路径（如 `/api/v1/health`），由页面
+源做反代或同源转发；仅在显式提供 `SERVER_HOST` 时才拼绝对地址。
 
 ## 组件职责
 
@@ -93,6 +94,9 @@ flowchart LR
 业务码触发统一清理。
 
 ## 接口适配设计
+
+共享 HTTP transport 通过 `apiUri` 解析路径。默认 `SERVER_HOST` 为空，请求保持 `/api/v1/...`、
+`/api/v2/...` 相对路径；原生端或跨源调试可注入绝对 `SERVER_HOST`。
 
 ### v1 社区核心
 

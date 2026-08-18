@@ -59,7 +59,7 @@ class AssistantRepository implements AssistantDataSource {
 
     final request = http.Request(
       'POST',
-      Uri.parse('$_baseUrl/api/v2/assistant/chat'),
+      apiUri('/api/v2/assistant/chat', host: _baseUrl),
     );
     request.headers.addAll({
       'Accept': 'text/event-stream',
