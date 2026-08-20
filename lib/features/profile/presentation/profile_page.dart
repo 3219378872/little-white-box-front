@@ -326,6 +326,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                 : UserPostList(
                     userId: widget.userId,
                     type: UserPostsListType.posts,
+                    active: true,
                   ),
           );
         },

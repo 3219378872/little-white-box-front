@@ -33,9 +33,9 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
   void initState() {
     super.initState();
     _routeObserver = ref.read(appRouteObserverProvider);
-    if (widget.type == UserPostsListType.favorites && widget.active) {
+    if (widget.active) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _reloadFavorites();
+        if (mounted) _reloadIfActive();
       });
     }
   }
@@ -43,7 +43,6 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (widget.type != UserPostsListType.favorites) return;
     final route = ModalRoute.of(context);
     if (route is ModalRoute<void>) {
       _routeObserver.subscribe(this, route);
@@ -53,16 +52,14 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
   @override
   void didUpdateWidget(covariant UserPostList oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.type == UserPostsListType.favorites &&
-        widget.active &&
-        !oldWidget.active) {
-      _reloadFavorites();
+    if (widget.active && !oldWidget.active) {
+      _reloadIfActive();
     }
   }
 
   @override
   void didPopNext() {
-    _reloadFavorites();
+    _reloadIfActive();
   }
 
   @override
@@ -71,8 +68,8 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
     super.dispose();
   }
 
-  void _reloadFavorites() {
-    if (widget.type != UserPostsListType.favorites || !widget.active) return;
+  void _reloadIfActive() {
+    if (!widget.active) return;
     final state = ref.read(userPostsProvider(_key));
     if (state.isLoading || state.isRefreshing) return;
     ref.read(userPostsProvider(_key).notifier).refresh();

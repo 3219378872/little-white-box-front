@@ -215,10 +215,93 @@ void main() {
     await tester.pump();
     expect(repo.favoriteCalls, greaterThan(afterEnter));
   });
+
+  testWidgets('reloads posts each time the tab becomes active', (tester) async {
+    final repo = _CountingUserPostsRepository();
+    await pumpProfile(tester, repo: repo);
+
+    await tester.tap(tab('收藏'));
+    await finishAnimation(tester);
+
+    final beforeReturn = repo.postCalls;
+    await tester.tap(tab('帖子'));
+    await finishAnimation(tester);
+    await tester.pump();
+    expect(repo.postCalls, greaterThan(beforeReturn));
+    expect(find.text('帖子 1'), findsOneWidget);
+  });
+
+  testWidgets('reloads posts after returning from a pushed route', (
+    tester,
+  ) async {
+    final repo = _CountingUserPostsRepository();
+    final observer = RouteObserver<ModalRoute<void>>();
+    final router = GoRouter(
+      initialLocation: '/user/2',
+      observers: [observer],
+      routes: [
+        GoRoute(
+          path: '/user/:userId',
+          builder: (_, state) =>
+              ProfilePage(userId: int.parse(state.pathParameters['userId']!)),
+        ),
+        GoRoute(
+          path: '/post/:postId',
+          builder: (_, _) => const SizedBox(key: Key('post-stub')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appRouteObserverProvider.overrideWithValue(observer),
+          userPostsRepositoryProvider.overrideWithValue(repo),
+        ],
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: foruiTestBuilder,
+        ),
+      ),
+    );
+    for (var i = 0; i < 30 && find.text('帖子 1').evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    final afterEnter = repo.postCalls;
+    expect(afterEnter, greaterThan(0));
+
+    router.push('/post/1');
+    await finishAnimation(tester);
+    expect(find.byKey(const Key('post-stub')), findsOneWidget);
+
+    router.pop();
+    await finishAnimation(tester);
+    await tester.pump();
+    expect(repo.postCalls, greaterThan(afterEnter));
+  });
 }
 
 class _CountingUserPostsRepository extends _TestUserPostsRepository {
   int favoriteCalls = 0;
+  int postCalls = 0;
+
+  @override
+  Future<GetPostListResp> fetchUserPosts({
+    required num userId,
+    required int page,
+    required int pageSize,
+    int sortBy = 1,
+  }) async {
+    postCalls++;
+    return super.fetchUserPosts(
+      userId: userId,
+      page: page,
+      pageSize: pageSize,
+      sortBy: sortBy,
+    );
+  }
 
   @override
   Future<GetPostListResp> fetchUserFavorites({

@@ -33,6 +33,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-posts-reload-2026-08-20
   - EVD-favorites-reload-2026-08-20
   - EVD-client-ui-align-2026-08-20
   - EVD-search-post-author-2026-08-20
@@ -95,7 +96,7 @@ observed_commit: ccfb538003128c8e5ca953a547a3598252de4fd6
 - 搜索帖子解析 `authorId`/`authorName`/`authorAvatar`，结果项展示作者头像与名称，头像可进入作者资料。
 - 导航未读图标继承 `IconTheme` 尺寸（桌面侧栏 16、移动底栏 24），不硬编码 24，避免「消息」项与其他入口错位。
 - 验证码输入与「获取验证码」底对齐，按钮使用默认 `md` 尺寸匹配 `FTextField`；登录和注册共用 `VerifyCodeField`。
-- 个人资料收藏列表在 tab 成为当前页、以及从其它路由返回且仍停在收藏 tab 时重新拉取第一页；
+- 个人资料帖子列表与收藏列表在成为当前 tab、以及从其它路由返回且仍为当前 tab 时重新拉取第一页；
   `UserPostsNotifier` 用 generation 丢弃被刷新打断的首屏响应。
 
 ## 偏离登记
