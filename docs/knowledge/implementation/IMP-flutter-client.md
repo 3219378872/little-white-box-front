@@ -33,6 +33,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-client-ui-align-2026-08-20
   - EVD-search-post-author-2026-08-20
   - EVD-client-relative-api-2026-08-18
   - EVD-client-api-followup-2026-08-18
@@ -91,6 +92,8 @@ observed_commit: b3a10ff065d5bb8269781636e3ebba84e44ea76b
 - 帖子图片通过 multipart 并行上传，任一失败时阻止帖子写入；图片选择上限为 9。
 - 页面与数据层在真实/Mock 模式共用，Mock v2 transport 覆盖推荐、关注、行为、搜索、私信和 Assistant。
 - 搜索帖子解析 `authorId`/`authorName`/`authorAvatar`，结果项展示作者头像与名称，头像可进入作者资料。
+- 导航未读图标继承 `IconTheme` 尺寸（桌面侧栏 16、移动底栏 24），不硬编码 24，避免「消息」项与其他入口错位。
+- 验证码输入与「获取验证码」底对齐，按钮使用默认 `md` 尺寸匹配 `FTextField`；登录和注册共用 `VerifyCodeField`。
 
 ## 偏离登记
 
@@ -117,6 +120,8 @@ observed_commit: b3a10ff065d5bb8269781636e3ebba84e44ea76b
 | Mock/真实同路径 | aligned | transport 注入而非 feature 分叉；真实网关仍需独立证据 |
 
 验证范围和命令见
+[EVD-client-ui-align-2026-08-20](../evidence/EVD-client-ui-align-2026-08-20.md)、
+[EVD-search-post-author-2026-08-20](../evidence/EVD-search-post-author-2026-08-20.md)、
 [EVD-client-relative-api-2026-08-18](../evidence/EVD-client-relative-api-2026-08-18.md)
 与
 [EVD-client-api-followup-2026-08-18](../evidence/EVD-client-api-followup-2026-08-18.md)。

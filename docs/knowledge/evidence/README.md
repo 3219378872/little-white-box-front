@@ -5,6 +5,7 @@
 
 当前页面：
 
+- [EVD-client-ui-align-2026-08-20](EVD-client-ui-align-2026-08-20.md)
 - [EVD-search-post-author-2026-08-20](EVD-search-post-author-2026-08-20.md)
 - [EVD-client-relative-api-2026-08-18](EVD-client-relative-api-2026-08-18.md)
 - [EVD-client-api-followup-2026-08-18](EVD-client-api-followup-2026-08-18.md)

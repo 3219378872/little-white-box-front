@@ -58,7 +58,6 @@ class _VerifyCodeButtonState extends State<VerifyCodeButton> {
       width: 112,
       child: FButton(
         variant: .outline,
-        size: .sm,
         onPress: enabled ? _handleSend : null,
         child: Text(
           _isSending
@@ -68,6 +67,42 @@ class _VerifyCodeButtonState extends State<VerifyCodeButton> {
               : '获取验证码',
         ),
       ),
+    );
+  }
+}
+
+class VerifyCodeField extends StatelessWidget {
+  final TextEditingController controller;
+  final Future<void> Function() onSend;
+
+  const VerifyCodeField({
+    super.key,
+    required this.controller,
+    required this.onSend,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: FTextField(
+            control: FTextFieldControl.managed(controller: controller),
+            keyboardType: TextInputType.number,
+            label: const Text('验证码'),
+            prefixBuilder: (context, style, variants) =>
+                FTextField.prefixIconBuilder(
+                  context,
+                  style,
+                  variants,
+                  const Icon(FLucideIcons.messageSquareText),
+                ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        VerifyCodeButton(onSend: onSend),
+      ],
     );
   }
 }

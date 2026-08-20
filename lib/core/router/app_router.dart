@@ -405,41 +405,42 @@ class _UnreadNavigationIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final iconWidget = Icon(icon);
+    if (count <= 0) {
+      return iconWidget;
+    }
+
     final label = count > 99 ? '99+' : '$count';
-    return SizedBox.square(
-      dimension: 24,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned.fill(child: Icon(icon)),
-          if (count > 0)
-            Positioned(
-              right: -9,
-              top: -7,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: theme.colors.destructive,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Center(
-                      child: Text(
-                        label,
-                        style: theme.typography.body.xs.copyWith(
-                          color: theme.colors.destructiveForeground,
-                          fontSize: 10,
-                        ),
-                      ),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        iconWidget,
+        Positioned(
+          right: -8,
+          top: -6,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: theme.colors.destructive,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Center(
+                  child: Text(
+                    label,
+                    style: theme.typography.body.xs.copyWith(
+                      color: theme.colors.destructiveForeground,
+                      fontSize: 10,
                     ),
                   ),
                 ),
               ),
             ),
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 }

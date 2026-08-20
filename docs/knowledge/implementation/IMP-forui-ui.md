@@ -12,7 +12,7 @@ tracks:
   - FQ-007
 evidence:
   - EVD-client-baseline-2026-08-13
-updated_at: 2026-08-13
+updated_at: 2026-08-20
 observed_commit: edf598f291c889c3ec3bbdc597ab3acff6a0c9fd
 ---
 
@@ -52,6 +52,8 @@ Forui 是本项目新建和迁移界面的首选组件库。本文记录官方�
 - Material 与 Forui 可以共存。应用壳、尚未迁移的界面或 Forui 没有合适等价物的场景可以继续使用 Material。
 - 公共颜色、排版和组件风格在 `AppTheme` 中维护。页面级差异优先使用主题提供的 style 或 delta 能力，不复制整套主题数据。
 - 所有主题调整都要检查亮色、暗色以及 touch、desktop variant。不要只按当前开发设备硬编码平台样式。
+- 导航图标必须继承外层 `IconTheme` 尺寸，不要为未读角标硬编码 24px。`FSidebarItem` 为 16，`FBottomNavigationBarItem` 为 24；角标叠在图标上，不得撑开入口盒子。
+- 带 label 的输入框与相邻动作按钮应对齐输入控件本身，而不是把按钮相对「label + 输入框」垂直居中。验证码行使用 `CrossAxisAlignment.end`，按钮尺寸与默认 `FTextField`（`md`）一致。
 - toast、tooltip 等 overlay 组件应使用应用根节点已经提供的上下文，不在局部嵌套重复的全局容器。
 - 不因单个界面迁移而重写无关页面。组件迁移应保持现有路由、状态管理和数据行为不变。
 

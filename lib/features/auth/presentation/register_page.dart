@@ -141,29 +141,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: FTextField(
-                      control: FTextFieldControl.managed(controller: _codeCtrl),
-                      keyboardType: TextInputType.number,
-                      label: const Text('验证码'),
-                      prefixBuilder: (context, style, variants) =>
-                          FTextField.prefixIconBuilder(
-                            context,
-                            style,
-                            variants,
-                            const Icon(FLucideIcons.messageSquareText),
-                          ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  VerifyCodeButton(
-                    onSend: () => ref
-                        .read(_authRepoProvider)
-                        .sendCode(_phoneCtrl.text, 1),
-                  ),
-                ],
+              VerifyCodeField(
+                controller: _codeCtrl,
+                onSend: () =>
+                    ref.read(_authRepoProvider).sendCode(_phoneCtrl.text, 1),
               ),
               const SizedBox(height: 24),
               FButton(

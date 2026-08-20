@@ -277,6 +277,30 @@ void main() {
     expect(find.text('12'), findsOneWidget);
   });
 
+  testWidgets('desktop sidebar destinations share the same item box', (
+    tester,
+  ) async {
+    await pumpShell(tester, location: '/feed', width: 1280);
+
+    _expectSidebarItemsAligned(tester);
+  });
+
+  testWidgets('desktop message item stays aligned with an unread badge', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      location: '/feed',
+      width: 1280,
+      unreadSource: _RouterMessageSource(
+        unread: const UnreadSummary(messageUnread: 12),
+      ),
+    );
+
+    expect(find.text('12'), findsOneWidget);
+    _expectSidebarItemsAligned(tester);
+  });
+
   testWidgets('keeps search public for an anonymous user', (tester) async {
     final container = ProviderContainer();
     final router = container.read(routerProvider);
@@ -357,6 +381,18 @@ void main() {
     await tester.pump();
     expect(find.byType(ConversationsPage), findsOneWidget);
   });
+}
+
+void _expectSidebarItemsAligned(WidgetTester tester) {
+  final items = find.byType(FSidebarItem);
+  expect(items, findsNWidgets(6));
+  final rects = [for (var i = 0; i < 6; i++) tester.getRect(items.at(i))];
+  final first = rects.first;
+  for (final rect in rects.skip(1)) {
+    expect(rect.height, closeTo(first.height, 0.5));
+    expect(rect.width, closeTo(first.width, 0.5));
+    expect(rect.left, closeTo(first.left, 0.5));
+  }
 }
 
 class _RouterMessageSource implements MessageDataSource {
