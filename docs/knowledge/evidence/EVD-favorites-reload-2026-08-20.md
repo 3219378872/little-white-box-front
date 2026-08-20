@@ -10,7 +10,7 @@ covers:
   - FX-031
   - FQ-006
 updated_at: 2026-08-20
-observed_commit: pending
+observed_commit: ccfb538003128c8e5ca953a547a3598252de4fd6
 ---
 
 # 收藏列表进入时重新拉取 2026-08-20
@@ -22,7 +22,17 @@ observed_commit: pending
 
 ## 命令与结果
 
-在前端 `task/favorites-reload-on-enter` 工作树记录实际命令与结果。
+在前端 `task/favorites-reload-on-enter` 工作树：
+
+```text
+dart analyze lib/core/router lib/features/profile test/features/profile
+flutter test test/features/profile
+python3 tools/knowledge_base.py check
+```
+
+`dart analyze` 仅有测试里一处 info，已改为合法 `_` 占位；`flutter test test/features/profile`
+退出码 0，13 个测试通过，含收藏 tab 再次进入与从推入路由返回时重新拉取。`knowledge-check`
+退出码 0。
 
 ## 条款证据
 

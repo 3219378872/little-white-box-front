@@ -40,7 +40,7 @@ evidence:
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
 updated_at: 2026-08-20
-observed_commit: e9aa8613eee3a1c2041843b2e29cf694e9442b95
+observed_commit: ccfb538003128c8e5ca953a547a3598252de4fd6
 ---
 
 # Flutter 客户端实现映射
@@ -53,7 +53,7 @@ observed_commit: e9aa8613eee3a1c2041843b2e29cf694e9442b95
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是本轮 task 提交 `f97bb47eb43ef9a3eba0e1c2b72407deef668880`。
+本页观察基准是本轮 task 提交 `ccfb538003128c8e5ca953a547a3598252de4fd6`。
 
 ## 代码入口
 
