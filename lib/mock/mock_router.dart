@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../core/api/json_int64.dart';
 import 'mock_data.dart';
 
 /// In-memory Gateway mock aligned with `app/gateway/gateway.api`.
@@ -223,7 +224,7 @@ MockRouterResponse dispatchResponse(
   var malformed = false;
   if (requestBody.isNotEmpty && !isMultipart) {
     try {
-      final decoded = jsonDecode(requestBody);
+      final decoded = decodeApiJson(requestBody);
       if (decoded is Map<String, dynamic>) {
         body = decoded;
       } else {

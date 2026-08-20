@@ -2,7 +2,7 @@ class ClientBehaviorEvent {
   final String clientEventId;
   final int occurredAt;
   final String action;
-  final int targetId;
+  final Object targetId;
   final String targetType;
   final String scene;
   final String requestId;
@@ -32,7 +32,7 @@ class ClientBehaviorEvent {
       clientEventId: json['clientEventId'] as String? ?? '',
       occurredAt: (json['occurredAt'] as num?)?.toInt() ?? 0,
       action: json['action'] as String? ?? '',
-      targetId: (json['targetId'] as num?)?.toInt() ?? 0,
+      targetId: json['targetId'] ?? 0,
       targetType: json['targetType'] as String? ?? '',
       scene: json['scene'] as String? ?? '',
       requestId: json['requestId'] as String? ?? '',

@@ -1,10 +1,12 @@
+import '../../../core/api/json_int64.dart';
+
 enum SearchScope { all, users, tags }
 
 class SearchPostResult {
-  final int id;
+  final Object id;
   final String title;
   final String contentHighlight;
-  final int authorId;
+  final Object authorId;
   final String authorName;
   final String authorAvatar;
   final int likeCount;
@@ -26,13 +28,15 @@ class SearchPostResult {
   String get displayAuthor => authorName.isEmpty ? '未知作者' : authorName;
 
   factory SearchPostResult.fromJson(Map<String, dynamic> json) {
-    final id = _integer(json['id']);
-    if (id <= 0) throw const FormatException('invalid search post id');
+    final id = json['id'];
+    if (!jsonInt64IsPositive(id)) {
+      throw const FormatException('invalid search post id');
+    }
     return SearchPostResult(
       id: id,
       title: _string(json['title']),
       contentHighlight: _string(json['contentHighlight']),
-      authorId: _integer(json['authorId']),
+      authorId: json['authorId'] ?? 0,
       authorName: _string(json['authorName']),
       authorAvatar: _string(json['authorAvatar']),
       likeCount: _integer(json['likeCount']),
@@ -43,7 +47,7 @@ class SearchPostResult {
 }
 
 class SearchUserResult {
-  final int id;
+  final Object id;
   final String username;
   final String nickname;
   final String avatarUrl;
@@ -62,8 +66,10 @@ class SearchUserResult {
   String get displayName => nickname.isEmpty ? username : nickname;
 
   factory SearchUserResult.fromJson(Map<String, dynamic> json) {
-    final id = _integer(json['id']);
-    if (id <= 0) throw const FormatException('invalid search user id');
+    final id = json['id'];
+    if (!jsonInt64IsPositive(id)) {
+      throw const FormatException('invalid search user id');
+    }
     return SearchUserResult(
       id: id,
       username: _string(json['username']),

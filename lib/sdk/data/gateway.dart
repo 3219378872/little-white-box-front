@@ -110,7 +110,7 @@ class BehaviorEvent {
 
   final String action;
 
-  final num targetId;
+  final Object targetId;
 
   final String targetType;
 
@@ -180,7 +180,7 @@ class BehaviorEvent {
 class BehaviorEventResult {
   final String clientEventId;
 
-  final num eventId;
+  final Object eventId;
 
   final bool accepted;
 
@@ -215,17 +215,17 @@ class BehaviorEventResult {
 }
 
 class CommentItem {
-  final num id;
+  final Object id;
 
-  final num userId;
+  final Object userId;
 
   final String userName;
 
   final String userAvatar;
 
-  final num parentId;
+  final Object parentId;
 
-  final num replyUserId;
+  final Object replyUserId;
 
   final String content;
 
@@ -272,9 +272,9 @@ class CommentItem {
 }
 
 class ConversationItem {
-  final num id;
+  final Object id;
 
-  final num targetUserId;
+  final Object targetUserId;
 
   final String targetUserName;
 
@@ -319,11 +319,11 @@ class ConversationItem {
 }
 
 class CreateCommentReq {
-  final num postId;
+  final Object postId;
 
-  final num parentId;
+  final Object parentId;
 
-  final num replyUserId;
+  final Object replyUserId;
 
   final String content;
 
@@ -356,7 +356,7 @@ class CreateCommentReq {
 }
 
 class CreateCommentResp {
-  final num commentId;
+  final Object commentId;
   CreateCommentResp({required this.commentId});
   factory CreateCommentResp.fromJson(Map<String, dynamic> m) {
     return CreateCommentResp(commentId: m['commentId'] ?? 0);
@@ -380,7 +380,7 @@ class CreatePostReq {
 
   final String idempotencyKey;
 
-  final List<int> mediaIds;
+  final List<Object> mediaIds;
   CreatePostReq({
     required this.title,
     required this.content,
@@ -398,7 +398,9 @@ class CreatePostReq {
       tags: m['tags']?.cast<String>() ?? [],
       status: m['status'] ?? 0,
       idempotencyKey: m['idempotencyKey'] ?? "",
-      mediaIds: m['mediaIds']?.cast<int>() ?? [],
+      mediaIds: m['mediaIds'] is List
+          ? List<Object>.from(m['mediaIds'] as List)
+          : <Object>[],
     );
   }
   Map<String, dynamic> toJson() {
@@ -415,7 +417,7 @@ class CreatePostReq {
 }
 
 class CreatePostResp {
-  final num postId;
+  final Object postId;
 
   final num status;
 
@@ -438,7 +440,7 @@ class CreatePostResp {
 }
 
 class DeleteCommentReq {
-  final num commentId;
+  final Object commentId;
   DeleteCommentReq({required this.commentId});
   factory DeleteCommentReq.fromJson(Map<String, dynamic> m) {
     return DeleteCommentReq(commentId: m['commentId'] ?? 0);
@@ -469,7 +471,7 @@ class DeletePostResp {
 }
 
 class DeletePostV2Req {
-  final num postId;
+  final Object postId;
 
   // 必填；缺失/0 → 参数错误
   final num expectedRevision;
@@ -486,7 +488,7 @@ class DeletePostV2Req {
 }
 
 class FavoriteReq {
-  final num postId;
+  final Object postId;
   FavoriteReq({required this.postId});
   factory FavoriteReq.fromJson(Map<String, dynamic> m) {
     return FavoriteReq(postId: m['postId'] ?? 0);
@@ -507,9 +509,9 @@ class FavoriteResp {
 }
 
 class FeedItem {
-  final num postId;
+  final Object postId;
 
-  final num authorId;
+  final Object authorId;
 
   final String authorName;
 
@@ -594,7 +596,7 @@ class FeedItem {
 }
 
 class FollowReq {
-  final num targetUserId;
+  final Object targetUserId;
   FollowReq({required this.targetUserId});
   factory FollowReq.fromJson(Map<String, dynamic> m) {
     return FollowReq(targetUserId: m['targetUserId'] ?? 0);
@@ -615,7 +617,7 @@ class FollowResp {
 }
 
 class GetCommentListReq {
-  final num postId;
+  final Object postId;
 
   final num page;
 
@@ -721,7 +723,7 @@ class GetConversationsResp {
 class GetFollowFeedReq {
   final num cursorCreatedAt;
 
-  final num cursorPostId;
+  final Object cursorPostId;
 
   final num pageSize;
   GetFollowFeedReq({
@@ -752,7 +754,7 @@ class GetFollowFeedResp {
 
   final num nextCursorCreatedAt;
 
-  final num nextCursorPostId;
+  final Object nextCursorPostId;
   GetFollowFeedResp({
     required this.items,
     required this.hasMore,
@@ -780,9 +782,9 @@ class GetFollowFeedResp {
 }
 
 class GetMessagesReq {
-  final num conversationId;
+  final Object conversationId;
 
-  final num lastId;
+  final Object lastId;
 
   final num pageSize;
   GetMessagesReq({
@@ -898,7 +900,7 @@ class GetPostListResp {
 }
 
 class GetPostReq {
-  final num postId;
+  final Object postId;
   GetPostReq({required this.postId});
   factory GetPostReq.fromJson(Map<String, dynamic> m) {
     return GetPostReq(postId: m['postId'] ?? 0);
@@ -909,9 +911,9 @@ class GetPostReq {
 }
 
 class GetPostResp {
-  final num id;
+  final Object id;
 
-  final num authorId;
+  final Object authorId;
 
   final String authorName;
 
@@ -1109,7 +1111,7 @@ class GetUnreadSummaryResp {
 }
 
 class GetUserFavoritesReq {
-  final num userId;
+  final Object userId;
 
   final num page;
 
@@ -1132,7 +1134,7 @@ class GetUserFavoritesReq {
 }
 
 class GetUserPostsReq {
-  final num userId;
+  final Object userId;
 
   final num page;
 
@@ -1164,7 +1166,7 @@ class GetUserPostsReq {
 }
 
 class GetUserReq {
-  final num userId;
+  final Object userId;
   GetUserReq({required this.userId});
   factory GetUserReq.fromJson(Map<String, dynamic> m) {
     return GetUserReq(userId: m['userId'] ?? 0);
@@ -1175,7 +1177,7 @@ class GetUserReq {
 }
 
 class GetUserResp {
-  final num id;
+  final Object id;
 
   final String username;
 
@@ -1276,7 +1278,7 @@ class HealthResp {
 }
 
 class LikeReq {
-  final num targetId;
+  final Object targetId;
 
   // 1:帖子 2:评论
   final num targetType;
@@ -1341,7 +1343,7 @@ class LoginReq {
 }
 
 class LoginResp {
-  final num userId;
+  final Object userId;
 
   final String token;
   LoginResp({required this.userId, required this.token});
@@ -1354,7 +1356,7 @@ class LoginResp {
 }
 
 class MarkConversationReadReq {
-  final num conversationId;
+  final Object conversationId;
   MarkConversationReadReq({required this.conversationId});
   factory MarkConversationReadReq.fromJson(Map<String, dynamic> m) {
     return MarkConversationReadReq(conversationId: m['id'] ?? 0);
@@ -1375,13 +1377,13 @@ class MarkConversationReadResp {
 }
 
 class MessageItem {
-  final num id;
+  final Object id;
 
-  final num conversationId;
+  final Object conversationId;
 
-  final num senderId;
+  final Object senderId;
 
-  final num receiverId;
+  final Object receiverId;
 
   final String content;
 
@@ -1427,9 +1429,9 @@ class MessageItem {
 }
 
 class PostItem {
-  final num id;
+  final Object id;
 
-  final num authorId;
+  final Object authorId;
 
   final String authorName;
 
@@ -1524,9 +1526,9 @@ class PostItem {
 }
 
 class RecommendFeedItem {
-  final num postId;
+  final Object postId;
 
-  final num authorId;
+  final Object authorId;
 
   final String authorName;
 
@@ -1731,7 +1733,7 @@ class RegisterReq {
 }
 
 class RegisterResp {
-  final num userId;
+  final Object userId;
 
   final String token;
   RegisterResp({required this.userId, required this.token});
@@ -1744,13 +1746,13 @@ class RegisterResp {
 }
 
 class SearchPostItem {
-  final num id;
+  final Object id;
 
   final String title;
 
   final String contentHighlight;
 
-  final num authorId;
+  final Object authorId;
 
   final String authorName;
 
@@ -1908,7 +1910,7 @@ class SearchTagsResp {
 }
 
 class SearchUserItem {
-  final num id;
+  final Object id;
 
   final String username;
 
@@ -1991,7 +1993,7 @@ class SearchUsersResp {
 }
 
 class SendMessageReq {
-  final num receiverId;
+  final Object receiverId;
 
   final String content;
 
@@ -1999,7 +2001,7 @@ class SendMessageReq {
 
   final String idempotencyKey;
 
-  final num mediaId;
+  final Object mediaId;
   SendMessageReq({
     required this.receiverId,
     required this.content,
@@ -2028,7 +2030,7 @@ class SendMessageReq {
 }
 
 class SendMessageResp {
-  final num messageId;
+  final Object messageId;
   SendMessageResp({required this.messageId});
   factory SendMessageResp.fromJson(Map<String, dynamic> m) {
     return SendMessageResp(messageId: m['messageId'] ?? 0);
@@ -2084,7 +2086,7 @@ class SetPersonalizationPreferenceResp {
 }
 
 class UnfavoriteReq {
-  final num postId;
+  final Object postId;
   UnfavoriteReq({required this.postId});
   factory UnfavoriteReq.fromJson(Map<String, dynamic> m) {
     return UnfavoriteReq(postId: m['postId'] ?? 0);
@@ -2105,7 +2107,7 @@ class UnfavoriteResp {
 }
 
 class UnfollowReq {
-  final num targetUserId;
+  final Object targetUserId;
   UnfollowReq({required this.targetUserId});
   factory UnfollowReq.fromJson(Map<String, dynamic> m) {
     return UnfollowReq(targetUserId: m['targetUserId'] ?? 0);
@@ -2126,7 +2128,7 @@ class UnfollowResp {
 }
 
 class UnlikeReq {
-  final num targetId;
+  final Object targetId;
 
   final num targetType;
   UnlikeReq({required this.targetId, required this.targetType});
@@ -2168,7 +2170,7 @@ class UpdatePostResp {
 }
 
 class UpdatePostV2Req {
-  final num postId;
+  final Object postId;
 
   final String title;
 
@@ -2183,7 +2185,7 @@ class UpdatePostV2Req {
   // 必填；缺失/0 → 参数错误
   final num expectedRevision;
 
-  final List<int> mediaIds;
+  final List<Object> mediaIds;
   UpdatePostV2Req({
     required this.postId,
     required this.title,
@@ -2203,7 +2205,9 @@ class UpdatePostV2Req {
       tags: m['tags']?.cast<String>() ?? [],
       status: m['status'] == null ? null : (m['status'] is num) ? (m['status'] as num).toInt() : null,
       expectedRevision: m['expectedRevision'] ?? 0,
-      mediaIds: m['mediaIds']?.cast<int>() ?? [],
+      mediaIds: m['mediaIds'] is List
+          ? List<Object>.from(m['mediaIds'] as List)
+          : <Object>[],
     );
   }
   Map<String, dynamic> toJson() {
@@ -2264,7 +2268,7 @@ class UploadImageReq {
 }
 
 class UploadImageResp {
-  final num mediaId;
+  final Object mediaId;
 
   final String url;
 

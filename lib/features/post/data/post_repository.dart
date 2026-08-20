@@ -3,7 +3,7 @@ import '../../../sdk/api/gateway.dart' as gw;
 import '../../../sdk/data/gateway.dart';
 
 class UploadedImage {
-  final int mediaId;
+  final Object mediaId;
   final String url;
   final String thumbnailUrl;
 
@@ -15,7 +15,7 @@ class UploadedImage {
 }
 
 class PostRepository {
-  Future<GetPostResp> getPostDetail(int postId) {
+  Future<GetPostResp> getPostDetail(Object postId) {
     return apiCall<GetPostResp>(
       (ok, fail, eventually) =>
           gw.getPost(postId, ok: ok, fail: fail, eventually: eventually),
@@ -29,7 +29,7 @@ class PostRepository {
     );
   }
 
-  Future<UpdatePostResp> updateExistingPost(int postId, UpdatePostV2Req req) {
+  Future<UpdatePostResp> updateExistingPost(Object postId, UpdatePostV2Req req) {
     return apiCall<UpdatePostResp>(
       (ok, fail, eventually) => gw.updatePostV2(
         postId,
@@ -41,7 +41,7 @@ class PostRepository {
     );
   }
 
-  Future<void> deleteExistingPost(int postId, {required int expectedRevision}) {
+  Future<void> deleteExistingPost(Object postId, {required int expectedRevision}) {
     return apiCall<DeletePostResp>(
       (ok, fail, eventually) => gw.deletePostV2(
         postId,
@@ -70,7 +70,7 @@ class PostRepository {
           throw const FormatException('upload response missing url');
         }
         return UploadedImage(
-          mediaId: (data['mediaId'] as num?)?.toInt() ?? 0,
+          mediaId: data['mediaId'] ?? 0,
           url: url,
           thumbnailUrl: data['thumbnailUrl'] as String? ?? '',
         );

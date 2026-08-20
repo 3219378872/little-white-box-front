@@ -231,14 +231,14 @@ class _TestInteractionRepository extends InteractionRepository {
     : _likeCompletion = blockLike ? Completer<void>() : null;
 
   @override
-  Future<void> likeTarget(int targetId, int targetType) async {
+  Future<void> likeTarget(Object targetId, int targetType) async {
     likeCalls++;
     if (failLike) throw Exception('点赞失败');
     await _likeCompletion?.future;
   }
 
   @override
-  Future<void> unlikeTarget(int targetId, int targetType) async {
+  Future<void> unlikeTarget(Object targetId, int targetType) async {
     unlikeCalls++;
   }
 

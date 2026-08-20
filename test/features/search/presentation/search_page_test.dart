@@ -19,7 +19,7 @@ void main() {
         ],
         child: MaterialApp(
           builder: foruiTestBuilder,
-          home: SearchPage(onOpenPost: (id) => openedPost = id),
+          home: SearchPage(onOpenPost: (id) => openedPost = id as int),
         ),
       ),
     );
@@ -47,7 +47,7 @@ void main() {
         ],
         child: MaterialApp(
           builder: foruiTestBuilder,
-          home: SearchPage(onOpenUser: (id) => openedUser = id),
+          home: SearchPage(onOpenUser: (id) => openedUser = id as int),
         ),
       ),
     );

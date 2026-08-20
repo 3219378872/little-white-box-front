@@ -2,11 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../sdk/data/tokens.dart';
 import '../../../sdk/vars/kv.dart';
+import '../../../core/api/json_int64.dart';
 import '../../../core/auth/jwt_decoder.dart';
 
 class AuthState {
   final bool isAuthenticated;
-  final num? userId;
+  final Object? userId;
   final String? token;
   final bool isLoading;
 
@@ -19,7 +20,7 @@ class AuthState {
 
   AuthState copyWith({
     bool? isAuthenticated,
-    num? userId,
+    Object? userId,
     String? token,
     bool? isLoading,
   }) {
@@ -50,7 +51,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final tokens = await getTokens();
     if (tokens != null && tokens.accessToken.isNotEmpty) {
       final userId = extractUserIdFromToken(tokens.accessToken);
-      if (userId == null || userId <= 0) {
+      if (userId == null || !jsonInt64IsPositive(userId)) {
         // token 异常：清掉，按未登录处理
         await removeTokens();
         state = const AuthState(isLoading: false);
@@ -68,7 +69,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _changeNotifier.notify();
   }
 
-  Future<void> onLoginSuccess(num userId, String token) async {
+  Future<void> onLoginSuccess(Object userId, String token) async {
     final tokens = Tokens(
       accessToken: token,
       accessExpire: 0,

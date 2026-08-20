@@ -8,7 +8,7 @@ import '../../../feed/presentation/widgets/post_card.dart';
 import '../../application/user_posts_notifier.dart';
 
 class UserPostList extends ConsumerStatefulWidget {
-  final num userId;
+  final Object userId;
   final UserPostsListType type;
   final bool active;
 

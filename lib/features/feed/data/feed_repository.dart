@@ -1,5 +1,6 @@
 import '../../../core/analytics/client_identity_store.dart';
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/json_int64.dart';
 import '../../../core/api/v2_api_client.dart';
 import '../../../sdk/data/gateway.dart';
 import 'feed_models.dart';
@@ -104,7 +105,8 @@ class FeedRepository implements FeedPageRepository {
       '/api/v2/feed/follow',
       query: {
         if (cursor.createdAt > 0) 'cursorCreatedAt': cursor.createdAt,
-        if (cursor.postId > 0) 'cursorPostId': cursor.postId,
+        if (jsonInt64IsPositive(cursor.postId))
+          'cursorPostId': jsonInt64Id(cursor.postId),
         'pageSize': pageSize,
       },
     );
@@ -121,7 +123,7 @@ class FeedRepository implements FeedPageRepository {
       requestId: requestId,
       followCursor: FollowFeedCursor(
         createdAt: _integer(response['nextCursorCreatedAt']),
-        postId: _integer(response['nextCursorPostId']),
+        postId: response['nextCursorPostId'] ?? 0,
       ),
     );
   }
@@ -189,7 +191,8 @@ class FeedRepository implements FeedPageRepository {
       'commentCount',
       'createdAt',
     };
-    if (_integer(post['id']) <= 0 || !requiredKeys.every(post.containsKey)) {
+    if (!jsonInt64IsPositive(post['id']) ||
+        !requiredKeys.every(post.containsKey)) {
       throw const ApiException(
         'Feed item is missing the complete post payload',
       );

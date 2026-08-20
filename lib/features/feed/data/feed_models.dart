@@ -33,7 +33,7 @@ class FeedEntry {
 
 class FollowFeedCursor {
   final int createdAt;
-  final int postId;
+  final Object postId;
 
   const FollowFeedCursor({this.createdAt = 0, this.postId = 0});
 }

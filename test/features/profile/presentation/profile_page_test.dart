@@ -307,7 +307,7 @@ class _CountingUserPostsRepository extends _TestUserPostsRepository {
 
   @override
   Future<GetPostListResp> fetchUserFavorites({
-    required num userId,
+    required Object userId,
     required int page,
     required int pageSize,
   }) async {
@@ -356,7 +356,7 @@ class _TestUserPostsRepository implements UserPostsRepository {
 
   @override
   Future<GetPostListResp> fetchUserPosts({
-    required num userId,
+    required Object userId,
     required int page,
     required int pageSize,
     int sortBy = 1,
@@ -364,7 +364,7 @@ class _TestUserPostsRepository implements UserPostsRepository {
 
   @override
   Future<GetPostListResp> fetchUserFavorites({
-    required num userId,
+    required Object userId,
     required int page,
     required int pageSize,
   }) async => _response('收藏', page, pageSize);

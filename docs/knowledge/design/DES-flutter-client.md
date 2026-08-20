@@ -100,6 +100,12 @@ flowchart LR
 共享 HTTP transport 通过 `apiUri` 解析路径。默认 `SERVER_HOST` 为空，请求保持 `/api/v1/...`、
 `/api/v2/...` 相对路径；原生端或跨源调试可注入绝对 `SERVER_HOST`。
 
+网关把雪花 ID 编成 JSON number。Flutter Web 的 `jsonDecode` 走 IEEE-754，超过 `2^53-1` 的 ID
+会丢位，详情路径就会查到另一个不存在的数字。共享 transport 在解码前把 16 位及以上整数字面量改成
+JSON 字符串，编码时再还原成 JSON number，让 Go 的 `int64` 仍能解析。路由、query 和路径只使用十进制
+字符串，不把实体 ID 再变成 Dart `int`。`tools/sync_gateway_sdk.py` 把生成模型里的实体 ID 放宽为
+`Object`，以便同时接受小整数和字符串。
+
 ### v1 社区核心
 
 生成 SDK 的 callback API 通过 `apiCall<T>` 转为 Future；文件上传使用 repository 调用 multipart

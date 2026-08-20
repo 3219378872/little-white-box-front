@@ -4,14 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/api/json_int64.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../application/search_notifier.dart';
 import '../data/search_models.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
-  final ValueChanged<int>? onOpenPost;
-  final ValueChanged<int>? onOpenUser;
+  final ValueChanged<Object>? onOpenPost;
+  final ValueChanged<Object>? onOpenUser;
 
   const SearchPage({super.key, this.onOpenPost, this.onOpenUser});
 
@@ -38,14 +39,18 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         .selectScope(SearchScope.values[index]);
   }
 
-  void _openPost(int id) {
+  void _openPost(Object id) {
     final callback = widget.onOpenPost;
-    callback == null ? context.push('/post/$id') : callback(id);
+    callback == null
+        ? context.push('/post/${jsonInt64Id(id)}')
+        : callback(id);
   }
 
-  void _openUser(int id) {
+  void _openUser(Object id) {
     final callback = widget.onOpenUser;
-    callback == null ? context.push('/user/$id') : callback(id);
+    callback == null
+        ? context.push('/user/${jsonInt64Id(id)}')
+        : callback(id);
   }
 
   @override
@@ -156,8 +161,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 class _SearchResultList extends StatelessWidget {
   final SearchResults results;
   final SearchScope scope;
-  final ValueChanged<int> onOpenPost;
-  final ValueChanged<int> onOpenUser;
+  final ValueChanged<Object> onOpenPost;
+  final ValueChanged<Object> onOpenUser;
   final ValueChanged<String> onSearchTag;
 
   const _SearchResultList({
@@ -215,7 +220,7 @@ class _SearchResultList extends StatelessWidget {
       radius: 20,
     );
     return FItem(
-      prefix: post.authorId > 0
+      prefix: jsonInt64IsPositive(post.authorId)
           ? FTappable(onPress: () => onOpenUser(post.authorId), child: avatar)
           : avatar,
       title: Text(post.title.isEmpty ? '未命名帖子' : post.title),

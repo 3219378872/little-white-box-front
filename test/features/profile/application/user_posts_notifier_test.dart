@@ -24,7 +24,7 @@ class _FakeUserPostsRepo implements UserPostsRepository {
 
   @override
   Future<GetPostListResp> fetchUserPosts({
-    required num userId,
+    required Object userId,
     required int page,
     required int pageSize,
     int sortBy = 1,
@@ -45,7 +45,7 @@ class _FakeUserPostsRepo implements UserPostsRepository {
 
   @override
   Future<GetPostListResp> fetchUserFavorites({
-    required num userId,
+    required Object userId,
     required int page,
     required int pageSize,
   }) async {
@@ -83,7 +83,7 @@ class _QueuedUserPostsRepo implements UserPostsRepository {
 
   @override
   Future<GetPostListResp> fetchUserPosts({
-    required num userId,
+    required Object userId,
     required int page,
     required int pageSize,
     int sortBy = 1,
@@ -93,7 +93,7 @@ class _QueuedUserPostsRepo implements UserPostsRepository {
 
   @override
   Future<GetPostListResp> fetchUserFavorites({
-    required num userId,
+    required Object userId,
     required int page,
     required int pageSize,
   }) {

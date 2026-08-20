@@ -88,7 +88,7 @@ Future recordBehaviorEvents(
 /// request: GetCommentListReq
 /// response: GetCommentListResp
 Future getCommentList(
-  int postId, {
+  Object postId, {
   Function(GetCommentListResp)? ok,
   Function(String)? fail,
   Function? eventually,
@@ -129,7 +129,7 @@ Future createComment(
 /// request: DeleteCommentReq
 /// response: DeleteCommentResp
 Future deleteComment(
-  int commentId,
+  Object commentId,
   DeleteCommentReq request, {
   Function(DeleteCommentResp)? ok,
   Function(String)? fail,
@@ -397,7 +397,7 @@ Future getConversations({
 /// request: GetMessagesReq
 /// response: GetMessagesResp
 Future getMessages(
-  int id, {
+  Object id, {
   Function(GetMessagesResp)? ok,
   Function(String)? fail,
   Function? eventually,
@@ -417,7 +417,7 @@ Future getMessages(
 /// request: MarkConversationReadReq
 /// response: MarkConversationReadResp
 Future markConversationRead(
-  int id,
+  Object id,
   MarkConversationReadReq request, {
   Function(MarkConversationReadResp)? ok,
   Function(String)? fail,
@@ -458,7 +458,7 @@ Future getUnreadSummary({
 /// request: GetPostReq
 /// response: GetPostResp
 Future getPost(
-  int postId, {
+  Object postId, {
   Function(GetPostResp)? ok,
   Function(String)? fail,
   Function? eventually,
@@ -518,7 +518,7 @@ Future createPostV2(
 /// request: UpdatePostV2Req
 /// response: UpdatePostResp
 Future updatePostV2(
-  int postId,
+  Object postId,
   UpdatePostV2Req request, {
   Function(UpdatePostResp)? ok,
   Function(String)? fail,
@@ -540,7 +540,7 @@ Future updatePostV2(
 /// request: DeletePostV2Req
 /// response: DeletePostResp
 Future deletePostV2(
-  int postId,
+  Object postId,
   DeletePostV2Req request, {
   Function(DeletePostResp)? ok,
   Function(String)? fail,
@@ -619,7 +619,7 @@ Future searchUsers({
 /// request: GetUserReq
 /// response: GetUserResp
 Future getUser(
-  int userId, {
+  Object userId, {
   Function(GetUserResp)? ok,
   Function(String)? fail,
   Function? eventually,
@@ -639,7 +639,7 @@ Future getUser(
 /// request: GetUserFavoritesReq
 /// response: GetPostListResp
 Future getUserFavorites(
-  int userId, {
+  Object userId, {
   Function(GetPostListResp)? ok,
   Function(String)? fail,
   Function? eventually,
@@ -659,7 +659,7 @@ Future getUserFavorites(
 /// request: GetUserPostsReq
 /// response: GetPostListResp
 Future getUserPosts(
-  int userId, {
+  Object userId, {
   Function(GetPostListResp)? ok,
   Function(String)? fail,
   Function? eventually,

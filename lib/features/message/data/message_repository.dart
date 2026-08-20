@@ -1,4 +1,5 @@
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/json_int64.dart';
 import '../../../core/api/v2_api_client.dart';
 import 'message_models.dart';
 
@@ -6,14 +7,14 @@ abstract interface class MessageDataSource {
   Future<ConversationPage> getConversations({int page = 1, int pageSize = 20});
 
   Future<MessagePage> getMessages({
-    required int conversationId,
-    int lastId = 0,
+    required Object conversationId,
+    Object lastId = 0,
     int pageSize = 20,
   });
 
-  Future<int> sendMessage(SendMessageCommand command);
+  Future<Object> sendMessage(SendMessageCommand command);
 
-  Future<void> markConversationRead(int conversationId);
+  Future<void> markConversationRead(Object conversationId);
 
   Future<UnreadSummary> getUnreadSummary();
 }
@@ -49,17 +50,21 @@ class MessageRepository implements MessageDataSource {
 
   @override
   Future<MessagePage> getMessages({
-    required int conversationId,
-    int lastId = 0,
+    required Object conversationId,
+    Object lastId = 0,
     int pageSize = 20,
   }) async {
-    if (conversationId <= 0 || lastId < 0) {
+    if (!jsonInt64IsPositive(conversationId) ||
+        (lastId is num && lastId < 0)) {
       throw const ApiException('会话参数无效');
     }
     _validatePage(1, pageSize);
     final response = await _client.get(
-      '/api/v2/messages/conversations/$conversationId',
-      query: {if (lastId > 0) 'lastId': lastId, 'pageSize': pageSize},
+      '/api/v2/messages/conversations/${jsonInt64Id(conversationId)}',
+      query: {
+        if (jsonInt64IsPositive(lastId)) 'lastId': jsonInt64Id(lastId),
+        'pageSize': pageSize,
+      },
     );
     try {
       return MessagePage(
@@ -72,38 +77,42 @@ class MessageRepository implements MessageDataSource {
   }
 
   @override
-  Future<int> sendMessage(SendMessageCommand command) async {
+  Future<Object> sendMessage(SendMessageCommand command) async {
     final content = command.content.trim();
     final key = command.idempotencyKey.trim();
-    if (command.receiverId <= 0 ||
+    if (!jsonInt64IsPositive(command.receiverId) ||
         content.isEmpty ||
         command.msgType < 1 ||
         command.msgType > 4 ||
         (command.msgType == MessageTypes.text && content.length > 1000) ||
-        (command.msgType != MessageTypes.text && command.mediaId <= 0) ||
+        (command.msgType != MessageTypes.text &&
+            !jsonInt64IsPositive(command.mediaId)) ||
         key.isEmpty ||
         key.length > 128) {
       throw const ApiException('消息参数无效');
     }
     final response = await _client.post('/api/v2/messages', {
-      'receiverId': command.receiverId,
+      'receiverId': jsonInt64Id(command.receiverId),
       'content': content,
       'msgType': command.msgType,
       'idempotencyKey': key,
-      if (command.mediaId > 0) 'mediaId': command.mediaId,
+      if (jsonInt64IsPositive(command.mediaId))
+        'mediaId': jsonInt64Id(command.mediaId),
     });
-    final messageId = _integer(response['messageId']);
-    if (messageId <= 0) throw const ApiException('发送消息响应格式无效');
+    final messageId = response['messageId'];
+    if (!jsonInt64IsPositive(messageId)) {
+      throw const ApiException('发送消息响应格式无效');
+    }
     return messageId;
   }
 
   @override
-  Future<void> markConversationRead(int conversationId) async {
-    if (conversationId <= 0) {
+  Future<void> markConversationRead(Object conversationId) async {
+    if (!jsonInt64IsPositive(conversationId)) {
       throw const ApiException('会话参数无效');
     }
     await _client.post(
-      '/api/v2/messages/conversations/$conversationId/read',
+      '/api/v2/messages/conversations/${jsonInt64Id(conversationId)}/read',
       const {},
     );
   }

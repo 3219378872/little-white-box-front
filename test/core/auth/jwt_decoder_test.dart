@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xiaobaihe_app/core/api/json_int64.dart';
 import 'package:xiaobaihe_app/core/auth/jwt_decoder.dart';
 
 /// 构造一个用于测试的最小 JWT：header.payload.sig
@@ -68,6 +69,12 @@ void main() {
 
     test('token 解析失败返回 null', () {
       expect(extractUserIdFromToken('garbage'), isNull);
+    });
+
+    test('雪花 userId 保留完整十进制', () {
+      const id = '348206249743089664';
+      final token = _buildJwt({'userId': int.parse(id)});
+      expect(jsonInt64Id(extractUserIdFromToken(token)), id);
     });
   });
 }

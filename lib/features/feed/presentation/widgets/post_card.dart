@@ -6,6 +6,7 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/api/api_exceptions.dart';
+import '../../../../core/api/json_int64.dart';
 import '../../../../core/widgets/app_tag_badge.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/cached_avatar.dart';
@@ -70,7 +71,7 @@ class _PostCardState extends ConsumerState<PostCard>
             widget.recommendationContext?.requestId;
     if (contextChanged || oldWidget.trackingActive && !widget.trackingActive) {
       _endVisibilitySession(
-        postId: oldWidget.post.id.toInt(),
+        postId: oldWidget.post.id,
         recommendationContext: oldWidget.recommendationContext,
       );
     }
@@ -131,9 +132,9 @@ class _PostCardState extends ConsumerState<PostCard>
     try {
       final repo = ref.read(postCardInteractionRepositoryProvider);
       if (wasLiked) {
-        await repo.unlikeTarget(post.id.toInt(), 1);
+        await repo.unlikeTarget(post.id, 1);
       } else {
-        await repo.likeTarget(post.id.toInt(), 1);
+        await repo.likeTarget(post.id, 1);
       }
     } catch (e) {
       if (!mounted) return;
@@ -155,11 +156,11 @@ class _PostCardState extends ConsumerState<PostCard>
       _trackSafely(
         () => ref
             .read(behaviorTrackerProvider)
-            .trackClick(post.id.toInt(), trackingContext),
+            .trackClick(post.id, trackingContext),
       );
     }
     _endVisibilitySession();
-    context.push('/post/${post.id.toInt()}');
+    context.push('/post/${jsonInt64Id(post.id)}');
   }
 
   void _startVisibilityTracking() {
@@ -221,13 +222,13 @@ class _PostCardState extends ConsumerState<PostCard>
       _trackSafely(
         () => ref
             .read(behaviorTrackerProvider)
-            .trackExposure(post.id.toInt(), trackingContext),
+            .trackExposure(post.id, trackingContext),
       );
     });
   }
 
   void _endVisibilitySession({
-    int? postId,
+    Object? postId,
     FeedRecommendationContext? recommendationContext,
   }) {
     _exposureTimer?.cancel();
@@ -244,7 +245,7 @@ class _PostCardState extends ConsumerState<PostCard>
     _trackSafely(
       () => ref
           .read(behaviorTrackerProvider)
-          .trackDwell(postId ?? post.id.toInt(), trackingContext, duration),
+          .trackDwell(postId ?? post.id, trackingContext, duration),
     );
   }
 
@@ -279,7 +280,7 @@ class _PostCardState extends ConsumerState<PostCard>
                   children: [
                     FTappable(
                       onPress: () =>
-                          context.push('/user/${post.authorId.toInt()}'),
+                          context.push('/user/${jsonInt64Id(post.authorId)}'),
                       child: CachedAvatar(
                         url: post.authorAvatar,
                         name: post.authorName,
@@ -351,7 +352,7 @@ class _PostCardState extends ConsumerState<PostCard>
                       context,
                       FLucideIcons.thumbsUp,
                       _likeCount,
-                      key: ValueKey('post-like-${post.id.toInt()}'),
+                      key: ValueKey('post-like-${jsonInt64Id(post.id)}'),
                       active: _isLiked,
                       onPress: _toggleLike,
                       semanticsLabel: _isLiked

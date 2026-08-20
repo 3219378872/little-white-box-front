@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/json_int64.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../auth/application/auth_notifier.dart';
@@ -14,8 +15,8 @@ import '../application/message_notifiers.dart';
 import '../data/message_models.dart';
 
 class MessageThreadPage extends ConsumerStatefulWidget {
-  final int conversationId;
-  final int targetUserId;
+  final Object conversationId;
+  final Object targetUserId;
   final String targetUserName;
 
   const MessageThreadPage({
@@ -40,7 +41,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     super.dispose();
   }
 
-  MessageThreadKey _key(int currentUserId) => MessageThreadKey(
+  MessageThreadKey _key(Object currentUserId) => MessageThreadKey(
     conversationId: widget.conversationId,
     targetUserId: widget.targetUserId,
     currentUserId: currentUserId,
@@ -102,8 +103,8 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     final title = widget.targetUserName.isEmpty
         ? '用户 ${widget.targetUserId}'
         : widget.targetUserName;
-    final currentUserId = auth.userId?.toInt() ?? 0;
-    if (auth.isLoading || currentUserId <= 0) {
+    final currentUserId = auth.userId;
+    if (auth.isLoading || !jsonInt64IsPositive(currentUserId)) {
       return FScaffold(
         childPad: false,
         header: FHeader.nested(
@@ -115,7 +116,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
         child: const Center(child: FCircularProgress()),
       );
     }
-    final key = _key(currentUserId);
+    final key = _key(currentUserId!);
     final state = ref.watch(messageThreadProvider(key));
     final notifier = ref.read(messageThreadProvider(key).notifier);
 
@@ -129,7 +130,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
       ),
       child: Column(
         children: [
-          Expanded(child: _buildMessages(state, notifier, currentUserId)),
+          Expanded(child: _buildMessages(state, notifier, currentUserId!)),
           if (state.sendError != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
@@ -204,7 +205,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
                   ),
                   const SizedBox(width: 8),
                   FButton.icon(
-                    onPress: state.isSending || currentUserId <= 0
+                    onPress: state.isSending || !jsonInt64IsPositive(currentUserId)
                         ? null
                         : () => _sendImage(key),
                     child: const Icon(
@@ -228,7 +229,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
                   ),
                   const SizedBox(width: 8),
                   FButton.icon(
-                    onPress: state.isSending || currentUserId <= 0
+                    onPress: state.isSending || !jsonInt64IsPositive(currentUserId)
                         ? null
                         : () => _send(key),
                     child: state.isSending
@@ -247,7 +248,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
   Widget _buildMessages(
     MessageThreadState state,
     MessageThreadNotifier notifier,
-    int currentUserId,
+    Object currentUserId,
   ) {
     if (state.isLoading && state.messages.isEmpty) {
       return const Center(child: FCircularProgress());
@@ -280,7 +281,9 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
         final messageIndex = index - (state.hasMore ? 1 : 0);
         return _MessageBubble(
           message: state.messages[messageIndex],
-          own: state.messages[messageIndex].senderId == currentUserId,
+          own:
+              jsonInt64Id(state.messages[messageIndex].senderId) ==
+              jsonInt64Id(currentUserId),
         );
       },
     );

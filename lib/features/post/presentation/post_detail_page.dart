@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/idempotency.dart';
+import '../../../core/api/json_int64.dart';
 import '../../../core/widgets/app_tag_badge.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
@@ -21,7 +22,7 @@ final _postRepoProvider = Provider((ref) => PostRepository());
 final _commentRepoProvider = Provider((ref) => CommentRepository());
 final _interactionRepoProvider = Provider((ref) => InteractionRepository());
 
-final _postDetailProvider = FutureProvider.family<GetPostResp, int>((
+final _postDetailProvider = FutureProvider.family<GetPostResp, String>((
   ref,
   postId,
 ) {
@@ -29,7 +30,7 @@ final _postDetailProvider = FutureProvider.family<GetPostResp, int>((
 });
 
 class PostDetailPage extends ConsumerStatefulWidget {
-  final int postId;
+  final String postId;
   const PostDetailPage({super.key, required this.postId});
 
   @override
@@ -51,8 +52,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   int _favoriteCountDelta = 0;
 
   String? _replyToUser;
-  num _replyParentId = 0;
-  num _replyUserId = 0;
+  Object _replyParentId = 0;
+  Object _replyUserId = 0;
 
   @override
   void initState() {
@@ -208,10 +209,14 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
               (context.platformVariant.touch ? 62.0 : 54.0);
 
           // 按 parentId 分组评论
-          final topLevel = _comments.where((c) => c.parentId == 0).toList();
-          final repliesMap = <num, List<CommentItem>>{};
-          for (final c in _comments.where((c) => c.parentId != 0)) {
-            repliesMap.putIfAbsent(c.parentId, () => []).add(c);
+          final topLevel = _comments
+              .where((c) => jsonInt64Id(c.parentId) == '0')
+              .toList();
+          final repliesMap = <String, List<CommentItem>>{};
+          for (final c in _comments.where(
+            (c) => jsonInt64Id(c.parentId) != '0',
+          )) {
+            repliesMap.putIfAbsent(jsonInt64Id(c.parentId), () => []).add(c);
           }
 
           return Column(
@@ -246,7 +251,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                             // 作者
                             FTappable(
                               onPress: () => context.push(
-                                '/user/${post.authorId.toInt()}',
+                                '/user/${jsonInt64Id(post.authorId)}',
                               ),
                               child: Row(
                                 children: [
@@ -429,7 +434,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                           final comment = topLevel[index];
                           return CommentItemWidget(
                             comment: comment,
-                            replies: repliesMap[comment.id] ?? [],
+                            replies: repliesMap[jsonInt64Id(comment.id)] ?? [],
                             onReply: () {
                               setState(() {
                                 _replyToUser = comment.userName;

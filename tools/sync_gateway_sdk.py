@@ -30,6 +30,28 @@ INT_FROM_JSON_RE = re.compile(r"int\?\.fromJson\(m\['(\w+)'\]\)")
 OPTIONAL_NUM_TO_JSON_RE = re.compile(
     r"\b(position|durationMs|status)\?\.toJson\(\)"
 )
+ENTITY_ID_FIELDS = (
+    "id",
+    "postId",
+    "authorId",
+    "userId",
+    "targetId",
+    "commentId",
+    "parentId",
+    "replyUserId",
+    "mediaId",
+    "conversationId",
+    "senderId",
+    "receiverId",
+    "followeeId",
+    "targetUserId",
+    "cursorPostId",
+    "nextCursorPostId",
+    "messageId",
+    "lastId",
+    "eventId",
+)
+PATH_ID_PARAMS = ("postId", "userId", "commentId", "id")
 
 VERB_TO_HELPER = {
     "put": "apiPut",
@@ -78,6 +100,22 @@ def patch_generated_types(source: str) -> str:
         source,
     )
     source = OPTIONAL_NUM_TO_JSON_RE.sub(r"\1", source)
+    for field in ENTITY_ID_FIELDS:
+        source = source.replace(f"final num {field};", f"final Object {field};")
+    source = source.replace("final List<int> mediaIds;", "final List<Object> mediaIds;")
+    source = source.replace(
+        "mediaIds: m['mediaIds']?.cast<int>() ?? [],",
+        "mediaIds: m['mediaIds'] is List\n"
+        "          ? List<Object>.from(m['mediaIds'] as List)\n"
+        "          : <Object>[],",
+    )
+    return source
+
+
+def patch_generated_api(source: str) -> str:
+    for field in PATH_ID_PARAMS:
+        source = source.replace(f"  int {field},", f"  Object {field},")
+        source = source.replace(f"  int {field}", f"  Object {field}")
     return source
 
 
@@ -124,9 +162,11 @@ def main() -> int:
         subprocess.run(cmd, check=True)
 
         verbs = parse_handler_verbs(api_path)
-        gateway_api = patch_gateway_methods(
-            (generated / "api" / "gateway.dart").read_text(encoding="utf-8"),
-            verbs,
+        gateway_api = patch_generated_api(
+            patch_gateway_methods(
+                (generated / "api" / "gateway.dart").read_text(encoding="utf-8"),
+                verbs,
+            )
         )
         (generated / "api" / "gateway.dart").write_text(
             gateway_api, encoding="utf-8"

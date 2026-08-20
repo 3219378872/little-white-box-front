@@ -1,6 +1,8 @@
+import '../../../core/api/json_int64.dart';
+
 class ConversationSummary {
-  final int id;
-  final int targetUserId;
+  final Object id;
+  final Object targetUserId;
   final String targetUserName;
   final String targetUserAvatar;
   final String lastMessage;
@@ -18,9 +20,9 @@ class ConversationSummary {
   });
 
   factory ConversationSummary.fromJson(Map<String, dynamic> json) {
-    final id = _integer(json['id']);
-    final targetUserId = _integer(json['targetUserId']);
-    if (id <= 0 || targetUserId <= 0) {
+    final id = json['id'];
+    final targetUserId = json['targetUserId'];
+    if (!jsonInt64IsPositive(id) || !jsonInt64IsPositive(targetUserId)) {
       throw const FormatException('invalid conversation identity');
     }
     return ConversationSummary(
@@ -36,10 +38,10 @@ class ConversationSummary {
 }
 
 class DirectMessage {
-  final int id;
-  final int conversationId;
-  final int senderId;
-  final int receiverId;
+  final Object id;
+  final Object conversationId;
+  final Object senderId;
+  final Object receiverId;
   final String content;
   final int msgType;
   final int status;
@@ -57,11 +59,14 @@ class DirectMessage {
   });
 
   factory DirectMessage.fromJson(Map<String, dynamic> json) {
-    final id = _integer(json['id']);
-    final conversationId = _integer(json['conversationId']);
-    final senderId = _integer(json['senderId']);
-    final receiverId = _integer(json['receiverId']);
-    if (id <= 0 || conversationId <= 0 || senderId <= 0 || receiverId <= 0) {
+    final id = json['id'];
+    final conversationId = json['conversationId'];
+    final senderId = json['senderId'];
+    final receiverId = json['receiverId'];
+    if (!jsonInt64IsPositive(id) ||
+        !jsonInt64IsPositive(conversationId) ||
+        !jsonInt64IsPositive(senderId) ||
+        !jsonInt64IsPositive(receiverId)) {
       throw const FormatException('invalid message identity');
     }
     return DirectMessage(
@@ -106,11 +111,11 @@ class UnreadSummary {
 }
 
 class SendMessageCommand {
-  final int receiverId;
+  final Object receiverId;
   final String content;
   final int msgType;
   final String idempotencyKey;
-  final int mediaId;
+  final Object mediaId;
 
   const SendMessageCommand({
     required this.receiverId,

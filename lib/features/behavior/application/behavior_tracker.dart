@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/analytics/client_identity_store.dart';
+import '../../../core/api/json_int64.dart';
 import '../../feed/data/feed_models.dart';
 import '../data/behavior_event.dart';
 import '../data/behavior_event_queue.dart';
@@ -15,12 +16,12 @@ const _exposureDedupeStorageKey = 'behavior.exposure_dedupe.v1';
 abstract interface class BehaviorTracker {
   Future<void> initialize();
 
-  Future<bool> trackExposure(int postId, FeedRecommendationContext context);
+  Future<bool> trackExposure(Object postId, FeedRecommendationContext context);
 
-  Future<void> trackClick(int postId, FeedRecommendationContext context);
+  Future<void> trackClick(Object postId, FeedRecommendationContext context);
 
   Future<void> trackDwell(
-    int postId,
+    Object postId,
     FeedRecommendationContext context,
     Duration duration,
   );
@@ -58,12 +59,12 @@ class PersistentBehaviorTracker implements BehaviorTracker {
 
   @override
   Future<bool> trackExposure(
-    int postId,
+    Object postId,
     FeedRecommendationContext context,
   ) async {
     if (!_valid(postId, context)) return false;
     await initialize();
-    final dedupeKey = '${context.requestId}:$postId';
+    final dedupeKey = '${context.requestId}:${jsonInt64Id(postId)}';
     return _synchronized(() async {
       if (_exposureKeySet.contains(dedupeKey)) return false;
       await _enqueue(
@@ -83,13 +84,13 @@ class PersistentBehaviorTracker implements BehaviorTracker {
   }
 
   @override
-  Future<void> trackClick(int postId, FeedRecommendationContext context) {
+  Future<void> trackClick(Object postId, FeedRecommendationContext context) {
     return _track('click', postId, context);
   }
 
   @override
   Future<void> trackDwell(
-    int postId,
+    Object postId,
     FeedRecommendationContext context,
     Duration duration,
   ) async {
@@ -105,7 +106,7 @@ class PersistentBehaviorTracker implements BehaviorTracker {
 
   Future<void> _track(
     String action,
-    int postId,
+    Object postId,
     FeedRecommendationContext context,
   ) async {
     if (!_valid(postId, context)) return;
@@ -113,8 +114,8 @@ class PersistentBehaviorTracker implements BehaviorTracker {
     await _enqueue(action: action, postId: postId, context: context);
   }
 
-  bool _valid(int postId, FeedRecommendationContext context) {
-    return postId > 0 &&
+  bool _valid(Object postId, FeedRecommendationContext context) {
+    return jsonInt64IsPositive(postId) &&
         context.requestId.isNotEmpty &&
         context.scene.isNotEmpty &&
         context.position > 0;
@@ -122,7 +123,7 @@ class PersistentBehaviorTracker implements BehaviorTracker {
 
   Future<void> _enqueue({
     required String action,
-    required int postId,
+    required Object postId,
     required FeedRecommendationContext context,
     String? clientEventId,
     int? durationMs,

@@ -117,12 +117,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
             builder: (context, state) => MessagesShell(
               thread: MessageThreadPage(
-                conversationId: int.parse(
-                  state.pathParameters['conversationId']!,
-                ),
-                targetUserId: int.parse(
-                  state.uri.queryParameters['targetUserId']!,
-                ),
+                conversationId: state.pathParameters['conversationId']!,
+                targetUserId: state.uri.queryParameters['targetUserId']!,
                 targetUserName:
                     state.uri.queryParameters['targetUserName'] ?? '',
               ),
@@ -145,19 +141,19 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/post/edit/:postId',
             builder: (context, state) => PostEditorPage(
-              postId: int.tryParse(state.pathParameters['postId'] ?? ''),
+              postId: state.pathParameters['postId'],
             ),
           ),
           GoRoute(
             path: '/post/:postId',
             builder: (context, state) => PostDetailPage(
-              postId: int.parse(state.pathParameters['postId']!),
+              postId: state.pathParameters['postId']!,
             ),
           ),
           GoRoute(
             path: '/user/:userId',
             builder: (context, state) =>
-                ProfilePage(userId: int.parse(state.pathParameters['userId']!)),
+                ProfilePage(userId: state.pathParameters['userId']!),
           ),
           GoRoute(
             path: '/profile/edit',

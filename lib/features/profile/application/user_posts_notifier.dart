@@ -5,7 +5,7 @@ import '../data/user_repository.dart';
 enum UserPostsListType { posts, favorites }
 
 class UserPostsKey {
-  final num userId;
+  final Object userId;
   final UserPostsListType type;
   const UserPostsKey({required this.userId, required this.type});
 
@@ -20,14 +20,14 @@ class UserPostsKey {
 
 abstract class UserPostsRepository {
   Future<GetPostListResp> fetchUserPosts({
-    required num userId,
+    required Object userId,
     required int page,
     required int pageSize,
     int sortBy = 1,
   });
 
   Future<GetPostListResp> fetchUserFavorites({
-    required num userId,
+    required Object userId,
     required int page,
     required int pageSize,
   });

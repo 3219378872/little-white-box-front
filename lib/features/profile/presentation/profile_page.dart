@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/api/json_int64.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
@@ -17,7 +18,7 @@ final _personalizationRepoProvider = Provider(
   (ref) => PersonalizationRepository(),
 );
 
-final _userProfileProvider = FutureProvider.family<GetUserResp, int>((
+final _userProfileProvider = FutureProvider.family<GetUserResp, String>((
   ref,
   userId,
 ) {
@@ -25,15 +26,15 @@ final _userProfileProvider = FutureProvider.family<GetUserResp, int>((
 });
 
 class ProfilePage extends ConsumerWidget {
-  final int? userId;
+  final Object? userId;
   const ProfilePage({super.key, this.userId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authNotifierProvider);
-    final targetUserId = userId ?? auth.userId?.toInt();
+    final targetUserId = userId ?? auth.userId;
 
-    if (targetUserId == null) {
+    if (!jsonInt64IsPositive(targetUserId)) {
       return FScaffold(
         header: const FHeader(title: Text('个人中心')),
         child: Center(
@@ -52,14 +53,19 @@ class ProfilePage extends ConsumerWidget {
       );
     }
 
-    final isOwnProfile = userId == null || userId == auth.userId?.toInt();
+    final isOwnProfile =
+        userId == null ||
+        jsonInt64Id(userId) == jsonInt64Id(auth.userId);
 
-    return _ProfileContent(userId: targetUserId, isOwnProfile: isOwnProfile);
+    return _ProfileContent(
+      userId: jsonInt64Id(targetUserId),
+      isOwnProfile: isOwnProfile,
+    );
   }
 }
 
 class _ProfileContent extends ConsumerStatefulWidget {
-  final int userId;
+  final String userId;
   final bool isOwnProfile;
 
   const _ProfileContent({required this.userId, required this.isOwnProfile});

@@ -33,6 +33,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-web-json-int64-2026-08-20
   - EVD-mock-gateway-align-2026-08-20
   - EVD-client-login-home-redirect-2026-08-20
   - EVD-feed-pagination-ux-2026-08-20
@@ -44,7 +45,7 @@ evidence:
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
 updated_at: 2026-08-20
-observed_commit: c202150884df8b57c5d82a1179585d8f0544ff95
+observed_commit: PLACEHOLDER
 ---
 
 # Flutter 客户端实现映射
@@ -57,7 +58,7 @@ observed_commit: c202150884df8b57c5d82a1179585d8f0544ff95
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是本轮 task 提交 `c202150884df8b57c5d82a1179585d8f0544ff95`。
+本页观察基准是本轮 task 提交 `PLACEHOLDER`。
 
 ## 代码入口
 
@@ -68,7 +69,7 @@ observed_commit: c202150884df8b57c5d82a1179585d8f0544ff95
 | 应用壳 | `lib/app.dart`：`MaterialApp.router`、全局 Forui 主题/本地化/toast/tooltip、行为队列初始化 |
 | 路由/导航 | `lib/core/router/app_router.dart`：GoRouter guard、公开与保护路由、底栏/侧栏切换、内容限宽 |
 | 认证 | `lib/features/auth/` 与 `lib/core/auth/jwt_decoder.dart`：登录、注册、token/userId 恢复、登出 |
-| 共享接口 | `lib/core/api/api_adapter.dart`、`v2_api_client.dart`、`api_exceptions.dart`、`error_codes.dart` |
+| 共享接口 | `lib/core/api/api_adapter.dart`、`v2_api_client.dart`、`json_int64.dart`、`api_exceptions.dart`、`error_codes.dart` |
 | v1 SDK | `vendor/sdk_source/` 为生成来源，`lib/sdk/` 为应用副本 |
 | Mock transport | `lib/mock/mock_http.dart`、`mock_router.dart`、`mock_data.dart`；契约测试 `test/mock/` |
 
@@ -102,6 +103,8 @@ observed_commit: c202150884df8b57c5d82a1179585d8f0544ff95
   Feed 条目为扁平网关字段，关注流按关注关系过滤，行为接口拒绝权威动作。
 - v1 SDK 与 multipart adapter 发送 `Authorization: Bearer …`，与网关 JWT 中间件和 `V2ApiClient` 一致。
 - 搜索帖子解析 `authorId`/`authorName`/`authorAvatar`，结果项展示作者头像与名称，头像可进入作者资料。
+- HTTP JSON 在 `decodeApiJson`/`encodeApiJson` 中保全 16 位及以上整数：解码成字符串，编码还原成 JSON
+  number。详情、资料、私信路由使用路径十进制，不再 `int.parse` 雪花 ID。
 - 导航未读图标继承 `IconTheme` 尺寸（桌面侧栏 16、移动底栏 24），不硬编码 24，避免「消息」项与其他入口错位。
 - 验证码输入与「获取验证码」底对齐，按钮使用默认 `md` 尺寸匹配 `FTextField`；登录和注册共用 `VerifyCodeField`。
 - 个人资料帖子列表与收藏列表在成为当前 tab、以及从其它路由返回且仍为当前 tab 时重新拉取第一页；
@@ -134,7 +137,11 @@ observed_commit: c202150884df8b57c5d82a1179585d8f0544ff95
 | Mock/真实同路径 | aligned | transport 注入；Mock HTTP 契约对齐 `gateway.api`；真实网关仍需独立证据 |
 
 验证范围和命令见
+[EVD-web-json-int64-2026-08-20](../evidence/EVD-web-json-int64-2026-08-20.md)、
 [EVD-mock-gateway-align-2026-08-20](../evidence/EVD-mock-gateway-align-2026-08-20.md)、
-[EVD-client-login-home-redirect-2026-08-20](../evidence/EVD-client-login-home-redirect-2026-08-20.md)
+[EVD-client-login-home-redirect-2026-08-20](../evidence/EVD-client-login-home-redirect-2026-08-20.md)、
+[EVD-feed-pagination-ux-2026-08-20](../evidence/EVD-feed-pagination-ux-2026-08-20.md)、
+[EVD-posts-reload-2026-08-20](../evidence/EVD-posts-reload-2026-08-20.md)、
+[EVD-favorites-reload-2026-08-20](../evidence/EVD-favorites-reload-2026-08-20.md)
 与
-[EVD-feed-pagination-ux-2026-08-20](../evidence/EVD-feed-pagination-ux-2026-08-20.md)。
+[EVD-client-ui-align-2026-08-20](../evidence/EVD-client-ui-align-2026-08-20.md)。

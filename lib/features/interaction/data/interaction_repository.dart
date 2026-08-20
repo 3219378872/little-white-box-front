@@ -3,7 +3,7 @@ import '../../../sdk/api/gateway.dart' as gw;
 import '../../../sdk/data/gateway.dart';
 
 class InteractionRepository {
-  Future<void> likeTarget(int targetId, int targetType) {
+  Future<void> likeTarget(Object targetId, int targetType) {
     return apiCall<LikeResp>(
       (ok, fail, eventually) => gw.like(
         LikeReq(targetId: targetId, targetType: targetType),
@@ -14,7 +14,7 @@ class InteractionRepository {
     );
   }
 
-  Future<void> unlikeTarget(int targetId, int targetType) {
+  Future<void> unlikeTarget(Object targetId, int targetType) {
     return apiCall<UnlikeResp>(
       (ok, fail, eventually) => gw.unlike(
         UnlikeReq(targetId: targetId, targetType: targetType),
@@ -25,7 +25,7 @@ class InteractionRepository {
     );
   }
 
-  Future<void> favoritePost(int postId) {
+  Future<void> favoritePost(Object postId) {
     return apiCall<FavoriteResp>(
       (ok, fail, eventually) => gw.favorite(
         FavoriteReq(postId: postId),
@@ -36,7 +36,7 @@ class InteractionRepository {
     );
   }
 
-  Future<void> unfavoritePost(int postId) {
+  Future<void> unfavoritePost(Object postId) {
     return apiCall<UnfavoriteResp>(
       (ok, fail, eventually) => gw.unfavorite(
         UnfavoriteReq(postId: postId),

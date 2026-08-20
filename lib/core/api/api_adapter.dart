@@ -6,6 +6,7 @@ import '../../sdk/vars/kv.dart';
 import '../../sdk/vars/vars.dart';
 import '../../sdk/api/api.dart' as sdk_api;
 import 'api_exceptions.dart';
+import 'json_int64.dart';
 
 typedef AuthErrorCallback = Future<void> Function();
 AuthErrorCallback? onAuthError;
@@ -100,7 +101,7 @@ Future<T> apiPostMultipart<T>({
 
     dynamic decoded;
     try {
-      decoded = respBody.isEmpty ? null : jsonDecode(respBody);
+      decoded = respBody.isEmpty ? null : decodeApiJson(respBody);
     } catch (_) {
       decoded = null;
     }

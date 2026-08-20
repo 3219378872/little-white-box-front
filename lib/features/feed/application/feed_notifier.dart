@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/analytics/client_identity_store.dart';
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/json_int64.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/feed_models.dart';
 import '../data/feed_repository.dart';
@@ -107,9 +108,9 @@ class FeedNotifier extends StateNotifier<FeedState> {
         positionOffset: state.entries.length,
       );
       if (generation != _generation) return;
-      final seen = state.entries.map((entry) => entry.post.id.toInt()).toSet();
+      final seen = state.entries.map((entry) => jsonInt64Id(entry.post.id)).toSet();
       final additions = result.items
-          .where((entry) => seen.add(entry.post.id.toInt()))
+          .where((entry) => seen.add(jsonInt64Id(entry.post.id)))
           .toList();
       state = state.copyWith(
         entries: [...state.entries, ...additions],
@@ -131,9 +132,9 @@ class FeedNotifier extends StateNotifier<FeedState> {
   Future<void> refresh() => loadInitial();
 
   FeedState _fromResult(FeedPageResult result) {
-    final seen = <int>{};
+    final seen = <String>{};
     final entries = result.items
-        .where((entry) => seen.add(entry.post.id.toInt()))
+        .where((entry) => seen.add(jsonInt64Id(entry.post.id)))
         .toList();
     return FeedState(
       entries: entries,

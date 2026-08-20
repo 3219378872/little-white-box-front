@@ -68,17 +68,17 @@ class _ConversationSource implements MessageDataSource {
 
   @override
   Future<MessagePage> getMessages({
-    required int conversationId,
-    int lastId = 0,
+    required Object conversationId,
+    Object lastId = 0,
     int pageSize = 20,
   }) => throw UnimplementedError();
 
   @override
-  Future<int> sendMessage(SendMessageCommand command) =>
+  Future<Object> sendMessage(SendMessageCommand command) =>
       throw UnimplementedError();
 
   @override
-  Future<void> markConversationRead(int conversationId) async {}
+  Future<void> markConversationRead(Object conversationId) async {}
 
   @override
   Future<UnreadSummary> getUnreadSummary() async {

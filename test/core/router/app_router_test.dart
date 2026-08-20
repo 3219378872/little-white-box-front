@@ -374,10 +374,10 @@ void main() {
     final page = tester.widget<MessageThreadPage>(
       find.byType(MessageThreadPage),
     );
-    expect(page.conversationId, 8);
-    expect(page.targetUserId, 7);
+    expect(page.conversationId, '8');
+    expect(page.targetUserId, '7');
     expect(page.targetUserName, 'Target user');
-    expect(source.markedConversationIds, [8]);
+    expect(source.markedConversationIds, ['8']);
 
     router.go('/messages/8');
     await tester.pump();
@@ -468,7 +468,7 @@ void _expectSidebarItemsAligned(WidgetTester tester) {
 
 class _RouterMessageSource implements MessageDataSource {
   final UnreadSummary unread;
-  final List<int> markedConversationIds = [];
+  final List<Object> markedConversationIds = [];
 
   _RouterMessageSource({this.unread = const UnreadSummary()});
 
@@ -483,16 +483,16 @@ class _RouterMessageSource implements MessageDataSource {
 
   @override
   Future<MessagePage> getMessages({
-    required int conversationId,
-    int lastId = 0,
+    required Object conversationId,
+    Object lastId = 0,
     int pageSize = 20,
   }) async => const MessagePage(messages: [], hasMore: false);
 
   @override
-  Future<void> markConversationRead(int conversationId) async {
+  Future<void> markConversationRead(Object conversationId) async {
     markedConversationIds.add(conversationId);
   }
 
   @override
-  Future<int> sendMessage(SendMessageCommand command) async => 1;
+  Future<Object> sendMessage(SendMessageCommand command) async => 1;
 }

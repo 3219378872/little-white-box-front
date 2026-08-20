@@ -1,11 +1,12 @@
 import '../../../core/api/api_adapter.dart';
+import '../../../core/api/json_int64.dart';
 import '../../../sdk/api/api.dart';
 import '../../../sdk/api/gateway.dart' as gw;
 import '../../../sdk/data/gateway.dart';
 import '../application/user_posts_notifier.dart';
 
 class UserRepository implements UserPostsRepository {
-  Future<GetUserResp> getUserProfile(int userId) {
+  Future<GetUserResp> getUserProfile(Object userId) {
     return apiCall<GetUserResp>(
       (ok, fail, eventually) => gw.getUser(
         userId,
@@ -27,7 +28,7 @@ class UserRepository implements UserPostsRepository {
     );
   }
 
-  Future<void> followUser(int targetUserId) {
+  Future<void> followUser(Object targetUserId) {
     return apiCall<FollowResp>(
       (ok, fail, eventually) => gw.follow(
         FollowReq(targetUserId: targetUserId),
@@ -38,7 +39,7 @@ class UserRepository implements UserPostsRepository {
     );
   }
 
-  Future<void> unfollowUser(int targetUserId) {
+  Future<void> unfollowUser(Object targetUserId) {
     return apiCall<UnfollowResp>(
       (ok, fail, eventually) => gw.unfollow(
         UnfollowReq(targetUserId: targetUserId),
@@ -51,14 +52,14 @@ class UserRepository implements UserPostsRepository {
 
   @override
   Future<GetPostListResp> fetchUserPosts({
-    required num userId,
+    required Object userId,
     required int page,
     required int pageSize,
     int sortBy = 1,
   }) {
     return apiCall<GetPostListResp>(
       (ok, fail, eventually) => apiGet(
-        '/api/v1/users/${userId.toInt()}/posts'
+        '/api/v1/users/${jsonInt64Id(userId)}/posts'
         '?page=$page&pageSize=$pageSize&sortBy=$sortBy',
         ok: (data) => ok(GetPostListResp.fromJson(data)),
         fail: fail,
@@ -69,13 +70,13 @@ class UserRepository implements UserPostsRepository {
 
   @override
   Future<GetPostListResp> fetchUserFavorites({
-    required num userId,
+    required Object userId,
     required int page,
     required int pageSize,
   }) {
     return apiCall<GetPostListResp>(
       (ok, fail, eventually) => apiGet(
-        '/api/v1/users/${userId.toInt()}/favorites'
+        '/api/v1/users/${jsonInt64Id(userId)}/favorites'
         '?page=$page&pageSize=$pageSize',
         ok: (data) => ok(GetPostListResp.fromJson(data)),
         fail: fail,

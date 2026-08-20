@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../core/api/api_adapter.dart';
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/json_int64.dart';
 import '../../../sdk/api/api.dart' as sdk_api;
 import '../../../sdk/vars/kv.dart';
 import '../../../sdk/vars/vars.dart';
@@ -70,7 +71,7 @@ class AssistantRepository implements AssistantDataSource {
       request.headers['Authorization'] =
           token.toLowerCase().startsWith('bearer ') ? token : 'Bearer $token';
     }
-    request.body = jsonEncode({
+    request.body = encodeApiJson({
       if (conversationId.trim().isNotEmpty)
         'conversationId': conversationId.trim(),
       'message': normalized,
@@ -95,7 +96,7 @@ class AssistantRepository implements AssistantDataSource {
     try {
       await for (final data in _sseData(response.stream)) {
         if (data.trim().isEmpty) continue;
-        final decoded = jsonDecode(data);
+        final decoded = decodeApiJson(data);
         if (decoded is! Map) {
           throw const FormatException('assistant event is not an object');
         }
@@ -145,7 +146,7 @@ class AssistantRepository implements AssistantDataSource {
 
   static ApiException _httpError(int statusCode, String body) {
     try {
-      final decoded = jsonDecode(body);
+      final decoded = decodeApiJson(body);
       if (decoded is Map) {
         final codeValue = decoded['code'];
         final message =

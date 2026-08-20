@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/error_codes.dart';
+import '../../../core/api/json_int64.dart';
 import '../../../core/api/idempotency.dart';
 import '../../../core/widgets/app_dialog.dart';
 import '../../../core/widgets/app_tag_badge.dart';
@@ -23,7 +24,7 @@ const _allowedImageTypes = {'image/jpeg', 'image/png', 'image/webp'};
 final _postRepoProvider = Provider((ref) => PostRepository());
 
 class PostEditorPage extends ConsumerStatefulWidget {
-  final int? postId;
+  final Object? postId;
   const PostEditorPage({super.key, this.postId});
 
   @override
@@ -36,7 +37,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   final List<String> _tags = [];
   final _tagCtrl = TextEditingController();
   final List<String> _networkImages = [];
-  final List<int> _networkMediaIds = [];
+  final List<Object> _networkMediaIds = [];
   final List<XFile> _localImages = [];
   int _revision = 0;
   bool _isLoading = false;
@@ -157,8 +158,8 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
         ...uploaded.map((item) => item.url),
       ];
       final mediaIds = [
-        ..._networkMediaIds.where((id) => id > 0),
-        ...uploaded.map((item) => item.mediaId).where((id) => id > 0),
+        ..._networkMediaIds.where(jsonInt64IsPositive),
+        ...uploaded.map((item) => item.mediaId).where(jsonInt64IsPositive),
       ];
 
       if (_isEditMode) {

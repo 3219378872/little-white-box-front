@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../../core/api/json_int64.dart';
 import '../vars/kv.dart';
 import '../vars/vars.dart';
 
@@ -141,7 +142,7 @@ Future _apiRequest(
   try {
     var strData = '';
     if (data != null) {
-      strData = jsonEncode(data);
+      strData = encodeApiJson(data);
     }
     final headers = <String, String>{};
     if (method != 'GET') {
@@ -170,7 +171,7 @@ Future _apiRequest(
     print('$body \n');
     dynamic decoded;
     try {
-      decoded = body.isEmpty ? null : jsonDecode(body);
+      decoded = body.isEmpty ? null : decodeApiJson(body);
     } catch (_) {
       decoded = null;
     }

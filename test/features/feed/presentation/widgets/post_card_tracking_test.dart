@@ -251,7 +251,7 @@ class _RecordingTracker implements BehaviorTracker {
 
   @override
   Future<bool> trackExposure(
-    int postId,
+    Object postId,
     FeedRecommendationContext context,
   ) async {
     actions.add('exposure');
@@ -260,13 +260,13 @@ class _RecordingTracker implements BehaviorTracker {
 
   @override
   Future<void> trackClick(
-    int postId,
+    Object postId,
     FeedRecommendationContext context,
   ) async => actions.add('click');
 
   @override
   Future<void> trackDwell(
-    int postId,
+    Object postId,
     FeedRecommendationContext context,
     Duration duration,
   ) async {
@@ -279,5 +279,5 @@ class _RecordingInteractionRepository extends InteractionRepository {
   int likeCalls = 0;
 
   @override
-  Future<void> likeTarget(int targetId, int targetType) async => likeCalls++;
+  Future<void> likeTarget(Object targetId, int targetType) async => likeCalls++;
 }

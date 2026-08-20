@@ -48,9 +48,9 @@ void main() {
       expect(client.getCalls[0].path, '/api/v2/messages/conversations');
       expect(client.getCalls[0].query, {'page': 2, 'pageSize': 10});
       expect(client.getCalls[1].path, '/api/v2/messages/conversations/8');
-      expect(client.getCalls[1].query, {'lastId': 30, 'pageSize': 10});
+      expect(client.getCalls[1].query, {'lastId': '30', 'pageSize': 10});
       expect(client.postCalls.first.body, {
-        'receiverId': 7,
+        'receiverId': '7',
         'content': 'hello',
         'msgType': 1,
         'idempotencyKey': 'message-key-1',

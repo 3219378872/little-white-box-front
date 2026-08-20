@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/json_int64.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/message_models.dart';
 import '../data/message_repository.dart';
@@ -116,11 +117,11 @@ class ConversationListNotifier extends StateNotifier<ConversationListState> {
     }
   }
 
-  void markConversationRead(int conversationId) {
+  void markConversationRead(Object conversationId) {
     state = state.copyWith(
       conversations: [
         for (final conversation in state.conversations)
-          if (conversation.id == conversationId)
+          if (jsonInt64Id(conversation.id) == jsonInt64Id(conversationId))
             ConversationSummary(
               id: conversation.id,
               targetUserId: conversation.targetUserId,
@@ -139,8 +140,10 @@ class ConversationListNotifier extends StateNotifier<ConversationListState> {
   static List<ConversationSummary> _deduplicate(
     List<ConversationSummary> conversations,
   ) {
-    final seen = <int>{};
-    return conversations.where((item) => seen.add(item.id)).toList();
+    final seen = <String>{};
+    return conversations
+        .where((item) => seen.add(jsonInt64Id(item.id)))
+        .toList();
   }
 }
 
@@ -204,9 +207,9 @@ class MessageThreadState {
 
 class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
   final MessageDataSource _repository;
-  final int conversationId;
-  final int targetUserId;
-  final int currentUserId;
+  final Object conversationId;
+  final Object targetUserId;
+  final Object currentUserId;
   final int pageSize;
   final IdempotencyKeyFactory _createKey;
   final void Function()? _onMarkedRead;
@@ -308,24 +311,24 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
   Future<bool> send(
     String content, {
     int msgType = MessageTypes.text,
-    int mediaId = 0,
+    Object mediaId = 0,
   }) async {
     final normalized = content.trim();
     if (normalized.isEmpty ||
         (msgType == MessageTypes.text && normalized.length > 1000) ||
         state.isSending ||
-        conversationId <= 0 ||
-        targetUserId <= 0 ||
-        currentUserId <= 0) {
+        !jsonInt64IsPositive(conversationId) ||
+        !jsonInt64IsPositive(targetUserId) ||
+        !jsonInt64IsPositive(currentUserId)) {
       return false;
     }
     final failed = state.failedCommand;
     final command =
         failed != null &&
-            failed.receiverId == targetUserId &&
+            jsonInt64Id(failed.receiverId) == jsonInt64Id(targetUserId) &&
             failed.content == normalized &&
             failed.msgType == msgType &&
-            failed.mediaId == mediaId
+            jsonInt64Id(failed.mediaId) == jsonInt64Id(mediaId)
         ? failed
         : SendMessageCommand(
             receiverId: targetUserId,
@@ -379,12 +382,22 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
   }
 
   static List<DirectMessage> _ordered(List<DirectMessage> messages) {
-    final byId = <int, DirectMessage>{
-      for (final message in messages) message.id: message,
+    final byId = <String, DirectMessage>{
+      for (final message in messages) jsonInt64Id(message.id): message,
     };
     final ordered = byId.values.toList()
-      ..sort((left, right) => left.id.compareTo(right.id));
+      ..sort(
+        (left, right) =>
+            _compareInt64Ids(jsonInt64Id(left.id), jsonInt64Id(right.id)),
+      );
     return ordered;
+  }
+
+  static int _compareInt64Ids(String left, String right) {
+    if (left.length != right.length) {
+      return left.length.compareTo(right.length);
+    }
+    return left.compareTo(right);
   }
 
   static String _defaultKey() {
@@ -398,15 +411,17 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
 }
 
 class MessageThreadKey {
-  final int conversationId;
-  final int targetUserId;
-  final int currentUserId;
+  final String conversationId;
+  final String targetUserId;
+  final String currentUserId;
 
-  const MessageThreadKey({
-    required this.conversationId,
-    required this.targetUserId,
-    required this.currentUserId,
-  });
+  MessageThreadKey({
+    required Object conversationId,
+    required Object targetUserId,
+    required Object currentUserId,
+  }) : conversationId = jsonInt64Id(conversationId),
+       targetUserId = jsonInt64Id(targetUserId),
+       currentUserId = jsonInt64Id(currentUserId);
 
   @override
   bool operator ==(Object other) {

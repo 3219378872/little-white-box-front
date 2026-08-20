@@ -43,7 +43,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     try {
       final user = await ref
           .read(_userRepoProvider)
-          .getUserProfile(auth.userId!.toInt());
+          .getUserProfile(auth.userId!);
       setState(() {
         _nicknameCtrl.text = user.nickname;
         _bioCtrl.text = user.bio;

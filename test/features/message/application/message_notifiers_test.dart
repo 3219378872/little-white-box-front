@@ -79,7 +79,7 @@ class _RetryMessageSource implements MessageDataSource {
   final List<SendMessageCommand> commands = [];
 
   @override
-  Future<int> sendMessage(SendMessageCommand command) async {
+  Future<Object> sendMessage(SendMessageCommand command) async {
     commands.add(command);
     if (commands.length == 1) throw Exception('offline');
     return 99 + commands.length;
@@ -93,26 +93,26 @@ class _RetryMessageSource implements MessageDataSource {
 
   @override
   Future<MessagePage> getMessages({
-    required int conversationId,
-    int lastId = 0,
+    required Object conversationId,
+    Object lastId = 0,
     int pageSize = 20,
   }) => throw UnimplementedError();
 
   @override
-  Future<void> markConversationRead(int conversationId) async {}
+  Future<void> markConversationRead(Object conversationId) async {}
 
   @override
   Future<UnreadSummary> getUnreadSummary() => throw UnimplementedError();
 }
 
 class _PagedMessageSource implements MessageDataSource {
-  final List<int> lastIds = [];
+  final List<Object> lastIds = [];
   int markReadCalls = 0;
 
   @override
   Future<MessagePage> getMessages({
-    required int conversationId,
-    int lastId = 0,
+    required Object conversationId,
+    Object lastId = 0,
     int pageSize = 20,
   }) async {
     lastIds.add(lastId);
@@ -128,11 +128,11 @@ class _PagedMessageSource implements MessageDataSource {
   }) => throw UnimplementedError();
 
   @override
-  Future<int> sendMessage(SendMessageCommand command) =>
+  Future<Object> sendMessage(SendMessageCommand command) =>
       throw UnimplementedError();
 
   @override
-  Future<void> markConversationRead(int conversationId) async {
+  Future<void> markConversationRead(Object conversationId) async {
     markReadCalls++;
   }
 
@@ -154,16 +154,16 @@ class _UnreadMessageSource implements MessageDataSource {
 
   @override
   Future<MessagePage> getMessages({
-    required int conversationId,
-    int lastId = 0,
+    required Object conversationId,
+    Object lastId = 0,
     int pageSize = 20,
   }) => throw UnimplementedError();
 
   @override
-  Future<void> markConversationRead(int conversationId) =>
+  Future<void> markConversationRead(Object conversationId) =>
       throw UnimplementedError();
 
   @override
-  Future<int> sendMessage(SendMessageCommand command) =>
+  Future<Object> sendMessage(SendMessageCommand command) =>
       throw UnimplementedError();
 }

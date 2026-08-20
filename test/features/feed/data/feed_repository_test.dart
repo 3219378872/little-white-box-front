@@ -113,7 +113,7 @@ void main() {
     );
 
     expect(client.calls.single.query['cursorCreatedAt'], 200);
-    expect(client.calls.single.query['cursorPostId'], 10);
+    expect(client.calls.single.query['cursorPostId'], '10');
     expect(result.followCursor.createdAt, 100);
     expect(result.followCursor.postId, 9);
     expect(result.items.single.context.scene, 'follow');
@@ -149,6 +149,36 @@ void main() {
       );
     },
   );
+
+  test('keeps snowflake post ids that arrive as decimal strings', () async {
+    const snowflake = '348206251022356480';
+    final client = _StubV2ApiClient([
+      {
+        'items': [
+          {
+            ...postJson(7),
+            'id': snowflake,
+            'postId': snowflake,
+            'title': '继续联调帖',
+          },
+        ],
+        'hasMore': false,
+        'requestId': 'request-1',
+      },
+    ]);
+    final repository = FeedRepository(
+      client: client,
+      identityStore: identityStore(),
+    );
+
+    final result = await repository.fetchPage(
+      kind: FeedKind.recommend,
+      pageSize: 20,
+    );
+
+    expect(result.items.single.post.id, snowflake);
+    expect(result.items.single.post.title, '继续联调帖');
+  });
 }
 
 ClientIdentityStore identityStore() =>
