@@ -74,6 +74,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
   final UserPostsRepository repo;
   final UserPostsKey key;
   final int pageSize;
+  int _generation = 0;
 
   UserPostsNotifier({
     required this.repo,
@@ -98,9 +99,11 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
   }
 
   Future<void> loadFirstPage() async {
+    final generation = ++_generation;
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final resp = await _fetch(1);
+      if (generation != _generation) return;
       state = state.copyWith(
         items: resp.list,
         page: 1,
@@ -108,16 +111,19 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
         isLoading: false,
       );
     } catch (e) {
+      if (generation != _generation) return;
       state = state.copyWith(isLoading: false, error: e);
     }
   }
 
   Future<void> loadNextPage() async {
-    if (!state.hasMore || state.isLoading) return;
+    if (!state.hasMore || state.isLoading || state.isRefreshing) return;
+    final generation = _generation;
     state = state.copyWith(isLoading: true);
     final nextPage = state.page + 1;
     try {
       final resp = await _fetch(nextPage);
+      if (generation != _generation) return;
       state = state.copyWith(
         items: [...state.items, ...resp.list],
         page: nextPage,
@@ -125,22 +131,27 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
         isLoading: false,
       );
     } catch (e) {
+      if (generation != _generation) return;
       state = state.copyWith(isLoading: false, error: e);
     }
   }
 
   Future<void> refresh() async {
+    final generation = ++_generation;
     state = state.copyWith(isRefreshing: true);
     try {
       final resp = await _fetch(1);
+      if (generation != _generation) return;
       state = state.copyWith(
         items: resp.list,
         page: 1,
         hasMore: resp.list.length >= pageSize,
         isRefreshing: false,
+        isLoading: false,
         clearError: true,
       );
     } catch (_) {
+      if (generation != _generation) return;
       state = state.copyWith(isRefreshing: false);
     }
   }

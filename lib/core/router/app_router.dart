@@ -16,6 +16,7 @@ import '../../features/profile/presentation/profile_page.dart';
 import '../../features/profile/presentation/edit_profile_page.dart';
 import '../../features/search/presentation/search_page.dart';
 import '../widgets/content_constraint.dart';
+import 'app_route_observer.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -49,6 +50,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/feed',
+    observers: [ref.read(appRouteObserverProvider)],
     refreshListenable: ref.read(authListenableProvider),
     redirect: (context, state) {
       final authState = ref.read(authNotifierProvider);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/features/profile/application/user_posts_notifier.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
@@ -48,6 +50,54 @@ class _FakeUserPostsRepo implements UserPostsRepository {
     required int pageSize,
   }) async {
     return fetchUserPosts(userId: userId, page: page, pageSize: pageSize);
+  }
+}
+
+class _QueuedUserPostsRepo implements UserPostsRepository {
+  final pending = <Completer<GetPostListResp>>[];
+
+  void completeNext(List<PostItem> items) {
+    _complete(pending.removeAt(0), items);
+  }
+
+  void completeLast(List<PostItem> items) {
+    _complete(pending.removeLast(), items);
+  }
+
+  void _complete(Completer<GetPostListResp> completer, List<PostItem> items) {
+    completer.complete(
+      GetPostListResp(
+        list: items,
+        total: items.length,
+        page: 1,
+        pageSize: 20,
+      ),
+    );
+  }
+
+  Future<GetPostListResp> _enqueue() {
+    final completer = Completer<GetPostListResp>();
+    pending.add(completer);
+    return completer.future;
+  }
+
+  @override
+  Future<GetPostListResp> fetchUserPosts({
+    required num userId,
+    required int page,
+    required int pageSize,
+    int sortBy = 1,
+  }) {
+    return _enqueue();
+  }
+
+  @override
+  Future<GetPostListResp> fetchUserFavorites({
+    required num userId,
+    required int page,
+    required int pageSize,
+  }) {
+    return _enqueue();
   }
 }
 
@@ -160,6 +210,24 @@ void main() {
       await n.loadFirstPage();
       expect(n.state.error, isNotNull);
       expect(n.state.items, isEmpty);
+    });
+
+    test('较新的 refresh 会丢弃进行中的 loadFirstPage', () async {
+      final queued = _QueuedUserPostsRepo();
+      final n = UserPostsNotifier(
+        repo: queued,
+        key: const UserPostsKey(userId: 1, type: UserPostsListType.posts),
+      );
+      final first = n.loadFirstPage();
+      final refresh = n.refresh();
+      queued.completeLast([_post(99)]);
+      await refresh;
+      expect(n.state.items.single.id, 99);
+      queued.completeNext([_post(1), _post(2)]);
+      await first;
+      expect(n.state.items.single.id, 99);
+      expect(n.state.isLoading, isFalse);
+      expect(n.state.isRefreshing, isFalse);
     });
   });
 

@@ -314,10 +314,12 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                       UserPostList(
                         userId: widget.userId,
                         type: UserPostsListType.posts,
+                        active: _tabIndex == 0,
                       ),
                       UserPostList(
                         userId: widget.userId,
                         type: UserPostsListType.favorites,
+                        active: _tabIndex == 1,
                       ),
                     ],
                   )

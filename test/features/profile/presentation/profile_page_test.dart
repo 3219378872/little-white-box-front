@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/core/router/app_route_observer.dart';
 import 'package:xiaobaihe_app/features/profile/application/user_posts_notifier.dart';
 import 'package:xiaobaihe_app/features/profile/presentation/profile_page.dart';
 import 'package:xiaobaihe_app/mock/mock_http.dart';
@@ -22,7 +23,10 @@ void main() {
   Finder tab(String label) =>
       find.descendant(of: find.byType(FTabs), matching: find.text(label));
 
-  Future<void> pumpProfile(WidgetTester tester) async {
+  Future<void> pumpProfile(
+    WidgetTester tester, {
+    UserPostsRepository? repo,
+  }) async {
     final router = GoRouter(
       initialLocation: '/user/2',
       routes: [
@@ -39,7 +43,7 @@ void main() {
       ProviderScope(
         overrides: [
           userPostsRepositoryProvider.overrideWithValue(
-            _TestUserPostsRepository(),
+            repo ?? _TestUserPostsRepository(),
           ),
         ],
         child: MaterialApp.router(
@@ -135,6 +139,100 @@ void main() {
       closeTo(favoritesOffset, 1),
     );
   });
+
+  testWidgets('reloads favorites each time the tab becomes active', (
+    tester,
+  ) async {
+    final repo = _CountingUserPostsRepository();
+    await pumpProfile(tester, repo: repo);
+
+    await tester.tap(tab('收藏'));
+    await finishAnimation(tester);
+    await tester.pump();
+    final afterFirstEnter = repo.favoriteCalls;
+    expect(afterFirstEnter, greaterThan(0));
+    expect(find.text('收藏 1'), findsOneWidget);
+
+    await tester.tap(tab('帖子'));
+    await finishAnimation(tester);
+
+    await tester.tap(tab('收藏'));
+    await finishAnimation(tester);
+    await tester.pump();
+    expect(repo.favoriteCalls, greaterThan(afterFirstEnter));
+  });
+
+  testWidgets('reloads favorites after returning from a pushed route', (
+    tester,
+  ) async {
+    final repo = _CountingUserPostsRepository();
+    final observer = RouteObserver<ModalRoute<void>>();
+    final router = GoRouter(
+      initialLocation: '/user/2',
+      observers: [observer],
+      routes: [
+        GoRoute(
+          path: '/user/:userId',
+          builder: (_, state) =>
+              ProfilePage(userId: int.parse(state.pathParameters['userId']!)),
+        ),
+        GoRoute(
+          path: '/post/:postId',
+          builder: (_, _) => const SizedBox(key: Key('post-stub')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appRouteObserverProvider.overrideWithValue(observer),
+          userPostsRepositoryProvider.overrideWithValue(repo),
+        ],
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: foruiTestBuilder,
+        ),
+      ),
+    );
+    for (var i = 0; i < 30 && find.text('帖子 1').evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    await tester.tap(tab('收藏'));
+    await finishAnimation(tester);
+    await tester.pump();
+    final afterEnter = repo.favoriteCalls;
+    expect(afterEnter, greaterThan(0));
+
+    router.push('/post/1');
+    await finishAnimation(tester);
+    expect(find.byKey(const Key('post-stub')), findsOneWidget);
+
+    router.pop();
+    await finishAnimation(tester);
+    await tester.pump();
+    expect(repo.favoriteCalls, greaterThan(afterEnter));
+  });
+}
+
+class _CountingUserPostsRepository extends _TestUserPostsRepository {
+  int favoriteCalls = 0;
+
+  @override
+  Future<GetPostListResp> fetchUserFavorites({
+    required num userId,
+    required int page,
+    required int pageSize,
+  }) async {
+    favoriteCalls++;
+    return super.fetchUserFavorites(
+      userId: userId,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
 }
 
 class _TestUserPostsRepository implements UserPostsRepository {

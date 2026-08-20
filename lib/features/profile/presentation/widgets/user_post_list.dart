@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import '../../../../core/router/app_route_observer.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/forui_pull_to_refresh.dart';
 import '../../../feed/presentation/widgets/post_card.dart';
@@ -9,15 +10,73 @@ import '../../application/user_posts_notifier.dart';
 class UserPostList extends ConsumerStatefulWidget {
   final num userId;
   final UserPostsListType type;
-  const UserPostList({super.key, required this.userId, required this.type});
+  final bool active;
+
+  const UserPostList({
+    super.key,
+    required this.userId,
+    required this.type,
+    this.active = true,
+  });
 
   @override
   ConsumerState<UserPostList> createState() => _UserPostListState();
 }
 
-class _UserPostListState extends ConsumerState<UserPostList> {
+class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
+  late final RouteObserver<ModalRoute<void>> _routeObserver;
+
   UserPostsKey get _key =>
       UserPostsKey(userId: widget.userId, type: widget.type);
+
+  @override
+  void initState() {
+    super.initState();
+    _routeObserver = ref.read(appRouteObserverProvider);
+    if (widget.type == UserPostsListType.favorites && widget.active) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _reloadFavorites();
+      });
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.type != UserPostsListType.favorites) return;
+    final route = ModalRoute.of(context);
+    if (route is ModalRoute<void>) {
+      _routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant UserPostList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.type == UserPostsListType.favorites &&
+        widget.active &&
+        !oldWidget.active) {
+      _reloadFavorites();
+    }
+  }
+
+  @override
+  void didPopNext() {
+    _reloadFavorites();
+  }
+
+  @override
+  void dispose() {
+    _routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  void _reloadFavorites() {
+    if (widget.type != UserPostsListType.favorites || !widget.active) return;
+    final state = ref.read(userPostsProvider(_key));
+    if (state.isLoading || state.isRefreshing) return;
+    ref.read(userPostsProvider(_key).notifier).refresh();
+  }
 
   bool _handleScrollNotification(ScrollNotification notification) {
     if (notification.depth == 0 &&
