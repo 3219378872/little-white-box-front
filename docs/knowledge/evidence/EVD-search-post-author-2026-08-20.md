@@ -9,7 +9,7 @@ upstream:
 covers:
   - FX-022
 updated_at: 2026-08-20
-observed_commit: 6121f49985bcb4edb3ebd6a65d7e4bfe2dee40c3
+observed_commit: d8cd60d2f176d5ff16d5d4c9871b034a25827faf
 ---
 
 # 搜索帖子作者身份 2026-08-20
