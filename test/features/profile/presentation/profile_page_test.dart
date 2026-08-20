@@ -8,6 +8,7 @@ import 'package:xiaobaihe_app/core/router/app_route_observer.dart';
 import 'package:xiaobaihe_app/features/profile/application/user_posts_notifier.dart';
 import 'package:xiaobaihe_app/features/profile/presentation/profile_page.dart';
 import 'package:xiaobaihe_app/mock/mock_http.dart';
+import 'package:xiaobaihe_app/mock/mock_router.dart';
 import 'package:xiaobaihe_app/sdk/api/api.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
 
@@ -16,6 +17,7 @@ import '../../../helpers/forui_test_builder.dart';
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    resetMockState();
     setApiClient(MockHttpClient());
   });
 

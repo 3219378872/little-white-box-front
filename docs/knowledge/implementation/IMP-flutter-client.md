@@ -33,6 +33,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-mock-gateway-align-2026-08-20
   - EVD-client-login-home-redirect-2026-08-20
   - EVD-feed-pagination-ux-2026-08-20
   - EVD-posts-reload-2026-08-20
@@ -43,7 +44,7 @@ evidence:
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
 updated_at: 2026-08-20
-observed_commit: 74fcaa3c397b6cbb1671e27fc4dff4962fa94020
+observed_commit: PENDING
 ---
 
 # Flutter 客户端实现映射
@@ -56,7 +57,7 @@ observed_commit: 74fcaa3c397b6cbb1671e27fc4dff4962fa94020
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是本轮 task 提交 `74fcaa3c397b6cbb1671e27fc4dff4962fa94020`。
+本页观察基准是本轮 task 提交（见 frontmatter `observed_commit`）。
 
 ## 代码入口
 
@@ -69,7 +70,7 @@ observed_commit: 74fcaa3c397b6cbb1671e27fc4dff4962fa94020
 | 认证 | `lib/features/auth/` 与 `lib/core/auth/jwt_decoder.dart`：登录、注册、token/userId 恢复、登出 |
 | 共享接口 | `lib/core/api/api_adapter.dart`、`v2_api_client.dart`、`api_exceptions.dart`、`error_codes.dart` |
 | v1 SDK | `vendor/sdk_source/` 为生成来源，`lib/sdk/` 为应用副本 |
-| Mock transport | `lib/mock/mock_http.dart`、`mock_router.dart`、`mock_data.dart` |
+| Mock transport | `lib/mock/mock_http.dart`、`mock_router.dart`、`mock_data.dart`；契约测试 `test/mock/` |
 
 ## Feature 映射
 
@@ -96,7 +97,10 @@ observed_commit: 74fcaa3c397b6cbb1671e27fc4dff4962fa94020
 - Assistant repository 校验 1～2,000 字符、SSE JSON 事件和终止事件；notifier 通过 generation 和
   subscription cancel 隔离取消/陈旧流，断流不会标记正常完成。
 - 帖子图片通过 multipart 并行上传，任一失败时阻止帖子写入；图片选择上限为 9。
-- 页面与数据层在真实/Mock 模式共用，Mock v2 transport 覆盖推荐、关注、行为、搜索、私信和 Assistant。
+- 页面与数据层在真实/Mock 模式共用。Mock router 按当前 `gateway.api` 分发：成功体为类型 payload，
+  错误为 `{code, message}` 加 `errx` HTTP 状态，JWT 路由要求 `Bearer`，可选鉴权写 `x-auth-state`，
+  Feed 条目为扁平网关字段，关注流按关注关系过滤，行为接口拒绝权威动作。
+- v1 SDK 与 multipart adapter 发送 `Authorization: Bearer …`，与网关 JWT 中间件和 `V2ApiClient` 一致。
 - 搜索帖子解析 `authorId`/`authorName`/`authorAvatar`，结果项展示作者头像与名称，头像可进入作者资料。
 - 导航未读图标继承 `IconTheme` 尺寸（桌面侧栏 16、移动底栏 24），不硬编码 24，避免「消息」项与其他入口错位。
 - 验证码输入与「获取验证码」底对齐，按钮使用默认 `md` 尺寸匹配 `FTextField`；登录和注册共用 `VerifyCodeField`。
@@ -127,14 +131,10 @@ observed_commit: 74fcaa3c397b6cbb1671e27fc4dff4962fa94020
 | Assistant | diverged | 仅帖子来源可点，仍缺 excerpt 与来源变化 |
 | 行为反馈 | aligned | 客户端不再上报 like/unlike |
 | UI/工程分层 | aligned | 详见 [Forui 实现指南](IMP-forui-ui.md) |
-| Mock/真实同路径 | aligned | transport 注入而非 feature 分叉；真实网关仍需独立证据 |
+| Mock/真实同路径 | aligned | transport 注入；Mock HTTP 契约对齐 `gateway.api`；真实网关仍需独立证据 |
 
 验证范围和命令见
-[EVD-feed-pagination-ux-2026-08-20](../evidence/EVD-feed-pagination-ux-2026-08-20.md)、
-[EVD-posts-reload-2026-08-20](../evidence/EVD-posts-reload-2026-08-20.md)、
-[EVD-favorites-reload-2026-08-20](../evidence/EVD-favorites-reload-2026-08-20.md)、
-[EVD-client-ui-align-2026-08-20](../evidence/EVD-client-ui-align-2026-08-20.md)、
-[EVD-search-post-author-2026-08-20](../evidence/EVD-search-post-author-2026-08-20.md)、
-[EVD-client-relative-api-2026-08-18](../evidence/EVD-client-relative-api-2026-08-18.md)
+[EVD-mock-gateway-align-2026-08-20](../evidence/EVD-mock-gateway-align-2026-08-20.md)、
+[EVD-client-login-home-redirect-2026-08-20](../evidence/EVD-client-login-home-redirect-2026-08-20.md)
 与
-[EVD-client-api-followup-2026-08-18](../evidence/EVD-client-api-followup-2026-08-18.md)。
+[EVD-feed-pagination-ux-2026-08-20](../evidence/EVD-feed-pagination-ux-2026-08-20.md)。

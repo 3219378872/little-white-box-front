@@ -6,12 +6,35 @@ import 'package:xiaobaihe_app/mock/mock_router.dart' as mock_router;
 
 void main() {
   const jsonHeaders = {'content-type': 'application/json'};
+  const feedItemFields = [
+    'postId',
+    'authorId',
+    'authorName',
+    'authorAvatar',
+    'createdAt',
+    'feedType',
+    'title',
+    'content',
+    'images',
+    'tags',
+    'viewCount',
+    'likeCount',
+    'commentCount',
+    'favoriteCount',
+    'isLiked',
+  ];
+
+  setUp(mock_router.resetMockState);
 
   Map<String, dynamic> decodeBody(mock_router.MockRouterResponse response) {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  test('recommend feed supports anonymous opaque cursor pagination', () {
+  Map<String, String> authHeaders([int userId = 1]) => {
+    'Authorization': 'Bearer ${mock_router.mockAccessTokenForUser(userId)}',
+  };
+
+  test('recommend feed is a flat Gateway item with opaque cursor pagination', () {
     final first = mock_router.dispatchResponse(
       'GET',
       '/api/v2/feed/recommend?anonymousId=device-1&requestId=request-1&pageSize=2',
@@ -28,27 +51,8 @@ void main() {
     expect(firstItems, hasLength(2));
 
     final firstItem = firstItems.first as Map<String, dynamic>;
-    final post = firstItem['post'] as Map<String, dynamic>;
-    expect(
-      post.keys,
-      containsAll([
-        'id',
-        'authorId',
-        'authorName',
-        'authorAvatar',
-        'title',
-        'content',
-        'images',
-        'tags',
-        'viewCount',
-        'likeCount',
-        'commentCount',
-        'favoriteCount',
-        'isLiked',
-        'isFavorited',
-        'createdAt',
-      ]),
-    );
+    expect(firstItem.keys, containsAll(feedItemFields));
+    expect(firstItem.containsKey('post'), isFalse);
     expect(
       firstItem.keys,
       containsAll([
@@ -85,12 +89,11 @@ void main() {
   });
 
   test('recommend accepts Bearer identity without anonymous id', () {
-    final token = mock_router.mockAccessTokenForUser(1);
     final response = mock_router.dispatchResponse(
       'GET',
       '/api/v2/feed/recommend?requestId=request-auth&pageSize=1',
       '',
-      headers: {'Authorization': 'Bearer $token'},
+      headers: authHeaders(),
     );
 
     expect(response.statusCode, 200);
@@ -98,16 +101,16 @@ void main() {
     expect(decodeBody(response)['requestId'], 'request-auth');
   });
 
-  test('follow feed requires Bearer and paginates with composite cursor', () {
+  test('follow feed requires Bearer and only returns followed authors', () {
     final unauthorized = mock_router.dispatchResponse(
       'GET',
       '/api/v2/feed/follow?pageSize=2',
       '',
     );
     expect(unauthorized.statusCode, 401);
+    expect(decodeBody(unauthorized)['code'], 1006);
 
-    final token = mock_router.mockAccessTokenForUser(1);
-    final headers = {'Authorization': 'Bearer $token'};
+    final headers = authHeaders();
     final first = mock_router.dispatchResponse(
       'GET',
       '/api/v2/feed/follow?pageSize=2',
@@ -117,12 +120,15 @@ void main() {
     final firstBody = decodeBody(first);
     final firstItems = firstBody['items'] as List<dynamic>;
     expect(first.statusCode, 200);
-    expect(first.headers['x-auth-state'], 'authenticated');
     expect(firstItems, hasLength(2));
     expect(firstBody['hasMore'], isTrue);
     expect(
-      (firstItems.first as Map<String, dynamic>)['post'],
-      isA<Map<String, dynamic>>(),
+      (firstItems.first as Map<String, dynamic>).keys,
+      containsAll(feedItemFields),
+    );
+    expect(
+      firstItems.map((item) => (item as Map<String, dynamic>)['authorId']),
+      everyElement(isNot(1)),
     );
 
     final secondPath = Uri(
@@ -148,7 +154,8 @@ void main() {
     );
   });
 
-  test('behavior endpoint returns one result per client event with 202', () {
+  test('behavior endpoint returns 202 with per-event accept or reject', () {
+    final now = DateTime.now().millisecondsSinceEpoch;
     final response = mock_router.dispatchResponse(
       'POST',
       '/api/v2/behavior/events',
@@ -156,8 +163,30 @@ void main() {
         'anonymousId': 'device-1',
         'sessionId': 'session-1',
         'events': [
-          {'clientEventId': 'event-1', 'action': 'exposure'},
-          {'clientEventId': 'event-2', 'action': 'click'},
+          {
+            'clientEventId': 'event-1',
+            'occurredAt': now,
+            'action': 'exposure',
+            'targetId': 1,
+            'targetType': 'post',
+            'scene': 'home',
+            'requestId': 'request-1',
+            'position': 1,
+          },
+          {
+            'clientEventId': 'event-2',
+            'occurredAt': now,
+            'action': 'click',
+            'targetId': 1,
+            'targetType': 'post',
+          },
+          {
+            'clientEventId': 'event-like',
+            'occurredAt': now,
+            'action': 'like',
+            'targetId': 1,
+            'targetType': 'post',
+          },
         ],
       }),
       headers: jsonHeaders,
@@ -168,19 +197,12 @@ void main() {
     expect(response.statusCode, 202);
     expect(response.headers['x-auth-state'], 'anonymous');
     expect(body['acceptedCount'], 2);
-    expect(body['rejectedCount'], 0);
-    expect(results, hasLength(2));
+    expect(body['rejectedCount'], 1);
+    expect(results, hasLength(3));
+    expect((results[2] as Map<String, dynamic>)['accepted'], isFalse);
     expect(
-      results.map(
-        (result) => (result as Map<String, dynamic>)['clientEventId'],
-      ),
-      ['event-1', 'event-2'],
-    );
-    expect(
-      results.every(
-        (result) => (result as Map<String, dynamic>)['accepted'] == true,
-      ),
-      isTrue,
+      (results[2] as Map<String, dynamic>)['reason'],
+      contains('not allowed from clients'),
     );
   });
 
@@ -195,6 +217,15 @@ void main() {
     expect(allBody['posts'], isNotEmpty);
     expect(allBody['users'], isNotEmpty);
     expect(allBody['tags'], isNotEmpty);
+    expect(allBody['degraded'], isFalse);
+
+    final empty = mock_router.dispatchResponse(
+      'GET',
+      '/api/v2/search?keyword=&page=1&pageSize=20',
+      '',
+    );
+    expect(empty.statusCode, 400);
+    expect(decodeBody(empty)['code'], 5001);
 
     final users = decodeBody(
       mock_router.dispatchResponse(
@@ -224,8 +255,7 @@ void main() {
     );
     expect(unauthorized.statusCode, 401);
 
-    final token = mock_router.mockAccessTokenForUser(1);
-    final headers = {'Authorization': 'Bearer $token'};
+    final headers = authHeaders();
     final listResponse = mock_router.dispatchResponse(
       'GET',
       '/api/v2/messages/conversations?page=1&pageSize=20',
@@ -304,23 +334,75 @@ void main() {
   });
 
   test('assistant mock emits a source-backed terminal SSE stream', () {
-    final token = mock_router.mockAccessTokenForUser(1);
     final response = mock_router.dispatchResponse(
       'POST',
       '/api/v2/assistant/chat',
       jsonEncode({'message': '推荐一篇探店帖子', 'requestId': 'assistant-mock-test'}),
       headers: {
-        'Authorization': 'Bearer $token',
+        ...authHeaders(),
         'content-type': 'application/json',
       },
     );
 
     expect(response.statusCode, 200);
-    expect(response.headers['content-type'], contains('text/event-stream'));
+    expect(response.headers['content-type'], 'text/event-stream');
     expect(response.body, contains('"type":"token"'));
     expect(response.body, contains('"type":"source"'));
     expect(response.body, contains('"type":"done"'));
     expect(response.body, contains('"sourceType":"post"'));
+    expect(response.body, contains('"revision"'));
+  });
+
+  test('v2 post writes require revision and stay idempotent', () {
+    final headers = authHeaders();
+    final created = decodeBody(
+      mock_router.dispatchResponse(
+        'POST',
+        '/api/v2/post',
+        jsonEncode({
+          'title': '新帖标题',
+          'content': '新帖正文',
+          'status': 1,
+          'idempotencyKey': 'post-key-1',
+        }),
+        headers: headers,
+      ),
+    );
+    expect(created['postId'], greaterThan(0));
+    expect(created['revision'], 1);
+
+    final replay = decodeBody(
+      mock_router.dispatchResponse(
+        'POST',
+        '/api/v2/post',
+        jsonEncode({
+          'title': '新帖标题',
+          'content': '新帖正文',
+          'status': 1,
+          'idempotencyKey': 'post-key-1',
+        }),
+        headers: headers,
+      ),
+    );
+    expect(replay['postId'], created['postId']);
+
+    final missingRevision = mock_router.dispatchResponse(
+      'PUT',
+      '/api/v2/post/${created['postId']}',
+      jsonEncode({'title': '改标题'}),
+      headers: headers,
+    );
+    expect(missingRevision.statusCode, 400);
+    expect(decodeBody(missingRevision)['code'], 2);
+
+    final conflict = mock_router.dispatchResponse(
+      'PUT',
+      '/api/v2/post/${created['postId']}',
+      jsonEncode({'title': '改标题', 'content': '新帖正文', 'expectedRevision': 99}),
+      headers: headers,
+    );
+    expect(conflict.statusCode, 409);
+    expect(decodeBody(conflict)['code'], 2007);
   });
 
   test(
@@ -335,15 +417,21 @@ void main() {
         headers: {'Authorization': 'Bearer $token'},
       );
       expect(follow.statusCode, 200);
-      expect(follow.headers['x-auth-state'], 'authenticated');
 
+      final now = DateTime.now().millisecondsSinceEpoch;
       final behavior = await client.post(
         Uri.parse('http://mock/api/v2/behavior/events'),
         headers: jsonHeaders,
         body: jsonEncode({
           'anonymousId': 'device-1',
           'events': [
-            {'clientEventId': 'event-http', 'action': 'click'},
+            {
+              'clientEventId': 'event-http',
+              'occurredAt': now,
+              'action': 'click',
+              'targetId': 1,
+              'targetType': 'post',
+            },
           ],
         }),
       );

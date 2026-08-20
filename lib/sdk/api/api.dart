@@ -148,7 +148,7 @@ Future _apiRequest(
       headers['Content-Type'] = 'application/json; charset=utf-8';
     }
     if (tokens != null) {
-      headers['Authorization'] = tokens.accessToken;
+      headers['Authorization'] = _bearerAuthorization(tokens.accessToken);
     }
     if (header != null) {
       headers.addAll(header);
@@ -192,6 +192,14 @@ Future _apiRequest(
     if (fail != null) fail(e.toString());
   }
   if (eventually != null) eventually();
+}
+
+String _bearerAuthorization(String token) {
+  final trimmed = token.trim();
+  if (trimmed.isEmpty) return trimmed;
+  return trimmed.toLowerCase().startsWith('bearer ')
+      ? trimmed
+      : 'Bearer $trimmed';
 }
 
 (int?, String) _extractError(dynamic decoded, String body, int statusCode) {

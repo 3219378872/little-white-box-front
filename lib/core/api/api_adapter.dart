@@ -80,7 +80,12 @@ Future<T> apiPostMultipart<T>({
   try {
     final req = http.MultipartRequest('POST', apiUri(path));
     if (tokens != null) {
-      req.headers['Authorization'] = tokens.accessToken;
+      final token = tokens.accessToken.trim();
+      if (token.isNotEmpty) {
+        req.headers['Authorization'] = token.toLowerCase().startsWith('bearer ')
+            ? token
+            : 'Bearer $token';
+      }
     }
     req.files.add(http.MultipartFile.fromBytes(
       fieldName,

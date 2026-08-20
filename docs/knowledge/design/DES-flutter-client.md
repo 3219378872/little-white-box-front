@@ -80,7 +80,7 @@ flowchart LR
 | `lib/core/api/` | SDK callback/Future、v2 JSON、错误与鉴权适配 | feature 特有 UI 语义 |
 | `lib/core/router/` | 路由表、公开/受保护边界、响应式导航壳 | 业务数据加载 |
 | `lib/core/theme/`、`core/widgets/` | 主题与可复用视觉能力 | 复制 feature 状态机 |
-| `lib/mock/` | 在共享 transport 后模拟接口契约和种子状态 | 创建另一套页面或 repository |
+| `lib/mock/` | 在共享 transport 后按当前网关契约模拟接口和种子状态 | 创建另一套页面或 repository |
 | `lib/sdk/` | 应用使用的生成 SDK 副本 | 手写应用 workaround |
 
 ## 路由与访问设计

@@ -46,7 +46,11 @@ make knowledge-check
 The browser development entry point uses the in-repo mock API and does not
 require the Go backend or local middleware services:
 
-Mock mode starts authenticated as the seed user `1` (`小白鸽`).
+Mock mode starts authenticated as the seed user `1` (`小白鸽` / `xiaobaige`).
+The in-repo mock now follows the current Gateway HTTP contract: typed
+success payloads, `{code, message}` errors, Bearer JWT on protected
+routes, and the same v1/v2 path table as `gateway.api`. Seed password
+is `123456`.
 
 For foreground development with hot reload:
 

@@ -31,6 +31,8 @@ abstract final class ErrorCodes {
   static const int uploadFailed = 4003;
   static const int mediaNotFound = 4004;
 
+  static const int searchEmpty = 5001;
+
   static bool isAuthError(int? code) =>
       code == tokenExpired || code == tokenInvalid || code == loginRequired;
 }

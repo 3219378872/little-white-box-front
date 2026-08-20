@@ -26,6 +26,7 @@ import '../../helpers/forui_test_builder.dart';
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    resetMockState();
     setApiClient(MockHttpClient());
   });
 
