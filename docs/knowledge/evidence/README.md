@@ -5,6 +5,8 @@
 
 当前页面：
 
+- [EVD-client-login-home-redirect-2026-08-20](EVD-client-login-home-redirect-2026-08-20.md)
+- [EVD-feed-pagination-ux-2026-08-20](EVD-feed-pagination-ux-2026-08-20.md)
 - [EVD-posts-reload-2026-08-20](EVD-posts-reload-2026-08-20.md)
 - [EVD-favorites-reload-2026-08-20](EVD-favorites-reload-2026-08-20.md)
 - [EVD-client-ui-align-2026-08-20](EVD-client-ui-align-2026-08-20.md)

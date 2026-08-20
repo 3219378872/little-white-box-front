@@ -90,7 +90,9 @@ flowchart LR
 决定是否发起请求，匿名时显示登录引导。
 
 `GoRouter.redirect` 负责硬边界，页面内入口负责解释性引导，两者共享同一个 Riverpod 认证状态。
-`AuthNotifier` 恢复 token 和 userId，并通过 `refreshListenable` 通知路由重新判断。API 层只对明确的认证
+`AuthNotifier` 恢复 token 和 userId，并通过 `refreshListenable` 通知路由重新判断。匿名入口常用
+`push('/auth/login')` 叠在公开页上；GoRouter 默认不把 imperative push 写进 URL，refresh 时仍按底层
+公开路径判断，不会卸掉登录页。因此登录/注册成功后由页面 `go('/feed')` 进入内容流。API 层只对明确的认证
 业务码触发统一清理。
 
 ## 接口适配设计

@@ -60,6 +60,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       await ref
           .read(authNotifierProvider.notifier)
           .onLoginSuccess(resp.userId, resp.token);
+      // Pushed register keeps the public URL; redirect will not pop this page.
+      if (mounted) context.go('/feed');
     } catch (e) {
       _showError(e.toString());
     } finally {

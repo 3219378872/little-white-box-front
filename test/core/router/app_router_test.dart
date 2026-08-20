@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/core/router/app_router.dart';
 import 'package:xiaobaihe_app/features/assistant/presentation/assistant_page.dart';
+import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
+import 'package:xiaobaihe_app/features/auth/presentation/login_page.dart';
 import 'package:xiaobaihe_app/features/feed/presentation/feed_page.dart';
 import 'package:xiaobaihe_app/features/message/application/message_notifiers.dart';
 import 'package:xiaobaihe_app/features/message/data/message_models.dart';
@@ -381,6 +383,74 @@ void main() {
     await tester.pump();
     expect(find.byType(ConversationsPage), findsOneWidget);
   });
+
+  Future<(ProviderContainer, GoRouter)> pumpApp(WidgetTester tester) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final router = container.read(routerProvider);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: foruiTestBuilder,
+        ),
+      ),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    return (container, router);
+  }
+
+  testWidgets(
+    'auth refresh after a pushed login page does not replace it with feed',
+    (tester) async {
+      final (container, router) = await pumpApp(tester);
+
+      router.push('/auth/login');
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.byType(LoginPage), findsOneWidget);
+
+      await container
+          .read(authNotifierProvider.notifier)
+          .onLoginSuccess(1, mockAccessTokenForUser(1));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(find.byType(LoginPage), findsOneWidget);
+      expect(container.read(authNotifierProvider).isAuthenticated, isTrue);
+    },
+  );
+
+  testWidgets(
+    'password login from a pushed login page opens feed',
+    (tester) async {
+      final (_, router) = await pumpApp(tester);
+
+      router.push('/auth/login');
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.byType(LoginPage), findsOneWidget);
+
+      final fields = find.byType(TextField);
+      expect(fields, findsWidgets);
+      await tester.enterText(fields.at(0), 'admin');
+      await tester.enterText(fields.at(1), '123456');
+      await tester.tap(find.widgetWithText(FButton, '登录').first);
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(find.byType(LoginPage), findsNothing);
+      expect(find.byType(FeedPage), findsOneWidget);
+      expect(router.routeInformationProvider.value.uri.path, '/feed');
+    },
+  );
 }
 
 void _expectSidebarItemsAligned(WidgetTester tester) {

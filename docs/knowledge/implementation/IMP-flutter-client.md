@@ -33,6 +33,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-client-login-home-redirect-2026-08-20
   - EVD-feed-pagination-ux-2026-08-20
   - EVD-posts-reload-2026-08-20
   - EVD-favorites-reload-2026-08-20
@@ -101,6 +102,8 @@ observed_commit: bd2ebf158a086ebeecfc6dcc4f13bf112350c008
 - 验证码输入与「获取验证码」底对齐，按钮使用默认 `md` 尺寸匹配 `FTextField`；登录和注册共用 `VerifyCodeField`。
 - 个人资料帖子列表与收藏列表在成为当前 tab、以及从其它路由返回且仍为当前 tab 时重新拉取第一页；
   `UserPostsNotifier` 用 generation 丢弃被刷新打断的首屏响应。
+- 登录/注册成功后 `go('/feed')`。关注流、资料等入口 `push` 登录页时 URL 仍是公开路径，仅靠
+  `refreshListenable` 不会卸掉登录页。
 
 ## 偏离登记
 

@@ -67,6 +67,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       await ref
           .read(authNotifierProvider.notifier)
           .onLoginSuccess(resp.userId, resp.token);
+      // Pushed login keeps the public URL; redirect will not pop this page.
+      if (mounted) context.go('/feed');
     } catch (e) {
       _showError(friendlyErrorMessage(e));
     } finally {
