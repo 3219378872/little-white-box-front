@@ -12,7 +12,7 @@ covers:
   - FQ-002
   - FQ-007
 updated_at: 2026-08-20
-observed_commit: 12f9c213803612df3306d62ada7317606c47e536
+observed_commit: 5126b4d18e0a3a3c42fbceca9fb3430d927fc9c2
 ---
 
 # Web JSON 雪花 ID 精度 2026-08-20

@@ -45,7 +45,7 @@ evidence:
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
 updated_at: 2026-08-20
-observed_commit: PLACEHOLDER
+observed_commit: 5126b4d18e0a3a3c42fbceca9fb3430d927fc9c2
 ---
 
 # Flutter 客户端实现映射
@@ -58,7 +58,7 @@ observed_commit: PLACEHOLDER
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是本轮 task 提交 `PLACEHOLDER`。
+本页观察基准是本轮 task 提交 `5126b4d18e0a3a3c42fbceca9fb3430d927fc9c2`。
 
 ## 代码入口
 
