@@ -22,6 +22,18 @@ void main() {
     expect(response.statusCode, 200);
     expect(body['userId'], 1);
     expect(extractUserIdFromToken(body['token'] as String), 1);
+
+    final alias = mock_router.dispatchResponse(
+      'POST',
+      '/api/v1/auth/login',
+      jsonEncode({
+        'username': 'admin',
+        'password': mock_router.mockDevPassword,
+        'loginType': 1,
+      }),
+    );
+    expect(alias.statusCode, 200);
+    expect(jsonDecode(alias.body)['userId'], 1);
   });
 
   test('login rejects empty credentials and unknown users', () {

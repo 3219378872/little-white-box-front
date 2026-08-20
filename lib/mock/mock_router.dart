@@ -487,15 +487,16 @@ Map<String, dynamic> _login(Map<String, dynamic> body) {
   if (username.isEmpty || password.isEmpty) {
     throw const _MockBiz(400, 2, '参数错误');
   }
+  final lookup = username == 'admin' ? 'xiaobaige' : username;
   Map<String, dynamic>? user;
   for (final candidate in _users.values) {
-    if (candidate['username'] == username) {
+    if (candidate['username'] == lookup) {
       user = candidate;
       break;
     }
   }
   if (user == null) throw const _MockBiz(404, 1001, '用户不存在');
-  if (_passwords[username] != password) {
+  if (_passwords[lookup] != password) {
     throw const _MockBiz(401, 1003, '密码错误');
   }
   return {

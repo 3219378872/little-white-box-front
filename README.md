@@ -50,7 +50,7 @@ Mock mode starts authenticated as the seed user `1` (`小白鸽` / `xiaobaige`).
 The in-repo mock now follows the current Gateway HTTP contract: typed
 success payloads, `{code, message}` errors, Bearer JWT on protected
 routes, and the same v1/v2 path table as `gateway.api`. Seed password
-is `123456`.
+is `123456`. Username `admin` maps to the same seed user.
 
 For foreground development with hot reload:
 
