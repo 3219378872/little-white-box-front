@@ -48,6 +48,9 @@ void main() {
     expect(client.calls[2].path, '/api/v2/search/tags');
     expect(client.calls[2].query, {'keyword': 'query', 'limit': 5});
     expect(all.posts.single.id, 1);
+    expect(all.posts.single.authorId, 11);
+    expect(all.posts.single.authorName, 'Author');
+    expect(all.posts.single.authorAvatar, 'https://avatar/1.png');
     expect(all.users.single.displayName, 'User 2');
     expect(all.tags.single.name, 'flutter');
     expect(users.total, 7);
@@ -59,7 +62,9 @@ Map<String, dynamic> postJson(int id) => {
   'id': id,
   'title': 'Post $id',
   'contentHighlight': '<em>match</em>',
+  'authorId': id + 10,
   'authorName': 'Author',
+  'authorAvatar': 'https://avatar/$id.png',
   'likeCount': 2,
   'commentCount': 1,
   'createdAt': 1700000000,

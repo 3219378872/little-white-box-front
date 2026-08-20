@@ -1750,7 +1750,11 @@ class SearchPostItem {
 
   final String contentHighlight;
 
+  final num authorId;
+
   final String authorName;
+
+  final String authorAvatar;
 
   final num likeCount;
 
@@ -1761,7 +1765,9 @@ class SearchPostItem {
     required this.id,
     required this.title,
     required this.contentHighlight,
+    required this.authorId,
     required this.authorName,
+    required this.authorAvatar,
     required this.likeCount,
     required this.commentCount,
     required this.createdAt,
@@ -1771,7 +1777,9 @@ class SearchPostItem {
       id: m['id'] ?? 0,
       title: m['title'] ?? "",
       contentHighlight: m['contentHighlight'] ?? "",
+      authorId: m['authorId'] ?? 0,
       authorName: m['authorName'] ?? "",
+      authorAvatar: m['authorAvatar'] ?? "",
       likeCount: m['likeCount'] ?? 0,
       commentCount: m['commentCount'] ?? 0,
       createdAt: m['createdAt'] ?? 0,
@@ -1782,7 +1790,9 @@ class SearchPostItem {
       'id': id,
       'title': title,
       'contentHighlight': contentHighlight,
+      'authorId': authorId,
       'authorName': authorName,
+      'authorAvatar': authorAvatar,
       'likeCount': likeCount,
       'commentCount': commentCount,
       'createdAt': createdAt,

@@ -33,10 +33,11 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-search-post-author-2026-08-20
   - EVD-client-relative-api-2026-08-18
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
-updated_at: 2026-08-18
+updated_at: 2026-08-20
 observed_commit: b3a10ff065d5bb8269781636e3ebba84e44ea76b
 ---
 
@@ -89,6 +90,7 @@ observed_commit: b3a10ff065d5bb8269781636e3ebba84e44ea76b
   subscription cancel 隔离取消/陈旧流，断流不会标记正常完成。
 - 帖子图片通过 multipart 并行上传，任一失败时阻止帖子写入；图片选择上限为 9。
 - 页面与数据层在真实/Mock 模式共用，Mock v2 transport 覆盖推荐、关注、行为、搜索、私信和 Assistant。
+- 搜索帖子解析 `authorId`/`authorName`/`authorAvatar`，结果项展示作者头像与名称，头像可进入作者资料。
 
 ## 偏离登记
 
@@ -106,7 +108,7 @@ observed_commit: b3a10ff065d5bb8269781636e3ebba84e44ea76b
 | 范围 | 状态 | 说明 |
 | --- | --- | --- |
 | 访问、认证、推荐/关注基本流 | aligned | 路由、游标、归因上下文和陈旧响应抑制已有实现与测试 |
-| 搜索 | aligned | 已建模并展示部分降级 |
+| 搜索 | aligned | 已建模并展示部分降级；搜索帖子带作者身份并在结果中展示 |
 | 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐 |
 | 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |
 | Assistant | diverged | 仅帖子来源可点，仍缺 excerpt 与来源变化 |

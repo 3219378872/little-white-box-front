@@ -452,7 +452,9 @@ MockRouterResponse _handleV2Search(
           'contentHighlight': content.length > 120
               ? '${content.substring(0, 120)}...'
               : content,
+          'authorId': post['authorId'],
           'authorName': post['authorName'],
+          'authorAvatar': post['authorAvatar'],
           'likeCount': post['likeCount'],
           'commentCount': post['commentCount'],
           'createdAt': post['createdAt'],

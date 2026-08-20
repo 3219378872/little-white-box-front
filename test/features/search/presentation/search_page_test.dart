@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xiaobaihe_app/core/widgets/cached_avatar.dart';
 import 'package:xiaobaihe_app/features/search/application/search_notifier.dart';
 import 'package:xiaobaihe_app/features/search/data/search_models.dart';
 import 'package:xiaobaihe_app/features/search/data/search_repository.dart';
@@ -29,9 +30,36 @@ void main() {
     await tester.pump();
 
     expect(find.text('Result post'), findsOneWidget);
+    expect(find.textContaining('Author'), findsWidgets);
     await tester.tap(find.text('Result post'));
     await tester.pump(const Duration(milliseconds: 200));
     expect(openedPost, 11);
+  });
+
+  testWidgets('opens the author profile from a search post avatar', (
+    tester,
+  ) async {
+    var openedUser = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(_PageSearchSource()),
+        ],
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: SearchPage(onOpenUser: (id) => openedUser = id),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(EditableText), 'flutter');
+    await tester.tap(find.byKey(const Key('search-submit')));
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.byType(CachedAvatar).first);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(openedUser, 7);
   });
 }
 
@@ -49,7 +77,9 @@ class _PageSearchSource implements SearchDataSource {
           id: 11,
           title: 'Result post',
           contentHighlight: 'matched',
+          authorId: 7,
           authorName: 'Author',
+          authorAvatar: '',
           likeCount: 2,
           commentCount: 1,
           createdAt: 0,

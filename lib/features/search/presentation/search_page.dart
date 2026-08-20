@@ -209,13 +209,18 @@ class _SearchResultList extends StatelessWidget {
     final highlight = post.contentHighlight
         .replaceAll(RegExp(r'</?em>', caseSensitive: false), '')
         .trim();
+    final avatar = CachedAvatar(
+      url: post.authorAvatar,
+      name: post.displayAuthor,
+      radius: 20,
+    );
     return FItem(
+      prefix: post.authorId > 0
+          ? FTappable(onPress: () => onOpenUser(post.authorId), child: avatar)
+          : avatar,
       title: Text(post.title.isEmpty ? '未命名帖子' : post.title),
       subtitle: Text(
-        [
-          if (post.authorName.isNotEmpty) post.authorName,
-          if (highlight.isNotEmpty) highlight,
-        ].join(' · '),
+        [post.displayAuthor, if (highlight.isNotEmpty) highlight].join(' · '),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),

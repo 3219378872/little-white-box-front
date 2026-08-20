@@ -4,7 +4,9 @@ class SearchPostResult {
   final int id;
   final String title;
   final String contentHighlight;
+  final int authorId;
   final String authorName;
+  final String authorAvatar;
   final int likeCount;
   final int commentCount;
   final int createdAt;
@@ -13,11 +15,15 @@ class SearchPostResult {
     required this.id,
     required this.title,
     required this.contentHighlight,
+    required this.authorId,
     required this.authorName,
+    required this.authorAvatar,
     required this.likeCount,
     required this.commentCount,
     required this.createdAt,
   });
+
+  String get displayAuthor => authorName.isEmpty ? '未知作者' : authorName;
 
   factory SearchPostResult.fromJson(Map<String, dynamic> json) {
     final id = _integer(json['id']);
@@ -26,7 +32,9 @@ class SearchPostResult {
       id: id,
       title: _string(json['title']),
       contentHighlight: _string(json['contentHighlight']),
+      authorId: _integer(json['authorId']),
       authorName: _string(json['authorName']),
+      authorAvatar: _string(json['authorAvatar']),
       likeCount: _integer(json['likeCount']),
       commentCount: _integer(json['commentCount']),
       createdAt: _integer(json['createdAt']),

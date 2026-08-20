@@ -150,16 +150,10 @@ class BehaviorEvent {
       targetType: m['targetType'] ?? "",
       scene: m['scene'] ?? "",
       requestId: m['requestId'] ?? "",
-      position: m['position'] == null
-          ? null
-          : (m['position'] is num)
-          ? (m['position'] as num).toInt()
-          : null,
+      position: m['position'] == null ? null : (m['position'] is num) ? (m['position'] as num).toInt() : null,
       durationMs: m['durationMs'] == null
           ? null
-          : (m['durationMs'] is num)
-          ? (m['durationMs'] as num).toInt()
-          : null,
+          : (m['durationMs'] is num) ? (m['durationMs'] as num).toInt() : null,
       recallSource: m['recallSource'] ?? "",
       modelVersion: m['modelVersion'] ?? "",
       experimentId: m['experimentId'] ?? "",
@@ -1756,7 +1750,11 @@ class SearchPostItem {
 
   final String contentHighlight;
 
+  final num authorId;
+
   final String authorName;
+
+  final String authorAvatar;
 
   final num likeCount;
 
@@ -1767,7 +1765,9 @@ class SearchPostItem {
     required this.id,
     required this.title,
     required this.contentHighlight,
+    required this.authorId,
     required this.authorName,
+    required this.authorAvatar,
     required this.likeCount,
     required this.commentCount,
     required this.createdAt,
@@ -1777,7 +1777,9 @@ class SearchPostItem {
       id: m['id'] ?? 0,
       title: m['title'] ?? "",
       contentHighlight: m['contentHighlight'] ?? "",
+      authorId: m['authorId'] ?? 0,
       authorName: m['authorName'] ?? "",
+      authorAvatar: m['authorAvatar'] ?? "",
       likeCount: m['likeCount'] ?? 0,
       commentCount: m['commentCount'] ?? 0,
       createdAt: m['createdAt'] ?? 0,
@@ -1788,7 +1790,9 @@ class SearchPostItem {
       'id': id,
       'title': title,
       'contentHighlight': contentHighlight,
+      'authorId': authorId,
       'authorName': authorName,
+      'authorAvatar': authorAvatar,
       'likeCount': likeCount,
       'commentCount': commentCount,
       'createdAt': createdAt,
@@ -2197,11 +2201,7 @@ class UpdatePostV2Req {
       content: m['content'] ?? "",
       images: m['images']?.cast<String>() ?? [],
       tags: m['tags']?.cast<String>() ?? [],
-      status: m['status'] == null
-          ? null
-          : (m['status'] is num)
-          ? (m['status'] as num).toInt()
-          : null,
+      status: m['status'] == null ? null : (m['status'] is num) ? (m['status'] as num).toInt() : null,
       expectedRevision: m['expectedRevision'] ?? 0,
       mediaIds: m['mediaIds']?.cast<int>() ?? [],
     );
