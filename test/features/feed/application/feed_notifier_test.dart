@@ -81,6 +81,25 @@ void main() {
     expect(notifier.state.isLoading, isFalse);
     expect(notifier.state.error, 'feed failed');
   });
+
+  test('keeps loaded entries when load more fails', () async {
+    final notifier = FeedNotifier(
+      repository: _SequenceFeedRepository([
+        page([entry(1)], requestId: 'request-1'),
+        Exception('page 2 failed'),
+      ]),
+      kind: FeedKind.recommend,
+      loadImmediately: false,
+    );
+
+    await notifier.loadInitial();
+    await notifier.loadMore();
+
+    expect(notifier.state.entries.single.post.id, 1);
+    expect(notifier.state.hasMore, isTrue);
+    expect(notifier.state.isLoadingMore, isFalse);
+    expect(notifier.state.error, 'page 2 failed');
+  });
 }
 
 FeedPageResult page(
@@ -178,6 +197,26 @@ class _CompleterFeedRepository implements FeedPageRepository {
     int positionOffset = 0,
   }) {
     return responses.removeAt(0).future;
+  }
+}
+
+class _SequenceFeedRepository implements FeedPageRepository {
+  final List<Object> responses;
+
+  _SequenceFeedRepository(this.responses);
+
+  @override
+  Future<FeedPageResult> fetchPage({
+    required FeedKind kind,
+    required int pageSize,
+    String requestId = '',
+    String recommendCursor = '',
+    FollowFeedCursor followCursor = const FollowFeedCursor(),
+    int positionOffset = 0,
+  }) async {
+    final next = responses.removeAt(0);
+    if (next is FeedPageResult) return next;
+    throw next as Exception;
   }
 }
 

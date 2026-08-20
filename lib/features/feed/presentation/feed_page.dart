@@ -57,27 +57,7 @@ class _FeedContent extends ConsumerStatefulWidget {
 }
 
 class _FeedContentState extends ConsumerState<_FeedContent> {
-  final _scrollController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (!widget.active || !_scrollController.hasClients) return;
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      ref.read(feedNotifierProvider(widget.kind).notifier).loadMore();
-    }
-  }
+  static const _loadMoreExtent = 200.0;
 
   @override
   Widget build(BuildContext context) {
@@ -121,55 +101,125 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
 
     final isDesktop =
         MediaQuery.sizeOf(context).width >= context.theme.breakpoints.lg;
+    final showFooter = _showFeedFooter(feedState);
     return ForuiPullToRefresh(
       onRefresh: notifier.refresh,
-      child: isDesktop
-          ? ListView.builder(
-              key: PageStorageKey('feed-grid-${widget.kind.name}'),
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
-              itemCount:
-                  (feedState.entries.length + 1) ~/ 2 +
-                  (feedState.isLoadingMore ? 1 : 0),
-              itemBuilder: (context, row) {
-                final start = row * 2;
-                if (start >= feedState.entries.length) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(child: FCircularProgress()),
-                  );
-                }
-                final left = _feedItem(feedState, start);
-                final right = start + 1 < feedState.entries.length
-                    ? _feedItem(feedState, start + 1)
-                    : const SizedBox.shrink();
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: left),
-                    Expanded(child: right),
-                  ],
-                );
-              },
-            )
-          : ListView.builder(
-              key: PageStorageKey('feed-${widget.kind.name}'),
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(top: 8, bottom: 80),
-              itemCount:
-                  feedState.entries.length + (feedState.isLoadingMore ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index >= feedState.entries.length) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(child: FCircularProgress()),
-                  );
-                }
-                return _feedItem(feedState, index);
-              },
+      child: NotificationListener<ScrollMetricsNotification>(
+        onNotification: _handleScrollMetrics,
+        child: NotificationListener<ScrollNotification>(
+          onNotification: _handleScrollNotification,
+          child: isDesktop
+              ? ListView.builder(
+                  key: PageStorageKey('feed-grid-${widget.kind.name}'),
+                  primary: false,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
+                  itemCount:
+                      (feedState.entries.length + 1) ~/ 2 + (showFooter ? 1 : 0),
+                  itemBuilder: (context, row) {
+                    final start = row * 2;
+                    if (start >= feedState.entries.length) {
+                      return _feedFooter(feedState, notifier);
+                    }
+                    final left = _feedItem(feedState, start);
+                    final right = start + 1 < feedState.entries.length
+                        ? _feedItem(feedState, start + 1)
+                        : const SizedBox.shrink();
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: left),
+                        Expanded(child: right),
+                      ],
+                    );
+                  },
+                )
+              : ListView.builder(
+                  key: PageStorageKey('feed-${widget.kind.name}'),
+                  primary: false,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(top: 8, bottom: 80),
+                  itemCount: feedState.entries.length + (showFooter ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index >= feedState.entries.length) {
+                      return _feedFooter(feedState, notifier);
+                    }
+                    return _feedItem(feedState, index);
+                  },
+                ),
+        ),
+      ),
+    );
+  }
+
+  bool _handleScrollNotification(ScrollNotification notification) {
+    if (notification.depth != 0) return false;
+    _maybeLoadMore(notification.metrics);
+    return false;
+  }
+
+  bool _handleScrollMetrics(ScrollMetricsNotification notification) {
+    if (notification.depth != 0) return false;
+    _maybeLoadMore(notification.metrics);
+    return false;
+  }
+
+  void _maybeLoadMore(ScrollMetrics metrics) {
+    if (!widget.active || metrics.axis != Axis.vertical) return;
+    if (metrics.extentAfter > _loadMoreExtent) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.active) return;
+      ref.read(feedNotifierProvider(widget.kind).notifier).loadMore();
+    });
+  }
+
+  bool _showFeedFooter(FeedState state) {
+    return state.isLoadingMore ||
+        !state.hasMore ||
+        (state.error != null && state.entries.isNotEmpty);
+  }
+
+  Widget _feedFooter(FeedState state, FeedNotifier notifier) {
+    if (state.isLoadingMore) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: FCircularProgress()),
+      );
+    }
+    if (state.error != null && state.entries.isNotEmpty) {
+      final theme = context.theme;
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        child: Column(
+          children: [
+            Text(
+              state.error!,
+              textAlign: TextAlign.center,
+              style: theme.typography.body.sm.copyWith(
+                color: theme.colors.mutedForeground,
+              ),
             ),
+            const SizedBox(height: 12),
+            FButton(
+              variant: FButtonVariant.secondary,
+              onPress: notifier.loadMore,
+              child: const Text('重试'),
+            ),
+          ],
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Center(
+        child: Text(
+          '— 没有更多了 —',
+          style: TextStyle(
+            color: context.theme.colors.mutedForeground,
+            fontSize: 12,
+          ),
+        ),
+      ),
     );
   }
 

@@ -33,6 +33,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-feed-pagination-ux-2026-08-20
   - EVD-posts-reload-2026-08-20
   - EVD-favorites-reload-2026-08-20
   - EVD-client-ui-align-2026-08-20
@@ -41,7 +42,7 @@ evidence:
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
 updated_at: 2026-08-20
-observed_commit: 2ebbf44f5061624e3ab5f527e7990d99906e8e32
+observed_commit: PENDING
 ---
 
 # Flutter 客户端实现映射
@@ -84,6 +85,8 @@ observed_commit: 2ebbf44f5061624e3ab5f527e7990d99906e8e32
 ## 已实现的关键事实
 
 - 推荐和关注使用独立游标，Feed notifier 以 generation 抑制旧请求，并在分页追加时按帖子 ID 去重。
+- Feed 在剩余滚动空间不足 200px（含首屏未填满）时请求下一页；加载中显示底部进度，游标耗尽显示
+  「没有更多了」，加载更多失败保留已有条目并提供底部重试。
 - `PostCard` 每 100 ms 测量可见面积，达到 50% 后计时 1 秒；曝光去重键为
   `(requestId, postId)`，离开可见区后记录已曝光会话的 dwell。
 - 行为队列用 SharedPreferences 持久化，默认最多 500 条、单批 100 条；按 anonymousId/sessionId
@@ -124,6 +127,9 @@ observed_commit: 2ebbf44f5061624e3ab5f527e7990d99906e8e32
 | Mock/真实同路径 | aligned | transport 注入而非 feature 分叉；真实网关仍需独立证据 |
 
 验证范围和命令见
+[EVD-feed-pagination-ux-2026-08-20](../evidence/EVD-feed-pagination-ux-2026-08-20.md)、
+[EVD-posts-reload-2026-08-20](../evidence/EVD-posts-reload-2026-08-20.md)、
+[EVD-favorites-reload-2026-08-20](../evidence/EVD-favorites-reload-2026-08-20.md)、
 [EVD-client-ui-align-2026-08-20](../evidence/EVD-client-ui-align-2026-08-20.md)、
 [EVD-search-post-author-2026-08-20](../evidence/EVD-search-post-author-2026-08-20.md)、
 [EVD-client-relative-api-2026-08-18](../evidence/EVD-client-relative-api-2026-08-18.md)
