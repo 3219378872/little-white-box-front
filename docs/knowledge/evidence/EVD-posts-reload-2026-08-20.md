@@ -10,7 +10,7 @@ covers:
   - FX-031
   - FQ-006
 updated_at: 2026-08-20
-observed_commit: pending
+observed_commit: 2ebbf44f5061624e3ab5f527e7990d99906e8e32
 ---
 
 # 资料帖子列表进入时重新拉取 2026-08-20
@@ -22,7 +22,16 @@ observed_commit: pending
 
 ## 命令与结果
 
-在前端 `task/posts-reload-on-enter` 工作树记录实际命令与结果。
+在前端 `task/posts-reload-on-enter` 工作树：
+
+```text
+dart analyze lib/features/profile test/features/profile
+flutter test test/features/profile
+python3 tools/knowledge_base.py check
+```
+
+`dart analyze` 无 issue；`flutter test test/features/profile` 退出码 0，15 个测试通过，含帖子
+tab 再次进入与从推入路由返回时重新拉取。`knowledge-check` 退出码 0。
 
 ## 条款证据
 
