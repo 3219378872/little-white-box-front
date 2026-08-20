@@ -10,7 +10,7 @@ covers:
   - FX-002
   - FQ-007
 updated_at: 2026-08-20
-observed_commit: PENDING
+observed_commit: 74fcaa3c397b6cbb1671e27fc4dff4962fa94020
 ---
 
 # 登录成功进入内容流 2026-08-20
@@ -34,7 +34,7 @@ flutter test test/core/router/app_router_test.dart test/features/auth/presentati
 make knowledge-check
 ```
 
-结果写入本页时以实际命令输出为准。
+`dart analyze` 无 issue。`flutter test` 退出码 0，17 passed（含 push 后仅 refresh 仍停在登录页，以及点登录后进入 `/feed`）。`make knowledge-check` 通过。
 
 ## 条款证据
 
