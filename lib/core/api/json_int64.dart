@@ -92,13 +92,63 @@ String quoteLargeJsonInts(String source) {
       if (digit < 0x30 || digit > 0x39) break;
       i++;
     }
-    if (i > digitStart && !_isFloatOrExponentContinue(source, i)) {
-      if (i - digitStart >= jsonInt64DigitThreshold) {
-        out.write('"');
-        out.write(source.substring(start, i));
-        out.write('"');
-        continue;
+    // 如果是小数或科学计数法，按浮点数整体跳过，不做 quoting。
+    if (i < source.length) {
+      final next = source.codeUnitAt(i);
+      if (next == 0x2e) {
+        // '.' + digits
+        var j = i + 1;
+        while (j < source.length) {
+          final d = source.codeUnitAt(j);
+          if (d < 0x30 || d > 0x39) break;
+          j++;
+        }
+        if (j > i + 1) {
+          i = j;
+          if (i < source.length) {
+            final exp = source.codeUnitAt(i);
+            if (exp == 0x65 || exp == 0x45) {
+              var k = i + 1;
+              if (k < source.length) {
+                final sign = source.codeUnitAt(k);
+                if (sign == 0x2b || sign == 0x2d) k++;
+              }
+              var expStart = k;
+              while (k < source.length) {
+                final d = source.codeUnitAt(k);
+                if (d < 0x30 || d > 0x39) break;
+                k++;
+              }
+              if (k > expStart) i = k;
+            }
+          }
+          out.write(source.substring(start, i));
+          continue;
+        }
+      } else if (next == 0x65 || next == 0x45) {
+        var k = i + 1;
+        if (k < source.length) {
+          final sign = source.codeUnitAt(k);
+          if (sign == 0x2b || sign == 0x2d) k++;
+        }
+        var expStart = k;
+        while (k < source.length) {
+          final d = source.codeUnitAt(k);
+          if (d < 0x30 || d > 0x39) break;
+          k++;
+        }
+        if (k > expStart) {
+          i = k;
+          out.write(source.substring(start, i));
+          continue;
+        }
       }
+    }
+    if (i > digitStart && i - digitStart >= jsonInt64DigitThreshold) {
+      out.write('"');
+      out.write(source.substring(start, i));
+      out.write('"');
+      continue;
     }
     out.write(source.substring(start, i));
   }
@@ -158,12 +208,6 @@ String unquoteLargeJsonIntStrings(String source) {
     out.write(source.substring(stringStart));
   }
   return out.toString();
-}
-
-bool _isFloatOrExponentContinue(String source, int i) {
-  if (i >= source.length) return false;
-  final unit = source.codeUnitAt(i);
-  return unit == 0x2e || unit == 0x65 || unit == 0x45;
 }
 
 bool _nextNonSpaceIsColon(String source, int i) {
