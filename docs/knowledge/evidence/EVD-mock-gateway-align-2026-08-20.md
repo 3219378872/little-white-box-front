@@ -13,7 +13,7 @@ covers:
   - FQ-007
   - FQ-008
 updated_at: 2026-08-20
-observed_commit: PENDING
+observed_commit: c202150884df8b57c5d82a1179585d8f0544ff95
 ---
 
 # Mock API 对齐网关契约 2026-08-20
