@@ -11,7 +11,7 @@ covers:
   - FQ-005
   - FQ-007
 updated_at: 2026-08-20
-observed_commit: PENDING
+observed_commit: e9aa8613eee3a1c2041843b2e29cf694e9442b95
 ---
 
 # 侧栏消息项与验证码行对齐 2026-08-20

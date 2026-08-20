@@ -39,7 +39,7 @@ evidence:
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
 updated_at: 2026-08-20
-observed_commit: b3a10ff065d5bb8269781636e3ebba84e44ea76b
+observed_commit: e9aa8613eee3a1c2041843b2e29cf694e9442b95
 ---
 
 # Flutter 客户端实现映射
