@@ -58,36 +58,29 @@ class AssistantRepository implements AssistantDataSource {
       throw const ApiException('Assistant 请求标识不能为空');
     }
 
-    final request = http.Request(
-      'POST',
-      apiUri('/api/v2/assistant/chat', host: _baseUrl),
-    );
-    request.headers.addAll({
-      'Accept': 'text/event-stream',
-      'Content-Type': 'application/json; charset=utf-8',
-    });
-    final token = (await _loadAccessToken())?.trim() ?? '';
-    if (token.isNotEmpty) {
-      request.headers['Authorization'] =
-          token.toLowerCase().startsWith('bearer ') ? token : 'Bearer $token';
-    }
-    request.body = encodeApiJson({
-      if (conversationId.trim().isNotEmpty)
-        'conversationId': conversationId.trim(),
-      'message': normalized,
-      'requestId': normalizedRequestId,
-    });
-
+    // 认证失败时换发令牌并恰好重试一次，与传输层行为一致。
     late http.StreamedResponse response;
-    try {
-      response = await _httpClient.send(request);
-    } catch (error) {
-      throw AssistantStreamException('无法连接 Assistant: $error');
-    }
+    for (var attempt = 1;; attempt++) {
+      final request = await _buildChatRequest(
+        conversationId: conversationId,
+        normalized: normalized,
+        normalizedRequestId: normalizedRequestId,
+      );
+      try {
+        response = await _httpClient.send(request);
+      } catch (error) {
+        throw AssistantStreamException('无法连接 Assistant: $error');
+      }
+      if (response.statusCode >= 200 && response.statusCode < 300) break;
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
       final body = await response.stream.bytesToString();
       final exception = _httpError(response.statusCode, body);
+      final canRetry = attempt == 1 &&
+          exception.isAuthError &&
+          ((await getTokens())?.refreshToken.trim().isNotEmpty ?? false);
+      if (canRetry && await sdk_api.refreshSessionTokens()) {
+        continue;
+      }
       if (exception.isAuthError) await onAuthError?.call();
       throw exception;
     }
@@ -122,6 +115,33 @@ class AssistantRepository implements AssistantDataSource {
     if (!terminal) {
       throw const AssistantStreamException('Assistant 连接意外中断');
     }
+  }
+
+  Future<http.Request> _buildChatRequest({
+    required String conversationId,
+    required String normalized,
+    required String normalizedRequestId,
+  }) async {
+    final request = http.Request(
+      'POST',
+      apiUri('/api/v2/assistant/chat', host: _baseUrl),
+    );
+    request.headers.addAll({
+      'Accept': 'text/event-stream',
+      'Content-Type': 'application/json; charset=utf-8',
+    });
+    final token = (await _loadAccessToken())?.trim() ?? '';
+    if (token.isNotEmpty) {
+      request.headers['Authorization'] =
+          token.toLowerCase().startsWith('bearer ') ? token : 'Bearer $token';
+    }
+    request.body = encodeApiJson({
+      if (conversationId.trim().isNotEmpty)
+        'conversationId': conversationId.trim(),
+      'message': normalized,
+      'requestId': normalizedRequestId,
+    });
+    return request;
   }
 
   static Stream<String> _sseData(Stream<List<int>> bytes) async* {

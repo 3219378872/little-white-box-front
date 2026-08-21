@@ -310,6 +310,27 @@ Future login(
   );
 }
 
+/// --/api/v1/auth/refresh--
+///
+/// request: RefreshTokenReq
+/// response: RefreshTokenResp
+Future refreshToken(
+  RefreshTokenReq request, {
+  Function(RefreshTokenResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v1/auth/refresh",
+    request,
+    ok: (data) {
+      if (ok != null) ok(RefreshTokenResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 /// --/api/v1/auth/register--
 ///
 /// request: RegisterReq

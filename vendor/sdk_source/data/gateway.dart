@@ -1346,12 +1346,22 @@ class LoginResp {
   final Object userId;
 
   final String token;
-  LoginResp({required this.userId, required this.token});
+
+  final String refreshToken;
+  LoginResp({
+    required this.userId,
+    required this.token,
+    required this.refreshToken,
+  });
   factory LoginResp.fromJson(Map<String, dynamic> m) {
-    return LoginResp(userId: m['userId'] ?? 0, token: m['token'] ?? "");
+    return LoginResp(
+      userId: m['userId'] ?? 0,
+      token: m['token'] ?? "",
+      refreshToken: m['refreshToken'] ?? "",
+    );
   }
   Map<String, dynamic> toJson() {
-    return {'userId': userId, 'token': token};
+    return {'userId': userId, 'token': token, 'refreshToken': refreshToken};
   }
 }
 
@@ -1700,6 +1710,33 @@ class RecordBehaviorEventsResp {
   }
 }
 
+class RefreshTokenReq {
+  final String refreshToken;
+  RefreshTokenReq({required this.refreshToken});
+  factory RefreshTokenReq.fromJson(Map<String, dynamic> m) {
+    return RefreshTokenReq(refreshToken: m['refreshToken'] ?? "");
+  }
+  Map<String, dynamic> toJson() {
+    return {'refreshToken': refreshToken};
+  }
+}
+
+class RefreshTokenResp {
+  final String token;
+
+  final String refreshToken;
+  RefreshTokenResp({required this.token, required this.refreshToken});
+  factory RefreshTokenResp.fromJson(Map<String, dynamic> m) {
+    return RefreshTokenResp(
+      token: m['token'] ?? "",
+      refreshToken: m['refreshToken'] ?? "",
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'token': token, 'refreshToken': refreshToken};
+  }
+}
+
 class RegisterReq {
   final String username;
 
@@ -1736,12 +1773,22 @@ class RegisterResp {
   final Object userId;
 
   final String token;
-  RegisterResp({required this.userId, required this.token});
+
+  final String refreshToken;
+  RegisterResp({
+    required this.userId,
+    required this.token,
+    required this.refreshToken,
+  });
   factory RegisterResp.fromJson(Map<String, dynamic> m) {
-    return RegisterResp(userId: m['userId'] ?? 0, token: m['token'] ?? "");
+    return RegisterResp(
+      userId: m['userId'] ?? 0,
+      token: m['token'] ?? "",
+      refreshToken: m['refreshToken'] ?? "",
+    );
   }
   Map<String, dynamic> toJson() {
-    return {'userId': userId, 'token': token};
+    return {'userId': userId, 'token': token, 'refreshToken': refreshToken};
   }
 }
 

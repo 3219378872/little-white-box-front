@@ -28,3 +28,11 @@ Object? extractUserIdFromToken(String token) {
   if (!jsonInt64IsPositive(raw)) return null;
   return raw is String || raw is num ? raw : jsonInt64Id(raw);
 }
+
+/// 从 token 的 payload 中提取过期时间（epoch 秒）。
+/// 无 `exp` 声明或解析失败返回 0，表示未知/不过期。
+int extractExpiryFromToken(String token) {
+  final exp = decodeJwtPayload(token)?['exp'];
+  if (exp is num && exp.toInt() > 0) return exp.toInt();
+  return 0;
+}

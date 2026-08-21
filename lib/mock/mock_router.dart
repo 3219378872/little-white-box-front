@@ -10,6 +10,10 @@ import 'mock_data.dart';
 
 const mockDevPassword = '123456';
 
+/// 与真实网关对齐：access token 30 分钟，refresh token 7 天。
+const int _mockAccessTtlSeconds = 30 * 60;
+const int _mockRefreshTtlSeconds = 7 * 24 * 60 * 60;
+
 const _clientAllowedActions = {
   'exposure',
   'click',
@@ -56,6 +60,8 @@ late List<Map<String, dynamic>> _conversations;
 late Map<int, List<Map<String, dynamic>>> _messages;
 late Map<int, bool> _personalizationEnabled;
 late int _messageSeedTime;
+late Set<String> _usedRefreshTokens;
+int _mockJwtNonce = 0;
 
 bool _seeded = false;
 
@@ -186,6 +192,8 @@ void resetMockState() {
     ],
   };
   _personalizationEnabled = {for (final id in _users.keys) id: true};
+  _usedRefreshTokens = {};
+  _mockJwtNonce = 0;
   _seeded = true;
 }
 
@@ -297,6 +305,9 @@ MockRouterResponse _routeV1(
     case 'api/v1/auth/register':
       _requireMethod(method, 'POST');
       return _jsonResponse(_register(body ?? const {}));
+    case 'api/v1/auth/refresh':
+      _requireMethod(method, 'POST');
+      return _jsonResponse(_refreshTokens(body ?? const {}));
     case 'api/v1/auth/verify-code':
       _requireMethod(method, 'POST');
       return _sendVerifyCode(body ?? const {});
@@ -481,7 +492,7 @@ Map<String, dynamic> _login(Map<String, dynamic> body) {
     if (!_isPhone(phone) || code.isEmpty) {
       throw const _MockBiz(400, 2, '参数错误');
     }
-    return {'userId': 1, 'token': mockAccessTokenForUser(1)};
+    return {...mockTokenPairForUser(1), 'userId': 1};
   }
   final username = body['username']?.toString() ?? '';
   final password = body['password']?.toString() ?? '';
@@ -501,8 +512,8 @@ Map<String, dynamic> _login(Map<String, dynamic> body) {
     throw const _MockBiz(401, 1003, '密码错误');
   }
   return {
+    ...mockTokenPairForUser((user['id'] as num).toInt()),
     'userId': user['id'],
-    'token': mockAccessTokenForUser((user['id'] as num).toInt()),
   };
 }
 
@@ -542,7 +553,35 @@ Map<String, dynamic> _register(Map<String, dynamic> body) {
   };
   _passwords[resolvedName] = password.isEmpty ? mockDevPassword : password;
   _personalizationEnabled[id] = true;
-  return {'userId': id, 'token': mockAccessTokenForUser(id)};
+  return {...mockTokenPairForUser(id), 'userId': id};
+}
+
+/// 凭 refreshToken 换取全新令牌对；一次性轮换，重放已用令牌按无效处理。
+Map<String, dynamic> _refreshTokens(Map<String, dynamic> body) {
+  final refreshToken = body['refreshToken']?.toString() ?? '';
+  if (refreshToken.isEmpty) {
+    throw const _MockBiz(400, 2, '参数错误');
+  }
+  if (_usedRefreshTokens.contains(refreshToken)) {
+    throw const _MockBiz(401, 1005, '登录状态无效，请重新登录');
+  }
+  final payload = _decodeJwtPayload(refreshToken);
+  if (payload == null) {
+    throw const _MockBiz(401, 1005, '登录状态无效，请重新登录');
+  }
+  final exp = payload['exp'];
+  final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  if (exp is num &&
+      exp.toInt() > 0 &&
+      exp.toInt() < nowSec) {
+    throw const _MockBiz(401, 1004, '登录已过期，请重新登录');
+  }
+  final userId = payload['userId'];
+  if (userId is! num || userId.toInt() <= 0) {
+    throw const _MockBiz(401, 1005, '登录状态无效，请重新登录');
+  }
+  _usedRefreshTokens.add(refreshToken);
+  return mockTokenPairForUser(userId.toInt());
 }
 
 MockRouterResponse _sendVerifyCode(Map<String, dynamic> body) {
@@ -1523,13 +1562,28 @@ String mockAccessTokenForUser(int userId) => _buildFakeJwt(userId);
 String mockExpiredTokenForUser(int userId) =>
     _buildFakeJwt(userId, exp: DateTime.now().millisecondsSinceEpoch ~/ 1000 - 10);
 
+/// 与真实网关对齐的令牌对：access 短时效、refresh 7 天。
+Map<String, String> mockTokenPairForUser(int userId) {
+  final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  return {
+    'token': _buildFakeJwt(userId, exp: nowSec + _mockAccessTtlSeconds),
+    'refreshToken':
+        _buildFakeJwt(userId, exp: nowSec + _mockRefreshTtlSeconds),
+  };
+}
+
+String mockRefreshTokenForUser(int userId) =>
+    mockTokenPairForUser(userId)['refreshToken']!;
+
 String _buildFakeJwt(int userId, {int? exp}) {
+  // 唯一 jti 模拟真实网关的一次性令牌：同秒内轮换也产出不同字符串。
+  final nonce = ++_mockJwtNonce;
   final header = base64Url
       .encode(utf8.encode('{"alg":"none","typ":"JWT"}'))
       .replaceAll('=', '');
   final claims = exp == null
-      ? '{"userId":$userId}'
-      : '{"userId":$userId,"exp":$exp}';
+      ? '{"userId":$userId,"jti":"n$nonce"}'
+      : '{"userId":$userId,"exp":$exp,"jti":"n$nonce"}';
   final payload = base64Url.encode(utf8.encode(claims)).replaceAll('=', '');
   return '$header.$payload.fake-sig';
 }

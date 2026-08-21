@@ -1,11 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
+import 'core/auth/session_tokens.dart';
 import 'sdk/api/api.dart';
-import 'sdk/data/tokens.dart';
-import 'sdk/vars/kv.dart';
 import 'mock/mock_http.dart';
 import 'mock/mock_router.dart' as mock_router;
+import 'sdk/vars/kv.dart';
 
 /// Mock 模式入口
 ///
@@ -16,15 +16,10 @@ Future<void> main() async {
   setApiClient(MockHttpClient());
 
   // Mock web development starts as user 1, matching seedUsers['1'].
-  await setTokens(
-    Tokens(
-      accessToken: mock_router.mockAccessTokenForUser(1),
-      accessExpire: 0,
-      refreshToken: '',
-      refreshExpire: 0,
-      refreshAfter: 0,
-    ),
-  );
+  await setTokens(buildStoredTokens(
+    accessToken: mock_router.mockAccessTokenForUser(1),
+    refreshToken: mock_router.mockRefreshTokenForUser(1),
+  ));
 
   debugPrint('========================================');
   debugPrint('  Mock 模式已启动（默认登录：小白鸽）');

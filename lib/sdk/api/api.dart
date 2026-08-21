@@ -1,10 +1,20 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../../core/api/error_codes.dart';
 import '../../core/api/json_int64.dart';
+import '../../core/auth/session_tokens.dart';
 import '../vars/kv.dart';
 import '../vars/vars.dart';
 
 http.Client _apiClient = http.Client();
+
+const String _refreshPath = '/api/v1/auth/refresh';
+
+/// 会话彻底失效（刷新令牌缺失或被网关拒绝）后由传输层触发，
+/// 宿主用它同步内存中的认证状态（如 AuthNotifier），驱动路由跳登录页。
+void Function()? onSessionInvalid;
+
+Future<bool>? _pendingRefresh;
 
 /// Overrides the shared client, primarily for local mock mode and tests.
 void setApiClient(http.Client client) {
@@ -19,6 +29,72 @@ Map<String, dynamic> apiResponseData(dynamic decoded) {
   if (decoded is! Map<String, dynamic>) return <String, dynamic>{};
   final nested = decoded['data'];
   return nested is Map<String, dynamic> ? nested : decoded;
+}
+
+/// 用存储的 refreshToken 换取全新令牌对（single-flight）。
+///
+/// 并发调用共享同一次请求；服务端拒绝（非 2xx）视为会话不可恢复，
+/// 清空本地令牌并触发 [onSessionInvalid]。网络异常不清会话，仅返回 false。
+Future<bool> refreshSessionTokens() {
+  return _pendingRefresh ??= _doRefreshTokens().whenComplete(() {
+    _pendingRefresh = null;
+  });
+}
+
+Future<bool> _doRefreshTokens() async {
+  final tokens = await getTokens();
+  final refreshToken = tokens?.refreshToken.trim() ?? '';
+  if (refreshToken.isEmpty) return false;
+  try {
+    final rp = await _apiClient.post(
+      apiUri(_refreshPath),
+      headers: {'Content-Type': 'application/json; charset=utf-8'},
+      body: encodeApiJson({'refreshToken': refreshToken}),
+    );
+    if (rp.statusCode < 200 || rp.statusCode >= 300) {
+      await _expireSession();
+      return false;
+    }
+    final body = utf8.decode(rp.bodyBytes);
+    dynamic decoded;
+    try {
+      decoded = body.isEmpty ? null : decodeApiJson(body);
+    } catch (_) {
+      decoded = null;
+    }
+    final data = apiResponseData(decoded);
+    final accessToken = data['token']?.toString() ?? '';
+    final nextRefreshToken = data['refreshToken']?.toString() ?? '';
+    if (accessToken.isEmpty || nextRefreshToken.isEmpty) {
+      await _expireSession();
+      return false;
+    }
+    await setTokens(buildStoredTokens(
+      accessToken: accessToken,
+      refreshToken: nextRefreshToken,
+    ));
+    return true;
+  } catch (_) {
+    // 网络/解码失败不代表会话被拒，保留令牌让下一次请求再试。
+    return false;
+  }
+}
+
+Future<void> _expireSession() async {
+  await removeTokens();
+  onSessionInvalid?.call();
+}
+
+bool _isAuthFailure(int statusCode, dynamic decoded) {
+  if (decoded is Map<String, dynamic>) {
+    final code = decoded['code'];
+    final parsed = code is int ? code : int.tryParse('$code');
+    // 带业务码的错误（如密码错误 1003）不触发刷新，只认认证类码。
+    return parsed == null
+        ? statusCode == 401
+        : ErrorCodes.isAuthError(parsed);
+  }
+  return statusCode == 401;
 }
 
 /// send request with post method
@@ -138,56 +214,71 @@ Future _apiRequest(
   Function(String)? fail,
   Function? eventually,
 }) async {
-  var tokens = await getTokens();
   try {
-    var strData = '';
-    if (data != null) {
-      strData = encodeApiJson(data);
-    }
-    final headers = <String, String>{};
-    if (method != 'GET') {
-      headers['Content-Type'] = 'application/json; charset=utf-8';
-    }
-    if (tokens != null) {
-      headers['Authorization'] = _bearerAuthorization(tokens.accessToken);
-    }
-    if (header != null) {
-      headers.addAll(header);
-    }
+    for (var attempt = 1;; attempt++) {
+      final tokens = await getTokens();
+      var strData = '';
+      if (data != null) {
+        strData = encodeApiJson(data);
+      }
+      final headers = <String, String>{};
+      if (method != 'GET') {
+        headers['Content-Type'] = 'application/json; charset=utf-8';
+      }
+      if (tokens != null) {
+        headers['Authorization'] = _bearerAuthorization(tokens.accessToken);
+      }
+      if (header != null) {
+        headers.addAll(header);
+      }
 
-    final uri = apiUri(path);
-    final rp = switch (method) {
-      'POST' => await _apiClient.post(uri, headers: headers, body: strData),
-      'PUT' => await _apiClient.put(uri, headers: headers, body: strData),
-      'DELETE' => await _apiClient.delete(uri, headers: headers, body: strData),
-      'PATCH' => await _apiClient.patch(uri, headers: headers, body: strData),
-      _ => await _apiClient.get(uri, headers: headers),
-    };
-    final body = utf8.decode(rp.bodyBytes);
-    print('${rp.statusCode} - $path');
-    print('-- request --');
-    print(strData);
-    print('-- response --');
-    print('$body \n');
-    dynamic decoded;
-    try {
-      decoded = body.isEmpty ? null : decodeApiJson(body);
-    } catch (_) {
-      decoded = null;
-    }
-    if (rp.statusCode == 404) {
-      final (code, msg) = _extractError(decoded, body, 404);
-      if (fail != null) {
-        fail(jsonEncode({'code': code, 'message': msg}));
+      final uri = apiUri(path);
+      final rp = switch (method) {
+        'POST' => await _apiClient.post(uri, headers: headers, body: strData),
+        'PUT' => await _apiClient.put(uri, headers: headers, body: strData),
+        'DELETE' =>
+          await _apiClient.delete(uri, headers: headers, body: strData),
+        'PATCH' =>
+          await _apiClient.patch(uri, headers: headers, body: strData),
+        _ => await _apiClient.get(uri, headers: headers),
+      };
+      final body = utf8.decode(rp.bodyBytes);
+      print('${rp.statusCode} - $path');
+      print('-- request --');
+      print(strData);
+      print('-- response --');
+      print('$body \n');
+      dynamic decoded;
+      try {
+        decoded = body.isEmpty ? null : decodeApiJson(body);
+      } catch (_) {
+        decoded = null;
       }
-    } else if (rp.statusCode >= 200 && rp.statusCode < 300) {
-      final data = apiResponseData(decoded);
-      if (ok != null) ok(data);
-    } else {
-      final (code, msg) = _extractError(decoded, body, rp.statusCode);
-      if (fail != null) {
-        fail(jsonEncode({'code': code, 'message': msg}));
+
+      // 认证失败且还有 refreshToken 时，换发新令牌并恰好重试一次。
+      final canRetry = attempt == 1 &&
+          path != _refreshPath &&
+          (tokens?.refreshToken.trim().isNotEmpty ?? false) &&
+          _isAuthFailure(rp.statusCode, decoded);
+      if (canRetry && await refreshSessionTokens()) {
+        continue;
       }
+
+      if (rp.statusCode == 404) {
+        final (code, msg) = _extractError(decoded, body, 404);
+        if (fail != null) {
+          fail(jsonEncode({'code': code, 'message': msg}));
+        }
+      } else if (rp.statusCode >= 200 && rp.statusCode < 300) {
+        final data = apiResponseData(decoded);
+        if (ok != null) ok(data);
+      } else {
+        final (code, msg) = _extractError(decoded, body, rp.statusCode);
+        if (fail != null) {
+          fail(jsonEncode({'code': code, 'message': msg}));
+        }
+      }
+      break;
     }
   } catch (e) {
     if (fail != null) fail(e.toString());

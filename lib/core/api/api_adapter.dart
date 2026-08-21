@@ -6,6 +6,7 @@ import '../../sdk/vars/kv.dart';
 import '../../sdk/vars/vars.dart';
 import '../../sdk/api/api.dart' as sdk_api;
 import 'api_exceptions.dart';
+import 'error_codes.dart';
 import 'json_int64.dart';
 
 typedef AuthErrorCallback = Future<void> Function();
@@ -68,6 +69,7 @@ Future<T> apiCallWithTimeout<T>(
 /// Multipart POST 上传，用于文件上传场景。
 ///
 /// [contentType] 为该 part 的 MIME，如 `image/jpeg`；服务端常对此做白名单校验。
+/// 认证失败时尝试换发令牌并恰好重试一次，与传输层行为一致。
 Future<T> apiPostMultipart<T>({
   required String path,
   required String fieldName,
@@ -77,62 +79,61 @@ Future<T> apiPostMultipart<T>({
   String contentType = 'application/octet-stream',
   Duration timeout = const Duration(seconds: 60),
 }) async {
-  final tokens = await getTokens();
   try {
-    final req = http.MultipartRequest('POST', apiUri(path));
-    if (tokens != null) {
-      final token = tokens.accessToken.trim();
-      if (token.isNotEmpty) {
-        req.headers['Authorization'] = token.toLowerCase().startsWith('bearer ')
-            ? token
-            : 'Bearer $token';
+    for (var attempt = 1;; attempt++) {
+      final tokens = await getTokens();
+      final req = http.MultipartRequest('POST', apiUri(path));
+      if (tokens != null) {
+        final token = tokens.accessToken.trim();
+        if (token.isNotEmpty) {
+          req.headers['Authorization'] =
+              token.toLowerCase().startsWith('bearer ') ? token : 'Bearer $token';
+        }
       }
-    }
-    req.files.add(http.MultipartFile.fromBytes(
-      fieldName,
-      bytes,
-      filename: filename,
-      contentType: MediaType.parse(contentType),
-    ));
+      req.files.add(http.MultipartFile.fromBytes(
+        fieldName,
+        bytes,
+        filename: filename,
+        contentType: MediaType.parse(contentType),
+      ));
 
-    final streamed = await sdk_api.apiClient.send(req).timeout(timeout);
-    final rp = await http.Response.fromStream(streamed);
-    final respBody = utf8.decode(rp.bodyBytes);
+      final streamed = await sdk_api.apiClient.send(req).timeout(timeout);
+      final rp = await http.Response.fromStream(streamed);
+      final respBody = utf8.decode(rp.bodyBytes);
 
-    dynamic decoded;
-    try {
-      decoded = respBody.isEmpty ? null : decodeApiJson(respBody);
-    } catch (_) {
-      decoded = null;
-    }
-
-    if (rp.statusCode == 404) {
-      int? code;
-      if (decoded is Map<String, dynamic>) {
-        code = decoded['code'] as int?;
+      dynamic decoded;
+      try {
+        decoded = respBody.isEmpty ? null : decodeApiJson(respBody);
+      } catch (_) {
+        decoded = null;
       }
-      final ex = ApiException('404 not found', code: code);
-      if (ex.isAuthError) onAuthError?.call();
-      throw ex;
-    }
 
-    if (rp.statusCode < 200 || rp.statusCode >= 300) {
-      int? code;
-      String msg = 'http ${rp.statusCode}';
-      if (decoded is Map<String, dynamic>) {
-        code = decoded['code'] as int?;
-        final errMsg = decoded['message'] ??
-            decoded['msg'] ??
-            decoded['desc'] ??
-            decoded['error'];
-        if (errMsg != null) msg = errMsg.toString();
+      if (rp.statusCode < 200 || rp.statusCode >= 300) {
+        int? code;
+        String msg = 'http ${rp.statusCode}';
+        if (decoded is Map<String, dynamic>) {
+          code = decoded['code'] as int?;
+          final errMsg = decoded['message'] ??
+              decoded['msg'] ??
+              decoded['desc'] ??
+              decoded['error'];
+          if (errMsg != null) msg = errMsg.toString();
+        }
+
+        final canRetry = attempt == 1 &&
+            (tokens?.refreshToken.trim().isNotEmpty ?? false) &&
+            ErrorCodes.isAuthError(code);
+        if (canRetry && await sdk_api.refreshSessionTokens()) {
+          continue;
+        }
+
+        final ex = ApiException(msg, code: code);
+        if (ex.isAuthError) onAuthError?.call();
+        throw ex;
       }
-      final ex = ApiException(msg, code: code);
-      if (ex.isAuthError) onAuthError?.call();
-      throw ex;
+      final data = sdk_api.apiResponseData(decoded);
+      return decodeData(data);
     }
-    final data = sdk_api.apiResponseData(decoded);
-    return decodeData(data);
   } on ApiException {
     rethrow;
   } catch (e) {

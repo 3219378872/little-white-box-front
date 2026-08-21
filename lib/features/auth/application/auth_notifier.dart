@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../sdk/data/tokens.dart';
 import '../../../sdk/vars/kv.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/auth/jwt_decoder.dart';
+import '../../../core/auth/session_tokens.dart';
 
 class AuthState {
   final bool isAuthenticated;
@@ -69,15 +69,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _changeNotifier.notify();
   }
 
-  Future<void> onLoginSuccess(Object userId, String token) async {
-    final tokens = Tokens(
+  Future<void> onLoginSuccess(
+    Object userId,
+    String token, {
+    String refreshToken = '',
+  }) async {
+    await setTokens(buildStoredTokens(
       accessToken: token,
-      accessExpire: 0,
-      refreshToken: '',
-      refreshExpire: 0,
-      refreshAfter: 0,
-    );
-    await setTokens(tokens);
+      refreshToken: refreshToken,
+    ));
     state = AuthState(
       isAuthenticated: true,
       userId: userId,
@@ -87,7 +87,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _changeNotifier.notify();
   }
 
-  Future<void> logout() async {
+  Future<void> logout() => _resetSession();
+
+  /// 刷新令牌被网关拒绝后的会话清理，由传输层 onSessionInvalid 触发。
+  Future<void> onSessionExpired() => _resetSession();
+
+  Future<void> _resetSession() async {
     await removeTokens();
     state = const AuthState(isLoading: false);
     _changeNotifier.notify();

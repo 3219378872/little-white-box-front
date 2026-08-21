@@ -291,7 +291,7 @@ class _CountingUserPostsRepository extends _TestUserPostsRepository {
 
   @override
   Future<GetPostListResp> fetchUserPosts({
-    required num userId,
+    required Object userId,
     required int page,
     required int pageSize,
     int sortBy = 1,

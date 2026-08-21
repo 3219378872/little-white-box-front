@@ -15,6 +15,7 @@ import '../../features/post/presentation/post_editor_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
 import '../../features/profile/presentation/edit_profile_page.dart';
 import '../../features/search/presentation/search_page.dart';
+import '../../sdk/api/api.dart' as sdk_api;
 import '../widgets/content_constraint.dart';
 import 'app_route_observer.dart';
 
@@ -47,6 +48,11 @@ bool _isPublicRoute(String location) {
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
+  // 刷新令牌被网关拒绝后，传输层清空本地会话；这里同步内存认证态，
+  // 让 refreshListenable 驱动 GoRouter 把受保护页面重定向到登录页。
+  sdk_api.onSessionInvalid = () {
+    ref.read(authNotifierProvider.notifier).onSessionExpired();
+  };
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/feed',
