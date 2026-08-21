@@ -41,11 +41,12 @@ evidence:
   - EVD-favorites-reload-2026-08-20
   - EVD-client-ui-align-2026-08-20
   - EVD-search-post-author-2026-08-20
+  - EVD-auth-refresh-2026-08-21
   - EVD-client-relative-api-2026-08-18
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
-updated_at: 2026-08-20
-observed_commit: 5126b4d18e0a3a3c42fbceca9fb3430d927fc9c2
+updated_at: 2026-08-21
+observed_commit: cae6e7391126a16105dd07aee52a18f35c91358b
 ---
 
 # Flutter 客户端实现映射
@@ -53,12 +54,12 @@ observed_commit: 5126b4d18e0a3a3c42fbceca9fb3430d927fc9c2
 ## 结论
 
 当前实现已用 `goctl api dart` 同步后端 `gateway.api`（观察提交
-`380a734f90f374fb884ac68edc4edd037e959670`），帖子写入走 `/api/v2/post*`，PUT/DELETE
+d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，PUT/DELETE
 由同步脚本修补，搜索降级、Assistant 帖子来源、行为事件所有权和输入边界已跟进。桌面 Feed
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是本轮 task 提交 `5126b4d18e0a3a3c42fbceca9fb3430d927fc9c2`。
+本页观察基准是本轮 task 提交 `cae6e7391126a16105dd07aee52a18f35c91358b`。
 
 ## 代码入口
 
@@ -68,8 +69,8 @@ observed_commit: 5126b4d18e0a3a3c42fbceca9fb3430d927fc9c2
 | Mock 入口 | `lib/main_mock.dart` 注入 `MockHttpClient`，种子用户 1 默认登录 |
 | 应用壳 | `lib/app.dart`：`MaterialApp.router`、全局 Forui 主题/本地化/toast/tooltip、行为队列初始化 |
 | 路由/导航 | `lib/core/router/app_router.dart`：GoRouter guard、公开与保护路由、底栏/侧栏切换、内容限宽 |
-| 认证 | `lib/features/auth/` 与 `lib/core/auth/jwt_decoder.dart`：登录、注册、token/userId 恢复、登出 |
-| 共享接口 | `lib/core/api/api_adapter.dart`、`v2_api_client.dart`、`json_int64.dart`、`api_exceptions.dart`、`error_codes.dart` |
+| 认证 | `lib/features/auth/` 与 `lib/core/auth/`（`jwt_decoder.dart`、`session_tokens.dart`）：登录、注册、双令牌落盘、token/userId 恢复、被动刷新、登出与会话失效清理 |
+| 共享接口 | `lib/core/api/api_adapter.dart`、`v2_api_client.dart`、`json_int64.dart`、`api_exceptions.dart`、`error_codes.dart`；刷新入口在 `lib/sdk/api/api.dart` 的 `refreshSessionTokens` |
 | v1 SDK | `vendor/sdk_source/` 为生成来源，`lib/sdk/` 为应用副本 |
 | Mock transport | `lib/mock/mock_http.dart`、`mock_router.dart`、`mock_data.dart`；契约测试 `test/mock/` |
 
@@ -111,6 +112,11 @@ observed_commit: 5126b4d18e0a3a3c42fbceca9fb3430d927fc9c2
   `UserPostsNotifier` 用 generation 丢弃被刷新打断的首屏响应。
 - 登录/注册成功后 `go('/feed')`。关注流、资料等入口 `push` 登录页时 URL 仍是公开路径，仅靠
   `refreshListenable` 不会卸掉登录页。
+- 双令牌会话：登录/注册保存网关返回的 `refreshToken`，有效期取各自 JWT `exp`；共享 transport 遇
+  认证错误（401 或 `1004/1005/1006`）时用 refreshToken 换发并恰好重试一次（single-flight 合并并发），
+  换发被拒则清空令牌并经 `onSessionInvalid` 同步 `AuthNotifier`，由路由守卫跳登录页。multipart 与
+  Assistant SSE 复用同一刷新入口。Mock router 返回 30 分钟/7 天令牌对并提供 `POST /auth/refresh`
+  一次性轮换（唯一 `jti`），重放旧 refreshToken 返回 `401/1005`。
 
 ## 偏离登记
 
@@ -127,7 +133,7 @@ observed_commit: 5126b4d18e0a3a3c42fbceca9fb3430d927fc9c2
 
 | 范围 | 状态 | 说明 |
 | --- | --- | --- |
-| 访问、认证、推荐/关注基本流 | aligned | 路由、游标、归因上下文和陈旧响应抑制已有实现与测试 |
+| 访问、认证、推荐/关注基本流 | aligned | 路由、游标、归因上下文和陈旧响应抑制已有实现与测试；双令牌被动刷新对齐后端 `d713fd3` 契约（真实网关联调待做） |
 | 搜索 | aligned | 已建模并展示部分降级；搜索帖子带作者身份并在结果中展示 |
 | 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐 |
 | 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |

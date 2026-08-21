@@ -33,7 +33,7 @@ tracks:
   - FQ-006
   - FQ-007
   - FQ-008
-updated_at: 2026-08-20
+updated_at: 2026-08-21
 ---
 
 # Flutter 内容社区客户端设计
@@ -105,6 +105,22 @@ flowchart LR
 JSON 字符串，编码时再还原成 JSON number，让 Go 的 `int64` 仍能解析。路由、query 和路径只使用十进制
 字符串，不把实体 ID 再变成 Dart `int`。`tools/sync_gateway_sdk.py` 把生成模型里的实体 ID 放宽为
 `Object`，以便同时接受小整数和字符串。
+
+### 会话与令牌刷新
+
+网关自 2026-08 起签发 30 分钟 access token 与 7 天 refresh token，登录/注册响应携带
+`refreshToken`，`POST /api/v1/auth/refresh` 以一次性轮换换取新令牌对。客户端采用被动刷新：
+
+- 共享 transport 在请求收到认证错误（HTTP 401 或业务码 `1004/1005/1006`）时，若本地存有
+  refreshToken，则调用刷新接口并恰好重试原请求一次；带非认证业务码的 401（如密码错误 `1003`）
+  不触发刷新。
+- 刷新调用 single-flight 合并并发请求；服务端拒绝（非 2xx 或响应缺令牌）视为会话不可恢复，
+  清空持久化令牌并触发 `onSessionInvalid`，宿主用它同步 `AuthNotifier` 内存态，
+  由既有 `refreshListenable` 把受保护页面重定向到登录页。网络异常不清理会话。
+- multipart 上传与 Assistant SSE 直连各自手动附加 Bearer，复用同一刷新入口并遵循
+  "重试恰好一次"。
+- 令牌对由 `buildStoredTokens` 统一落盘：有效期取各自 JWT 的 `exp`（不验签），仅作元数据；
+  刷新决策只依赖 refreshToken 是否存在。Mock router 以唯一 `jti` 模拟一次性轮换并拒绝重放。
 
 ### v1 社区核心
 
