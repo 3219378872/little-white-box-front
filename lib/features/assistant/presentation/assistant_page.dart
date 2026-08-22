@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/error_view.dart';
@@ -227,12 +228,19 @@ class _AssistantMessageBubble extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (bodyText.isNotEmpty)
-                    Text(
-                      bodyText,
-                      style: theme.typography.body.md.copyWith(
-                        color: foreground,
-                      ),
-                    ),
+                    own
+                        ? Text(
+                            bodyText,
+                            style: theme.typography.body.md.copyWith(
+                              color: foreground,
+                            ),
+                          )
+                        : GptMarkdown(
+                            bodyText,
+                            style: theme.typography.body.md.copyWith(
+                              color: foreground,
+                            ),
+                          ),
                   if (message.isStreaming) ...[
                     if (bodyText.isNotEmpty) const SizedBox(height: 8),
                     const FCircularProgress(size: .sm),

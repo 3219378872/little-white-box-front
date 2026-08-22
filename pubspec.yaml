@@ -20,6 +20,7 @@ dependencies:
   http: ^1.6.0
   http_parser: ^4.1.2
   forui: ^0.24.2
+  gpt_markdown: ^1.1.8
 
 dependency_overrides:
   shared_preferences_android: 2.4.10
