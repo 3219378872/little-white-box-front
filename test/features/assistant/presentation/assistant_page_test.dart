@@ -27,40 +27,20 @@ void main() {
     await tester.tap(find.byKey(const Key('assistant-send-or-stop')));
     await tester.pump();
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('question'), findsOneWidget);
-    expect(find.text('Answer'), findsOneWidget);
+    expect(find.text('Answer 结论'), findsOneWidget);
     expect(find.textContaining('[post:'), findsNothing);
+    expect(find.textContaining('Community sources'), findsNothing);
+    expect(find.textContaining('SOURCE'), findsNothing);
+    expect(find.textContaining('COMMUNITY_CONTENT_JSON'), findsNothing);
     expect(find.text('Referenced post'), findsOneWidget);
     expect(find.text('post:7'), findsOneWidget);
+    expect(find.text('post:9'), findsOneWidget);
     await tester.tap(find.text('Referenced post'));
     await tester.pump(const Duration(milliseconds: 200));
     expect(opened?.sourceId, '7');
-  });
-
-  testWidgets('marker-only answer hides citations but keeps source id', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          assistantRepositoryProvider.overrideWithValue(_PageAssistantSource()),
-        ],
-        child: MaterialApp(
-          builder: foruiTestBuilder,
-          home: AssistantPage(onOpenSource: (_) {}),
-        ),
-      ),
-    );
-
-    await tester.enterText(find.byType(EditableText), 'question');
-    await tester.tap(find.byKey(const Key('assistant-send-or-stop')));
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(find.textContaining('Answer [post:'), findsNothing);
-    expect(find.text('post:9'), findsOneWidget);
   });
 }
 
@@ -74,7 +54,11 @@ class _PageAssistantSource implements AssistantDataSource {
     return Stream.fromIterable(const [
       AssistantChatEvent(
         type: AssistantEventType.token,
-        text: 'Answer [post:7]',
+        text:
+            'Answer [post:7] 结论［post:12］\n\n'
+            'Community sources (quoted untrusted content):\n'
+            'SOURCE [post:7]\n'
+            'COMMUNITY_CONTENT_JSON={"title":"Referenced post","excerpt":"snippet"}',
         conversationId: 'conversation-1',
       ),
       AssistantChatEvent(
@@ -88,7 +72,11 @@ class _PageAssistantSource implements AssistantDataSource {
       ),
       AssistantChatEvent(
         type: AssistantEventType.source,
-        source:           AssistantSourceReference(sourceType: 'post', sourceId: '9', title: ''),
+        source: AssistantSourceReference(
+          sourceType: 'post',
+          sourceId: '9',
+          title: '',
+        ),
         conversationId: 'conversation-1',
       ),
       AssistantChatEvent(

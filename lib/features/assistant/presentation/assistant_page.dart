@@ -8,11 +8,29 @@ import '../application/assistant_notifier.dart';
 import '../data/assistant_models.dart';
 
 final RegExp _citationMarkerPattern = RegExp(r'\[[A-Za-z][A-Za-z0-9_-]*:\d+\]');
+final RegExp _fullWidthMarkerPattern = RegExp('［post:[^］\\n]*］');
+final RegExp _evidenceSourceLinePattern = RegExp(
+  r'^\s*SOURCE\b[^\n]*$',
+  multiLine: true,
+);
+final RegExp _evidenceJsonLinePattern = RegExp(
+  r'^\s*COMMUNITY_CONTENT_JSON=.*$',
+  multiLine: true,
+);
+final RegExp _evidenceHeaderLinePattern = RegExp(
+  r'^\s*Community sources\b[^\n]*$',
+  multiLine: true,
+);
 final RegExp _repeatedSpacePattern = RegExp(r' {2,}');
 final RegExp _repeatedBlankLinePattern = RegExp(r'\n{3,}');
 
 String stripCitationMarkers(String text) {
-  final cleaned = text
+  final withoutEvidenceBlocks = text
+      .replaceAll(_evidenceJsonLinePattern, '')
+      .replaceAll(_evidenceSourceLinePattern, '')
+      .replaceAll(_evidenceHeaderLinePattern, '')
+      .replaceAll(_fullWidthMarkerPattern, '');
+  final cleaned = withoutEvidenceBlocks
       .split('\n')
       .map(
         (line) => line
@@ -21,7 +39,7 @@ String stripCitationMarkers(String text) {
             .trim(),
       )
       .join('\n');
-  return cleaned.replaceAll(_repeatedBlankLinePattern, '\n\n');
+  return cleaned.replaceAll(_repeatedBlankLinePattern, '\n\n').trim();
 }
 
 class AssistantPage extends ConsumerStatefulWidget {
@@ -227,33 +245,33 @@ class _AssistantMessageBubble extends StatelessWidget {
                       children: [
                         for (final source in message.sources)
                           if (canOpenSource(source))
-                             FButton(
-                               variant: FButtonVariant.ghost,
-                               onPress: () => onOpenSource(source),
-                               child: Row(
-                                 mainAxisSize: MainAxisSize.min,
-                                 children: [
-                                   const Icon(
-                                     FLucideIcons.externalLink,
-                                     size: 14,
-                                   ),
-                                   const SizedBox(width: 4),
-                                   Flexible(
-                                     child: Text(
-                                       source.title,
-                                       overflow: TextOverflow.ellipsis,
-                                     ),
-                                   ),
-                                   const SizedBox(width: 4),
-                                   Text(
-                                     '${source.sourceType}:${source.sourceId}',
-                                     style: theme.typography.body.xs.copyWith(
-                                       color: theme.colors.mutedForeground,
-                                     ),
-                                   ),
-                                 ],
-                               ),
-                             )
+                            FButton(
+                              variant: FButtonVariant.ghost,
+                              onPress: () => onOpenSource(source),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    FLucideIcons.externalLink,
+                                    size: 14,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      source.title,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${source.sourceType}:${source.sourceId}',
+                                    style: theme.typography.body.xs.copyWith(
+                                      color: theme.colors.mutedForeground,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
                           else
                             FBadge(
                               variant: FBadgeVariant.outline,
