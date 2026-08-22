@@ -5,6 +5,8 @@
 
 当前页面：
 
+- [EVD-assistant-source-display-2026-08-22](EVD-assistant-source-display-2026-08-22.md)
+- [EVD-auth-refresh-2026-08-21](EVD-auth-refresh-2026-08-21.md)
 - [EVD-mock-gateway-align-2026-08-20](EVD-mock-gateway-align-2026-08-20.md)
 - [EVD-client-login-home-redirect-2026-08-20](EVD-client-login-home-redirect-2026-08-20.md)
 - [EVD-feed-pagination-ux-2026-08-20](EVD-feed-pagination-ux-2026-08-20.md)
