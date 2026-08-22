@@ -247,14 +247,6 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                           onPress: () => context.push('/profile/edit'),
                           child: const Text('编辑资料'),
                         ),
-                        const SizedBox(height: 12),
-                        FButton(
-                          variant: .ghost,
-                          mainAxisSize: MainAxisSize.min,
-                          prefix: const Icon(FLucideIcons.sparkles),
-                          onPress: () => context.go('/assistant'),
-                          child: const Text('Assistant'),
-                        ),
                         if (_personalizationEnabled != null) ...[
                           const SizedBox(height: 16),
                           FSwitch(
