@@ -37,6 +37,7 @@ evidence:
   - EVD-assistant-md-render-2026-08-22
   - EVD-assistant-evidence-strip-2026-08-22
   - EVD-assistant-source-display-2026-08-22
+  - EVD-comment-replies-2026-08-22
   - EVD-web-json-int64-2026-08-20
   - EVD-mock-gateway-align-2026-08-20
   - EVD-client-login-home-redirect-2026-08-20
@@ -150,7 +151,7 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 | --- | --- | --- |
 | 访问、认证、推荐/关注基本流 | aligned | 路由、游标、归因上下文和陈旧响应抑制已有实现与测试；双令牌被动刷新对齐后端 `d713fd3` 契约（真实网关联调待做） |
 | 搜索 | aligned | 已建模并展示部分降级；搜索帖子带作者身份并在结果中展示 |
-| 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐 |
+| 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐；评论楼中楼按需展开加载（内嵌预览 + replies 分页接口）见 [EVD-comment-replies-2026-08-22](../evidence/EVD-comment-replies-2026-08-22.md)，接口语义缺口登记于后端仓 PROP-20260822-comment-reply-thread（open） |
 | 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |
 | Assistant | diverged | 仅帖子来源可点，仍缺 excerpt 与来源变化 |
 | 行为反馈 | aligned | 客户端不再上报 like/unlike |
