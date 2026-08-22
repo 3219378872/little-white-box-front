@@ -40,6 +40,7 @@ class PostDetailPage extends ConsumerStatefulWidget {
 class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   List<CommentItem> _comments = [];
   bool _isLoadingComments = false;
+  bool _commentsError = false;
   int _commentPage = 1;
   bool _hasMoreComments = true;
   int _commentSortBy = 1;
@@ -100,10 +101,25 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
         }
         _hasMoreComments = resp.list.length >= 20;
         _isLoadingComments = false;
+        _commentsError = false;
       });
     } catch (e) {
-      setState(() => _isLoadingComments = false);
+      // 失败不得伪装成空评论区（FX-001）；给出可重试的错误态。
+      setState(() {
+        _isLoadingComments = false;
+        _commentsError = true;
+      });
     }
+  }
+
+  void _retryComments() {
+    setState(() {
+      _commentsError = false;
+      _commentPage = 1;
+      _hasMoreComments = true;
+      _comments = [];
+    });
+    _loadComments();
   }
 
   Future<void> _toggleLike(GetPostResp post) async {
@@ -390,27 +406,39 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                     // 评论列表
                     if (topLevel.isEmpty && !_isLoadingComments)
                       SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Center(
-                            child: Text(
-                              '还没有评论',
-                              style: theme.typography.body.sm.copyWith(
-                                color: theme.colors.mutedForeground,
+                        child: _commentsError
+                            ? ErrorView(
+                                message: '评论加载失败',
+                                onRetry: _retryComments,
+                              )
+                            : const Padding(
+                                padding: EdgeInsets.all(32),
+                                child: Center(child: Text('还没有评论')),
                               ),
-                            ),
-                          ),
-                        ),
                       ),
                     SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
                           if (index >= topLevel.length) {
-                            // tail 位置：优先显示加载中，否则显示"没有更多了"
+                            // tail 位置：优先显示加载中，其次加载失败重试，最后"没有更多了"
                             if (_isLoadingComments) {
                               return const Padding(
                                 padding: EdgeInsets.all(16),
                                 child: Center(child: FCircularProgress()),
+                              );
+                            }
+                            if (_commentsError) {
+                              return Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Center(
+                                  child: FButton(
+                                    variant: .ghost,
+                                    size: .sm,
+                                    mainAxisSize: MainAxisSize.min,
+                                    onPress: _retryComments,
+                                    child: const Text('评论加载失败，重试'),
+                                  ),
+                                ),
                               );
                             }
                             if (!_hasMoreComments && topLevel.isNotEmpty) {
@@ -447,6 +475,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                         childCount:
                             topLevel.length +
                             ((_isLoadingComments ||
+                                    _commentsError ||
                                     (!_hasMoreComments && topLevel.isNotEmpty))
                                 ? 1
                                 : 0),
@@ -469,6 +498,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       _commentSortBy = value;
       _commentPage = 1;
       _hasMoreComments = true;
+      _commentsError = false;
       _comments = [];
     });
     _loadComments();

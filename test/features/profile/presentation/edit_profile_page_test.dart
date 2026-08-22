@@ -181,4 +181,88 @@ void main() {
     await tester.pump(const Duration(seconds: 6));
     await tester.pumpAndSettle();
   });
+
+  testWidgets('cold-start deep link waits for auth and still prefills',
+      (tester) async {
+    // 回归：不经过宿主页预热 auth，直接以编辑页为初始路由进入。
+    await setTokens(buildStoredTokens(
+      accessToken: _jwtWithUser(7),
+      refreshToken: 'r',
+    ));
+    final client = ScriptedGatewayClient.always({
+      'id': 7,
+      'username': 'admin',
+      'nickname': '管理员昵称',
+      'avatarUrl': '',
+      'bio': '一句话简介',
+    });
+    setApiClient(client);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp.router(
+          routerConfig: GoRouter(
+            initialLocation: '/me/edit',
+            routes: [
+              GoRoute(
+                path: '/me/edit',
+                builder: (_, _) => const EditProfilePage(),
+              ),
+            ],
+          ),
+          builder: foruiTestBuilder,
+        ),
+      ),
+    );
+    // 等待身份恢复 → 自动触发资料加载 → 预填表单。
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
+
+    final fields = tester.widgetList<EditableText>(
+      find.byType(EditableText),
+    );
+    expect(fields, isNotEmpty);
+    expect(fields.first.controller.text, '管理员昵称');
+    expect(client.requests.single.url.path, '/api/v1/user/7');
+  });
+
+  testWidgets('shows a retryable error view when the profile fetch fails',
+      (tester) async {
+    await setTokens(buildStoredTokens(
+      accessToken: _jwtWithUser(7),
+      refreshToken: 'r',
+    ));
+    var profileOk = false;
+    final client = ScriptedGatewayClient((request) async {
+      if (request.url.path == '/api/v1/user/7') {
+        return profileOk
+            ? jsonResponse(okEnvelope({
+                'id': 7,
+                'username': 'admin',
+                'nickname': '恢复昵称',
+                'avatarUrl': '',
+                'bio': '',
+              }))
+            : jsonResponse({'code': 500, 'message': '服务器错误'}, 500);
+      }
+      fail('unexpected request: ${request.method} ${request.url.path}');
+    });
+    setApiClient(client);
+
+    await _pumpEditor(tester);
+    // 加载失败：呈现错误态而不是永久进度圈。
+    await tester.pumpAndSettle();
+    expect(find.text('加载失败: 服务器错误'), findsOneWidget);
+    expect(find.text('重试'), findsOneWidget);
+
+    profileOk = true;
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+
+    final fields = tester.widgetList<EditableText>(
+      find.byType(EditableText),
+    );
+    expect(fields.first.controller.text, '恢复昵称');
+  });
 }

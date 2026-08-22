@@ -46,6 +46,7 @@ Map<String, dynamic> _commentJson(int id, String content) => {
 class _Harness {
   late final ScriptedGatewayClient client;
   bool postDetailOk = true;
+  bool commentsOk = true;
 
   _Harness() {
     client = ScriptedGatewayClient(route);
@@ -59,6 +60,9 @@ class _Harness {
           : jsonResponse({'code': 500, 'message': '服务器开小差'}, 500);
     }
     if (path == '/api/v1/comments/9') {
+      if (!commentsOk) {
+        return jsonResponse({'code': 500, 'message': '评论服务不可用'}, 500);
+      }
       final hottest = request.url.queryParameters['sortBy'] == '2';
       return jsonResponse(okEnvelope({
         'list': [_commentJson(hottest ? 66 : 55, hottest ? '最热内容' : '沙发')],
@@ -218,5 +222,32 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('登录页占位'), findsOneWidget);
+  });
+
+  testWidgets('failed comment loads show a retryable error, not an empty list',
+      (tester) async {
+    // 回归 FX-001：评论读取失败不得伪装成"还没有评论"。
+    final harness = _Harness()..commentsOk = false;
+    setApiClient(harness.client);
+    // 放大视口让评论区完全可见：排除滚动触发分页对重试按钮的干扰。
+    tester.view.physicalSize = const Size(800, 2200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await _pumpPage(tester, const PostDetailPage(postId: '9'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
+
+    expect(find.text('联调正文'), findsOneWidget); // 帖子本体正常
+    expect(find.text('还没有评论'), findsNothing);
+    expect(find.text('评论加载失败'), findsOneWidget);
+
+    harness.commentsOk = true;
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('沙发'), findsOneWidget);
+    expect(find.text('评论加载失败'), findsNothing);
   });
 }
