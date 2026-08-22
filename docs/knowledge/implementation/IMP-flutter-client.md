@@ -33,6 +33,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-assistant-evidence-strip-2026-08-22
   - EVD-assistant-source-display-2026-08-22
   - EVD-web-json-int64-2026-08-20
   - EVD-mock-gateway-align-2026-08-20
@@ -47,7 +48,7 @@ evidence:
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
 updated_at: 2026-08-22
-observed_commit: c359c573027fd865cf64a968f47364d168f3ce70
+observed_commit: fead883fa0db37fdcf7ee5c1833b7f53800b5bed
 ---
 
 # Flutter 客户端实现映射
@@ -60,7 +61,7 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是本轮 task 提交 `c359c573027fd865cf64a968f47364d168f3ce70`。
+本页观察基准是本轮 task 提交 `fead883fa0db37fdcf7ee5c1833b7f53800b5bed`。
 
 ## 代码入口
 

@@ -5,6 +5,7 @@
 
 当前页面：
 
+- [EVD-assistant-evidence-strip-2026-08-22](EVD-assistant-evidence-strip-2026-08-22.md)
 - [EVD-assistant-source-display-2026-08-22](EVD-assistant-source-display-2026-08-22.md)
 - [EVD-auth-refresh-2026-08-21](EVD-auth-refresh-2026-08-21.md)
 - [EVD-mock-gateway-align-2026-08-20](EVD-mock-gateway-align-2026-08-20.md)
