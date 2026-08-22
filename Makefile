@@ -10,13 +10,14 @@ SERVER_HOST ?=
 PID_FILE ?= .dart_tool/web-server-$(PORT).pid
 LOG_FILE ?= .dart_tool/web-server-$(PORT).log
 
-.PHONY: help setup analyze test knowledge-check dev dev-real build-web serve start stop restart status
+.PHONY: help setup analyze test test-coverage knowledge-check dev dev-real build-web serve start stop restart status
 
 help:
 	@printf '%s\n' \
 		'make setup       Resolve Flutter dependencies' \
 		'make analyze     Run Flutter static analysis' \
 		'make test        Run the test suite' \
+		'make test-coverage  Run the test suite with coverage summary' \
 		'make knowledge-check  Validate five-layer project knowledge' \
 		'make dev         Start Mock Web in foreground with hot reload' \
 		'make dev-real    Start Web with relative /api paths (optional SERVER_HOST)' \
@@ -34,6 +35,10 @@ analyze:
 
 test:
 	$(FLUTTER) test
+
+test-coverage:
+	$(FLUTTER) test --coverage
+	$(PYTHON) tools/lcov_summary.py coverage/lcov.info
 
 knowledge-check:
 	$(PYTHON) tools/knowledge_base.py check
