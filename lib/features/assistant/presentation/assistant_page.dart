@@ -7,6 +7,23 @@ import '../../../core/widgets/error_view.dart';
 import '../application/assistant_notifier.dart';
 import '../data/assistant_models.dart';
 
+final RegExp _citationMarkerPattern = RegExp(r'\[[A-Za-z][A-Za-z0-9_-]*:\d+\]');
+final RegExp _repeatedSpacePattern = RegExp(r' {2,}');
+final RegExp _repeatedBlankLinePattern = RegExp(r'\n{3,}');
+
+String stripCitationMarkers(String text) {
+  final cleaned = text
+      .split('\n')
+      .map(
+        (line) => line
+            .replaceAll(_citationMarkerPattern, '')
+            .replaceAll(_repeatedSpacePattern, ' ')
+            .trim(),
+      )
+      .join('\n');
+  return cleaned.replaceAll(_repeatedBlankLinePattern, '\n\n');
+}
+
 class AssistantPage extends ConsumerStatefulWidget {
   final ValueChanged<AssistantSourceReference>? onOpenSource;
 
@@ -169,6 +186,7 @@ class _AssistantMessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final own = message.role == AssistantMessageRole.user;
+    final bodyText = own ? message.text : stripCitationMarkers(message.text);
     final foreground = own
         ? theme.colors.primaryForeground
         : theme.colors.foreground;
@@ -190,15 +208,15 @@ class _AssistantMessageBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (message.text.isNotEmpty)
+                  if (bodyText.isNotEmpty)
                     Text(
-                      message.text,
+                      bodyText,
                       style: theme.typography.body.md.copyWith(
                         color: foreground,
                       ),
                     ),
                   if (message.isStreaming) ...[
-                    if (message.text.isNotEmpty) const SizedBox(height: 8),
+                    if (bodyText.isNotEmpty) const SizedBox(height: 8),
                     const FCircularProgress(size: .sm),
                   ],
                   if (message.sources.isNotEmpty) ...[
@@ -209,28 +227,33 @@ class _AssistantMessageBubble extends StatelessWidget {
                       children: [
                         for (final source in message.sources)
                           if (canOpenSource(source))
-                            FButton(
-                              variant: FButtonVariant.ghost,
-                              onPress: () => onOpenSource(source),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    FLucideIcons.externalLink,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Flexible(
-                                    child: Text(
-                                      source.title.isEmpty
-                                          ? '${source.sourceType}:${source.sourceId}'
-                                          : source.title,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
+                             FButton(
+                               variant: FButtonVariant.ghost,
+                               onPress: () => onOpenSource(source),
+                               child: Row(
+                                 mainAxisSize: MainAxisSize.min,
+                                 children: [
+                                   const Icon(
+                                     FLucideIcons.externalLink,
+                                     size: 14,
+                                   ),
+                                   const SizedBox(width: 4),
+                                   Flexible(
+                                     child: Text(
+                                       source.title,
+                                       overflow: TextOverflow.ellipsis,
+                                     ),
+                                   ),
+                                   const SizedBox(width: 4),
+                                   Text(
+                                     '${source.sourceType}:${source.sourceId}',
+                                     style: theme.typography.body.xs.copyWith(
+                                       color: theme.colors.mutedForeground,
+                                     ),
+                                   ),
+                                 ],
+                               ),
+                             )
                           else
                             FBadge(
                               variant: FBadgeVariant.outline,

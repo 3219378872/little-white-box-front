@@ -28,11 +28,39 @@ void main() {
     await tester.pump();
     await tester.pump();
 
+    expect(find.text('question'), findsOneWidget);
     expect(find.text('Answer'), findsOneWidget);
+    expect(find.textContaining('[post:'), findsNothing);
     expect(find.text('Referenced post'), findsOneWidget);
+    expect(find.text('post:7'), findsOneWidget);
     await tester.tap(find.text('Referenced post'));
     await tester.pump(const Duration(milliseconds: 200));
     expect(opened?.sourceId, '7');
+  });
+
+  testWidgets('marker-only answer hides citations but keeps source id', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          assistantRepositoryProvider.overrideWithValue(_PageAssistantSource()),
+        ],
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: AssistantPage(onOpenSource: (_) {}),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(EditableText), 'question');
+    await tester.tap(find.byKey(const Key('assistant-send-or-stop')));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.textContaining('Answer [post:'), findsNothing);
+    expect(find.text('post:9'), findsOneWidget);
   });
 }
 
@@ -46,7 +74,7 @@ class _PageAssistantSource implements AssistantDataSource {
     return Stream.fromIterable(const [
       AssistantChatEvent(
         type: AssistantEventType.token,
-        text: 'Answer',
+        text: 'Answer [post:7]',
         conversationId: 'conversation-1',
       ),
       AssistantChatEvent(
@@ -56,6 +84,11 @@ class _PageAssistantSource implements AssistantDataSource {
           sourceId: '7',
           title: 'Referenced post',
         ),
+        conversationId: 'conversation-1',
+      ),
+      AssistantChatEvent(
+        type: AssistantEventType.source,
+        source:           AssistantSourceReference(sourceType: 'post', sourceId: '9', title: ''),
         conversationId: 'conversation-1',
       ),
       AssistantChatEvent(
