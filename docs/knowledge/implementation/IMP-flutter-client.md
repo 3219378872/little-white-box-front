@@ -33,6 +33,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-client-found-bugs-fix-2026-08-22
   - EVD-assistant-md-render-2026-08-22
   - EVD-assistant-evidence-strip-2026-08-22
   - EVD-assistant-source-display-2026-08-22
@@ -49,7 +50,7 @@ evidence:
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
 updated_at: 2026-08-22
-observed_commit: fead883fa0db37fdcf7ee5c1833b7f53800b5bed
+observed_commit: b8ffc8aee4e707e133a0ad2ca990abf1d6e39710
 ---
 
 # Flutter 客户端实现映射
@@ -127,6 +128,10 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
   换发被拒则清空令牌并经 `onSessionInvalid` 同步 `AuthNotifier`，由路由守卫跳登录页。multipart 与
   Assistant SSE 复用同一刷新入口。Mock router 返回 30 分钟/7 天令牌对并提供 `POST /auth/refresh`
   一次性轮换（唯一 `jti`），重放旧 refreshToken 返回 `401/1005`。
+- 编辑资料页 build watch 身份状态：冷启动深链进入时等待身份恢复后自动触发资料加载；资料读取失败
+  渲染可重试 ErrorView，不再永久停在进度圈或只弹 toast。
+- 帖子详情页评论读取失败（首屏或分页）进入可重试错误态：空列表渲染「评论加载失败」ErrorView，
+  已有条目在列表尾部提供重试按钮，均不再伪装成「还没有评论」；重试与排序切换会复位分页游标。
 
 ## 偏离登记
 
