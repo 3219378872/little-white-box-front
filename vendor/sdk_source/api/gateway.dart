@@ -83,6 +83,26 @@ Future recordBehaviorEvents(
   );
 }
 
+/// --/api/v1/comments/:commentId/replies--
+///
+/// request: GetCommentRepliesReq
+/// response: GetCommentRepliesResp
+Future getCommentReplies(
+  Object commentId, {
+  Function(GetCommentRepliesResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v1/comments/${commentId}/replies",
+    ok: (data) {
+      if (ok != null) ok(GetCommentRepliesResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 /// --/api/v1/comments/:postId--
 ///
 /// request: GetCommentListReq

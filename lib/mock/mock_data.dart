@@ -244,6 +244,19 @@ final Map<int, List<Map<String, dynamic>>> seedComments = {
         'likeCount': i % 10,
         'createdAt': _now - 1000 - i * 10,
       },
+    // ─── 楼中楼种子：评论 1 共 5 条回复，验证内嵌预览(3条)+加载更多 ───
+    for (int i = 0; i < 4; i++)
+      {
+        'id': 60 + i,
+        'userId': (i % 3) + 1,
+        'userName': ['小白鸽', '萌萌哒小兔', '科技宅小明'][i % 3],
+        'userAvatar': '',
+        'parentId': 1,
+        'replyUserId': 3,
+        'content': '楼中楼回复 #${i + 2} —— 展开后可继续加载更多',
+        'likeCount': i,
+        'createdAt': _now - 1700 - i * 10,
+      },
   ],
   2: [
     {

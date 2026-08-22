@@ -22,6 +22,22 @@ class CommentRepository {
     );
   }
 
+  /// 楼中楼全量分页（时间正序）；同样绕过 SDK 拼 query 参数
+  Future<GetCommentRepliesResp> fetchReplies({
+    required Object commentId,
+    required int page,
+    required int pageSize,
+  }) {
+    return apiCall<GetCommentRepliesResp>(
+      (ok, fail, eventually) => apiGet(
+        '/api/v1/comments/${jsonInt64Id(commentId)}/replies?page=$page&pageSize=$pageSize',
+        ok: (data) => ok(GetCommentRepliesResp.fromJson(data)),
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+  }
+
   Future<CreateCommentResp> createNewComment(CreateCommentReq req) {
     return apiCall<CreateCommentResp>(
       (ok, fail, eventually) => gw.createComment(

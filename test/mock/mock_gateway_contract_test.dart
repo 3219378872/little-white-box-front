@@ -62,6 +62,57 @@ void main() {
     );
     expect(expired.statusCode, 200);
     expect(expired.headers['x-auth-state'], 'expired');
+
+    // 楼中楼回复列表同为 OptionalAuth：匿名可读，带鉴权态标记
+    final replies = mock_router.dispatchResponse(
+      'GET',
+      '/api/v1/comments/1/replies?page=1&pageSize=20',
+      '',
+    );
+    expect(replies.statusCode, 200);
+    expect(replies.headers['x-auth-state'], 'anonymous');
+    expect(bodyOf(replies)['list'], isA<List>());
+    expect(bodyOf(replies), containsPair('total', isA<num>()));
+  });
+
+  test('comment list embeds reply preview and replies endpoint paginates asc',
+      () {
+    final list = bodyOf(
+      mock_router.dispatchResponse('GET', '/api/v1/comments/1?page=1&pageSize=50', ''),
+    );
+    final threads = (list['list'] as List).cast<Map<String, dynamic>>();
+    final threadWithReplies = threads.firstWhere(
+      (c) => (c['replyCount'] as num).toInt() > 0,
+    );
+    expect(threadWithReplies['replies'], isA<List>());
+    final preview = (threadWithReplies['replies'] as List).length;
+    expect(preview, lessThanOrEqualTo(3));
+
+    final replies = bodyOf(
+      mock_router.dispatchResponse(
+        'GET',
+        '/api/v1/comments/${threadWithReplies['id']}/replies?page=1&pageSize=20',
+        '',
+      ),
+    );
+    expect((replies['total'] as num).toInt(), threadWithReplies['replyCount']);
+    final rows = (replies['list'] as List).cast<Map<String, dynamic>>();
+    for (final row in rows) {
+      expect((row['parentId'] as num).toInt(), threadWithReplies['id']);
+      expect((row['replies'] as List).isEmpty, isTrue);
+    }
+    final created = rows.map((r) => r['createdAt'] as num).toList();
+    expect(created, equals([...created]..sort()));
+
+    // 回复楼中楼不存在：父评论必须是顶级评论
+    if (rows.isNotEmpty) {
+      final nested = mock_router.dispatchResponse(
+        'GET',
+        '/api/v1/comments/${rows.first['id']}/replies?page=1&pageSize=20',
+        '',
+      );
+      expect(nested.statusCode, 404);
+    }
   });
 
   test('jwt-required routes return 401 login required without Bearer', () {

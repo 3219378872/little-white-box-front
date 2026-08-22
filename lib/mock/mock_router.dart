@@ -363,6 +363,15 @@ MockRouterResponse _routeV1(
       _jsonResponse(_commentList(_pathId(segments[3]), query)),
     );
   }
+  if (segments.length == 5 &&
+      segments[2] == 'comments' &&
+      segments[4] == 'replies') {
+    _requireMethod(method, 'GET');
+    return _withAuthState(
+      auth,
+      _jsonResponse(_commentReplies(_pathId(segments[3]), query)),
+    );
+  }
   if (segments.length == 4 && segments[2] == 'comment') {
     _requireMethod(method, 'DELETE');
     _requireAuth(auth);
@@ -721,6 +730,8 @@ Map<String, dynamic> _commentList(int postId, Map<String, String> query) {
   );
   final sortBy = _queryInt(query, 'sortBy', defaultValue: 1);
   final all = [...(_comments[postId] ?? const <Map<String, dynamic>>[])]
+      .where((c) => (c['parentId'] as num).toInt() == 0)
+      .toList()
     ..sort((a, b) {
       if (sortBy == 2) {
         return (b['likeCount'] as num).compareTo(a['likeCount'] as num);
@@ -732,7 +743,56 @@ Map<String, dynamic> _commentList(int postId, Map<String, String> query) {
       ? const <Map<String, dynamic>>[]
       : all.sublist(start, (start + pageSize).clamp(0, all.length));
   return {
-    'list': slice,
+    // 契约与后端一致：只返回顶级评论，内嵌前 3 条回复预览 + replyCount
+    'list': slice.map(_withReplyPreview).toList(),
+    'total': all.length,
+    'page': page,
+    'pageSize': pageSize,
+  };
+}
+
+List<Map<String, dynamic>> _repliesOf(int parentId) {
+  for (final entry in _comments.entries) {
+    final replies = entry.value
+        .where((c) => (c['parentId'] as num).toInt() == parentId)
+        .toList()
+      ..sort((a, b) => (a['createdAt'] as num).compareTo(b['createdAt'] as num));
+    if (replies.isNotEmpty) return replies;
+  }
+  return const <Map<String, dynamic>>[];
+}
+
+Map<String, dynamic> _withReplyPreview(Map<String, dynamic> comment) {
+  final replies = _repliesOf((comment['id'] as num).toInt());
+  return {
+    ...comment,
+    'replyCount': replies.length,
+    'replies': replies.take(3).map(_stripNested).toList(),
+  };
+}
+
+Map<String, dynamic> _stripNested(Map<String, dynamic> reply) => {
+      ...reply,
+      'replyCount': 0,
+      'replies': const <Map<String, dynamic>>[],
+    };
+
+Map<String, dynamic> _commentReplies(int commentId, Map<String, String> query) {
+  final page = _clampPage(_queryInt(query, 'page', defaultValue: 1));
+  final pageSize = _clampPageSize(
+    _queryInt(query, 'pageSize', defaultValue: 20),
+  );
+  final parent = _findComment(commentId);
+  if ((parent['parentId'] as num).toInt() != 0) {
+    throw const _MockBiz(404, 4, '资源不存在');
+  }
+  final all = _repliesOf(commentId);
+  final start = (page - 1) * pageSize;
+  final slice = start >= all.length
+      ? const <Map<String, dynamic>>[]
+      : all.sublist(start, (start + pageSize).clamp(0, all.length));
+  return {
+    'list': slice.map(_stripNested).toList(),
     'total': all.length,
     'page': page,
     'pageSize': pageSize,
@@ -774,7 +834,12 @@ MockRouterResponse _deleteComment(int userId, int commentId) {
     if ((entry.value[idx]['userId'] as num).toInt() != userId) {
       throw const _MockBiz(403, 1007, '权限不足');
     }
-    entry.value.removeAt(idx);
+    // 与后端契约一致：删除顶级评论时级联软删其全部楼中楼回复
+    entry.value.removeWhere(
+      (comment) =>
+          (comment['id'] as num).toInt() == commentId ||
+          (comment['parentId'] as num).toInt() == commentId,
+    );
     return _jsonResponse(const {});
   }
   throw const _MockBiz(404, 4, '资源不存在');
@@ -1430,6 +1495,15 @@ int _postIndex(int postId) {
   final idx = _posts.indexWhere((post) => (post['id'] as num).toInt() == postId);
   if (idx < 0) throw const _MockBiz(404, 2001, '内容不存在');
   return idx;
+}
+
+Map<String, dynamic> _findComment(int commentId) {
+  for (final entry in _comments.entries) {
+    for (final comment in entry.value) {
+      if ((comment['id'] as num).toInt() == commentId) return comment;
+    }
+  }
+  throw const _MockBiz(404, 4, '资源不存在');
 }
 
 Map<String, dynamic> _conversation(int conversationId) {

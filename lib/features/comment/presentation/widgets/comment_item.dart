@@ -5,15 +5,33 @@ import '../../../../sdk/data/gateway.dart';
 
 class CommentItemWidget extends StatelessWidget {
   final CommentItem comment;
+
+  /// 展开后展示的回复列表（首屏来自内嵌预览，加载更多后为全量分页结果）
   final List<CommentItem> replies;
+
+  /// 楼中楼回复总数（决定是否显示"共 N 条回复"入口）
+  final num replyCount;
+  final bool expanded;
+  final bool loadingReplies;
+  final bool hasMoreReplies;
+  final VoidCallback? onToggleReplies;
+  final VoidCallback? onLoadMoreReplies;
   final VoidCallback? onReply;
+  final ValueChanged<CommentItem>? onReplyToReply;
   final VoidCallback? onLike;
 
   const CommentItemWidget({
     super.key,
     required this.comment,
     this.replies = const [],
+    this.replyCount = 0,
+    this.expanded = false,
+    this.loadingReplies = false,
+    this.hasMoreReplies = false,
+    this.onToggleReplies,
+    this.onLoadMoreReplies,
     this.onReply,
+    this.onReplyToReply,
     this.onLike,
   });
 
@@ -26,8 +44,32 @@ class CommentItemWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildComment(context, comment, isReply: false),
-          // 子评论
-          if (replies.isNotEmpty)
+          if (replyCount > 0 || replies.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 48),
+              child: FTappable(
+                onPress: onToggleReplies,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      expanded ? FLucideIcons.chevronUp : FLucideIcons.chevronDown,
+                      size: 14,
+                      color: colors.mutedForeground,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      expanded ? '收起回复' : '共 $replyCount 条回复',
+                      style: context.theme.typography.body.xs.copyWith(
+                        color: colors.mutedForeground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (expanded && replies.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 48, top: 4),
               child: Container(
@@ -37,10 +79,31 @@ class CommentItemWidget extends StatelessWidget {
                 ),
                 padding: const EdgeInsets.all(8),
                 child: Column(
-                  children: replies
-                      .take(3)
-                      .map((r) => _buildComment(context, r, isReply: true))
-                      .toList(),
+                  children: [
+                    ...replies.map(
+                      (r) => _buildComment(
+                        context,
+                        r,
+                        isReply: true,
+                        onReply: () => onReplyToReply?.call(r),
+                      ),
+                    ),
+                    if (loadingReplies)
+                      const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: FCircularProgress(size: .xs),
+                      )
+                    else if (hasMoreReplies)
+                      FTappable(
+                        onPress: onLoadMoreReplies,
+                        child: Text(
+                          '加载更多回复',
+                          style: context.theme.typography.body.xs.copyWith(
+                            color: context.theme.colors.primary,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -54,6 +117,7 @@ class CommentItemWidget extends StatelessWidget {
     BuildContext context,
     CommentItem item, {
     required bool isReply,
+    VoidCallback? onReply,
   }) {
     final theme = context.theme;
     final muted = theme.colors.mutedForeground;
@@ -93,7 +157,7 @@ class CommentItemWidget extends StatelessWidget {
                 Row(
                   children: [
                     FTappable(
-                      onPress: onLike,
+                      onPress: isReply ? null : onLike,
                       child: Row(
                         children: [
                           Icon(FLucideIcons.thumbsUp, size: 14, color: muted),
@@ -109,7 +173,7 @@ class CommentItemWidget extends StatelessWidget {
                     ),
                     const SizedBox(width: 16),
                     FTappable(
-                      onPress: onReply,
+                      onPress: onReply ?? (isReply ? null : this.onReply),
                       child: Row(
                         children: [
                           Icon(FLucideIcons.reply, size: 14, color: muted),

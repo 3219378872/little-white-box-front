@@ -56,6 +56,46 @@ void main() {
     expect(page.list.single.content, '沙发');
   });
 
+  test('fetchReplies keeps the hand-built v1 replies query contract', () async {
+    final client = ScriptedGatewayClient.always({
+      'list': [
+        {
+          'id': '555000111222334',
+          'userId': 8,
+          'userName': '回复人',
+          'userAvatar': '',
+          'parentId': '555000111222333',
+          'replyUserId': 7,
+          'content': '板凳',
+          'likeCount': 0,
+          'createdAt': 1700000100,
+          'replyCount': 0,
+          'replies': <dynamic>[],
+        },
+      ],
+      'total': 12,
+      'page': 2,
+      'pageSize': 10,
+    });
+    setApiClient(client);
+    final repository = CommentRepository();
+
+    final page = await repository.fetchReplies(
+      commentId: '555000111222333',
+      page: 2,
+      pageSize: 10,
+    );
+
+    final request = client.requests.single;
+    expect(request.method, 'GET');
+    expect(request.url.path, '/api/v1/comments/555000111222333/replies');
+    expect(request.url.queryParameters, {'page': '2', 'pageSize': '10'});
+    expect(page.total, 12);
+    expect(page.list.single.parentId, '555000111222333');
+    expect(page.list.single.content, '板凳');
+    expect(page.list.single.replies, isEmpty);
+  });
+
   test('createNewComment posts the idempotent create contract', () async {
     final client = ScriptedGatewayClient.always({'commentId': 55});
     setApiClient(client);

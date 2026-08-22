@@ -1,4 +1,4 @@
-// --/home/dev/projects/little/little-white-box-content-community/app/gateway/gateway--
+// --/home/dev/projects/little/little-white-box-content-community/.worktree/task-comment-replies/app/gateway/gateway--
 
 class AssistantChatEvent {
   final String type;
@@ -232,6 +232,12 @@ class CommentItem {
   final num likeCount;
 
   final num createdAt;
+
+  // 楼中楼回复总数，仅顶级评论有值
+  final num replyCount;
+
+  // 内嵌回复预览（前 N 条），仅顶级评论有值
+  final List<CommentItem> replies;
   CommentItem({
     required this.id,
     required this.userId,
@@ -242,6 +248,8 @@ class CommentItem {
     required this.content,
     required this.likeCount,
     required this.createdAt,
+    required this.replyCount,
+    required this.replies,
   });
   factory CommentItem.fromJson(Map<String, dynamic> m) {
     return CommentItem(
@@ -254,6 +262,10 @@ class CommentItem {
       content: m['content'] ?? "",
       likeCount: m['likeCount'] ?? 0,
       createdAt: m['createdAt'] ?? 0,
+      replyCount: m['replyCount'] ?? 0,
+      replies: ((m['replies'] ?? []) as List<dynamic>)
+          .map((i) => CommentItem.fromJson(i))
+          .toList(),
     );
   }
   Map<String, dynamic> toJson() {
@@ -267,6 +279,8 @@ class CommentItem {
       'content': content,
       'likeCount': likeCount,
       'createdAt': createdAt,
+      'replyCount': replyCount,
+      'replies': replies.map((i) => i.toJson()),
     };
   }
 }
@@ -665,6 +679,63 @@ class GetCommentListResp {
   });
   factory GetCommentListResp.fromJson(Map<String, dynamic> m) {
     return GetCommentListResp(
+      list: ((m['list'] ?? []) as List<dynamic>)
+          .map((i) => CommentItem.fromJson(i))
+          .toList(),
+      total: m['total'] ?? 0,
+      page: m['page'] ?? 0,
+      pageSize: m['pageSize'] ?? 0,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'list': list.map((i) => i.toJson()),
+      'total': total,
+      'page': page,
+      'pageSize': pageSize,
+    };
+  }
+}
+
+class GetCommentRepliesReq {
+  final Object commentId;
+
+  final num page;
+
+  final num pageSize;
+  GetCommentRepliesReq({
+    required this.commentId,
+    required this.page,
+    required this.pageSize,
+  });
+  factory GetCommentRepliesReq.fromJson(Map<String, dynamic> m) {
+    return GetCommentRepliesReq(
+      commentId: m['commentId'] ?? 0,
+      page: m['page'] ?? 0,
+      pageSize: m['pageSize'] ?? 0,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'commentId': commentId, 'page': page, 'pageSize': pageSize};
+  }
+}
+
+class GetCommentRepliesResp {
+  final List<CommentItem> list;
+
+  final num total;
+
+  final num page;
+
+  final num pageSize;
+  GetCommentRepliesResp({
+    required this.list,
+    required this.total,
+    required this.page,
+    required this.pageSize,
+  });
+  factory GetCommentRepliesResp.fromJson(Map<String, dynamic> m) {
+    return GetCommentRepliesResp(
       list: ((m['list'] ?? []) as List<dynamic>)
           .map((i) => CommentItem.fromJson(i))
           .toList(),

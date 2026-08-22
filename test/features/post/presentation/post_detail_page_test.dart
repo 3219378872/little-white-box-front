@@ -31,7 +31,9 @@ Map<String, dynamic> _postJson() => {
       'createdAt': 1700000000,
     };
 
-Map<String, dynamic> _commentJson(int id, String content) => {
+Map<String, dynamic> _commentJson(int id, String content,
+    {int replyCount = 0, List<Map<String, dynamic>> replies = const []}) =>
+    {
       'id': id,
       'userId': 3,
       'userName': '评论乙',
@@ -41,12 +43,30 @@ Map<String, dynamic> _commentJson(int id, String content) => {
       'content': content,
       'likeCount': 0,
       'createdAt': 1700000000,
+      'replyCount': replyCount,
+      'replies': replies,
+    };
+
+Map<String, dynamic> _replyJson(int id, String content) => {
+      'id': id,
+      'userId': 4,
+      'userName': '回复丙',
+      'userAvatar': '',
+      'parentId': 55,
+      'replyUserId': 3,
+      'content': content,
+      'likeCount': 0,
+      'createdAt': 1700000100,
+      'replyCount': 0,
+      'replies': <dynamic>[],
     };
 
 class _Harness {
   late final ScriptedGatewayClient client;
   bool postDetailOk = true;
   bool commentsOk = true;
+  int replyCount = 0;
+  List<Map<String, dynamic>> embeddedReplies = const [];
 
   _Harness() {
     client = ScriptedGatewayClient(route);
@@ -65,10 +85,32 @@ class _Harness {
       }
       final hottest = request.url.queryParameters['sortBy'] == '2';
       return jsonResponse(okEnvelope({
-        'list': [_commentJson(hottest ? 66 : 55, hottest ? '最热内容' : '沙发')],
+        'list': [
+          _commentJson(
+            hottest ? 66 : 55,
+            hottest ? '最热内容' : '沙发',
+            replyCount: replyCount,
+            replies: embeddedReplies,
+          ),
+        ],
         'total': 1,
         'page': 1,
         'pageSize': 20,
+      }));
+    }
+    if (path == '/api/v1/comments/55/replies' ||
+        path == '/api/v1/comments/66/replies') {
+      return jsonResponse(okEnvelope({
+        'list': [
+          _replyJson(101, '回复一'),
+          _replyJson(102, '回复二'),
+          _replyJson(103, '回复三'),
+          _replyJson(104, '回复四'),
+          _replyJson(105, '回复五'),
+        ],
+        'total': 5,
+        'page': 1,
+        'pageSize': 10,
       }));
     }
     if (path == '/api/v1/like' || path == '/api/v1/favorite') {
@@ -190,6 +232,41 @@ void main() {
     expect(commentCalls[1].url.queryParameters['sortBy'], '2');
     expect(find.text('沙发'), findsNothing);
     expect(find.text('最热内容'), findsOneWidget);
+  });
+
+  testWidgets('expands replies on demand and loads the full thread',
+      (tester) async {
+    final harness = _Harness()
+      ..replyCount = 5
+      ..embeddedReplies = [
+        _replyJson(101, '回复一'),
+        _replyJson(102, '回复二'),
+        _replyJson(103, '回复三'),
+      ];
+    setApiClient(harness.client);
+
+    await _pumpPage(tester, const PostDetailPage(postId: '9'));
+    await tester.pumpAndSettle();
+
+    // 未展开：只显示入口，不显示回复内容
+    expect(find.text('共 5 条回复'), findsOneWidget);
+    expect(find.text('回复一'), findsNothing);
+
+    await tester.tap(find.text('共 5 条回复'));
+    await tester.pumpAndSettle();
+
+    // 展开触发楼中楼接口，全量替换内嵌预览
+    final replyCall = harness.client.requests
+        .firstWhere((r) => r.url.path == '/api/v1/comments/55/replies');
+    expect(replyCall.url.queryParameters['page'], '1');
+    expect(find.text('回复一'), findsOneWidget);
+    expect(find.text('回复五'), findsOneWidget);
+    // 5 条全部可见且 total=5 ≤ pageSize → 无"加载更多"
+    expect(find.text('加载更多回复'), findsNothing);
+
+    await tester.tap(find.text('收起回复'));
+    await tester.pumpAndSettle();
+    expect(find.text('回复一'), findsNothing);
   });
 
   testWidgets('anonymous comment submission redirects to login',

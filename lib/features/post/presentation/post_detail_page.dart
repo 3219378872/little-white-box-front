@@ -46,6 +46,13 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   int _commentSortBy = 1;
   final ScrollController _scrollCtrl = ScrollController();
 
+  // 楼中楼展开状态：key 为顶级评论 id 字符串
+  static const _replyPageSize = 10;
+  final Set<String> _expandedReplies = {};
+  final Map<String, List<CommentItem>> _threadReplies = {};
+  final Map<String, int> _threadPage = {};
+  final Set<String> _loadingReplies = {};
+
   // 乐观更新状态
   bool? _optimisticIsLiked;
   bool? _optimisticIsFavorited;
@@ -122,6 +129,56 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     _loadComments();
   }
 
+  /// 展开/收起楼中楼。首次展开用内嵌预览即时渲染，同时拉取第一页全量数据。
+  Future<void> _toggleReplies(CommentItem comment) async {
+    final id = jsonInt64Id(comment.id);
+    if (!_expandedReplies.add(id)) {
+      setState(() => _expandedReplies.remove(id));
+      return;
+    }
+    setState(() {
+      _threadReplies.remove(id);
+      _threadPage.remove(id);
+      _loadingReplies.add(id);
+    });
+    await _fetchReplyThread(comment, page: 1, append: false);
+  }
+
+  Future<void> _loadMoreReplies(CommentItem comment) async {
+    final id = jsonInt64Id(comment.id);
+    if (_loadingReplies.contains(id)) return;
+    setState(() => _loadingReplies.add(id));
+    await _fetchReplyThread(comment, page: (_threadPage[id] ?? 1) + 1, append: true);
+  }
+
+  Future<void> _fetchReplyThread(
+    CommentItem comment, {
+    required int page,
+    required bool append,
+  }) async {
+    final id = jsonInt64Id(comment.id);
+    try {
+      final resp = await ref
+          .read(_commentRepoProvider)
+          .fetchReplies(commentId: comment.id, page: page, pageSize: _replyPageSize);
+      if (!mounted) return;
+      setState(() {
+        final existing = _threadReplies[id] ?? const <CommentItem>[];
+        final merged = append ? [...existing, ...resp.list] : resp.list;
+        // 去重（幂等保护：同页重复返回时以先到者为准）
+        final seen = <String>{};
+        _threadReplies[id] =
+            merged.where((r) => seen.add(jsonInt64Id(r.id))).toList();
+        _threadPage[id] = page;
+        _loadingReplies.remove(id);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingReplies.remove(id));
+      showAppError(context, '回复加载失败: ${friendlyErrorMessage(e)}');
+    }
+  }
+
   Future<void> _toggleLike(GetPostResp post) async {
     final currentlyLiked = _optimisticIsLiked ?? post.isLiked;
     setState(() {
@@ -193,6 +250,11 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
         _replyParentId = 0;
         _replyUserId = 0;
         _commentPage = 1;
+        // 回复成功后重置该父评论的楼中楼缓存，刷新后重新拉取
+        if (_expandedReplies.isNotEmpty) {
+          _threadReplies.clear();
+          _threadPage.clear();
+        }
       });
       _loadComments();
     } catch (e) {
@@ -224,16 +286,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
               MediaQuery.paddingOf(context).top +
               (context.platformVariant.touch ? 62.0 : 54.0);
 
-          // 按 parentId 分组评论
-          final topLevel = _comments
-              .where((c) => jsonInt64Id(c.parentId) == '0')
-              .toList();
-          final repliesMap = <String, List<CommentItem>>{};
-          for (final c in _comments.where(
-            (c) => jsonInt64Id(c.parentId) != '0',
-          )) {
-            repliesMap.putIfAbsent(jsonInt64Id(c.parentId), () => []).add(c);
-          }
+          // 后端契约：列表只含顶级评论，子评论经内嵌预览 + 楼中楼接口按需加载
+          final topLevel = _comments;
 
           return Column(
             children: [
@@ -460,14 +514,36 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                             return null;
                           }
                           final comment = topLevel[index];
+                          final id = jsonInt64Id(comment.id);
+                          final expanded = _expandedReplies.contains(id);
+                          final loading =
+                              _loadingReplies.contains(id);
+                          final replies = _threadReplies[id] ?? comment.replies;
                           return CommentItemWidget(
                             comment: comment,
-                            replies: repliesMap[jsonInt64Id(comment.id)] ?? [],
+                            replies: replies,
+                            replyCount: comment.replyCount,
+                            expanded: expanded,
+                            loadingReplies: loading,
+                            hasMoreReplies: expanded &&
+                                !loading &&
+                                replies.length <
+                                    comment.replyCount.toInt(),
+                            onToggleReplies: () => _toggleReplies(comment),
+                            onLoadMoreReplies: () => _loadMoreReplies(comment),
                             onReply: () {
                               setState(() {
                                 _replyToUser = comment.userName;
                                 _replyParentId = comment.id;
                                 _replyUserId = comment.userId;
+                              });
+                            },
+                            onReplyToReply: (target) {
+                              setState(() {
+                                // 楼中楼扁平化：仍挂在同一顶级评论下，@被回复用户
+                                _replyToUser = target.userName;
+                                _replyParentId = comment.id;
+                                _replyUserId = target.userId;
                               });
                             },
                           );
