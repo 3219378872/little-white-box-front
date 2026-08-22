@@ -33,6 +33,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-assistant-md-render-2026-08-22
   - EVD-assistant-evidence-strip-2026-08-22
   - EVD-assistant-source-display-2026-08-22
   - EVD-web-json-int64-2026-08-20
@@ -61,7 +62,7 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是本轮 task 提交 `fead883fa0db37fdcf7ee5c1833b7f53800b5bed`。
+本页观察基准是本轮 task 提交 `5b2babbabcacdf9c968fae9b17987da245c5d976`。
 
 ## 代码入口
 
@@ -104,6 +105,9 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
   `[type:id]` 与全角 `［post:id］` 标记，以及后端为 ASST-010 追加的 `Community sources` /
   `SOURCE` / `COMMUNITY_CONTENT_JSON` 证据行。可跳转来源按钮由结构化 source 事件渲染，同时显示
   标题与 `sourceType:sourceId`（无标题时仅后者），不受文本剥离影响。
+- Assistant 回答正文经剥离后用 `gpt_markdown 1.1.8` 渲染（标题、列表、加粗、代码块、表格等），
+  沿用 Forui 排版与前景色；用户消息保持纯 Text。Forui 无 Markdown 组件故新增该依赖；链接暂不
+  外跳（未接 `onLinkTap`）。
 - 帖子图片通过 multipart 并行上传，任一失败时阻止帖子写入；图片选择上限为 9。
 - 页面与数据层在真实/Mock 模式共用。Mock router 按当前 `gateway.api` 分发：成功体为类型 payload，
   错误为 `{code, message}` 加 `errx` HTTP 状态，JWT 路由要求 `Bearer`，可选鉴权写 `x-auth-state`，
