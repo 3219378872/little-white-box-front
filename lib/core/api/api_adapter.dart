@@ -12,10 +12,10 @@ import 'json_int64.dart';
 typedef AuthErrorCallback = Future<void> Function();
 AuthErrorCallback? onAuthError;
 
-/// 将 SDK 的 ok/fail/eventually 回调模式转换为 Future<T>
+/// 将 SDK 的 ok/fail/eventually 回调模式转换为 `Future<T>`
 ///
 /// 用法示例:
-///   final resp = await apiCall<LoginResp>(
+///   `final resp = await apiCall<LoginResp>(`
 ///     (ok, fail, eventually) => login(
 ///       LoginReq(...),
 ///       ok: ok, fail: fail, eventually: eventually,

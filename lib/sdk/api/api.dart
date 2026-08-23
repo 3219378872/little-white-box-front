@@ -243,11 +243,6 @@ Future _apiRequest(
         _ => await _apiClient.get(uri, headers: headers),
       };
       final body = utf8.decode(rp.bodyBytes);
-      print('${rp.statusCode} - $path');
-      print('-- request --');
-      print(strData);
-      print('-- response --');
-      print('$body \n');
       dynamic decoded;
       try {
         decoded = body.isEmpty ? null : decodeApiJson(body);

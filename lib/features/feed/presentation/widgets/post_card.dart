@@ -65,8 +65,11 @@ class _PostCardState extends ConsumerState<PostCard>
   @override
   void didUpdateWidget(covariant PostCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // id 为 Object（int64 防精度），比较前必须经 jsonInt64Id 归一。
+    final postIdChanged =
+        jsonInt64Id(oldWidget.post.id) != jsonInt64Id(post.id);
     final contextChanged =
-        oldWidget.post.id != post.id ||
+        postIdChanged ||
         oldWidget.recommendationContext?.requestId !=
             widget.recommendationContext?.requestId;
     if (contextChanged || oldWidget.trackingActive && !widget.trackingActive) {
@@ -85,7 +88,7 @@ class _PostCardState extends ConsumerState<PostCard>
     if (widget.recommendationContext != null && _visibilityPoller == null) {
       _startVisibilityTracking();
     }
-    if (oldWidget.post.id != post.id) {
+    if (postIdChanged) {
       _isLiked = post.isLiked;
       _isLikePending = false;
       _likeCount = post.likeCount.toInt();

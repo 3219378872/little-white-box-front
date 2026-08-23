@@ -130,7 +130,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
       ),
       child: Column(
         children: [
-          Expanded(child: _buildMessages(state, notifier, currentUserId!)),
+          Expanded(child: _buildMessages(state, notifier, currentUserId)),
           if (state.sendError != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),

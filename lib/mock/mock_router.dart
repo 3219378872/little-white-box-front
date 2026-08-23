@@ -946,7 +946,7 @@ Map<String, dynamic> _userPosts(int userId, Map<String, String> query, _Auth aut
   final filtered = _posts
       .where((post) {
         if ((post['authorId'] as num).toInt() != userId) return false;
-        return _statusOf(post) == 1 || auth.userId == userId;
+        return _statusOf(post) == 1 || jsonInt64Id(auth.userId) == jsonInt64Id(userId);
       })
       .toList()
     ..sort((a, b) {
@@ -965,7 +965,8 @@ Map<String, dynamic> _userFavorites(
 ) {
   final user = _users[userId];
   if (user == null) throw const _MockBiz(404, 1001, '用户不存在');
-  final isOwner = auth.isAuthenticated && auth.userId == userId;
+  final isOwner =
+      auth.isAuthenticated && jsonInt64Id(auth.userId) == jsonInt64Id(userId);
   if (!isOwner && user['favoritesVisible'] != true) {
     throw const _MockBiz(403, 3007, '收藏列表已设为私密');
   }

@@ -25,8 +25,7 @@ Future<Tokens?> getTokens() async {
       return null;
     }
     return Tokens.fromJson(jsonDecode(str));
-  } catch (e) {
-    print(e);
+  } catch (_) {
     return null;
   }
 }

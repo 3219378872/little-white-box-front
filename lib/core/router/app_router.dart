@@ -18,11 +18,10 @@ import '../../features/search/presentation/search_page.dart';
 import '../../sdk/api/api.dart' as sdk_api;
 import '../widgets/content_constraint.dart';
 import 'app_route_observer.dart';
+import 'public_routes.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
-
-const _publicRoutes = ['/feed', '/search', '/auth/login', '/auth/register'];
 
 enum _AppDestination { feed, search, create, messages, assistant, profile }
 
@@ -33,19 +32,6 @@ const _mobileDestinations = [
   _AppDestination.messages,
   _AppDestination.profile,
 ];
-
-bool _isPublicRoute(String location) {
-  if (_publicRoutes.contains(location)) {
-    return true;
-  }
-  if (location.startsWith('/post/') && !location.contains('/edit/')) {
-    return true;
-  }
-  if (location.startsWith('/user/')) {
-    return true;
-  }
-  return false;
-}
 
 final routerProvider = Provider<GoRouter>((ref) {
   // 刷新令牌被网关拒绝后，传输层清空本地会话；这里同步内存认证态，
@@ -66,7 +52,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final location = state.matchedLocation;
       final isAuthRoute = location.startsWith('/auth');
 
-      if (!isLoggedIn && !_isPublicRoute(location)) {
+      if (!isLoggedIn && !isPublicRoute(location)) {
         return '/auth/login';
       }
       if (isLoggedIn && isAuthRoute) {

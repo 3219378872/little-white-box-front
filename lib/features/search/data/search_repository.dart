@@ -89,8 +89,9 @@ class SearchRepository implements SearchDataSource {
 
   static List<String> _strings(Object? value) {
     if (value == null) return const [];
-    if (value is! List)
+    if (value is! List) {
       throw const FormatException('invalid unavailable types');
+    }
     return value.map((item) => item.toString()).toList(growable: false);
   }
 }

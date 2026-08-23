@@ -12,6 +12,10 @@ include: package:flutter_lints/flutter.yaml
 analyzer:
   exclude:
     - vendor/sdk_source/**
+    # 由 tools/sync_gateway_sdk.py 生成的契约文件（与 vendor/sdk_source 逐字节一致），
+    # 手工修 lint 会在下次同步时被覆盖，故整体排除分析。
+    - lib/sdk/api/gateway.dart
+    - lib/sdk/data/gateway.dart
 
 linter:
   # The lint rules applied to this project can be customized in the
