@@ -43,6 +43,13 @@ def main() -> int:
         default=15,
         help="how many worst-covered files to list (0 disables)",
     )
+    parser.add_argument(
+        "--min",
+        type=float,
+        default=0.0,
+        help="minimum total line coverage in percent; exit 1 below it "
+        "(0 disables the gate)",
+    )
     args = parser.parse_args()
 
     if not args.tracefile.is_file():
@@ -64,6 +71,13 @@ def main() -> int:
                 missed = r["found"] - r["hit"]
                 file_pct = 100.0 * r["hit"] / r["found"]
                 print(f"  {missed:5d} missed  {file_pct:5.1f}%  {r['source']}")
+
+    if args.min > 0 and pct < args.min:
+        print(
+            f"\ncoverage gate failed: {pct:.1f}% < required {args.min:.1f}%",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 

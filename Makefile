@@ -2,6 +2,7 @@ SHELL := /bin/sh
 
 FLUTTER ?= flutter
 PYTHON ?= python3
+COVERAGE_MIN ?= 70
 HOST ?= 0.0.0.0
 PORT ?= 3000
 TARGET ?= lib/main_mock.dart
@@ -17,7 +18,7 @@ help:
 		'make setup       Resolve Flutter dependencies' \
 		'make analyze     Run Flutter static analysis' \
 		'make test        Run the test suite' \
-		'make test-coverage  Run the test suite with coverage summary' \
+		'make test-coverage  Run tests with coverage; fails below COVERAGE_MIN (default 70)' \
 		'make knowledge-check  Validate five-layer project knowledge' \
 		'make dev         Start Mock Web in foreground with hot reload' \
 		'make dev-real    Start Web with relative /api paths (optional SERVER_HOST)' \
@@ -38,8 +39,7 @@ test:
 
 test-coverage:
 	$(FLUTTER) test --coverage
-	$(PYTHON) tools/lcov_summary.py coverage/lcov.info
-
+	$(PYTHON) tools/lcov_summary.py coverage/lcov.info --min $(COVERAGE_MIN)
 knowledge-check:
 	$(PYTHON) tools/knowledge_base.py check
 
