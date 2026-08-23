@@ -21,21 +21,23 @@ class UserPostsKey {
 abstract class UserPostsRepository {
   Future<GetPostListResp> fetchUserPosts({
     required Object userId,
-    required int page,
+    required String cursor,
     required int pageSize,
     int sortBy = 1,
   });
 
   Future<GetPostListResp> fetchUserFavorites({
     required Object userId,
-    required int page,
+    required String cursor,
     required int pageSize,
   });
 }
 
 class UserPostsState {
   final List<PostItem> items;
-  final int page;
+
+  /// 下一页游标；空串表示没有更多（与网关 nextCursor 语义一致）。
+  final String cursor;
   final bool hasMore;
   final bool isLoading;
   final bool isRefreshing;
@@ -43,7 +45,7 @@ class UserPostsState {
 
   const UserPostsState({
     this.items = const [],
-    this.page = 0,
+    this.cursor = '',
     this.hasMore = true,
     this.isLoading = false,
     this.isRefreshing = false,
@@ -52,7 +54,7 @@ class UserPostsState {
 
   UserPostsState copyWith({
     List<PostItem>? items,
-    int? page,
+    String? cursor,
     bool? hasMore,
     bool? isLoading,
     bool? isRefreshing,
@@ -61,7 +63,7 @@ class UserPostsState {
   }) {
     return UserPostsState(
       items: items ?? this.items,
-      page: page ?? this.page,
+      cursor: cursor ?? this.cursor,
       hasMore: hasMore ?? this.hasMore,
       isLoading: isLoading ?? this.isLoading,
       isRefreshing: isRefreshing ?? this.isRefreshing,
@@ -82,32 +84,35 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
     this.pageSize = 20,
   }) : super(const UserPostsState());
 
-  Future<GetPostListResp> _fetch(int page) {
+  Future<GetPostListResp> _fetch(String cursor) {
     if (key.type == UserPostsListType.posts) {
       return repo.fetchUserPosts(
         userId: key.userId,
-        page: page,
+        cursor: cursor,
         pageSize: pageSize,
       );
     } else {
       return repo.fetchUserFavorites(
         userId: key.userId,
-        page: page,
+        cursor: cursor,
         pageSize: pageSize,
       );
     }
   }
 
+  /// 服务端游标驱动：nextCursor 非空即还有下一页。
+  bool _hasMoreFrom(GetPostListResp resp) => resp.nextCursor.isNotEmpty;
+
   Future<void> loadFirstPage() async {
     final generation = ++_generation;
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final resp = await _fetch(1);
+      final resp = await _fetch('');
       if (generation != _generation) return;
       state = state.copyWith(
         items: resp.list,
-        page: 1,
-        hasMore: resp.list.length >= pageSize,
+        cursor: resp.nextCursor,
+        hasMore: _hasMoreFrom(resp),
         isLoading: false,
       );
     } catch (e) {
@@ -120,14 +125,13 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
     if (!state.hasMore || state.isLoading || state.isRefreshing) return;
     final generation = _generation;
     state = state.copyWith(isLoading: true);
-    final nextPage = state.page + 1;
     try {
-      final resp = await _fetch(nextPage);
+      final resp = await _fetch(state.cursor);
       if (generation != _generation) return;
       state = state.copyWith(
         items: [...state.items, ...resp.list],
-        page: nextPage,
-        hasMore: resp.list.length >= pageSize,
+        cursor: resp.nextCursor,
+        hasMore: _hasMoreFrom(resp),
         isLoading: false,
       );
     } catch (e) {
@@ -140,12 +144,12 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
     final generation = ++_generation;
     state = state.copyWith(isRefreshing: true);
     try {
-      final resp = await _fetch(1);
+      final resp = await _fetch('');
       if (generation != _generation) return;
       state = state.copyWith(
         items: resp.list,
-        page: 1,
-        hasMore: resp.list.length >= pageSize,
+        cursor: resp.nextCursor,
+        hasMore: _hasMoreFrom(resp),
         isRefreshing: false,
         isLoading: false,
         clearError: true,

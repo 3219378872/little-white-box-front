@@ -85,26 +85,24 @@ void main() {
   test('fetchUserPosts and favorites keep the hand-built query', () async {
     final client = ScriptedGatewayClient.always({
       'list': <Object>[],
-      'total': 0,
-      'page': 2,
-      'pageSize': 10,
+      'nextCursor': '',
     });
     setApiClient(client);
     final repository = UserRepository();
 
-    await repository.fetchUserPosts(userId: 7, page: 2, pageSize: 10);
-    await repository.fetchUserFavorites(userId: 7, page: 1, pageSize: 5);
+    await repository.fetchUserPosts(userId: 7, cursor: 'c2', pageSize: 10);
+    await repository.fetchUserFavorites(userId: 7, cursor: '', pageSize: 5);
 
     expect(client.requests[0].url.path, '/api/v1/users/7/posts');
     expect(client.requests[0].url.queryParameters, {
-      'page': '2',
       'pageSize': '10',
       'sortBy': '1',
+      'cursor': 'c2',
     });
     expect(client.requests[1].url.path, '/api/v1/users/7/favorites');
     expect(client.requests[1].url.queryParameters, {
-      'page': '1',
       'pageSize': '5',
+      'cursor': '',
     });
   });
 }

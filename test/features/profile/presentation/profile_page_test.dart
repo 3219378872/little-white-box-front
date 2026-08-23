@@ -292,14 +292,14 @@ class _CountingUserPostsRepository extends _TestUserPostsRepository {
   @override
   Future<GetPostListResp> fetchUserPosts({
     required Object userId,
-    required int page,
+    required String cursor,
     required int pageSize,
     int sortBy = 1,
   }) async {
     postCalls++;
     return super.fetchUserPosts(
       userId: userId,
-      page: page,
+      cursor: cursor,
       pageSize: pageSize,
       sortBy: sortBy,
     );
@@ -308,13 +308,13 @@ class _CountingUserPostsRepository extends _TestUserPostsRepository {
   @override
   Future<GetPostListResp> fetchUserFavorites({
     required Object userId,
-    required int page,
+    required String cursor,
     required int pageSize,
   }) async {
     favoriteCalls++;
     return super.fetchUserFavorites(
       userId: userId,
-      page: page,
+      cursor: cursor,
       pageSize: pageSize,
     );
   }
@@ -344,28 +344,24 @@ class _TestUserPostsRepository implements UserPostsRepository {
     ),
   );
 
-  GetPostListResp _response(String prefix, int page, int pageSize) {
-    final items = page == 1 ? _items(prefix) : <PostItem>[];
-    return GetPostListResp(
-      list: items,
-      total: items.length,
-      page: page,
-      pageSize: pageSize,
-    );
+  GetPostListResp _response(String prefix, String cursor) {
+    // 首页（空游标）返回内容，翻页游标返回空列表终止加载。
+    final items = cursor.isEmpty ? _items(prefix) : <PostItem>[];
+    return GetPostListResp(list: items, nextCursor: '');
   }
 
   @override
   Future<GetPostListResp> fetchUserPosts({
     required Object userId,
-    required int page,
+    required String cursor,
     required int pageSize,
     int sortBy = 1,
-  }) async => _response('帖子', page, pageSize);
+  }) async => _response('帖子', cursor);
 
   @override
   Future<GetPostListResp> fetchUserFavorites({
     required Object userId,
-    required int page,
+    required String cursor,
     required int pageSize,
-  }) async => _response('收藏', page, pageSize);
+  }) async => _response('收藏', cursor);
 }

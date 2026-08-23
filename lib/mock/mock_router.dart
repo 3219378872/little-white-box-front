@@ -603,7 +603,7 @@ MockRouterResponse _sendVerifyCode(Map<String, dynamic> body) {
 }
 
 Map<String, dynamic> _postList(Map<String, String> query, _Auth auth) {
-  final page = _clampPage(_queryInt(query, 'page', defaultValue: 1));
+  final cursor = query['cursor'] ?? '';
   final pageSize = _clampPageSize(
     _queryInt(query, 'pageSize', defaultValue: 20),
   );
@@ -615,7 +615,7 @@ Map<String, dynamic> _postList(Map<String, String> query, _Auth auth) {
     }
     return (b['createdAt'] as num).compareTo(a['createdAt'] as num);
   });
-  return _pagedPosts(sorted, page, pageSize, auth.userId);
+  return _pagedPosts(sorted, cursor, pageSize, auth.userId);
 }
 
 Map<String, dynamic> _getPost(int postId, _Auth auth) {
@@ -938,10 +938,6 @@ MockRouterResponse _follow(
 
 Map<String, dynamic> _userPosts(int userId, Map<String, String> query, _Auth auth) {
   if (!_users.containsKey(userId)) throw const _MockBiz(404, 1001, '用户不存在');
-  final page = _clampPage(_queryInt(query, 'page', defaultValue: 1));
-  final pageSize = _clampPageSize(
-    _queryInt(query, 'pageSize', defaultValue: 20),
-  );
   final sortBy = _queryInt(query, 'sortBy', defaultValue: 1);
   final filtered = _posts
       .where((post) {
@@ -955,8 +951,11 @@ Map<String, dynamic> _userPosts(int userId, Map<String, String> query, _Auth aut
       }
       return (b['createdAt'] as num).compareTo(a['createdAt'] as num);
     });
-  return _pagedPosts(filtered, page, pageSize, auth.userId);
+  return _pagedPosts(filtered, query['cursor'] ?? '', _userPostsPageSize(query), auth.userId);
 }
+
+int _userPostsPageSize(Map<String, String> query) =>
+    _clampPageSize(_queryInt(query, 'pageSize', defaultValue: 20));
 
 Map<String, dynamic> _userFavorites(
   int userId,
@@ -970,7 +969,6 @@ Map<String, dynamic> _userFavorites(
   if (!isOwner && user['favoritesVisible'] != true) {
     throw const _MockBiz(403, 3007, '收藏列表已设为私密');
   }
-  final page = _clampPage(_queryInt(query, 'page', defaultValue: 1));
   final pageSize = _clampPageSizeTo(
     _queryInt(query, 'pageSize', defaultValue: 20),
     20,
@@ -980,7 +978,7 @@ Map<String, dynamic> _userFavorites(
   final filtered = _publishedPosts()
       .where((post) => ids.contains((post['id'] as num).toInt()))
       .toList();
-  return _pagedPosts(filtered, page, pageSize, auth.userId);
+  return _pagedPosts(filtered, query['cursor'] ?? '', pageSize, auth.userId);
 }
 
 Map<String, dynamic> _uploadImage() {
@@ -1460,21 +1458,41 @@ List<Map<String, dynamic>> _matchingTags(String normalized, int limit) {
   return tags.take(limit).toList(growable: false);
 }
 
+/// 与网关契约对齐的游标分页：游标为 base64url(JSON{"p":页码})，首页传空。
+String _encodeCursorPage(int page) {
+  final raw = utf8.encode(jsonEncode({'p': page}));
+  return base64Url.encode(raw).replaceAll('=', '');
+}
+
+int _decodeCursorPage(String cursor) {
+  if (cursor.isEmpty) return 1;
+  try {
+    final raw = utf8.decode(base64Url.decode(base64Url.normalize(cursor)));
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map<String, dynamic>) return 0;
+    return (decoded['p'] as num?)?.toInt() ?? 0;
+  } catch (_) {
+    throw const _MockBiz(400, 2, '参数错误');
+  }
+}
+
 Map<String, dynamic> _pagedPosts(
   List<Map<String, dynamic>> posts,
-  int page,
+  String cursor,
   int pageSize,
   int viewerId,
 ) {
+  final page = _decodeCursorPage(cursor);
+  if (page < 1) throw const _MockBiz(400, 2, '参数错误');
   final start = (page - 1) * pageSize;
   final slice = start >= posts.length
       ? const <Map<String, dynamic>>[]
       : posts.sublist(start, (start + pageSize).clamp(0, posts.length));
+  // 满批且仍有余量时给下一页游标；空串表示没有更多。
+  final hasMore = slice.length == pageSize && start + slice.length < posts.length;
   return {
     'list': [for (final post in slice) _postItem(post, viewerId)],
-    'total': posts.length,
-    'page': page,
-    'pageSize': pageSize,
+    'nextCursor': hasMore ? _encodeCursorPage(page + 1) : '',
   };
 }
 

@@ -53,14 +53,14 @@ class UserRepository implements UserPostsRepository {
   @override
   Future<GetPostListResp> fetchUserPosts({
     required Object userId,
-    required int page,
+    required String cursor,
     required int pageSize,
     int sortBy = 1,
   }) {
     return apiCall<GetPostListResp>(
       (ok, fail, eventually) => apiGet(
         '/api/v1/users/${jsonInt64Id(userId)}/posts'
-        '?page=$page&pageSize=$pageSize&sortBy=$sortBy',
+        '?pageSize=$pageSize&sortBy=$sortBy&cursor=${Uri.encodeQueryComponent(cursor)}',
         ok: (data) => ok(GetPostListResp.fromJson(data)),
         fail: fail,
         eventually: eventually,
@@ -71,13 +71,13 @@ class UserRepository implements UserPostsRepository {
   @override
   Future<GetPostListResp> fetchUserFavorites({
     required Object userId,
-    required int page,
+    required String cursor,
     required int pageSize,
   }) {
     return apiCall<GetPostListResp>(
       (ok, fail, eventually) => apiGet(
         '/api/v1/users/${jsonInt64Id(userId)}/favorites'
-        '?page=$page&pageSize=$pageSize',
+        '?pageSize=$pageSize&cursor=${Uri.encodeQueryComponent(cursor)}',
         ok: (data) => ok(GetPostListResp.fromJson(data)),
         fail: fail,
         eventually: eventually,

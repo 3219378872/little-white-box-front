@@ -1,4 +1,4 @@
-// --/home/dev/projects/little/little-white-box-content-community/.worktree/task-comment-replies/app/gateway/gateway--
+// --/home/dev/projects/little/little-white-box-content-community/app/gateway/gateway--
 
 class AssistantChatEvent {
   final String type;
@@ -913,60 +913,46 @@ class GetPersonalizationPreferenceResp {
 }
 
 class GetPostListReq {
-  final num page;
-
   final num pageSize;
 
   // 1:最新 2:热门 3:推荐
   final num sortBy;
+
+  // 不透明游标；首页传空
+  final String cursor;
   GetPostListReq({
-    required this.page,
     required this.pageSize,
     required this.sortBy,
+    required this.cursor,
   });
   factory GetPostListReq.fromJson(Map<String, dynamic> m) {
     return GetPostListReq(
-      page: m['page'] ?? 0,
       pageSize: m['pageSize'] ?? 0,
       sortBy: m['sortBy'] ?? 0,
+      cursor: m['cursor'] ?? "",
     );
   }
   Map<String, dynamic> toJson() {
-    return {'page': page, 'pageSize': pageSize, 'sortBy': sortBy};
+    return {'pageSize': pageSize, 'sortBy': sortBy, 'cursor': cursor};
   }
 }
 
 class GetPostListResp {
   final List<PostItem> list;
 
-  final num total;
-
-  final num page;
-
-  final num pageSize;
-  GetPostListResp({
-    required this.list,
-    required this.total,
-    required this.page,
-    required this.pageSize,
-  });
+  // 为空表示没有更多
+  final String nextCursor;
+  GetPostListResp({required this.list, required this.nextCursor});
   factory GetPostListResp.fromJson(Map<String, dynamic> m) {
     return GetPostListResp(
       list: ((m['list'] ?? []) as List<dynamic>)
           .map((i) => PostItem.fromJson(i))
           .toList(),
-      total: m['total'] ?? 0,
-      page: m['page'] ?? 0,
-      pageSize: m['pageSize'] ?? 0,
+      nextCursor: m['nextCursor'] ?? "",
     );
   }
   Map<String, dynamic> toJson() {
-    return {
-      'list': list.map((i) => i.toJson()),
-      'total': total,
-      'page': page,
-      'pageSize': pageSize,
-    };
+    return {'list': list.map((i) => i.toJson()), 'nextCursor': nextCursor};
   }
 }
 
@@ -1187,43 +1173,21 @@ class GetUserFavoritesReq {
   final num page;
 
   final num pageSize;
+
+  // 统一游标形状；内部换算页码
+  final String cursor;
   GetUserFavoritesReq({
     required this.userId,
     required this.page,
     required this.pageSize,
+    required this.cursor,
   });
   factory GetUserFavoritesReq.fromJson(Map<String, dynamic> m) {
     return GetUserFavoritesReq(
       userId: m['userId'] ?? 0,
       page: m['page'] ?? 0,
       pageSize: m['pageSize'] ?? 0,
-    );
-  }
-  Map<String, dynamic> toJson() {
-    return {'userId': userId, 'page': page, 'pageSize': pageSize};
-  }
-}
-
-class GetUserPostsReq {
-  final Object userId;
-
-  final num page;
-
-  final num pageSize;
-
-  final num sortBy;
-  GetUserPostsReq({
-    required this.userId,
-    required this.page,
-    required this.pageSize,
-    required this.sortBy,
-  });
-  factory GetUserPostsReq.fromJson(Map<String, dynamic> m) {
-    return GetUserPostsReq(
-      userId: m['userId'] ?? 0,
-      page: m['page'] ?? 0,
-      pageSize: m['pageSize'] ?? 0,
-      sortBy: m['sortBy'] ?? 0,
+      cursor: m['cursor'] ?? "",
     );
   }
   Map<String, dynamic> toJson() {
@@ -1231,7 +1195,40 @@ class GetUserPostsReq {
       'userId': userId,
       'page': page,
       'pageSize': pageSize,
+      'cursor': cursor,
+    };
+  }
+}
+
+class GetUserPostsReq {
+  final Object userId;
+
+  final num pageSize;
+
+  final num sortBy;
+
+  // 不透明游标；首页传空
+  final String cursor;
+  GetUserPostsReq({
+    required this.userId,
+    required this.pageSize,
+    required this.sortBy,
+    required this.cursor,
+  });
+  factory GetUserPostsReq.fromJson(Map<String, dynamic> m) {
+    return GetUserPostsReq(
+      userId: m['userId'] ?? 0,
+      pageSize: m['pageSize'] ?? 0,
+      sortBy: m['sortBy'] ?? 0,
+      cursor: m['cursor'] ?? "",
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'userId': userId,
+      'pageSize': pageSize,
       'sortBy': sortBy,
+      'cursor': cursor,
     };
   }
 }

@@ -4,52 +4,52 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/features/profile/application/user_posts_notifier.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
 
-/// Fake Repository
+/// Fake Repository：以游标令牌 `c<index+1>` 链接各页。
 class _FakeUserPostsRepo implements UserPostsRepository {
   List<GetPostListResp> pages = [];
+  final seenCursors = <String>[];
   int calls = 0;
   bool shouldFail = false;
   String failReason = 'boom';
 
-  void addPage(List<PostItem> items, {int total = 100}) {
+  void addPage(List<PostItem> items, {bool hasMore = false}) {
     pages.add(
       GetPostListResp(
         list: items,
-        total: total,
-        page: pages.length + 1,
-        pageSize: items.length,
+        nextCursor: hasMore ? 'c${pages.length + 2}' : '',
       ),
     );
   }
 
-  @override
-  Future<GetPostListResp> fetchUserPosts({
-    required Object userId,
-    required int page,
-    required int pageSize,
-    int sortBy = 1,
-  }) async {
-    calls++;
-    if (shouldFail) throw Exception(failReason);
-    final idx = page - 1;
-    if (idx >= pages.length) {
-      return GetPostListResp(
-        list: [],
-        total: 100,
-        page: page,
-        pageSize: pageSize,
-      );
+  GetPostListResp _pageFor(String cursor) {
+    if (cursor.isEmpty && pages.isNotEmpty) return pages.first;
+    final idx = int.parse(cursor.substring(1)) - 1;
+    if (idx < 0 || idx >= pages.length) {
+      return GetPostListResp(list: const [], nextCursor: '');
     }
     return pages[idx];
   }
 
   @override
+  Future<GetPostListResp> fetchUserPosts({
+    required Object userId,
+    required String cursor,
+    required int pageSize,
+    int sortBy = 1,
+  }) async {
+    calls++;
+    seenCursors.add(cursor);
+    if (shouldFail) throw Exception(failReason);
+    return _pageFor(cursor);
+  }
+
+  @override
   Future<GetPostListResp> fetchUserFavorites({
     required Object userId,
-    required int page,
+    required String cursor,
     required int pageSize,
   }) async {
-    return fetchUserPosts(userId: userId, page: page, pageSize: pageSize);
+    return fetchUserPosts(userId: userId, cursor: cursor, pageSize: pageSize);
   }
 }
 
@@ -65,14 +65,7 @@ class _QueuedUserPostsRepo implements UserPostsRepository {
   }
 
   void _complete(Completer<GetPostListResp> completer, List<PostItem> items) {
-    completer.complete(
-      GetPostListResp(
-        list: items,
-        total: items.length,
-        page: 1,
-        pageSize: 20,
-      ),
-    );
+    completer.complete(GetPostListResp(list: items, nextCursor: ''));
   }
 
   Future<GetPostListResp> _enqueue() {
@@ -84,7 +77,7 @@ class _QueuedUserPostsRepo implements UserPostsRepository {
   @override
   Future<GetPostListResp> fetchUserPosts({
     required Object userId,
-    required int page,
+    required String cursor,
     required int pageSize,
     int sortBy = 1,
   }) {
@@ -94,7 +87,7 @@ class _QueuedUserPostsRepo implements UserPostsRepository {
   @override
   Future<GetPostListResp> fetchUserFavorites({
     required Object userId,
-    required int page,
+    required String cursor,
     required int pageSize,
   }) {
     return _enqueue();
@@ -139,13 +132,13 @@ void main() {
       );
       await n.loadFirstPage();
       expect(n.state.items.length, 2);
-      expect(n.state.page, 1);
+      expect(n.state.cursor, '');
       expect(n.state.hasMore, isFalse);
       expect(n.state.error, isNull);
     });
 
     test('loadNextPage 追加 items 而非覆盖', () async {
-      repo.addPage(List.generate(20, (i) => _post(i + 1)));
+      repo.addPage(List.generate(20, (i) => _post(i + 1)), hasMore: true);
       repo.addPage([_post(21), _post(22)]);
       final n = UserPostsNotifier(
         repo: repo,
@@ -158,7 +151,8 @@ void main() {
       await n.loadNextPage();
       expect(n.state.items.length, 22);
       expect(n.state.hasMore, isFalse);
-      expect(n.state.page, 2);
+      // 翻页请求必须携带上一页返回的游标。
+      expect(repo.seenCursors, ['', 'c2']);
     });
 
     test('loadNextPage 在 hasMore=false 时不发请求', () async {
@@ -173,7 +167,7 @@ void main() {
       expect(repo.calls, callsBefore);
     });
 
-    test('refresh 成功时重置 page=1 并覆盖 items', () async {
+    test('refresh 成功时重置游标并覆盖 items', () async {
       repo.addPage([_post(1), _post(2)]);
       final n = UserPostsNotifier(
         repo: repo,
@@ -185,7 +179,7 @@ void main() {
       await n.refresh();
       expect(n.state.items.length, 1);
       expect(n.state.items.first.id, 99);
-      expect(n.state.page, 1);
+      expect(n.state.cursor, '');
     });
 
     test('refresh 失败时保留旧数据', () async {

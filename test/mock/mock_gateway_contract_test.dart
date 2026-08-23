@@ -144,9 +144,10 @@ void main() {
     expect(badUser.statusCode, 400);
     expect(bodyOf(badUser)['code'], 2);
 
+    // 游标契约：page 参数已移除，坏游标（非法 base64/JSON）报参数错误。
     final badPage = mock_router.dispatchResponse(
       'GET',
-      '/api/v1/posts?page=not-a-number',
+      '/api/v1/posts?cursor=%%%not-base64%%%',
       '',
     );
     expect(badPage.statusCode, 400);
