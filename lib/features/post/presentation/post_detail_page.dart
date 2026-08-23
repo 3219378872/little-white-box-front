@@ -4,7 +4,6 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/api/api_exceptions.dart';
-import '../../../core/api/idempotency.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/widgets/app_tag_badge.dart';
 import '../../../core/widgets/cached_avatar.dart';
@@ -12,15 +11,13 @@ import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
-import '../../comment/data/comment_repository.dart';
+import '../../comment/application/comment_notifier.dart';
 import '../../comment/presentation/widgets/comment_input.dart';
 import '../../comment/presentation/widgets/comment_item.dart';
-import '../../interaction/data/interaction_repository.dart';
+import '../../interaction/application/interaction_notifier.dart';
 import '../data/post_repository.dart';
 
 final _postRepoProvider = Provider((ref) => PostRepository());
-final _commentRepoProvider = Provider((ref) => CommentRepository());
-final _interactionRepoProvider = Provider((ref) => InteractionRepository());
 
 final _postDetailProvider = FutureProvider.family<GetPostResp, String>((
   ref,
@@ -38,36 +35,12 @@ class PostDetailPage extends ConsumerStatefulWidget {
 }
 
 class _PostDetailPageState extends ConsumerState<PostDetailPage> {
-  List<CommentItem> _comments = [];
-  bool _isLoadingComments = false;
-  bool _commentsError = false;
-  int _commentPage = 1;
-  bool _hasMoreComments = true;
-  int _commentSortBy = 1;
   final ScrollController _scrollCtrl = ScrollController();
-
-  // 楼中楼展开状态：key 为顶级评论 id 字符串
-  static const _replyPageSize = 10;
-  final Set<String> _expandedReplies = {};
-  final Map<String, List<CommentItem>> _threadReplies = {};
-  final Map<String, int> _threadPage = {};
-  final Set<String> _loadingReplies = {};
-
-  // 乐观更新状态
-  bool? _optimisticIsLiked;
-  bool? _optimisticIsFavorited;
-  int _likeCountDelta = 0;
-  int _favoriteCountDelta = 0;
-
-  String? _replyToUser;
-  Object _replyParentId = 0;
-  Object _replyUserId = 0;
 
   @override
   void initState() {
     super.initState();
     _scrollCtrl.addListener(_onScroll);
-    _loadComments();
   }
 
   @override
@@ -80,123 +53,17 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   void _onScroll() {
     if (!_scrollCtrl.hasClients) return;
     final threshold = _scrollCtrl.position.maxScrollExtent - 300;
-    if (_scrollCtrl.position.pixels >= threshold &&
-        !_isLoadingComments &&
-        _hasMoreComments) {
-      _commentPage++;
-      _loadComments();
-    }
-  }
-
-  Future<void> _loadComments() async {
-    if (_isLoadingComments) return;
-    setState(() => _isLoadingComments = true);
-    try {
-      final resp = await ref
-          .read(_commentRepoProvider)
-          .fetchComments(
-            postId: widget.postId,
-            page: _commentPage,
-            pageSize: 20,
-            sortBy: _commentSortBy,
-          );
-      setState(() {
-        if (_commentPage == 1) {
-          _comments = resp.list;
-        } else {
-          _comments = [..._comments, ...resp.list];
-        }
-        _hasMoreComments = resp.list.length >= 20;
-        _isLoadingComments = false;
-        _commentsError = false;
-      });
-    } catch (e) {
-      // 失败不得伪装成空评论区（FX-001）；给出可重试的错误态。
-      setState(() {
-        _isLoadingComments = false;
-        _commentsError = true;
-      });
-    }
-  }
-
-  void _retryComments() {
-    setState(() {
-      _commentsError = false;
-      _commentPage = 1;
-      _hasMoreComments = true;
-      _comments = [];
-    });
-    _loadComments();
-  }
-
-  /// 展开/收起楼中楼。首次展开用内嵌预览即时渲染，同时拉取第一页全量数据。
-  Future<void> _toggleReplies(CommentItem comment) async {
-    final id = jsonInt64Id(comment.id);
-    if (!_expandedReplies.add(id)) {
-      setState(() => _expandedReplies.remove(id));
-      return;
-    }
-    setState(() {
-      _threadReplies.remove(id);
-      _threadPage.remove(id);
-      _loadingReplies.add(id);
-    });
-    await _fetchReplyThread(comment, page: 1, append: false);
-  }
-
-  Future<void> _loadMoreReplies(CommentItem comment) async {
-    final id = jsonInt64Id(comment.id);
-    if (_loadingReplies.contains(id)) return;
-    setState(() => _loadingReplies.add(id));
-    await _fetchReplyThread(comment, page: (_threadPage[id] ?? 1) + 1, append: true);
-  }
-
-  Future<void> _fetchReplyThread(
-    CommentItem comment, {
-    required int page,
-    required bool append,
-  }) async {
-    final id = jsonInt64Id(comment.id);
-    try {
-      final resp = await ref
-          .read(_commentRepoProvider)
-          .fetchReplies(commentId: comment.id, page: page, pageSize: _replyPageSize);
-      if (!mounted) return;
-      setState(() {
-        final existing = _threadReplies[id] ?? const <CommentItem>[];
-        final merged = append ? [...existing, ...resp.list] : resp.list;
-        // 去重（幂等保护：同页重复返回时以先到者为准）
-        final seen = <String>{};
-        _threadReplies[id] =
-            merged.where((r) => seen.add(jsonInt64Id(r.id))).toList();
-        _threadPage[id] = page;
-        _loadingReplies.remove(id);
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _loadingReplies.remove(id));
-      showAppError(context, '回复加载失败: ${friendlyErrorMessage(e)}');
+    if (_scrollCtrl.position.pixels >= threshold) {
+      ref.read(commentNotifierProvider(widget.postId).notifier).loadMore();
     }
   }
 
   Future<void> _toggleLike(GetPostResp post) async {
-    final currentlyLiked = _optimisticIsLiked ?? post.isLiked;
-    setState(() {
-      _optimisticIsLiked = !currentlyLiked;
-      _likeCountDelta += currentlyLiked ? -1 : 1;
-    });
     try {
-      final repo = ref.read(_interactionRepoProvider);
-      if (currentlyLiked) {
-        await repo.unlikeTarget(widget.postId, 1);
-      } else {
-        await repo.likeTarget(widget.postId, 1);
-      }
+      await ref
+          .read(interactionNotifierProvider(widget.postId).notifier)
+          .toggleLike(post);
     } catch (e) {
-      setState(() {
-        _optimisticIsLiked = currentlyLiked;
-        _likeCountDelta += currentlyLiked ? 1 : -1;
-      });
       if (mounted) {
         showAppError(context, '操作失败: ${friendlyErrorMessage(e)}');
       }
@@ -204,25 +71,37 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   }
 
   Future<void> _toggleFavorite(GetPostResp post) async {
-    final currentlyFav = _optimisticIsFavorited ?? post.isFavorited;
-    setState(() {
-      _optimisticIsFavorited = !currentlyFav;
-      _favoriteCountDelta += currentlyFav ? -1 : 1;
-    });
     try {
-      final repo = ref.read(_interactionRepoProvider);
-      if (currentlyFav) {
-        await repo.unfavoritePost(widget.postId);
-      } else {
-        await repo.favoritePost(widget.postId);
-      }
+      await ref
+          .read(interactionNotifierProvider(widget.postId).notifier)
+          .toggleFavorite(post);
     } catch (e) {
-      setState(() {
-        _optimisticIsFavorited = currentlyFav;
-        _favoriteCountDelta += currentlyFav ? 1 : -1;
-      });
       if (mounted) {
         showAppError(context, '操作失败: ${friendlyErrorMessage(e)}');
+      }
+    }
+  }
+
+  Future<void> _onToggleReplies(CommentItem comment) async {
+    try {
+      await ref
+          .read(commentNotifierProvider(widget.postId).notifier)
+          .toggleReplies(comment);
+    } catch (e) {
+      if (mounted) {
+        showAppError(context, '回复加载失败: ${friendlyErrorMessage(e)}');
+      }
+    }
+  }
+
+  Future<void> _onLoadMoreReplies(CommentItem comment) async {
+    try {
+      await ref
+          .read(commentNotifierProvider(widget.postId).notifier)
+          .loadMoreReplies(comment);
+    } catch (e) {
+      if (mounted) {
+        showAppError(context, '回复加载失败: ${friendlyErrorMessage(e)}');
       }
     }
   }
@@ -235,28 +114,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
     try {
       await ref
-          .read(_commentRepoProvider)
-          .createNewComment(
-            CreateCommentReq(
-              postId: widget.postId,
-              parentId: _replyParentId,
-              replyUserId: _replyUserId,
-              content: content,
-              idempotencyKey: newIdempotencyKey(),
-            ),
-          );
-      setState(() {
-        _replyToUser = null;
-        _replyParentId = 0;
-        _replyUserId = 0;
-        _commentPage = 1;
-        // 回复成功后重置该父评论的楼中楼缓存，刷新后重新拉取
-        if (_expandedReplies.isNotEmpty) {
-          _threadReplies.clear();
-          _threadPage.clear();
-        }
-      });
-      _loadComments();
+          .read(commentNotifierProvider(widget.postId).notifier)
+          .submit(content);
     } catch (e) {
       if (mounted) {
         showAppError(context, '评论失败: ${friendlyErrorMessage(e)}');
@@ -278,16 +137,23 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
           onRetry: () => ref.invalidate(_postDetailProvider(widget.postId)),
         ),
         data: (post) {
-          final isLiked = _optimisticIsLiked ?? post.isLiked;
-          final isFavorited = _optimisticIsFavorited ?? post.isFavorited;
-          final likeCount = post.likeCount.toInt() + _likeCountDelta;
-          final favCount = post.favoriteCount.toInt() + _favoriteCountDelta;
+          final interaction =
+              ref.watch(interactionNotifierProvider(widget.postId));
+          final comments = ref.watch(commentNotifierProvider(widget.postId));
+
+          final isLiked = interaction.optimisticIsLiked ?? post.isLiked;
+          final isFavorited =
+              interaction.optimisticIsFavorited ?? post.isFavorited;
+          final likeCount =
+              post.likeCount.toInt() + interaction.likeCountDelta;
+          final favCount =
+              post.favoriteCount.toInt() + interaction.favoriteCountDelta;
           final headerExtent =
               MediaQuery.paddingOf(context).top +
               (context.platformVariant.touch ? 62.0 : 54.0);
 
           // 后端契约：列表只含顶级评论，子评论经内嵌预览 + 楼中楼接口按需加载
-          final topLevel = _comments;
+          final topLevel = comments.comments;
 
           return Column(
             children: [
@@ -435,20 +301,28 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                 FButton(
                                   size: .xs,
                                   mainAxisSize: MainAxisSize.min,
-                                  variant: _commentSortBy == 1
+                                  variant: comments.sortBy == 1
                                       ? FButtonVariant.secondary
                                       : FButtonVariant.ghost,
-                                  onPress: () => _selectCommentSort(1),
+                                  onPress: () => ref
+                                      .read(commentNotifierProvider(
+                                              widget.postId)
+                                          .notifier)
+                                      .selectSort(1),
                                   child: const Text('最新'),
                                 ),
                                 const SizedBox(width: 4),
                                 FButton(
                                   size: .xs,
                                   mainAxisSize: MainAxisSize.min,
-                                  variant: _commentSortBy == 2
+                                  variant: comments.sortBy == 2
                                       ? FButtonVariant.secondary
                                       : FButtonVariant.ghost,
-                                  onPress: () => _selectCommentSort(2),
+                                  onPress: () => ref
+                                      .read(commentNotifierProvider(
+                                              widget.postId)
+                                          .notifier)
+                                      .selectSort(2),
                                   child: const Text('最热'),
                                 ),
                               ],
@@ -458,12 +332,16 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                       ),
                     ),
                     // 评论列表
-                    if (topLevel.isEmpty && !_isLoadingComments)
+                    if (topLevel.isEmpty && !comments.isLoading)
                       SliverToBoxAdapter(
-                        child: _commentsError
+                        child: comments.hasError
                             ? ErrorView(
                                 message: '评论加载失败',
-                                onRetry: _retryComments,
+                                onRetry: () => ref
+                                    .read(commentNotifierProvider(
+                                            widget.postId)
+                                        .notifier)
+                                    .retry(),
                               )
                             : const Padding(
                                 padding: EdgeInsets.all(32),
@@ -475,13 +353,13 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                         (context, index) {
                           if (index >= topLevel.length) {
                             // tail 位置：优先显示加载中，其次加载失败重试，最后"没有更多了"
-                            if (_isLoadingComments) {
+                            if (comments.isLoading) {
                               return const Padding(
                                 padding: EdgeInsets.all(16),
                                 child: Center(child: FCircularProgress()),
                               );
                             }
-                            if (_commentsError) {
+                            if (comments.hasError) {
                               return Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: Center(
@@ -489,13 +367,17 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                     variant: .ghost,
                                     size: .sm,
                                     mainAxisSize: MainAxisSize.min,
-                                    onPress: _retryComments,
+                                    onPress: () => ref
+                                        .read(commentNotifierProvider(
+                                                widget.postId)
+                                            .notifier)
+                                        .retry(),
                                     child: const Text('评论加载失败，重试'),
                                   ),
                                 ),
                               );
                             }
-                            if (!_hasMoreComments && topLevel.isNotEmpty) {
+                            if (!comments.hasMore && topLevel.isNotEmpty) {
                               return Padding(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 20,
@@ -515,10 +397,11 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                           }
                           final comment = topLevel[index];
                           final id = jsonInt64Id(comment.id);
-                          final expanded = _expandedReplies.contains(id);
+                          final expanded = comments.expandedReplies.contains(id);
                           final loading =
-                              _loadingReplies.contains(id);
-                          final replies = _threadReplies[id] ?? comment.replies;
+                              comments.loadingReplies.contains(id);
+                          final replies = comments.threadReplies[id] ??
+                              comment.replies;
                           return CommentItemWidget(
                             comment: comment,
                             replies: replies,
@@ -529,30 +412,39 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                 !loading &&
                                 replies.length <
                                     comment.replyCount.toInt(),
-                            onToggleReplies: () => _toggleReplies(comment),
-                            onLoadMoreReplies: () => _loadMoreReplies(comment),
+                            onToggleReplies: () => _onToggleReplies(comment),
+                            onLoadMoreReplies: () =>
+                                _onLoadMoreReplies(comment),
                             onReply: () {
-                              setState(() {
-                                _replyToUser = comment.userName;
-                                _replyParentId = comment.id;
-                                _replyUserId = comment.userId;
-                              });
+                              ref
+                                  .read(commentNotifierProvider(
+                                          widget.postId)
+                                      .notifier)
+                                  .setReplyTarget(
+                                    userName: comment.userName,
+                                    parentId: comment.id,
+                                    userId: comment.userId,
+                                  );
                             },
                             onReplyToReply: (target) {
-                              setState(() {
-                                // 楼中楼扁平化：仍挂在同一顶级评论下，@被回复用户
-                                _replyToUser = target.userName;
-                                _replyParentId = comment.id;
-                                _replyUserId = target.userId;
-                              });
+                              // 楼中楼扁平化：仍挂在同一顶级评论下，@被回复用户
+                              ref
+                                  .read(commentNotifierProvider(
+                                          widget.postId)
+                                      .notifier)
+                                  .setReplyTarget(
+                                    userName: target.userName,
+                                    parentId: comment.id,
+                                    userId: target.userId,
+                                  );
                             },
                           );
                         },
                         childCount:
                             topLevel.length +
-                            ((_isLoadingComments ||
-                                    _commentsError ||
-                                    (!_hasMoreComments && topLevel.isNotEmpty))
+                            ((comments.isLoading ||
+                                    comments.hasError ||
+                                    (!comments.hasMore && topLevel.isNotEmpty))
                                 ? 1
                                 : 0),
                       ),
@@ -560,24 +452,15 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                   ],
                 ),
               ),
-              CommentInput(replyTo: _replyToUser, onSubmit: _submitComment),
+              CommentInput(
+                replyTo: comments.replyToUser,
+                onSubmit: _submitComment,
+              ),
             ],
           );
         },
       ),
     );
-  }
-
-  void _selectCommentSort(int value) {
-    if (value == _commentSortBy) return;
-    setState(() {
-      _commentSortBy = value;
-      _commentPage = 1;
-      _hasMoreComments = true;
-      _commentsError = false;
-      _comments = [];
-    });
-    _loadComments();
   }
 
   Widget _actionButton({
