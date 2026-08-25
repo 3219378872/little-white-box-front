@@ -33,6 +33,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-family-provider-autodispose-2026-08-25
   - EVD-paginated-load-more-error-2026-08-25
   - EVD-auth-session-reset-2026-08-25
   - EVD-client-found-bugs-fix-2026-08-22
@@ -96,6 +97,8 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 ## 已实现的关键事实
 
 - 推荐和关注使用独立游标，Feed notifier 以 generation 抑制旧请求，并在分页追加时按帖子 ID 去重。
+  全部 family provider 为 `autoDispose`：状态随最后一个监听者移除释放，重进即重建刷新；
+  在途响应用 `mounted` + generation 双守卫（见 [EVD-family-provider-autodispose-2026-08-25](../evidence/EVD-family-provider-autodispose-2026-08-25.md)）。
 - Feed 在剩余滚动空间不足 200px（含首屏未填满）时请求下一页；加载中显示底部进度，游标耗尽显示
   「没有更多了」，加载更多失败保留已有条目并提供底部重试。资料页帖子/收藏列表与会话列表
   （`PaginatedListView`）同构：失败态挂起滚动自动翻页，footer 显示失败文案 + 重试，
