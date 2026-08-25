@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +17,11 @@ import 'package:xiaobaihe_app/sdk/vars/kv.dart';
 import '../../../../helpers/forui_test_builder.dart';
 
 void main() {
+  setUp(() {
+    // 回调默认 500ms 节流；测试中归零以便 pump 即时触发。
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
+  });
+
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets('requires 50 percent visibility for one continuous second', (

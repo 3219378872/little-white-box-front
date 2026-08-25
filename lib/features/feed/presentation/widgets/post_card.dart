@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 import '../../../../core/api/api_exceptions.dart';
 import '../../../../core/api/json_int64.dart';
 import '../../../../core/widgets/app_tag_badge.dart';
@@ -40,12 +41,10 @@ class _PostCardState extends ConsumerState<PostCard>
     with WidgetsBindingObserver {
   static const _visibilityThreshold = 0.5;
   static const _exposureThreshold = Duration(seconds: 1);
-  static const _visibilityPollInterval = Duration(milliseconds: 100);
 
   late bool _isLiked;
   bool _isLikePending = false;
   late int _likeCount;
-  Timer? _visibilityPoller;
   Timer? _exposureTimer;
   DateTime? _visibleSince;
   DateTime? _dwellStartedAt;
@@ -59,7 +58,6 @@ class _PostCardState extends ConsumerState<PostCard>
     WidgetsBinding.instance.addObserver(this);
     _isLiked = post.isLiked;
     _likeCount = post.likeCount.toInt();
-    _startVisibilityTracking();
   }
 
   @override
@@ -85,9 +83,6 @@ class _PostCardState extends ConsumerState<PostCard>
       _dwellStartedAt = null;
       _exposureReported = false;
     }
-    if (widget.recommendationContext != null && _visibilityPoller == null) {
-      _startVisibilityTracking();
-    }
     if (postIdChanged) {
       _isLiked = post.isLiked;
       _isLikePending = false;
@@ -102,16 +97,13 @@ class _PostCardState extends ConsumerState<PostCard>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _evaluateVisibility();
-      return;
+    if (state != AppLifecycleState.resumed) {
+      _endVisibilitySession();
     }
-    _endVisibilitySession();
   }
 
   @override
   void dispose() {
-    _visibilityPoller?.cancel();
     _exposureTimer?.cancel();
     _endVisibilitySession();
     WidgetsBinding.instance.removeObserver(this);
@@ -166,45 +158,14 @@ class _PostCardState extends ConsumerState<PostCard>
     context.push('/post/${jsonInt64Id(post.id)}');
   }
 
-  void _startVisibilityTracking() {
-    if (widget.recommendationContext == null || _visibilityPoller != null) {
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || widget.recommendationContext == null) return;
-      _evaluateVisibility();
-      _visibilityPoller = Timer.periodic(
-        _visibilityPollInterval,
-        (_) => _evaluateVisibility(),
-      );
-    });
-  }
-
-  void _evaluateVisibility() {
+  /// 由 [VisibilityDetector] 在布局变化时回调，取代原先每卡 100ms 的
+  /// Timer.periodic 几何轮询。
+  void _onVisibilityChanged(VisibilityInfo info) {
     final trackingContext = widget.recommendationContext;
     if (!mounted || trackingContext == null || !widget.trackingActive) {
-      _endVisibilitySession();
       return;
     }
-    final renderObject = context.findRenderObject();
-    if (renderObject is! RenderBox ||
-        !renderObject.attached ||
-        !renderObject.hasSize ||
-        renderObject.size.isEmpty) {
-      _endVisibilitySession();
-      return;
-    }
-
-    final cardRect =
-        renderObject.localToGlobal(Offset.zero) & renderObject.size;
-    final viewportRect = Offset.zero & MediaQuery.sizeOf(context);
-    final intersection = cardRect.intersect(viewportRect);
-    final visibleArea = intersection.isEmpty
-        ? 0.0
-        : intersection.width * intersection.height;
-    final cardArea = cardRect.width * cardRect.height;
-    final visibleFraction = cardArea <= 0 ? 0.0 : visibleArea / cardArea;
-    if (visibleFraction < _visibilityThreshold) {
+    if (info.visibleFraction < _visibilityThreshold) {
       _endVisibilitySession();
       return;
     }
@@ -268,115 +229,122 @@ class _PostCardState extends ConsumerState<PostCard>
     final colors = theme.colors;
     final typography = theme.typography;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: FCard(
-        builder: (context, style, _) => FTappable(
-          onPress: _openPost,
-          child: Padding(
-            padding: style.padding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 作者信息行（更紧凑）
-                Row(
-                  children: [
-                    FTappable(
-                      onPress: () =>
-                          context.push('/user/${jsonInt64Id(post.authorId)}'),
-                      child: CachedAvatar(
-                        url: post.authorAvatar,
-                        name: post.authorName,
-                        radius: 14,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        post.authorName,
-                        style: typography.body.sm.copyWith(
-                          fontWeight: FontWeight.w500,
+    return VisibilityDetector(
+      key: Key(
+        'post-exposure-${jsonInt64Id(post.id)}-'
+        '${widget.recommendationContext?.requestId ?? '-'}',
+      ),
+      onVisibilityChanged: _onVisibilityChanged,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: FCard(
+          builder: (context, style, _) => FTappable(
+            onPress: _openPost,
+            child: Padding(
+              padding: style.padding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 作者信息行（更紧凑）
+                  Row(
+                    children: [
+                      FTappable(
+                        onPress: () =>
+                            context.push('/user/${jsonInt64Id(post.authorId)}'),
+                        child: CachedAvatar(
+                          url: post.authorAvatar,
+                          name: post.authorName,
+                          radius: 14,
                         ),
                       ),
-                    ),
-                    Text(
-                      _formatTime(post.createdAt),
-                      style: typography.body.xs.copyWith(
-                        color: colors.mutedForeground,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          post.authorName,
+                          style: typography.body.sm.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                // 标题
-                if (post.title.isNotEmpty)
-                  Text(
-                    post.title,
-                    style: typography.body.md.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                      Text(
+                        _formatTime(post.createdAt),
+                        style: typography.body.xs.copyWith(
+                          color: colors.mutedForeground,
+                        ),
+                      ),
+                    ],
                   ),
-                // 内容摘要
-                if (post.content.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      post.content,
-                      style: typography.body.sm.copyWith(
-                        color: colors.mutedForeground,
+                  const SizedBox(height: 10),
+                  // 标题
+                  if (post.title.isNotEmpty)
+                    Text(
+                      post.title,
+                      style: typography.body.md.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
-                      maxLines: post.title.isNotEmpty ? 2 : 3,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                // 图片展示（首张占满宽度）
-                if (post.images.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  _buildImagePreview(context),
-                ],
-                // 标签
-                if (post.tags.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: post.tags
-                        .map((tag) => AppTagBadge(label: tag))
-                        .toList(),
-                  ),
-                ],
-                // 底部统计
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    _statItem(
-                      context,
-                      FLucideIcons.thumbsUp,
-                      _likeCount,
-                      key: ValueKey('post-like-${jsonInt64Id(post.id)}'),
-                      active: _isLiked,
-                      onPress: _toggleLike,
-                      semanticsLabel: _isLiked
-                          ? '取消点赞，当前 $_likeCount 赞'
-                          : '点赞，当前 $_likeCount 赞',
+                  // 内容摘要
+                  if (post.content.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        post.content,
+                        style: typography.body.sm.copyWith(
+                          color: colors.mutedForeground,
+                        ),
+                        maxLines: post.title.isNotEmpty ? 2 : 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    const SizedBox(width: 24),
-                    _statItem(
-                      context,
-                      FLucideIcons.messageCircle,
-                      post.commentCount.toInt(),
-                    ),
-                    const Spacer(),
-                    _statItem(
-                      context,
-                      FLucideIcons.eye,
-                      post.viewCount.toInt(),
+                  // 图片展示（首张占满宽度）
+                  if (post.images.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _buildImagePreview(context),
+                  ],
+                  // 标签
+                  if (post.tags.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: post.tags
+                          .map((tag) => AppTagBadge(label: tag))
+                          .toList(),
                     ),
                   ],
-                ),
-              ],
+                  // 底部统计
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _statItem(
+                        context,
+                        FLucideIcons.thumbsUp,
+                        _likeCount,
+                        key: ValueKey('post-like-${jsonInt64Id(post.id)}'),
+                        active: _isLiked,
+                        onPress: _toggleLike,
+                        semanticsLabel: _isLiked
+                            ? '取消点赞，当前 $_likeCount 赞'
+                            : '点赞，当前 $_likeCount 赞',
+                      ),
+                      const SizedBox(width: 24),
+                      _statItem(
+                        context,
+                        FLucideIcons.messageCircle,
+                        post.commentCount.toInt(),
+                      ),
+                      const Spacer(),
+                      _statItem(
+                        context,
+                        FLucideIcons.eye,
+                        post.viewCount.toInt(),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

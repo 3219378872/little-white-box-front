@@ -97,6 +97,7 @@ class _StubHttpHeaders implements HttpHeaders {
 }
 
 void main() {
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('boots the real app shell against the in-repo mock gateway',
