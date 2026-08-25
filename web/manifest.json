@@ -1,11 +1,11 @@
 {
-    "name": "xiaobaihe_app",
-    "short_name": "xiaobaihe_app",
+    "name": "小白盒",
+    "short_name": "小白盒",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#3B6CA8",
+    "theme_color": "#3B6CA8",
+    "description": "小白盒内容社区",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
