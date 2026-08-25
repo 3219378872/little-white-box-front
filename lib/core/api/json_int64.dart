@@ -155,15 +155,23 @@ String quoteLargeJsonInts(String source) {
   return out.toString();
 }
 
+/// 仅当值所属的键名以 `Id`/`Ids` 结尾时才把 ≥16 位的数字字符串还原成 JSON
+/// number；正文、标题等自由文本里的长数字串（订单号、手机号）必须原样保留，
+/// 否则会被网关的 string 字段拒绝。数组元素继承所属键名（如 `postIds`）。
 String unquoteLargeJsonIntStrings(String source) {
   final out = StringBuffer();
   var i = 0;
   var inString = false;
   var escaped = false;
   var stringStart = 0;
+  String? lastKey;
   while (i < source.length) {
     final unit = source.codeUnitAt(i);
     if (!inString) {
+      if (unit == 0x7b || unit == 0x7d) {
+        // 对象开/闭都会切换作用域，清掉上一个键名。
+        lastKey = null;
+      }
       if (unit == 0x22) {
         inString = true;
         escaped = false;
@@ -191,12 +199,23 @@ String unquoteLargeJsonIntStrings(String source) {
     final content = source.substring(stringStart + 1, i);
     i++;
     inString = false;
+    if (_nextNonSpaceIsColon(source, i)) {
+      // 这是键名字符串，记录后原样写出。
+      lastKey = content;
+      out.write('"');
+      out.write(content);
+      out.write('"');
+      continue;
+    }
+    final keyQualifies =
+        lastKey != null && (lastKey.endsWith('Id') || lastKey.endsWith('Ids'));
     final isLargeInt =
-        !content.startsWith('0') &&
-        !content.startsWith('-0') &&
-        _digitsOnly.hasMatch(content) &&
-        content.replaceFirst('-', '').length >= jsonInt64DigitThreshold;
-    if (isLargeInt && !_nextNonSpaceIsColon(source, i)) {
+        keyQualifies &&
+            !content.startsWith('0') &&
+            !content.startsWith('-0') &&
+            _digitsOnly.hasMatch(content) &&
+            content.replaceFirst('-', '').length >= jsonInt64DigitThreshold;
+    if (isLargeInt) {
       out.write(content);
     } else {
       out.write('"');
