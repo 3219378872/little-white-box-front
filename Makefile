@@ -49,9 +49,10 @@ dev:
 		--web-port "$(PORT)" \
 		-t "$(TARGET)"
 
-# Flutter 3.44 起引擎经编译期常量读取 FLUTTER_WEB_CANVASKIT_URL，
-# 必须以 --dart-define 传入（进程环境变量不再生效）。默认同源 /canvaskit/
-# （由根仓反代挂载本地 SDK 产物）；无本地产物时由编排层显式传 gstatic 地址。
+# Flutter 3.44 起引擎经编译期常量读取 FLUTTER_WEB_CANVASKIT_URL，必须以
+# --dart-define 传入；bootstrap 对引擎产物的预取则由 --no-web-resources-cdn
+# 切到本地相对路径（web/canvaskit/ 由编排层符号链接自 SDK 缓存）。
+# 二者缺一：只给 dart-define 时 bootstrap 仍会预取 gstatic 并被 CSP 拦截。
 CANVASKIT_URL ?= /canvaskit/
 
 dev-real:
@@ -60,6 +61,7 @@ dev-real:
 		--web-port "$(PORT)" \
 		$(if $(SERVER_HOST),--dart-define=SERVER_HOST="$(SERVER_HOST)",) \
 		--dart-define=FLUTTER_WEB_CANVASKIT_URL="$(CANVASKIT_URL)" \
+		--no-web-resources-cdn \
 		-t lib/main.dart
 
 build-web:
