@@ -124,7 +124,8 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
   Future<void> loadNextPage() async {
     if (!state.hasMore || state.isLoading || state.isRefreshing) return;
     final generation = _generation;
-    state = state.copyWith(isLoading: true);
+    // 与 feed/message 的 loadMore 一致：显式重试时先清掉上一次的失败态。
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       final resp = await _fetch(state.cursor);
       if (generation != _generation) return;

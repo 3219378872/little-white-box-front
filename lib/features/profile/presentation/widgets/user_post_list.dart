@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import '../../../../core/api/api_exceptions.dart';
 import '../../../../core/router/app_route_observer.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/forui_pull_to_refresh.dart';
@@ -76,6 +77,8 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
   }
 
   bool _handleScrollNotification(ScrollNotification notification) {
+    // 加载更多失败后停在原地等待用户点重试，不随滚动反复重发同一游标。
+    if (ref.read(userPostsProvider(_key)).error != null) return false;
     if (notification.depth == 0 &&
         notification.metrics.axis == Axis.vertical &&
         notification.metrics.extentAfter <= 300) {
@@ -129,15 +132,41 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
             )
           else
             SliverList.builder(
-              itemCount:
-                  state.items.length +
-                  ((state.isLoading || !state.hasMore) ? 1 : 0),
+              itemCount: state.items.length +
+                  ((state.isLoading ||
+                          state.error != null ||
+                          !state.hasMore)
+                      ? 1
+                      : 0),
               itemBuilder: (context, index) {
                 if (index >= state.items.length) {
                   if (state.isLoading) {
                     return const Padding(
                       padding: EdgeInsets.all(16),
                       child: Center(child: FCircularProgress()),
+                    );
+                  }
+                  if (state.error != null) {
+                    final theme = context.theme;
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                      child: Column(
+                        children: [
+                          Text(
+                            friendlyErrorMessage(state.error!),
+                            textAlign: TextAlign.center,
+                            style: theme.typography.body.sm.copyWith(
+                              color: theme.colors.mutedForeground,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          FButton(
+                            variant: FButtonVariant.secondary,
+                            onPress: notifier.loadNextPage,
+                            child: const Text('重试'),
+                          ),
+                        ],
+                      ),
                     );
                   }
                   return Padding(

@@ -167,6 +167,29 @@ void main() {
       expect(repo.calls, callsBefore);
     });
 
+    test('loadNextPage 失败保留数据与游标，重试成功后清错并追加', () async {
+      repo.addPage(List.generate(20, (i) => _post(i + 1)), hasMore: true);
+      repo.addPage([_post(21)]);
+      final n = UserPostsNotifier(
+        repo: repo,
+        key: const UserPostsKey(userId: 1, type: UserPostsListType.posts),
+      );
+      await n.loadFirstPage();
+
+      repo.shouldFail = true;
+      await n.loadNextPage();
+      expect(n.state.items.length, 20);
+      expect(n.state.error, isNotNull);
+      expect(n.state.hasMore, isTrue);
+
+      // 失败后重试必须复用原游标（不跳页），成功后清掉错误态。
+      repo.shouldFail = false;
+      await n.loadNextPage();
+      expect(n.state.error, isNull);
+      expect(n.state.items.length, 21);
+      expect(repo.seenCursors, ['', 'c2', 'c2']);
+    });
+
     test('refresh 成功时重置游标并覆盖 items', () async {
       repo.addPage([_post(1), _post(2)]);
       final n = UserPostsNotifier(
