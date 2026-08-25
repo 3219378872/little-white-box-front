@@ -8,6 +8,15 @@ import 'mock_router.dart' as router;
 
 /// Cross-platform HTTP client used by the standalone mock entry point.
 class MockHttpClient extends http.BaseClient {
+  /// 控制台日志截断长度；mock 是新人默认入口，完整 body 会把密码等敏感
+  /// 字段打进终端，这里只保留前缀并打码已知敏感键。
+  static const _maxLoggedBodyLength = 300;
+  static final _sensitiveFields = RegExp(
+    r'("(?:password|passwordConfirm|oldPassword|newPassword|token|'
+    r'refreshToken|accessToken|secret|verifyCode)"\s*:\s*)"[^"]*"',
+    caseSensitive: false,
+  );
+
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
@@ -22,7 +31,7 @@ class MockHttpClient extends http.BaseClient {
     };
 
     debugPrint('[Mock] ${request.method} $path');
-    if (body.isNotEmpty) debugPrint('[Mock] body: $body');
+    if (body.isNotEmpty) debugPrint('[Mock] body: ${_sanitize(body)}');
 
     final response = router.dispatchResponse(
       request.method,
@@ -30,12 +39,22 @@ class MockHttpClient extends http.BaseClient {
       body,
       headers: request.headers,
     );
-    debugPrint('[Mock] response: ${response.body}\n');
+    debugPrint('[Mock] response: ${_sanitize(response.body)}\n');
 
     return http.StreamedResponse(
       Stream<List<int>>.value(utf8.encode(response.body)),
       response.statusCode,
       headers: response.headers,
     );
+  }
+
+  String _sanitize(String raw) {
+    var text = raw.replaceAllMapped(
+        _sensitiveFields, (m) => '${m.group(1)}"***"');
+    if (text.length > _maxLoggedBodyLength) {
+      text =
+          '${text.substring(0, _maxLoggedBodyLength)}…<${raw.length} bytes>';
+    }
+    return text;
   }
 }
