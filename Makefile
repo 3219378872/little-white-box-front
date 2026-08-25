@@ -55,8 +55,12 @@ dev:
 # 二者缺一：只给 dart-define 时 bootstrap 仍会预取 gstatic 并被 CSP 拦截。
 CANVASKIT_URL ?= /canvaskit/
 
+# DEVICE=chrome 需在 Xvfb 环境下运行（由根仓 stack.sh 包装）；该模式下调试
+# 通道走 Chrome DevTools 协议，任意访客的引导不经 DWDS RunRequest 门控。
+DEVICE ?= web-server
+
 dev-real:
-	$(FLUTTER) run -d web-server \
+	$(FLUTTER) run -d "$(DEVICE)" \
 		--web-hostname "$(HOST)" \
 		--web-port "$(PORT)" \
 		$(if $(SERVER_HOST),--dart-define=SERVER_HOST="$(SERVER_HOST)",) \
