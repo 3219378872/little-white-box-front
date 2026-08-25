@@ -67,3 +67,6 @@ docs/*
 CLAUDE.md
 .worktree/
 .worktrees/
+
+# CanvasKit 本地产物由编排层符号链接进来（指向 Flutter SDK 缓存），不入库
+/web/canvaskit/
