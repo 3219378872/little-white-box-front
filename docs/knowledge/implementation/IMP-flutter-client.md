@@ -33,6 +33,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-auth-session-reset-2026-08-25
   - EVD-client-found-bugs-fix-2026-08-22
   - EVD-assistant-md-render-2026-08-22
   - EVD-assistant-evidence-strip-2026-08-22
@@ -70,9 +71,9 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 
 | 运行面 | 当前实现 |
 | --- | --- |
-| 真实入口 | `lib/main.dart` 设置认证错误回调；`apiUri` 默认发相对路径 `/api/...`，可选 `SERVER_HOST` |
+| 真实入口 | `lib/main.dart` 只装全局错误兜底；`apiUri` 默认发相对路径 `/api/...`，可选 `SERVER_HOST` |
 | Mock 入口 | `lib/main_mock.dart` 注入 `MockHttpClient`，种子用户 1 默认登录 |
-| 应用壳 | `lib/app.dart`：`MaterialApp.router`、全局 Forui 主题/本地化/toast/tooltip、行为队列初始化 |
+| 应用壳 | `lib/app.dart`：watch `authTransportBindingProvider` 装配传输层会话重置回调、`MaterialApp.router`、全局 Forui 主题/本地化/toast/tooltip、行为队列初始化 |
 | 路由/导航 | `lib/core/router/app_router.dart`：GoRouter guard、公开与保护路由、底栏/侧栏切换、内容限宽 |
 | 认证 | `lib/features/auth/` 与 `lib/core/auth/`（`jwt_decoder.dart`、`session_tokens.dart`）：登录、注册、双令牌落盘、token/userId 恢复、被动刷新、登出与会话失效清理 |
 | 共享接口 | `lib/core/api/api_adapter.dart`、`v2_api_client.dart`、`json_int64.dart`、`api_exceptions.dart`、`error_codes.dart`；刷新入口在 `lib/sdk/api/api.dart` 的 `refreshSessionTokens` |
@@ -128,7 +129,10 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
   认证错误（401 或 `1004/1005/1006`）时用 refreshToken 换发并恰好重试一次（single-flight 合并并发），
   换发被拒则清空令牌并经 `onSessionInvalid` 同步 `AuthNotifier`，由路由守卫跳登录页。multipart 与
   Assistant SSE 复用同一刷新入口。Mock router 返回 30 分钟/7 天令牌对并提供 `POST /auth/refresh`
-  一次性轮换（唯一 `jti`），重放旧 refreshToken 返回 `401/1005`。
+  一次性轮换（唯一 `jti`），重放旧 refreshToken 返回 `401/1005`。应用壳经
+  `authTransportBindingProvider` 把 `onSessionInvalid` 与 `onAuthError` 统一绑定到
+  `AuthNotifier.onSessionExpired`：无 refreshToken 的过期会话、multipart 与 SSE 直连路径同样
+  重置内存态（见 [EVD-auth-session-reset-2026-08-25](../evidence/EVD-auth-session-reset-2026-08-25.md)）。
 - 编辑资料页 build watch 身份状态：冷启动深链进入时等待身份恢复后自动触发资料加载；资料读取失败
   渲染可重试 ErrorView，不再永久停在进度圈或只弹 toast。
 - 帖子详情页评论读取失败（首屏或分页）进入可重试错误态：空列表渲染「评论加载失败」ErrorView，
