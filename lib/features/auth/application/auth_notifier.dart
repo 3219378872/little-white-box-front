@@ -4,6 +4,8 @@ import '../../../sdk/vars/kv.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/auth/jwt_decoder.dart';
 import '../../../core/auth/session_tokens.dart';
+import '../../../core/api/api_adapter.dart' as api_adapter;
+import '../../../sdk/api/api.dart' as sdk_api;
 
 class AuthState {
   final bool isAuthenticated;
@@ -109,4 +111,20 @@ final authNotifierProvider =
 /// 供 GoRouter refreshListenable 使用
 final authListenableProvider = Provider<AuthChangeNotifier>((ref) {
   return ref.read(_authChangeNotifierProvider);
+});
+
+/// 把传输层认证失败回调统一绑定到会话重置
+/// （DES-flutter-client「会话与令牌刷新」：宿主用它同步 AuthNotifier 内存态，
+/// 由 refreshListenable 把受保护页面重定向到登录页）。
+///
+/// 覆盖两条路径：SDK 刷新被拒后的 `onSessionInvalid`，以及无 refreshToken、
+/// multipart 上传与 Assistant SSE 等直连路径的 `onAuthError`。回调幂等，
+/// 重复触发只多做一次清理。由应用壳 watch 一次完成装配。
+final authTransportBindingProvider = Provider((ref) {
+  Future<void> resetSession() {
+    return ref.read(authNotifierProvider.notifier).onSessionExpired();
+  }
+
+  api_adapter.onAuthError = resetSession;
+  sdk_api.onSessionInvalid = resetSession;
 });

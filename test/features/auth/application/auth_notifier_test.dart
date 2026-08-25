@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/core/api/api_adapter.dart' as api_adapter;
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
+import 'package:xiaobaihe_app/sdk/api/api.dart' as sdk_api;
 import 'package:xiaobaihe_app/sdk/vars/kv.dart';
 
 void main() {
@@ -73,6 +75,45 @@ void main() {
     expect(state.token, isNull);
     expect(await getTokens(), isNull);
     expect(notifications, 2);
+  });
+
+  test('传输层 onAuthError 绑定会话重置（无 refreshToken 死区路径）', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(authNotifierProvider.notifier);
+    container.read(authTransportBindingProvider);
+    await pumpEventQueue();
+
+    // 无 refreshToken：请求失败只走 adapter 的 onAuthError，不经过 SDK 刷新。
+    await notifier.onLoginSuccess(7, _jwt(userId: 7, exp: 0));
+    expect(container.read(authNotifierProvider).isAuthenticated, isTrue);
+
+    await api_adapter.onAuthError?.call();
+    await pumpEventQueue();
+
+    expect(container.read(authNotifierProvider).isAuthenticated, isFalse);
+    expect(await getTokens(), isNull);
+  });
+
+  test('SDK 刷新被拒的 onSessionInvalid 同样重置会话', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(authNotifierProvider.notifier);
+    container.read(authTransportBindingProvider);
+    await pumpEventQueue();
+
+    await notifier.onLoginSuccess(
+      7,
+      _jwt(userId: 7, exp: 0),
+      refreshToken: 'refresh-token',
+    );
+    expect(container.read(authNotifierProvider).isAuthenticated, isTrue);
+
+    sdk_api.onSessionInvalid?.call();
+    await pumpEventQueue();
+
+    expect(container.read(authNotifierProvider).isAuthenticated, isFalse);
+    expect(await getTokens(), isNull);
   });
 }
 
