@@ -58,6 +58,7 @@ class InteractionNotifier extends StateNotifier<InteractionState> {
         await _repository.likeTarget(post.id, 1);
       }
     } catch (_) {
+      if (!mounted) return;
       state = state.copyWith(
         optimisticIsLiked: currentlyLiked,
         likeCountDelta: state.likeCountDelta + (currentlyLiked ? 1 : -1),
@@ -79,6 +80,7 @@ class InteractionNotifier extends StateNotifier<InteractionState> {
         await _repository.favoritePost(post.id);
       }
     } catch (_) {
+      if (!mounted) return;
       state = state.copyWith(
         optimisticIsFavorited: currentlyFav,
         favoriteCountDelta: state.favoriteCountDelta + (currentlyFav ? 1 : -1),
@@ -93,7 +95,8 @@ final interactionRepositoryProvider = Provider<InteractionRepository>((ref) {
 });
 
 final interactionNotifierProvider =
-    StateNotifierProvider.family<InteractionNotifier, InteractionState, String>((
+    StateNotifierProvider.autoDispose.family<InteractionNotifier,
+        InteractionState, String>((
       ref,
       postId,
     ) {

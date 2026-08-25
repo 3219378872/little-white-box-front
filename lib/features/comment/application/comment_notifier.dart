@@ -268,7 +268,8 @@ final commentRepositoryProvider = Provider<CommentRepository>((ref) {
 });
 
 final commentNotifierProvider =
-    StateNotifierProvider.family<CommentNotifier, CommentState, String>((
+    StateNotifierProvider.autoDispose.family<CommentNotifier, CommentState,
+        String>((
       ref,
       postId,
     ) {

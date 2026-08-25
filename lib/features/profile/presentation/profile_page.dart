@@ -18,7 +18,8 @@ final _personalizationRepoProvider = Provider(
   (ref) => PersonalizationRepository(),
 );
 
-final _userProfileProvider = FutureProvider.family<GetUserResp, String>((
+final _userProfileProvider =
+    FutureProvider.autoDispose.family<GetUserResp, String>((
   ref,
   userId,
 ) {

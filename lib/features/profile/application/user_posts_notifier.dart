@@ -108,7 +108,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final resp = await _fetch('');
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         items: resp.list,
         cursor: resp.nextCursor,
@@ -116,7 +116,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
         isLoading: false,
       );
     } catch (e) {
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(isLoading: false, error: e);
     }
   }
@@ -128,7 +128,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final resp = await _fetch(state.cursor);
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         items: [...state.items, ...resp.list],
         cursor: resp.nextCursor,
@@ -136,7 +136,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
         isLoading: false,
       );
     } catch (e) {
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(isLoading: false, error: e);
     }
   }
@@ -146,7 +146,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
     state = state.copyWith(isRefreshing: true);
     try {
       final resp = await _fetch('');
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         items: resp.list,
         cursor: resp.nextCursor,
@@ -156,15 +156,16 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
         clearError: true,
       );
     } catch (_) {
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(isRefreshing: false);
     }
   }
 }
 
 /// Provider.family
-final userPostsProvider = StateNotifierProvider.family<
-    UserPostsNotifier, UserPostsState, UserPostsKey>(
+final userPostsProvider =
+    StateNotifierProvider.autoDispose.family<
+        UserPostsNotifier, UserPostsState, UserPostsKey>(
   (ref, key) {
     final notifier = UserPostsNotifier(
       repo: ref.read(userPostsRepositoryProvider),

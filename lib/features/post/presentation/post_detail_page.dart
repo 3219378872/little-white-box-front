@@ -19,7 +19,8 @@ import '../data/post_repository.dart';
 
 final _postRepoProvider = Provider((ref) => PostRepository());
 
-final _postDetailProvider = FutureProvider.family<GetPostResp, String>((
+final _postDetailProvider =
+    FutureProvider.autoDispose.family<GetPostResp, String>((
   ref,
   postId,
 ) {

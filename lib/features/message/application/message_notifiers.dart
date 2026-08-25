@@ -243,7 +243,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
         conversationId: conversationId,
         pageSize: pageSize,
       );
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         messages: _ordered(result.messages),
         hasMore: result.hasMore,
@@ -252,7 +252,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
       );
       await _markRead(generation);
     } catch (error) {
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         isLoading: false,
         error: friendlyErrorMessage(error),
@@ -266,11 +266,11 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     state = state.copyWith(isMarkingRead: true, clearReadError: true);
     try {
       await _repository.markConversationRead(conversationId);
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(isMarkingRead: false, clearReadError: true);
       _onMarkedRead?.call();
     } catch (error) {
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         isMarkingRead: false,
         readError: friendlyErrorMessage(error),
@@ -293,14 +293,14 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
         lastId: state.messages.first.id,
         pageSize: pageSize,
       );
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         messages: _ordered([...result.messages, ...state.messages]),
         hasMore: result.hasMore,
         isLoadingOlder: false,
       );
     } catch (error) {
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         isLoadingOlder: false,
         error: friendlyErrorMessage(error),
@@ -464,10 +464,10 @@ class UnreadSummaryNotifier extends StateNotifier<UnreadSummaryState> {
     state = UnreadSummaryState(summary: state.summary, isLoading: true);
     try {
       final summary = await _repository.getUnreadSummary();
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = UnreadSummaryState(summary: summary);
     } catch (error) {
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = UnreadSummaryState(
         summary: state.summary,
         error: friendlyErrorMessage(error),
@@ -505,7 +505,7 @@ final unreadSummaryProvider =
     });
 
 final messageThreadProvider =
-    StateNotifierProvider.family<
+    StateNotifierProvider.autoDispose.family<
       MessageThreadNotifier,
       MessageThreadState,
       MessageThreadKey

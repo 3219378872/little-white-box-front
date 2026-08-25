@@ -82,10 +82,10 @@ class FeedNotifier extends StateNotifier<FeedState> {
         kind: kind,
         pageSize: pageSize,
       );
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = _fromResult(result);
     } catch (error) {
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         isLoading: false,
         isLoadingMore: false,
@@ -107,7 +107,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
         followCursor: state.followCursor,
         positionOffset: state.entries.length,
       );
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       final seen = state.entries.map((entry) => jsonInt64Id(entry.post.id)).toSet();
       final additions = result.items
           .where((entry) => seen.add(jsonInt64Id(entry.post.id)))
@@ -121,7 +121,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
         followCursor: result.followCursor,
       );
     } catch (error) {
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         isLoadingMore: false,
         error: friendlyErrorMessage(error),
@@ -151,7 +151,8 @@ final feedRepositoryProvider = Provider<FeedPageRepository>((ref) {
 });
 
 final feedNotifierProvider =
-    StateNotifierProvider.family<FeedNotifier, FeedState, FeedKind>((
+    StateNotifierProvider.autoDispose.family<FeedNotifier, FeedState,
+        FeedKind>((
       ref,
       kind,
     ) {
