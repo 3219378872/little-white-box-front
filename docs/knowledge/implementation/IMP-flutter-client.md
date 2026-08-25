@@ -33,6 +33,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-exposure-event-driven-2026-08-25
   - EVD-family-provider-autodispose-2026-08-25
   - EVD-paginated-load-more-error-2026-08-25
   - EVD-auth-session-reset-2026-08-25
@@ -103,8 +104,10 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
   「没有更多了」，加载更多失败保留已有条目并提供底部重试。资料页帖子/收藏列表与会话列表
   （`PaginatedListView`）同构：失败态挂起滚动自动翻页，footer 显示失败文案 + 重试，
   重试复用原游标（见 [EVD-paginated-load-more-error-2026-08-25](../evidence/EVD-paginated-load-more-error-2026-08-25.md)）。
-- `PostCard` 每 100 ms 测量可见面积，达到 50% 后计时 1 秒；曝光去重键为
-  `(requestId, postId)`，离开可见区后记录已曝光会话的 dwell。
+- `PostCard` 由 `visibility_detector` 事件回调驱动可见性（不再每卡 100ms 轮询几何），
+  可见比例 ≥50% 持续 1 秒上报曝光；去重键 `(requestId, postId)`，离开可见区记录 dwell。
+- `encodeApiJson` 仅对键名以 `Id`/`Ids` 结尾的字段把 ≥16 位数字串还原为 JSON number
+  （数组元素继承所属键），自由文本中的长数字串保持字符串原样上行。
 - 行为队列用 SharedPreferences 持久化，默认最多 500 条、单批 100 条；按 anonymousId/sessionId
   分组发送，只移除 accepted 或 permanently rejected，暂时失败指数退避到 1 分钟。
 - Message notifier 为发送命令生成随机幂等键，失败时保存命令，显式重试复用原键；已读失败独立重试。
