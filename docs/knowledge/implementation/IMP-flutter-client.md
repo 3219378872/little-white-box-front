@@ -33,6 +33,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-paginated-load-more-error-2026-08-25
   - EVD-auth-session-reset-2026-08-25
   - EVD-client-found-bugs-fix-2026-08-22
   - EVD-assistant-md-render-2026-08-22
@@ -96,7 +97,9 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 
 - 推荐和关注使用独立游标，Feed notifier 以 generation 抑制旧请求，并在分页追加时按帖子 ID 去重。
 - Feed 在剩余滚动空间不足 200px（含首屏未填满）时请求下一页；加载中显示底部进度，游标耗尽显示
-  「没有更多了」，加载更多失败保留已有条目并提供底部重试。
+  「没有更多了」，加载更多失败保留已有条目并提供底部重试。资料页帖子/收藏列表与会话列表
+  （`PaginatedListView`）同构：失败态挂起滚动自动翻页，footer 显示失败文案 + 重试，
+  重试复用原游标（见 [EVD-paginated-load-more-error-2026-08-25](../evidence/EVD-paginated-load-more-error-2026-08-25.md)）。
 - `PostCard` 每 100 ms 测量可见面积，达到 50% 后计时 1 秒；曝光去重键为
   `(requestId, postId)`，离开可见区后记录已曝光会话的 dwell。
 - 行为队列用 SharedPreferences 持久化，默认最多 500 条、单批 100 条；按 anonymousId/sessionId
