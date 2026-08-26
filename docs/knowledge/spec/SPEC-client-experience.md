@@ -6,13 +6,14 @@ status: approved
 owner: human
 upstream:
   - INT-content-community-client
-updated_at: 2026-08-13
+updated_at: 2026-08-26
 approved_at: 2026-08-13
 ---
 
 # 客户端体验与接口规格
 
-本规格已于 2026-08-13 获得人类明确批准。条款定义目标行为；当前代码是否满足条款，以实现层和证据层
+本规格已于 2026-08-13 获得人类明确批准；2026-08-26 增补的 Assistant Agent 模式条款（FX-052～
+FX-058）经同一人类开发者在评审对话中批准。条款定义目标行为；当前代码是否满足条款，以实现层和证据层
 为准。
 
 ## 访问与身份

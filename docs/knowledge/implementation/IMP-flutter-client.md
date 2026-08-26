@@ -20,6 +20,13 @@ tracks:
   - FX-041
   - FX-050
   - FX-051
+  - FX-052
+  - FX-053
+  - FX-054
+  - FX-055
+  - FX-056
+  - FX-057
+  - FX-058
   - FX-060
   - FX-061
   - FX-062
@@ -38,6 +45,7 @@ evidence:
   - EVD-paginated-load-more-error-2026-08-25
   - EVD-auth-session-reset-2026-08-25
   - EVD-client-found-bugs-fix-2026-08-22
+  - EVD-assistant-agent-mode-2026-08-26
   - EVD-assistant-md-render-2026-08-22
   - EVD-assistant-evidence-strip-2026-08-22
   - EVD-assistant-source-display-2026-08-22
@@ -92,7 +100,7 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 | 帖子/评论/互动 | `features/post/`、`comment/`、PostCard | 页面局部状态 | v1 repositories、multipart adapter | PostCard、profile、Mock like 测试 |
 | 资料与用户列表 | `features/profile/presentation/` | `user_posts_notifier.dart` | `user_repository.dart` | `test/features/profile/` |
 | 一对一私信 | `features/message/presentation/` | `message_notifiers.dart` | `message_repository.dart`、models | `test/features/message/` |
-| Assistant | `features/assistant/presentation/` | `assistant_notifier.dart` | 直接 HTTP SSE repository、models | `test/features/assistant/` |
+| Assistant | `features/assistant/presentation/` | `assistant_notifier.dart`、`agent_consent_notifier` | 直接 HTTP SSE repository、models、consent/confirm 调用 | `test/features/assistant/` |
 | 行为反馈 | PostCard 可见性/交互钩子 | `behavior_tracker.dart` | 持久 queue、repository、identity store | `test/features/behavior/`、tracking 测试 |
 
 ## 已实现的关键事实
@@ -166,7 +174,7 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 | 搜索 | aligned | 已建模并展示部分降级；搜索帖子带作者身份并在结果中展示 |
 | 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐；评论楼中楼按需展开加载（内嵌预览 + replies 分页接口）见 [EVD-comment-replies-2026-08-22](../evidence/EVD-comment-replies-2026-08-22.md)，接口语义缺口登记于后端仓 PROP-20260822-comment-reply-thread（open） |
 | 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |
-| Assistant | diverged | 仅帖子来源可点，仍缺 excerpt 与来源变化 |
+| Assistant | diverged | enhanced_search 仍缺 excerpt 与来源变化；Agent 模式（FX-052～058）已实现并经自动化验证，真实网关与真机图片上传证据待补 |
 | 行为反馈 | aligned | 客户端不再上报 like/unlike |
 | UI/工程分层 | aligned | 详见 [Forui 实现指南](IMP-forui-ui.md) |
 | Mock/真实同路径 | aligned | transport 注入；Mock HTTP 契约对齐 `gateway.api`；真实网关仍需独立证据 |
