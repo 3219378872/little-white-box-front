@@ -53,6 +53,7 @@ void main() {
       'conversationId': 'c-0',
       'message': 'hello',
       'requestId': 'request-1',
+      'mode': 'enhanced_search',
     });
   });
 

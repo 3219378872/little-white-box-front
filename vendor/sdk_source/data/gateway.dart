@@ -1,4 +1,17 @@
-// --/home/dev/projects/little/little-white-box-content-community/app/gateway/gateway--
+// --/home/dev/projects/little/little-white-box-content-community/.worktree/task-assistant-agent-mode/app/gateway/gateway--
+
+class AssistantAttachment {
+  final Object mediaId;
+
+  final String url;
+  AssistantAttachment({required this.mediaId, required this.url});
+  factory AssistantAttachment.fromJson(Map<String, dynamic> m) {
+    return AssistantAttachment(mediaId: m['mediaId'] ?? 0, url: m['url'] ?? "");
+  }
+  Map<String, dynamic> toJson() {
+    return {'mediaId': mediaId, 'url': url};
+  }
+}
 
 class AssistantChatEvent {
   final String type;
@@ -12,6 +25,8 @@ class AssistantChatEvent {
   final String errorCode;
 
   final String conversationId;
+
+  final AssistantToolCallInfo? toolCall;
   AssistantChatEvent({
     required this.type,
     required this.text,
@@ -19,6 +34,7 @@ class AssistantChatEvent {
     required this.degraded,
     required this.errorCode,
     required this.conversationId,
+    required this.toolCall,
   });
   factory AssistantChatEvent.fromJson(Map<String, dynamic> m) {
     return AssistantChatEvent(
@@ -30,6 +46,9 @@ class AssistantChatEvent {
       degraded: m['degraded'] ?? false,
       errorCode: m['errorCode'] ?? "",
       conversationId: m['conversationId'] ?? "",
+      toolCall: m['toolCall'] == null
+          ? null
+          : AssistantToolCallInfo?.fromJson(m['toolCall']),
     );
   }
   Map<String, dynamic> toJson() {
@@ -40,6 +59,7 @@ class AssistantChatEvent {
       'degraded': degraded,
       'errorCode': errorCode,
       'conversationId': conversationId,
+      'toolCall': toolCall?.toJson(),
     };
   }
 }
@@ -50,16 +70,26 @@ class AssistantChatReq {
   final String message;
 
   final String requestId;
+
+  final String mode;
+
+  final List<AssistantAttachment> attachments;
   AssistantChatReq({
     required this.conversationId,
     required this.message,
     required this.requestId,
+    required this.mode,
+    required this.attachments,
   });
   factory AssistantChatReq.fromJson(Map<String, dynamic> m) {
     return AssistantChatReq(
       conversationId: m['conversationId'] ?? "",
       message: m['message'] ?? "",
       requestId: m['requestId'] ?? "",
+      mode: m['mode'] ?? "",
+      attachments: ((m['attachments'] ?? []) as List<dynamic>)
+          .map((i) => AssistantAttachment.fromJson(i))
+          .toList(),
     );
   }
   Map<String, dynamic> toJson() {
@@ -67,6 +97,8 @@ class AssistantChatReq {
       'conversationId': conversationId,
       'message': message,
       'requestId': requestId,
+      'mode': mode,
+      'attachments': attachments.map((i) => i.toJson()),
     };
   }
 }
@@ -100,6 +132,71 @@ class AssistantSourceReference {
       'title': title,
       'revision': revision,
     };
+  }
+}
+
+class AssistantToolCallInfo {
+  final String callId;
+
+  final String tool;
+
+  final String summary;
+
+  final String payloadJson;
+  AssistantToolCallInfo({
+    required this.callId,
+    required this.tool,
+    required this.summary,
+    required this.payloadJson,
+  });
+  factory AssistantToolCallInfo.fromJson(Map<String, dynamic> m) {
+    return AssistantToolCallInfo(
+      callId: m['callId'] ?? "",
+      tool: m['tool'] ?? "",
+      summary: m['summary'] ?? "",
+      payloadJson: m['payloadJson'] ?? "",
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'callId': callId,
+      'tool': tool,
+      'summary': summary,
+      'payloadJson': payloadJson,
+    };
+  }
+}
+
+class AssistantToolConfirmReq {
+  final String requestId;
+
+  final String callId;
+
+  final bool approved;
+  AssistantToolConfirmReq({
+    required this.requestId,
+    required this.callId,
+    required this.approved,
+  });
+  factory AssistantToolConfirmReq.fromJson(Map<String, dynamic> m) {
+    return AssistantToolConfirmReq(
+      requestId: m['requestId'] ?? "",
+      callId: m['callId'] ?? "",
+      approved: m['approved'] ?? false,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'requestId': requestId, 'callId': callId, 'approved': approved};
+  }
+}
+
+class AssistantToolConfirmResp {
+  AssistantToolConfirmResp();
+  factory AssistantToolConfirmResp.fromJson(Map<String, dynamic> m) {
+    return AssistantToolConfirmResp();
+  }
+  Map<String, dynamic> toJson() {
+    return {};
   }
 }
 
@@ -627,6 +724,29 @@ class FollowResp {
   }
   Map<String, dynamic> toJson() {
     return {};
+  }
+}
+
+class GetAgentConsentResp {
+  final bool granted;
+
+  final num grantedAt;
+
+  final num revokedAt;
+  GetAgentConsentResp({
+    required this.granted,
+    required this.grantedAt,
+    required this.revokedAt,
+  });
+  factory GetAgentConsentResp.fromJson(Map<String, dynamic> m) {
+    return GetAgentConsentResp(
+      granted: m['granted'] ?? false,
+      grantedAt: m['grantedAt'] ?? 0,
+      revokedAt: m['revokedAt'] ?? 0,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'granted': granted, 'grantedAt': grantedAt, 'revokedAt': revokedAt};
   }
 }
 
@@ -2173,6 +2293,27 @@ class SendVerifyCodeResp {
   SendVerifyCodeResp();
   factory SendVerifyCodeResp.fromJson(Map<String, dynamic> m) {
     return SendVerifyCodeResp();
+  }
+  Map<String, dynamic> toJson() {
+    return {};
+  }
+}
+
+class SetAgentConsentReq {
+  final bool granted;
+  SetAgentConsentReq({required this.granted});
+  factory SetAgentConsentReq.fromJson(Map<String, dynamic> m) {
+    return SetAgentConsentReq(granted: m['granted'] ?? false);
+  }
+  Map<String, dynamic> toJson() {
+    return {'granted': granted};
+  }
+}
+
+class SetAgentConsentResp {
+  SetAgentConsentResp();
+  factory SetAgentConsentResp.fromJson(Map<String, dynamic> m) {
+    return SetAgentConsentResp();
   }
   Map<String, dynamic> toJson() {
     return {};

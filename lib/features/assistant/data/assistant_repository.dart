@@ -7,6 +7,8 @@ import '../../../core/api/api_adapter.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../sdk/api/api.dart' as sdk_api;
+import '../../../sdk/api/gateway.dart' as gw;
+import '../../../sdk/data/gateway.dart' hide AssistantChatEvent;
 import '../../../sdk/vars/kv.dart';
 import '../../../sdk/vars/vars.dart';
 import 'assistant_models.dart';
@@ -20,11 +22,45 @@ class AssistantStreamException implements Exception {
   String toString() => message;
 }
 
+/// Agent 能力授权状态（AGNT-004/006）。
+class AgentConsentStatus {
+  final bool granted;
+  final int grantedAt;
+  final int revokedAt;
+
+  const AgentConsentStatus({
+    required this.granted,
+    this.grantedAt = 0,
+    this.revokedAt = 0,
+  });
+
+  factory AgentConsentStatus.fromSdk(GetAgentConsentResp resp) {
+    return AgentConsentStatus(
+      granted: resp.granted,
+      grantedAt: resp.grantedAt.toInt(),
+      revokedAt: resp.revokedAt.toInt(),
+    );
+  }
+}
+
 abstract interface class AssistantDataSource {
   Stream<AssistantChatEvent> chat({
     required String message,
     required String requestId,
     String conversationId = '',
+    AssistantMode mode = AssistantMode.enhancedSearch,
+    List<AssistantAttachment> attachments = const [],
+  });
+
+  Future<AgentConsentStatus> loadAgentConsent();
+
+  Future<void> setAgentConsent({required bool granted});
+
+  /// 高危操作确认回调（AGNT-020~022）。
+  Future<void> confirmTool({
+    required String requestId,
+    required String callId,
+    required bool approved,
   });
 }
 
@@ -48,6 +84,8 @@ class AssistantRepository implements AssistantDataSource {
     required String message,
     required String requestId,
     String conversationId = '',
+    AssistantMode mode = AssistantMode.enhancedSearch,
+    List<AssistantAttachment> attachments = const [],
   }) async* {
     final normalized = message.trim();
     final normalizedRequestId = requestId.trim();
@@ -65,6 +103,8 @@ class AssistantRepository implements AssistantDataSource {
         conversationId: conversationId,
         normalized: normalized,
         normalizedRequestId: normalizedRequestId,
+        mode: mode,
+        attachments: attachments,
       );
       try {
         response = await _httpClient.send(request);
@@ -117,10 +157,53 @@ class AssistantRepository implements AssistantDataSource {
     }
   }
 
+  @override
+  Future<AgentConsentStatus> loadAgentConsent() async {
+    final resp = await apiCall<GetAgentConsentResp>(
+      (ok, fail, eventually) =>
+          gw.getAgentConsent(ok: ok, fail: fail, eventually: eventually),
+    );
+    return AgentConsentStatus.fromSdk(resp);
+  }
+
+  @override
+  Future<void> setAgentConsent({required bool granted}) async {
+    await apiCall<SetAgentConsentResp>(
+      (ok, fail, eventually) => gw.setAgentConsent(
+        SetAgentConsentReq(granted: granted),
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+  }
+
+  @override
+  Future<void> confirmTool({
+    required String requestId,
+    required String callId,
+    required bool approved,
+  }) async {
+    await apiCall<AssistantToolConfirmResp>(
+      (ok, fail, eventually) => gw.confirmAssistantTool(
+        AssistantToolConfirmReq(
+          requestId: requestId,
+          callId: callId,
+          approved: approved,
+        ),
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+  }
+
   Future<http.Request> _buildChatRequest({
     required String conversationId,
     required String normalized,
     required String normalizedRequestId,
+    required AssistantMode mode,
+    required List<AssistantAttachment> attachments,
   }) async {
     final request = http.Request(
       'POST',
@@ -140,6 +223,15 @@ class AssistantRepository implements AssistantDataSource {
         'conversationId': conversationId.trim(),
       'message': normalized,
       'requestId': normalizedRequestId,
+      'mode': mode.wireValue,
+      if (attachments.isNotEmpty)
+        'attachments': [
+          for (final attachment in attachments)
+            {
+              'mediaId': attachment.mediaId,
+              'url': attachment.url,
+            },
+        ],
     });
     return request;
   }

@@ -33,7 +33,7 @@ tracks:
   - FQ-006
   - FQ-007
   - FQ-008
-updated_at: 2026-08-21
+updated_at: 2026-08-26
 ---
 
 # Flutter 内容社区客户端设计
@@ -145,6 +145,33 @@ Assistant 使用独立 SSE transport，因为它需要逐事件消费并支持�
 唯一终止事件；notifier 以 generation 丢弃旧订阅事件，累积 token、去重来源并保留降级/错误状态。
 来源模型只接受规格允许的帖子证据字段；页面重新打开来源时仍走普通帖子权限。
 
+### Assistant Agent 模式（FX-052～FX-058）
+
+模式与授权：
+
+- 模式控件放在 assistant 页输入区上方，状态保存在 `AssistantNotifier` 所属的 provider
+  中，切换只改请求参数不清历史；请求体经 `assistant_repository` 增加 `mode` 与
+  `attachments` 字段。
+- 进入 Agent 模式时由 repository 调用 `GET /api/v2/assistant/consent` 查询授权；
+  未授权时页面弹出能力说明对话框（Forui 组件 + `FLucideIcons`），同意后调
+  `POST /api/v2/assistant/consent` 记录，取消回退 enhanced_search。收到
+  `AGENT_NOT_AUTHORIZED` 业务码同样触发该对话框。
+
+附件：
+
+- 附件入口复用私信线程的选图模式：`ImagePicker` 选图 → 与帖子发布一致的 MIME 白名单
+  （JPEG/PNG/WebP）和 ≤10 MiB 校验 → 复用 `PostRepository.uploadImageMultipart`
+  上传 → 会话内暂存 `{mediaId, url, thumbnailUrl}` 列表，发送前可移除。
+- 发送时把附件映射进请求 `attachments`；上传失败的图片中止本次发送并提示，不静默剔除。
+
+工具进度与确认：
+
+- `AssistantChatEvent` 解析扩展 `TOOL_CALL` / `CONFIRM_REQUIRED` 类型与 `toolCall`
+  载荷；notifier 把工具行追加进当前消息的步骤列表，终止后由页面折叠渲染。
+- 确认卡片是独立 widget：持有 `callId`，确认/取消调用 `POST /api/v2/assistant/tool/confirm`
+  后立即转为不可交互并显示结果；卡片不阻塞后续 SSE 事件渲染。
+- 网络来源以独立类型标识渲染（非帖子证据样式），预算耗尽错误沿用既有错误态呈现。
+
 ## 关键数据流
 
 ### 推荐与反馈
@@ -209,6 +236,7 @@ Assistant 从「我的」和消息页进入。主 Tab 页不再嵌套第二层 `
 | `FX-030`～`FX-032` | v1 生成契约、multipart、写入幂等与 revision |
 | `FX-040`～`FX-041` | Message command、线程状态和未读收敛 |
 | `FX-050`～`FX-051` | SSE transport、Assistant notifier、证据来源模型 |
+| `FX-052`～`FX-058` | Agent 模式控件、授权对话框、附件上传、工具进度与确认卡片 |
 | `FX-060`～`FX-062` | 可见性测量、事件所有权、持久队列 |
 | `FX-070` | 共享 transport 与 Mock router |
 | `FQ-001`～`FQ-008` | 分层、适配、UI 系统、异步状态、测试和知识治理 |

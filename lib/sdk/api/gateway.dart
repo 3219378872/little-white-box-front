@@ -62,6 +62,67 @@ Future assistantChat(
   );
 }
 
+/// --/api/v2/assistant/consent--
+///
+/// request:
+/// response: GetAgentConsentResp
+Future getAgentConsent({
+  Function(GetAgentConsentResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/assistant/consent",
+    ok: (data) {
+      if (ok != null) ok(GetAgentConsentResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/consent--
+///
+/// request: SetAgentConsentReq
+/// response: SetAgentConsentResp
+Future setAgentConsent(
+  SetAgentConsentReq request, {
+  Function(SetAgentConsentResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/assistant/consent",
+    request,
+    ok: (data) {
+      if (ok != null) ok(SetAgentConsentResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/tool/confirm--
+///
+/// request: AssistantToolConfirmReq
+/// response: AssistantToolConfirmResp
+Future confirmAssistantTool(
+  AssistantToolConfirmReq request, {
+  Function(AssistantToolConfirmResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/assistant/tool/confirm",
+    request,
+    ok: (data) {
+      if (ok != null) ok(AssistantToolConfirmResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 /// --/api/v2/behavior/events--
 ///
 /// request: RecordBehaviorEventsReq

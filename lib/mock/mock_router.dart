@@ -430,6 +430,26 @@ MockRouterResponse _routeV2(
       _requireMethod(method, 'POST');
       _requireAuth(auth);
       return _assistantChat(body, auth);
+    case 'api/v2/assistant/consent':
+      _requireAuth(auth);
+      if (method == 'GET') {
+        // Mock 默认已授权，便于开发态走通 Agent 模式。
+        return _jsonResponse({
+          'granted': true,
+          'grantedAt': DateTime.now().millisecondsSinceEpoch,
+        });
+      }
+      _requireMethod(method, 'POST');
+      return _jsonResponse(const {});
+    case 'api/v2/assistant/tool/confirm':
+      _requireMethod(method, 'POST');
+      _requireAuth(auth);
+      final requestId = body?['requestId']?.toString() ?? '';
+      final callId = body?['callId']?.toString() ?? '';
+      if (requestId.isEmpty || callId.isEmpty) {
+        throw const _MockBiz(400, 2, '参数错误');
+      }
+      return _jsonResponse(const {});
     case 'api/v2/me/personalization':
       _requireAuth(auth);
       if (method == 'GET') {
@@ -1332,6 +1352,14 @@ MockRouterResponse _assistantChat(Map<String, dynamic>? body, _Auth auth) {
       ? body!['conversationId'].toString().trim()
       : 'mock-${requestId.isEmpty ? auth.userId : requestId}';
   final sourcePost = _publishedPosts().first;
+  if (body?['mode']?.toString() == 'agent') {
+    return _agentAssistantChat(
+      body: body ?? const {},
+      auth: auth,
+      conversationId: conversationId,
+      sourcePost: sourcePost,
+    );
+  }
   final events = [
     {
       'type': 'token',
@@ -1346,6 +1374,70 @@ MockRouterResponse _assistantChat(Map<String, dynamic>? body, _Auth auth) {
         'title': sourcePost['title'],
         'revision': sourcePost['revision'] ?? 1,
       },
+      'conversationId': conversationId,
+    },
+    {'type': 'done', 'conversationId': conversationId},
+  ];
+  return MockRouterResponse(
+    body: events.map((event) => 'data: ${jsonEncode(event)}\n\n').join(),
+    statusCode: 200,
+    headers: {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache',
+      'x-auth-state': 'authenticated',
+    },
+  );
+}
+
+/// Agent 模式 mock：回放工具调用与高危确认事件序列，便于开发态联调 UI。
+MockRouterResponse _agentAssistantChat({
+  required Map<String, dynamic> body,
+  required _Auth auth,
+  required String conversationId,
+  required Map<String, dynamic> sourcePost,
+}) {
+  final attachments = (body['attachments'] as List<dynamic>? ?? const [])
+      .whereType<Map<dynamic, dynamic>>()
+      .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
+      .toList();
+  if (attachments.length > 9) {
+    throw const _MockBiz(400, 2, '参数错误');
+  }
+  final events = <Map<String, dynamic>>[
+    {
+      'type': 'tool_call',
+      'toolCall': {
+        'callId': 'mock-call-search',
+        'tool': 'search_posts',
+        'summary': '搜索帖子：${body['message']}',
+        'payloadJson': '{}',
+      },
+      'conversationId': conversationId,
+    },
+    {
+      'type': 'source',
+      'source': {
+        'sourceType': 'post',
+        'sourceId': '${sourcePost['id']}',
+        'title': sourcePost['title'],
+        'revision': sourcePost['revision'] ?? 1,
+      },
+      'conversationId': conversationId,
+    },
+    {
+      'type': 'confirm_required',
+      'toolCall': {
+        'callId': 'mock-call-delete',
+        'tool': 'delete_post',
+        'summary': '请求删除帖子 #${sourcePost['id']}',
+        'payloadJson': '{}',
+      },
+      'conversationId': conversationId,
+    },
+    {
+      'type': 'token',
+      'text':
+          'Agent 演示：已检索社区内容并生成操作计划。删除类操作需要你逐次确认。',
       'conversationId': conversationId,
     },
     {'type': 'done', 'conversationId': conversationId},

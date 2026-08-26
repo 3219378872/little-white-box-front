@@ -1,3 +1,5 @@
+import 'package:xiaobaihe_app/sdk/data/gateway.dart'
+    hide AssistantChatEvent, AssistantSourceReference;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -108,6 +110,8 @@ class _PageAssistantSource implements AssistantDataSource {
     required String message,
     required String requestId,
     String conversationId = '',
+    AssistantMode mode = AssistantMode.enhancedSearch,
+    List<AssistantAttachment> attachments = const [],
   }) {
     return Stream.fromIterable(const [
       AssistantChatEvent(
@@ -143,6 +147,20 @@ class _PageAssistantSource implements AssistantDataSource {
       ),
     ]);
   }
+
+  @override
+  Future<AgentConsentStatus> loadAgentConsent() async =>
+      const AgentConsentStatus(granted: false);
+
+  @override
+  Future<void> setAgentConsent({required bool granted}) async {}
+
+  @override
+  Future<void> confirmTool({
+    required String requestId,
+    required String callId,
+    required bool approved,
+  }) async {}
 }
 
 class _MarkdownAssistantSource implements AssistantDataSource {
@@ -151,6 +169,8 @@ class _MarkdownAssistantSource implements AssistantDataSource {
     required String message,
     required String requestId,
     String conversationId = '',
+    AssistantMode mode = AssistantMode.enhancedSearch,
+    List<AssistantAttachment> attachments = const [],
   }) {
     return Stream.fromIterable(const [
       AssistantChatEvent(
@@ -164,4 +184,18 @@ class _MarkdownAssistantSource implements AssistantDataSource {
       ),
     ]);
   }
+
+  @override
+  Future<AgentConsentStatus> loadAgentConsent() async =>
+      const AgentConsentStatus(granted: false);
+
+  @override
+  Future<void> setAgentConsent({required bool granted}) async {}
+
+  @override
+  Future<void> confirmTool({
+    required String requestId,
+    required String callId,
+    required bool approved,
+  }) async {}
 }
