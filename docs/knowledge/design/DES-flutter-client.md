@@ -28,10 +28,19 @@ tracks:
   - FX-056
   - FX-057
   - FX-058
+  - FX-059
   - FX-060
   - FX-061
   - FX-062
   - FX-070
+  - FX-080
+  - FX-081
+  - FX-082
+  - FX-083
+  - FX-084
+  - FX-085
+  - FX-086
+  - FX-087
   - FQ-001
   - FQ-002
   - FQ-003
@@ -40,7 +49,7 @@ tracks:
   - FQ-006
   - FQ-007
   - FQ-008
-updated_at: 2026-08-26
+updated_at: 2026-08-27
 ---
 
 # Flutter 内容社区客户端设计
@@ -179,6 +188,34 @@ Assistant 使用独立 SSE transport，因为它需要逐事件消费并支持�
   后立即转为不可交互并显示结果；卡片不阻塞后续 SSE 事件渲染。
 - 网络来源以独立类型标识渲染（非帖子证据样式），预算耗尽错误沿用既有错误态呈现。
 
+### Assistant Agent 运行时（FX-059、FX-080～FX-087）
+
+SSE 扩展：
+
+- repository 解析 `card` / `actions` / `watch_hit`；无法识别的 `type` 直接跳过，不抛终止错误
+  （FX-059）。未知 `sourceType` 仍只作徽章，不可点击进帖子。
+- `card.payloadJson` 只抽取服务端给出的已验证 `postId` 等标识渲染卡片，禁止从回答正文数字推断
+  ID（FX-084）。推荐卡片附不喜欢/不感兴趣，成功后才标记已反馈（FX-087）。
+- `actions` 渲染为独立按钮（打开帖子、创建 Watch 等），失败 toast 不中断后续事件（FX-085）。
+- `watch_hit` 追加到当前助手消息，点击已验证 `postId` 打开已发布帖子。
+
+授权版本：
+
+- `GET /api/v2/assistant/consent` 同时保存 `consentVersion` 与 `currentVersion`。已授权但版本
+  偏低时再次弹出完整工具分组清单，确认后 `POST` 升级；记忆/Watch 写入口在升级前禁用，页面可只读
+  提示（FX-080）。
+
+记忆与 Watch 页：
+
+- 路由 `/assistant/memory`、`/assistant/watch`，与 `/assistant` 同样受认证守卫；Assistant 页头
+  与个人资料入口导航，不新增第六个主 Tab。
+- 记忆页列出 profile/interest/task，区分已确认，支持改值/分值、删除、标记「不要记住这个」
+  （PATCH `suppressed`）；失败展示 ErrorView，不伪装空成功（FX-081）。
+- Watch 页列出任务与命中收件箱：创建/启停/删除仅允许四种规则条件；命中可标记已读并打开帖子，
+  不写入私信或通知中心（FX-082/083）。
+- 帖子详情在已授权且版本覆盖 Watch 时提供「盯作者」「盯本帖修订」芯片；未授权引导去 Assistant
+  （FX-086）。
+
 ## 关键数据流
 
 ### 推荐与反馈
@@ -244,6 +281,7 @@ Assistant 从「我的」和消息页进入。主 Tab 页不再嵌套第二层 `
 | `FX-040`～`FX-041` | Message command、线程状态和未读收敛 |
 | `FX-050`～`FX-051` | SSE transport、Assistant notifier、证据来源模型 |
 | `FX-052`～`FX-058` | Agent 模式控件、授权对话框、附件上传、工具进度与确认卡片 |
+| `FX-059`、`FX-080`～`FX-087` | 未知 SSE 忽略、consent_version、记忆/Watch 页、卡片与动作、帖子盯梢、推荐反馈 |
 | `FX-060`～`FX-062` | 可见性测量、事件所有权、持久队列 |
 | `FX-070` | 共享 transport 与 Mock router |
 | `FQ-001`～`FQ-008` | 分层、适配、UI 系统、异步状态、测试和知识治理 |

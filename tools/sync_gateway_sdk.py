@@ -50,6 +50,9 @@ ENTITY_ID_FIELDS = (
     "messageId",
     "lastId",
     "eventId",
+    "hitId",
+    "taskId",
+    "contextPostId",
 )
 PATH_ID_PARAMS = ("postId", "userId", "commentId", "id")
 
@@ -107,6 +110,13 @@ def patch_generated_types(source: str) -> str:
         "mediaIds: m['mediaIds']?.cast<int>() ?? [],",
         "mediaIds: m['mediaIds'] is List\n"
         "          ? List<Object>.from(m['mediaIds'] as List)\n"
+        "          : <Object>[],",
+    )
+    source = source.replace("final List<int> hitIds;", "final List<Object> hitIds;")
+    source = source.replace(
+        "hitIds: m['hitIds']?.cast<int>() ?? [],",
+        "hitIds: m['hitIds'] is List\n"
+        "          ? List<Object>.from(m['hitIds'] as List)\n"
         "          : <Object>[],",
     )
     return source

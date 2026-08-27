@@ -102,6 +102,90 @@ Future setAgentConsent(
   );
 }
 
+/// --/api/v2/assistant/memory--
+///
+/// request: ListAssistantMemoryReq
+/// response: ListAssistantMemoryResp
+Future listAssistantMemory({
+  Function(ListAssistantMemoryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/assistant/memory",
+    ok: (data) {
+      if (ok != null) ok(ListAssistantMemoryResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/memory/:id--
+///
+/// request: UpdateAssistantMemoryReq
+/// response: UpdateAssistantMemoryResp
+Future updateAssistantMemory(
+  Object id,
+  UpdateAssistantMemoryReq request, {
+  Function(UpdateAssistantMemoryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPatch(
+    "/api/v2/assistant/memory/${id}",
+    request,
+    ok: (data) {
+      if (ok != null) ok(UpdateAssistantMemoryResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/memory/:id--
+///
+/// request: DeleteAssistantMemoryReq
+/// response: DeleteAssistantMemoryResp
+Future deleteAssistantMemory(
+  Object id,
+  DeleteAssistantMemoryReq request, {
+  Function(DeleteAssistantMemoryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiDelete(
+    "/api/v2/assistant/memory/${id}",
+    request,
+    ok: (data) {
+      if (ok != null) ok(DeleteAssistantMemoryResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/recommend/feedback--
+///
+/// request: AssistantRecommendFeedbackReq
+/// response: AssistantRecommendFeedbackResp
+Future submitAssistantRecommendFeedback(
+  AssistantRecommendFeedbackReq request, {
+  Function(AssistantRecommendFeedbackResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/assistant/recommend/feedback",
+    request,
+    ok: (data) {
+      if (ok != null) ok(AssistantRecommendFeedbackResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 /// --/api/v2/assistant/tool/confirm--
 ///
 /// request: AssistantToolConfirmReq
@@ -117,6 +201,130 @@ Future confirmAssistantTool(
     request,
     ok: (data) {
       if (ok != null) ok(AssistantToolConfirmResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/watch--
+///
+/// request: ListAssistantWatchReq
+/// response: ListAssistantWatchResp
+Future listAssistantWatch({
+  Function(ListAssistantWatchResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/assistant/watch",
+    ok: (data) {
+      if (ok != null) ok(ListAssistantWatchResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/watch--
+///
+/// request: CreateAssistantWatchReq
+/// response: CreateAssistantWatchResp
+Future createAssistantWatch(
+  CreateAssistantWatchReq request, {
+  Function(CreateAssistantWatchResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/assistant/watch",
+    request,
+    ok: (data) {
+      if (ok != null) ok(CreateAssistantWatchResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/watch/:id--
+///
+/// request: UpdateAssistantWatchReq
+/// response: UpdateAssistantWatchResp
+Future updateAssistantWatch(
+  Object id,
+  UpdateAssistantWatchReq request, {
+  Function(UpdateAssistantWatchResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPatch(
+    "/api/v2/assistant/watch/${id}",
+    request,
+    ok: (data) {
+      if (ok != null) ok(UpdateAssistantWatchResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/watch/:id--
+///
+/// request: DeleteAssistantWatchReq
+/// response: DeleteAssistantWatchResp
+Future deleteAssistantWatch(
+  Object id,
+  DeleteAssistantWatchReq request, {
+  Function(DeleteAssistantWatchResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiDelete(
+    "/api/v2/assistant/watch/${id}",
+    request,
+    ok: (data) {
+      if (ok != null) ok(DeleteAssistantWatchResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/watch/hits--
+///
+/// request: ListAssistantWatchHitsReq
+/// response: ListAssistantWatchHitsResp
+Future listAssistantWatchHits({
+  Function(ListAssistantWatchHitsResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/assistant/watch/hits",
+    ok: (data) {
+      if (ok != null) ok(ListAssistantWatchHitsResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/watch/hits/read--
+///
+/// request: MarkAssistantWatchHitsReadReq
+/// response: MarkAssistantWatchHitsReadResp
+Future markAssistantWatchHitsRead(
+  MarkAssistantWatchHitsReadReq request, {
+  Function(MarkAssistantWatchHitsReadResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/assistant/watch/hits/read",
+    request,
+    ok: (data) {
+      if (ok != null) ok(MarkAssistantWatchHitsReadResp.fromJson(data));
     },
     fail: fail,
     eventually: eventually,
