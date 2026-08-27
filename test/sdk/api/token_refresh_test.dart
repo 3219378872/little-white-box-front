@@ -44,10 +44,9 @@ void main() {
       return _jsonResponse({'items': <Object>[]}, 200);
     });
     setApiClient(client);
-    await setTokens(buildStoredTokens(
-      accessToken: 'access-1',
-      refreshToken: 'refresh-1',
-    ));
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-1', refreshToken: 'refresh-1'),
+    );
 
     Object? okPayload;
     await apiGet(
@@ -87,10 +86,9 @@ void main() {
       return _jsonResponse({'ok': true}, 200);
     });
     setApiClient(client);
-    await setTokens(buildStoredTokens(
-      accessToken: 'access-1',
-      refreshToken: 'refresh-1',
-    ));
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-1', refreshToken: 'refresh-1'),
+    );
 
     final first = apiGet('/api/v1/a', ok: (_) {}, fail: (_) {});
     final second = apiGet('/api/v1/b', ok: (_) {}, fail: (_) {});
@@ -119,10 +117,9 @@ void main() {
       return _jsonResponse({'code': 1006, 'message': '请先登录'}, 401);
     });
     setApiClient(client);
-    await setTokens(buildStoredTokens(
-      accessToken: 'access-1',
-      refreshToken: 'refresh-1',
-    ));
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-1', refreshToken: 'refresh-1'),
+    );
 
     String? failure;
     await apiGet(
@@ -147,7 +144,9 @@ void main() {
       return _jsonResponse({'code': 1004, 'message': 'token 已过期'}, 401);
     });
     setApiClient(client);
-    await setTokens(buildStoredTokens(accessToken: 'access-1', refreshToken: ''));
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-1', refreshToken: ''),
+    );
 
     String? failure;
     await apiGet(
@@ -172,10 +171,9 @@ void main() {
       return _jsonResponse({'code': 1003, 'message': '密码错误'}, 401);
     });
     setApiClient(client);
-    await setTokens(buildStoredTokens(
-      accessToken: 'access-1',
-      refreshToken: 'refresh-1',
-    ));
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-1', refreshToken: 'refresh-1'),
+    );
 
     String? failure;
     await apiPost(
@@ -198,10 +196,9 @@ void main() {
       throw http.ClientException('network down', request.url);
     });
     setApiClient(client);
-    await setTokens(buildStoredTokens(
-      accessToken: 'access-1',
-      refreshToken: 'refresh-1',
-    ));
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-1', refreshToken: 'refresh-1'),
+    );
 
     String? failure;
     await apiGet(
@@ -234,10 +231,9 @@ void main() {
       return _jsonResponse({'items': <Object>[]}, 200);
     });
     setApiClient(client);
-    await setTokens(buildStoredTokens(
-      accessToken: 'access-1',
-      refreshToken: 'refresh-1',
-    ));
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-1', refreshToken: 'refresh-1'),
+    );
 
     await apiGet(
       '/api/v1/posts',
@@ -266,19 +262,14 @@ void main() {
       return _jsonResponse({'code': 1004, 'message': 'token 已过期'}, 401);
     });
     setApiClient(client);
-    await setTokens(buildStoredTokens(
-      accessToken: 'access-1',
-      refreshToken: 'refresh-1',
-    ));
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-1', refreshToken: 'refresh-1'),
+    );
 
     try {
       await apiCall<Map<String, dynamic>>(
-        (ok, fail, eventually) => apiGet(
-          '/api/v1/posts',
-          ok: ok,
-          fail: fail,
-          eventually: eventually,
-        ),
+        (ok, fail, eventually) =>
+            apiGet('/api/v1/posts', ok: ok, fail: fail, eventually: eventually),
       );
       fail('should have thrown');
     } on ApiException catch (e) {
@@ -291,10 +282,35 @@ void main() {
     final stored = await getTokens();
     expect(stored?.refreshToken, 'refresh-1');
   });
+
+  test('换发服务暂时不可用时保留会话', () async {
+    var sessionInvalidated = false;
+    onSessionInvalid = () async {
+      sessionInvalidated = true;
+    };
+    final client = _ScriptedClient((request) async {
+      if (request.url.path.endsWith('/api/v1/auth/refresh')) {
+        return _jsonResponse({'code': 6, 'message': '服务不可用'}, 503);
+      }
+      return _jsonResponse({'code': 1004, 'message': 'token 已过期'}, 401);
+    });
+    setApiClient(client);
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-1', refreshToken: 'refresh-1'),
+    );
+
+    String? failure;
+    await apiGet('/api/v1/posts', fail: (error) => failure = error);
+
+    expect(failure, contains('会话刷新失败'));
+    expect(sessionInvalidated, isFalse);
+    expect((await getTokens())?.refreshToken, 'refresh-1');
+  });
 }
 
 class _ScriptedClient extends http.BaseClient {
-  final Future<http.StreamedResponse> Function(http.BaseRequest request) handler;
+  final Future<http.StreamedResponse> Function(http.BaseRequest request)
+  handler;
 
   _ScriptedClient(this.handler);
 

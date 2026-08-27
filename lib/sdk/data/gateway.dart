@@ -1,4 +1,4 @@
-// --/home/dev/projects/little/little-white-box-content-community/app/gateway/gateway--
+// --/home/dev/projects/little/little-white-box-content-community/.worktree/task-audit-fixes/app/gateway/gateway--
 
 class AssistantAction {
   final String action;
@@ -529,10 +529,16 @@ class BehaviorEvent {
       targetType: m['targetType'] ?? "",
       scene: m['scene'] ?? "",
       requestId: m['requestId'] ?? "",
-      position: m['position'] == null ? null : (m['position'] is num) ? (m['position'] as num).toInt() : null,
+      position: m['position'] == null
+          ? null
+          : (m['position'] is num)
+          ? (m['position'] as num).toInt()
+          : null,
       durationMs: m['durationMs'] == null
           ? null
-          : (m['durationMs'] is num) ? (m['durationMs'] as num).toInt() : null,
+          : (m['durationMs'] is num)
+          ? (m['durationMs'] as num).toInt()
+          : null,
       recallSource: m['recallSource'] ?? "",
       modelVersion: m['modelVersion'] ?? "",
       experimentId: m['experimentId'] ?? "",
@@ -2897,11 +2903,11 @@ class UnlikeResp {
 class UpdateAssistantMemoryReq {
   final Object id;
 
-  final String value;
+  final String? value;
 
-  final num score;
+  final double? score;
 
-  final bool suppressed;
+  final bool? suppressed;
   UpdateAssistantMemoryReq({
     required this.id,
     required this.value,
@@ -2911,9 +2917,17 @@ class UpdateAssistantMemoryReq {
   factory UpdateAssistantMemoryReq.fromJson(Map<String, dynamic> m) {
     return UpdateAssistantMemoryReq(
       id: m['id'] ?? 0,
-      value: m['value'] ?? "",
-      score: m['score'] ?? 0.0,
-      suppressed: m['suppressed'] ?? false,
+      value: m['value'] == null ? null : m['value']?.toString(),
+      score: m['score'] == null
+          ? null
+          : (m['score'] is num)
+          ? (m['score'] as num).toDouble()
+          : null,
+      suppressed: m['suppressed'] == null
+          ? null
+          : (m['suppressed'] is bool)
+          ? m['suppressed'] as bool
+          : null,
     );
   }
   Map<String, dynamic> toJson() {
@@ -3007,7 +3021,11 @@ class UpdatePostV2Req {
       content: m['content'] ?? "",
       images: m['images']?.cast<String>() ?? [],
       tags: m['tags']?.cast<String>() ?? [],
-      status: m['status'] == null ? null : (m['status'] is num) ? (m['status'] as num).toInt() : null,
+      status: m['status'] == null
+          ? null
+          : (m['status'] is num)
+          ? (m['status'] as num).toInt()
+          : null,
       expectedRevision: m['expectedRevision'] ?? 0,
       mediaIds: m['mediaIds'] is List
           ? List<Object>.from(m['mediaIds'] as List)

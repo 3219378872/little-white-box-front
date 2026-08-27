@@ -12,29 +12,26 @@ import '../../../helpers/forui_test_builder.dart';
 import '../../../helpers/gateway_fake.dart';
 
 Map<String, dynamic> _existingPostJson() => {
-      'id': 9,
-      'authorId': 2,
-      'authorName': '作者甲',
-      'authorAvatar': '',
-      'title': '原标题',
-      'content': '原正文',
-      'images': <String>['https://media/old.png'],
-      'tags': <String>['go'],
-      'status': 1,
-      'viewCount': 1,
-      'likeCount': 0,
-      'commentCount': 0,
-      'favoriteCount': 0,
-      'isLiked': false,
-      'isFavorited': false,
-      'revision': 3,
-      'createdAt': 1700000000,
-    };
+  'id': 9,
+  'authorId': 2,
+  'authorName': '作者甲',
+  'authorAvatar': '',
+  'title': '原标题',
+  'content': '原正文',
+  'images': <String>['https://media/old.png'],
+  'tags': <String>['go'],
+  'status': 1,
+  'viewCount': 1,
+  'likeCount': 0,
+  'commentCount': 0,
+  'favoriteCount': 0,
+  'isLiked': false,
+  'isFavorited': false,
+  'revision': 3,
+  'createdAt': 1700000000,
+};
 
-GoRouter _routerWith(
-  Widget home, {
-  String initial = '/',
-}) {
+GoRouter _routerWith(Widget home, {String initial = '/'}) {
   return GoRouter(
     initialLocation: initial,
     routes: [
@@ -60,10 +57,7 @@ class _EditorHome extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: FButton(
-          onPress: () => context.push('/edit/9'),
-          child: child,
-        ),
+        child: FButton(onPress: () => context.push('/edit/9'), child: child),
       ),
     );
   }
@@ -79,7 +73,10 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp.router(
-          routerConfig: _routerWith(const Scaffold(body: Text('首页占位')), initial: '/create'),
+          routerConfig: _routerWith(
+            const Scaffold(body: Text('首页占位')),
+            initial: '/create',
+          ),
           builder: foruiTestBuilder,
         ),
       ),
@@ -100,7 +97,10 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp.router(
-          routerConfig: _routerWith(const Scaffold(body: Text('首页占位')), initial: '/create'),
+          routerConfig: _routerWith(
+            const Scaffold(body: Text('首页占位')),
+            initial: '/create',
+          ),
           builder: foruiTestBuilder,
         ),
       ),
@@ -120,20 +120,24 @@ void main() {
   testWidgets('publishes a new post and lands on the feed', (tester) async {
     final client = ScriptedGatewayClient((request) async {
       if (request.url.path == '/api/v2/post') {
-        return jsonResponse(okEnvelope({
-          'postId': 7,
-          'status': 1,
-          'revision': 1,
-        }));
+        return jsonResponse(
+          okEnvelope({'postId': 7, 'status': 1, 'revision': 1}),
+        );
       }
       fail('unexpected request: ${request.method} ${request.url.path}');
     });
     setApiClient(client);
-    final router = _routerWith(const Scaffold(body: Text('首页占位')), initial: '/create');
+    final router = _routerWith(
+      const Scaffold(body: Text('首页占位')),
+      initial: '/create',
+    );
 
     await tester.pumpWidget(
       ProviderScope(
-        child: MaterialApp.router(routerConfig: router, builder: foruiTestBuilder),
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: foruiTestBuilder,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -152,19 +156,26 @@ void main() {
     expect(find.text('信息流占位'), findsOneWidget);
   });
 
-  testWidgets('saving a draft submits status=0 through the same contract',
-      (tester) async {
+  testWidgets('saving a draft submits status=0 through the same contract', (
+    tester,
+  ) async {
     final client = ScriptedGatewayClient.always({
       'postId': 8,
       'status': 0,
       'revision': 1,
     });
     setApiClient(client);
-    final router = _routerWith(const Scaffold(body: Text('首页占位')), initial: '/create');
+    final router = _routerWith(
+      const Scaffold(body: Text('首页占位')),
+      initial: '/create',
+    );
 
     await tester.pumpWidget(
       ProviderScope(
-        child: MaterialApp.router(routerConfig: router, builder: foruiTestBuilder),
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: foruiTestBuilder,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -178,8 +189,54 @@ void main() {
     expect(find.text('信息流占位'), findsOneWidget);
   });
 
-  testWidgets('edit mode prefills the post and updates with expectedRevision',
-      (tester) async {
+  testWidgets('create retries reuse keys only for the same complete command', (
+    tester,
+  ) async {
+    var attempts = 0;
+    final client = ScriptedGatewayClient((request) async {
+      attempts++;
+      if (attempts < 3) {
+        return jsonResponse({'code': 6, 'message': 'temporary'}, 503);
+      }
+      return jsonResponse(
+        okEnvelope({'postId': 7, 'status': 1, 'revision': 1}),
+      );
+    });
+    setApiClient(client);
+    final router = _routerWith(
+      const Scaffold(body: Text('首页占位')),
+      initial: '/create',
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: foruiTestBuilder,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(EditableText).at(0), '命令 A');
+    await tester.enterText(find.byType(EditableText).at(1), '正文');
+    await tester.tap(find.text('发布'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('发布'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText).at(0), '命令 B');
+    await tester.tap(find.text('发布'));
+    await tester.pumpAndSettle();
+
+    final bodies = client.requests.map(jsonBodyOf).toList();
+    expect(bodies, hasLength(3));
+    expect(bodies[0]['idempotencyKey'], bodies[1]['idempotencyKey']);
+    expect(bodies[2]['idempotencyKey'], isNot(bodies[1]['idempotencyKey']));
+    expect(find.text('信息流占位'), findsOneWidget);
+  });
+
+  testWidgets('edit mode prefills the post and updates with expectedRevision', (
+    tester,
+  ) async {
     final client = ScriptedGatewayClient((request) async {
       final path = request.url.path;
       if (path == '/api/v1/post/9') {
@@ -195,8 +252,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp.router(
-          routerConfig:
-              _routerWith(const _EditorHome(Text('打开编辑器'))),
+          routerConfig: _routerWith(const _EditorHome(Text('打开编辑器'))),
           builder: foruiTestBuilder,
         ),
       ),
@@ -228,19 +284,26 @@ void main() {
     expect(find.text('打开编辑器'), findsOneWidget);
   });
 
-  testWidgets('adding and removing tags feeds the submit payload',
-      (tester) async {
+  testWidgets('adding and removing tags feeds the submit payload', (
+    tester,
+  ) async {
     final client = ScriptedGatewayClient.always({
       'postId': 7,
       'status': 1,
       'revision': 1,
     });
     setApiClient(client);
-    final router = _routerWith(const Scaffold(body: Text('首页占位')), initial: '/create');
+    final router = _routerWith(
+      const Scaffold(body: Text('首页占位')),
+      initial: '/create',
+    );
 
     await tester.pumpWidget(
       ProviderScope(
-        child: MaterialApp.router(routerConfig: router, builder: foruiTestBuilder),
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: foruiTestBuilder,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -256,7 +319,8 @@ void main() {
     await tester.tap(find.text('发布'));
     await tester.pumpAndSettle();
 
-    expect(jsonBodyOf(client.requests.single as http.Request)['tags'],
-        ['flutter']);
+    expect(jsonBodyOf(client.requests.single as http.Request)['tags'], [
+      'flutter',
+    ]);
   });
 }

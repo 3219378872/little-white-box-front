@@ -26,7 +26,6 @@ ROUTE_RE = re.compile(
     r"^\s*(get|post|put|delete|patch)\s+(\S+)", re.IGNORECASE
 )
 FUNC_RE = re.compile(r"^Future (\w+)\(")
-INT_FROM_JSON_RE = re.compile(r"int\?\.fromJson\(m\['(\w+)'\]\)")
 OPTIONAL_NUM_TO_JSON_RE = re.compile(
     r"\b(position|durationMs|status)\?\.toJson\(\)"
 )
@@ -98,10 +97,28 @@ def patch_gateway_methods(source: str, verbs: dict[str, str]) -> str:
 
 
 def patch_generated_types(source: str) -> str:
-    source = INT_FROM_JSON_RE.sub(
-        r"(m['\1'] is num) ? (m['\1'] as num).toInt() : null",
-        source,
+    nullable_primitives = re.findall(
+        r"final (String|double|bool|int)\? (\w+);", source
     )
+    for primitive, field in nullable_primitives:
+        generated = rf"{primitive}\?\.fromJson\(m\['{field}'\]\)"
+        replacement = {
+            "String": f"m['{field}']?.toString()",
+            "double": (
+                f"(m['{field}'] is num) ? "
+                f"(m['{field}'] as num).toDouble() : null"
+            ),
+            "int": (
+                f"(m['{field}'] is num) ? "
+                f"(m['{field}'] as num).toInt() : null"
+            ),
+            "bool": (
+                f"(m['{field}'] is bool) ? "
+                f"m['{field}'] as bool : null"
+            ),
+        }[primitive]
+        source = re.sub(generated, replacement, source)
+        source = source.replace(f"'{field}': {field}?.toJson(),", f"'{field}': {field},")
     source = OPTIONAL_NUM_TO_JSON_RE.sub(r"\1", source)
     for field in ENTITY_ID_FIELDS:
         source = source.replace(f"final num {field};", f"final Object {field};")

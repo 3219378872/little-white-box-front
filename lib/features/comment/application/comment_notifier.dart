@@ -83,7 +83,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
 
   int _page = 0;
   String? _submitIdempotencyKey;
-  String? _submitContent;
+  String? _submitCommandFingerprint;
 
   CommentNotifier({
     required CommentRepository repository,
@@ -176,8 +176,8 @@ class CommentNotifier extends StateNotifier<CommentState> {
       state = state.copyWith(expandedReplies: expanded);
       return;
     }
-    final threadReplies =
-        Map<String, List<CommentItem>>.of(state.threadReplies)..remove(id);
+    final threadReplies = Map<String, List<CommentItem>>.of(state.threadReplies)
+      ..remove(id);
     final threadPage = Map<String, int>.of(state.threadPage)..remove(id);
     state = state.copyWith(
       expandedReplies: expanded,
@@ -219,8 +219,9 @@ class CommentNotifier extends StateNotifier<CommentState> {
       // 去重（幂等保护：同页重复返回时以先到者为准）
       final seen = <String>{};
       final deduped = merged.where((r) => seen.add(jsonInt64Id(r.id))).toList();
-      final threadReplies = Map<String, List<CommentItem>>.of(state.threadReplies)
-        ..[id] = deduped;
+      final threadReplies = Map<String, List<CommentItem>>.of(
+        state.threadReplies,
+      )..[id] = deduped;
       final threadPage = Map<String, int>.of(state.threadPage)..[id] = page;
       final loadingReplies = Set<String>.of(state.loadingReplies)..remove(id);
       state = state.copyWith(
@@ -253,9 +254,16 @@ class CommentNotifier extends StateNotifier<CommentState> {
   /// 失败时抛出由 UI 提示，本地回复目标保持不变。
   Future<void> submit(String content) async {
     final normalized = content.trim();
-    if (_submitContent != normalized || _submitIdempotencyKey == null) {
+    final commandFingerprint = [
+      postId,
+      jsonInt64Id(state.replyParentId),
+      jsonInt64Id(state.replyUserId),
+      normalized,
+    ].join('\u0000');
+    if (_submitCommandFingerprint != commandFingerprint ||
+        _submitIdempotencyKey == null) {
       _submitIdempotencyKey = newIdempotencyKey();
-      _submitContent = normalized;
+      _submitCommandFingerprint = commandFingerprint;
     }
     await _repository.createNewComment(
       CreateCommentReq(
@@ -267,7 +275,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
       ),
     );
     _submitIdempotencyKey = null;
-    _submitContent = null;
+    _submitCommandFingerprint = null;
     // 回复成功后重置该父评论的楼中楼缓存，刷新后重新拉取
     final hadExpanded = state.expandedReplies.isNotEmpty;
     state = state.copyWith(
@@ -285,12 +293,8 @@ final commentRepositoryProvider = Provider<CommentRepository>((ref) {
   return CommentRepository();
 });
 
-final commentNotifierProvider =
-    StateNotifierProvider.autoDispose.family<CommentNotifier, CommentState,
-        String>((
-      ref,
-      postId,
-    ) {
+final commentNotifierProvider = StateNotifierProvider.autoDispose
+    .family<CommentNotifier, CommentState, String>((ref, postId) {
       return CommentNotifier(
         repository: ref.read(commentRepositoryProvider),
         postId: postId,

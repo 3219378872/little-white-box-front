@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
@@ -43,7 +45,9 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   bool _isLoading = false;
   bool _isInitialized = false;
   String? _createIdempotencyKey;
-  int? _createStatus;
+  String? _createCommandFingerprint;
+  String? _uploadedSelectionFingerprint;
+  List<UploadedImage>? _uploadedLocalImages;
 
   bool get _isEditMode => widget.postId != null;
 
@@ -99,7 +103,20 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   }
 
   Future<List<UploadedImage>> _uploadLocalImages() async {
-    if (_localImages.isEmpty) return const [];
+    if (_localImages.isEmpty) {
+      _uploadedSelectionFingerprint = null;
+      _uploadedLocalImages = null;
+      return const [];
+    }
+
+    final selectionFingerprint = jsonEncode([
+      for (final file in _localImages)
+        {'path': file.path, 'name': file.name, 'length': await file.length()},
+    ]);
+    if (_uploadedSelectionFingerprint == selectionFingerprint &&
+        _uploadedLocalImages != null) {
+      return _uploadedLocalImages!;
+    }
 
     final repo = ref.read(_postRepoProvider);
 
@@ -138,7 +155,10 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
       }
     }
 
-    return [for (final r in results) r.$2!];
+    final uploaded = [for (final r in results) r.$2!];
+    _uploadedSelectionFingerprint = selectionFingerprint;
+    _uploadedLocalImages = uploaded;
+    return uploaded;
   }
 
   Future<void> _publish({int status = 1}) async {
@@ -185,9 +205,18 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
             );
         if (mounted) context.pop();
       } else {
-        if (_createIdempotencyKey == null || _createStatus != status) {
+        final commandFingerprint = jsonEncode({
+          'title': title,
+          'content': content,
+          'images': allImages,
+          'tags': _tags,
+          'status': status,
+          'mediaIds': mediaIds.map(jsonInt64Id).toList(growable: false),
+        });
+        if (_createIdempotencyKey == null ||
+            _createCommandFingerprint != commandFingerprint) {
           _createIdempotencyKey = newIdempotencyKey();
-          _createStatus = status;
+          _createCommandFingerprint = commandFingerprint;
         }
         await ref
             .read(_postRepoProvider)
@@ -203,7 +232,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
               ),
             );
         _createIdempotencyKey = null;
-        _createStatus = null;
+        _createCommandFingerprint = null;
         if (mounted) {
           context.go('/feed');
         }

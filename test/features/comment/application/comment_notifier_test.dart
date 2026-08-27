@@ -4,24 +4,25 @@ import 'package:xiaobaihe_app/features/comment/data/comment_repository.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
 
 Map<String, dynamic> _commentJson(int id, {int replyCount = 0}) => {
-      'id': id,
-      'userId': 3,
-      'userName': '评论乙',
-      'userAvatar': '',
-      'parentId': 0,
-      'replyUserId': 0,
-      'content': '评论$id',
-      'likeCount': 0,
-      'createdAt': 1700000000,
-      'replyCount': replyCount,
-      'replies': <Map<String, dynamic>>[],
-    };
+  'id': id,
+  'userId': 3,
+  'userName': '评论乙',
+  'userAvatar': '',
+  'parentId': 0,
+  'replyUserId': 0,
+  'content': '评论$id',
+  'likeCount': 0,
+  'createdAt': 1700000000,
+  'replyCount': replyCount,
+  'replies': <Map<String, dynamic>>[],
+};
 
 class _FakeCommentRepository implements CommentRepository {
   final List<List<Map<String, dynamic>>> pages;
   final List<List<Map<String, dynamic>>> replyPages;
   final List<String> calls = [];
   final List<String> idempotencyKeys = [];
+  final List<CreateCommentReq> createCommands = [];
   Object? failRepliesFor;
   Object? failCreate;
   int _replyPageIndex = 0;
@@ -81,6 +82,7 @@ class _FakeCommentRepository implements CommentRepository {
   Future<CreateCommentResp> createNewComment(CreateCommentReq req) async {
     calls.add('create:${req.content}');
     idempotencyKeys.add(req.idempotencyKey);
+    createCommands.add(req);
     if (failCreate != null) {
       final error = failCreate!;
       failCreate = null;
@@ -95,10 +97,12 @@ class _FakeCommentRepository implements CommentRepository {
 
 void main() {
   test('首屏加载、触底翻页与去重', () async {
-    final repo = _FakeCommentRepository(pages: [
-      [_commentJson(1), ...List.generate(19, (i) => _commentJson(100 + i))],
-      [_commentJson(3)],
-    ]);
+    final repo = _FakeCommentRepository(
+      pages: [
+        [_commentJson(1), ...List.generate(19, (i) => _commentJson(100 + i))],
+        [_commentJson(3)],
+      ],
+    );
     final notifier = CommentNotifier(
       repository: repo,
       postId: '9',
@@ -131,10 +135,12 @@ void main() {
   });
 
   test('切排序从第 1 页重建', () async {
-    final repo = _FakeCommentRepository(pages: [
-      [_commentJson(1)],
-      [_commentJson(2)],
-    ]);
+    final repo = _FakeCommentRepository(
+      pages: [
+        [_commentJson(1)],
+        [_commentJson(2)],
+      ],
+    );
     final notifier = CommentNotifier(
       repository: repo,
       postId: '9',
@@ -196,9 +202,11 @@ void main() {
   });
 
   test('submit 成功后清空回复目标并刷新第一页', () async {
-    final repo = _FakeCommentRepository(pages: [
-      [_commentJson(1)],
-    ]);
+    final repo = _FakeCommentRepository(
+      pages: [
+        [_commentJson(1)],
+      ],
+    );
     final notifier = CommentNotifier(
       repository: repo,
       postId: '9',
@@ -246,10 +254,11 @@ void main() {
   });
 
   test('同一失败评论重试复用幂等键', () async {
-    final repo = _FakeCommentRepository(pages: [
-      [_commentJson(1)],
-    ])
-      ..failCreate = Exception('create failed');
+    final repo = _FakeCommentRepository(
+      pages: [
+        [_commentJson(1)],
+      ],
+    )..failCreate = Exception('create failed');
     final notifier = CommentNotifier(
       repository: repo,
       postId: '9',
@@ -264,16 +273,41 @@ void main() {
     expect(repo.idempotencyKeys[0], repo.idempotencyKeys[1]);
     expect(repo.idempotencyKeys[0], isNotEmpty);
   });
+
+  test('改变回复目标后不复用失败命令的幂等键', () async {
+    final repo = _FakeCommentRepository(
+      pages: [
+        [_commentJson(1)],
+      ],
+    )..failCreate = Exception('create failed');
+    final notifier = CommentNotifier(
+      repository: repo,
+      postId: '9',
+      loadImmediately: false,
+    );
+    await notifier.loadInitial();
+
+    notifier.setReplyTarget(userName: '甲', parentId: 1, userId: 3);
+    await expectLater(notifier.submit('相同正文'), throwsException);
+    notifier.setReplyTarget(userName: '乙', parentId: 2, userId: 4);
+    await notifier.submit('相同正文');
+
+    expect(repo.idempotencyKeys, hasLength(2));
+    expect(repo.idempotencyKeys[0], isNot(repo.idempotencyKeys[1]));
+    expect(repo.createCommands.map((command) => command.parentId), [1, 2]);
+  });
 }
 
 class _PagingThenFailRepository extends _FakeCommentRepository {
   var _failNext = false;
 
   _PagingThenFailRepository()
-      : super(pages: [
+    : super(
+        pages: [
           List.generate(20, (i) => _commentJson(100 + i)),
           [_commentJson(3)],
-        ]);
+        ],
+      );
 
   @override
   Future<GetCommentListResp> fetchComments({

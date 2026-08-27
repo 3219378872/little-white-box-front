@@ -39,6 +39,7 @@ test:
 
 test-coverage:
 	$(FLUTTER) test --coverage
+	$(PYTHON) -m unittest discover -s tools -p 'test_*.py'
 	$(PYTHON) tools/lcov_summary.py coverage/lcov.info --min $(COVERAGE_MIN)
 knowledge-check:
 	$(PYTHON) tools/knowledge_base.py check

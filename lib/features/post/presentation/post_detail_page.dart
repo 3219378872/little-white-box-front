@@ -121,7 +121,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     final auth = ref.read(authNotifierProvider);
     if (!auth.isAuthenticated) {
       context.push('/auth/login');
-      return;
+      throw const ApiException('请先登录');
     }
     final consent = ref.read(agentConsentNotifierProvider.notifier);
     await consent.ensureLoaded();

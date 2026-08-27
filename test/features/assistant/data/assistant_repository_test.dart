@@ -3,10 +3,22 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/core/api/api_adapter.dart';
+import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
+import 'package:xiaobaihe_app/core/auth/session_tokens.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_models.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_repository.dart';
+import 'package:xiaobaihe_app/sdk/api/api.dart';
+import 'package:xiaobaihe_app/sdk/vars/kv.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+  tearDown(() {
+    onAuthError = null;
+    setApiClient(http.Client());
+  });
+
   test('parses fragmented token, source, and done SSE events', () async {
     final payload = [
       'data: {"type":"token","text":"你","conversationId":"c-1"}\n\n',
@@ -181,6 +193,43 @@ void main() {
       await expectLater(canceled.future, completes);
     },
   );
+
+  test('refresh network failure keeps Assistant session', () async {
+    var authError = false;
+    onAuthError = () async {
+      authError = true;
+    };
+    final client = _RoutingClient((request) async {
+      if (request.url.path == '/api/v1/auth/refresh') {
+        throw http.ClientException('network down', request.url);
+      }
+      return http.StreamedResponse(
+        Stream.value(
+          utf8.encode(jsonEncode({'code': 1004, 'message': 'token expired'})),
+        ),
+        401,
+      );
+    });
+    setApiClient(client);
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-1', refreshToken: 'refresh-1'),
+    );
+    final repository = AssistantRepository(baseUrl: 'http://gateway.test');
+
+    await expectLater(
+      repository.chat(message: 'hello', requestId: 'request-1').toList(),
+      throwsA(
+        isA<ApiException>().having(
+          (error) => error.message,
+          'message',
+          contains('会话刷新失败'),
+        ),
+      ),
+    );
+
+    expect(authError, isFalse);
+    expect((await getTokens())?.refreshToken, 'refresh-1');
+  });
 }
 
 class _CapturingClient extends http.BaseClient {
@@ -194,4 +243,17 @@ class _CapturingClient extends http.BaseClient {
     this.request = request as http.Request;
     return response(this.request!);
   }
+}
+
+class _RoutingClient extends http.BaseClient {
+  final Future<http.StreamedResponse> Function(http.BaseRequest) handler;
+
+  _RoutingClient(this.handler);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      handler(request);
+
+  @override
+  void close() {}
 }

@@ -51,10 +51,6 @@ Future<bool> _doRefreshTokens() async {
       headers: {'Content-Type': 'application/json; charset=utf-8'},
       body: encodeApiJson({'refreshToken': refreshToken}),
     );
-    if (rp.statusCode < 200 || rp.statusCode >= 300) {
-      await _expireSession();
-      return false;
-    }
     final body = utf8.decode(rp.bodyBytes);
     dynamic decoded;
     try {
@@ -62,17 +58,24 @@ Future<bool> _doRefreshTokens() async {
     } catch (_) {
       decoded = null;
     }
+    if (rp.statusCode < 200 || rp.statusCode >= 300) {
+      if (_isAuthFailure(rp.statusCode, decoded)) {
+        await _expireSession();
+      }
+      return false;
+    }
     final data = apiResponseData(decoded);
     final accessToken = data['token']?.toString() ?? '';
     final nextRefreshToken = data['refreshToken']?.toString() ?? '';
     if (accessToken.isEmpty || nextRefreshToken.isEmpty) {
-      await _expireSession();
       return false;
     }
-    await setTokens(buildStoredTokens(
-      accessToken: accessToken,
-      refreshToken: nextRefreshToken,
-    ));
+    await setTokens(
+      buildStoredTokens(
+        accessToken: accessToken,
+        refreshToken: nextRefreshToken,
+      ),
+    );
     return true;
   } catch (_) {
     // 网络/解码失败不代表会话被拒，保留令牌让下一次请求再试。
@@ -90,9 +93,7 @@ bool _isAuthFailure(int statusCode, dynamic decoded) {
     final code = decoded['code'];
     final parsed = code is int ? code : int.tryParse('$code');
     // 带业务码的错误（如密码错误 1003）不触发刷新，只认认证类码。
-    return parsed == null
-        ? statusCode == 401
-        : ErrorCodes.isAuthError(parsed);
+    return parsed == null ? statusCode == 401 : ErrorCodes.isAuthError(parsed);
   }
   return statusCode == 401;
 }
@@ -215,7 +216,7 @@ Future _apiRequest(
   Function? eventually,
 }) async {
   try {
-    for (var attempt = 1;; attempt++) {
+    for (var attempt = 1; ; attempt++) {
       final tokens = await getTokens();
       var strData = '';
       if (data != null) {
@@ -237,10 +238,12 @@ Future _apiRequest(
       final rp = switch (method) {
         'POST' => await _apiClient.post(uri, headers: headers, body: strData),
         'PUT' => await _apiClient.put(uri, headers: headers, body: strData),
-        'DELETE' =>
-          await _apiClient.delete(uri, headers: headers, body: strData),
-        'PATCH' =>
-          await _apiClient.patch(uri, headers: headers, body: strData),
+        'DELETE' => await _apiClient.delete(
+          uri,
+          headers: headers,
+          body: strData,
+        ),
+        'PATCH' => await _apiClient.patch(uri, headers: headers, body: strData),
         _ => await _apiClient.get(uri, headers: headers),
       };
       final body = utf8.decode(rp.bodyBytes);
@@ -252,7 +255,8 @@ Future _apiRequest(
       }
 
       // 认证失败且还有 refreshToken 时，换发新令牌并恰好重试一次。
-      final canRetry = attempt == 1 &&
+      final canRetry =
+          attempt == 1 &&
           path != _refreshPath &&
           (tokens?.refreshToken.trim().isNotEmpty ?? false) &&
           _isAuthFailure(rp.statusCode, decoded);

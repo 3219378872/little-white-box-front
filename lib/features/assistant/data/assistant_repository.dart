@@ -167,7 +167,13 @@ class AssistantRepository implements AssistantDataSource {
       if (canRetry && await sdk_api.refreshSessionTokens()) {
         continue;
       }
-      if (exception.isAuthError) await onAuthError?.call();
+      if (exception.isAuthError) {
+        final leftover = await getTokens();
+        if (leftover?.refreshToken.trim().isNotEmpty ?? false) {
+          throw const ApiException('会话刷新失败，请重试');
+        }
+        await onAuthError?.call();
+      }
       throw exception;
     }
 

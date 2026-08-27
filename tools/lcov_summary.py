@@ -12,6 +12,12 @@ import pathlib
 import sys
 
 
+GENERATED_SOURCES = {
+    "lib/sdk/api/gateway.dart",
+    "lib/sdk/data/gateway.dart",
+}
+
+
 def parse_lcov(path: pathlib.Path) -> list[dict]:
     records = []
     current: dict | None = None
@@ -32,6 +38,19 @@ def parse_lcov(path: pathlib.Path) -> list[dict]:
         elif key == "LH" and current is not None:
             current["hit"] = int(value)
     return records
+
+
+def handwritten_records(records: list[dict]) -> list[dict]:
+    kept = []
+    for record in records:
+        source = pathlib.PurePath(record["source"]).as_posix()
+        if any(
+            source == generated or source.endswith("/" + generated)
+            for generated in GENERATED_SOURCES
+        ):
+            continue
+        kept.append(record)
+    return kept
 
 
 def main() -> int:
@@ -56,7 +75,7 @@ def main() -> int:
         print(f"lcov tracefile not found: {args.tracefile}", file=sys.stderr)
         return 1
 
-    records = parse_lcov(args.tracefile)
+    records = handwritten_records(parse_lcov(args.tracefile))
     total_found = sum(r["found"] for r in records)
     total_hit = sum(r["hit"] for r in records)
     pct = (100.0 * total_hit / total_found) if total_found else 100.0
