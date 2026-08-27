@@ -17,7 +17,7 @@ covers:
   - FQ-006
   - FQ-007
 updated_at: 2026-08-27
-observed_commit: 06d4365
+observed_commit: 53511f3
 ---
 
 # 非 Agent 模块缺陷修复 2026-08-27
