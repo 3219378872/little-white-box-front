@@ -6,6 +6,8 @@ import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/assistant/presentation/assistant_page.dart';
+import '../../features/assistant/presentation/memory_page.dart';
+import '../../features/assistant/presentation/watch_page.dart';
 import '../../features/feed/presentation/feed_page.dart';
 import '../../features/message/application/message_notifiers.dart';
 import '../../features/message/presentation/conversations_page.dart';
@@ -121,6 +123,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const AssistantPage(),
           ),
           GoRoute(
+            path: '/assistant/memory',
+            builder: (context, state) => const MemoryPage(),
+          ),
+          GoRoute(
+            path: '/assistant/watch',
+            builder: (context, state) => const WatchPage(),
+          ),
+          GoRoute(
             path: '/post/new',
             pageBuilder: (context, state) =>
                 const NoTransitionPage(child: PostEditorPage()),
@@ -132,15 +142,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/post/edit/:postId',
-            builder: (context, state) => PostEditorPage(
-              postId: state.pathParameters['postId'],
-            ),
+            builder: (context, state) =>
+                PostEditorPage(postId: state.pathParameters['postId']),
           ),
           GoRoute(
             path: '/post/:postId',
-            builder: (context, state) => PostDetailPage(
-              postId: state.pathParameters['postId']!,
-            ),
+            builder: (context, state) =>
+                PostDetailPage(postId: state.pathParameters['postId']!),
           ),
           GoRoute(
             path: '/user/:userId',
@@ -255,7 +263,7 @@ class MainShell extends ConsumerWidget {
     if (location == '/messages' || location.startsWith('/messages/')) {
       return width >= 1024 ? 1100 : 720;
     }
-    if (location == '/assistant') return 760;
+    if (location.startsWith('/assistant')) return 760;
     if (location == '/profile/edit') return 560;
     if (location == '/feed' && width >= 1024) return 1100;
     return 680;

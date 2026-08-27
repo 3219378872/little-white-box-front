@@ -10,6 +10,7 @@ import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../sdk/data/gateway.dart';
+import '../../assistant/application/assistant_notifier.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../comment/application/comment_notifier.dart';
 import '../../comment/presentation/widgets/comment_input.dart';
@@ -19,13 +20,10 @@ import '../data/post_repository.dart';
 
 final _postRepoProvider = Provider((ref) => PostRepository());
 
-final _postDetailProvider =
-    FutureProvider.autoDispose.family<GetPostResp, String>((
-  ref,
-  postId,
-) {
-  return ref.read(_postRepoProvider).getPostDetail(postId);
-});
+final _postDetailProvider = FutureProvider.autoDispose
+    .family<GetPostResp, String>((ref, postId) {
+      return ref.read(_postRepoProvider).getPostDetail(postId);
+    });
 
 class PostDetailPage extends ConsumerStatefulWidget {
   final String postId;
@@ -107,6 +105,40 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
+  Future<void> _createWatch({
+    required String conditionType,
+    required String targetType,
+    required Object targetId,
+  }) async {
+    final auth = ref.read(authNotifierProvider);
+    if (!auth.isAuthenticated) {
+      context.push('/auth/login');
+      return;
+    }
+    final consent = ref.read(agentConsentNotifierProvider.notifier);
+    await consent.ensureLoaded();
+    if (!mounted) return;
+    final status = ref.read(agentConsentNotifierProvider);
+    if (!status.granted || status.needsUpgrade) {
+      context.push('/assistant');
+      return;
+    }
+    try {
+      await ref
+          .read(assistantRepositoryProvider)
+          .createWatch(
+            conditionType: conditionType,
+            targetType: targetType,
+            targetId: targetId,
+          );
+      if (mounted) showAppSuccess(context, '已创建追踪');
+    } catch (e) {
+      if (mounted) {
+        showAppError(context, '创建追踪失败: ${friendlyErrorMessage(e)}');
+      }
+    }
+  }
+
   Future<void> _submitComment(String content) async {
     final auth = ref.read(authNotifierProvider);
     if (!auth.isAuthenticated) {
@@ -138,15 +170,15 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
           onRetry: () => ref.invalidate(_postDetailProvider(widget.postId)),
         ),
         data: (post) {
-          final interaction =
-              ref.watch(interactionNotifierProvider(widget.postId));
+          final interaction = ref.watch(
+            interactionNotifierProvider(widget.postId),
+          );
           final comments = ref.watch(commentNotifierProvider(widget.postId));
 
           final isLiked = interaction.optimisticIsLiked ?? post.isLiked;
           final isFavorited =
               interaction.optimisticIsFavorited ?? post.isFavorited;
-          final likeCount =
-              post.likeCount.toInt() + interaction.likeCountDelta;
+          final likeCount = post.likeCount.toInt() + interaction.likeCountDelta;
           final favCount =
               post.favoriteCount.toInt() + interaction.favoriteCountDelta;
           final headerExtent =
@@ -290,6 +322,39 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                 ),
                               ],
                             ),
+                            if (ref
+                                .watch(authNotifierProvider)
+                                .isAuthenticated) ...[
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  FButton(
+                                    key: const Key('post-watch-author'),
+                                    variant: .outline,
+                                    size: .sm,
+                                    onPress: () => _createWatch(
+                                      conditionType: 'author_new_post',
+                                      targetType: 'author',
+                                      targetId: post.authorId,
+                                    ),
+                                    child: const Text('盯作者'),
+                                  ),
+                                  FButton(
+                                    key: const Key('post-watch-revision'),
+                                    variant: .outline,
+                                    size: .sm,
+                                    onPress: () => _createWatch(
+                                      conditionType: 'post_revised',
+                                      targetType: 'post',
+                                      targetId: post.id,
+                                    ),
+                                    child: const Text('盯本帖修订'),
+                                  ),
+                                ],
+                              ),
+                            ],
                             const Padding(
                               padding: EdgeInsets.symmetric(vertical: 16),
                               child: FDivider(),
@@ -306,9 +371,11 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                       ? FButtonVariant.secondary
                                       : FButtonVariant.ghost,
                                   onPress: () => ref
-                                      .read(commentNotifierProvider(
-                                              widget.postId)
-                                          .notifier)
+                                      .read(
+                                        commentNotifierProvider(
+                                          widget.postId,
+                                        ).notifier,
+                                      )
                                       .selectSort(1),
                                   child: const Text('最新'),
                                 ),
@@ -320,9 +387,11 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                       ? FButtonVariant.secondary
                                       : FButtonVariant.ghost,
                                   onPress: () => ref
-                                      .read(commentNotifierProvider(
-                                              widget.postId)
-                                          .notifier)
+                                      .read(
+                                        commentNotifierProvider(
+                                          widget.postId,
+                                        ).notifier,
+                                      )
                                       .selectSort(2),
                                   child: const Text('最热'),
                                 ),
@@ -339,9 +408,11 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                             ? ErrorView(
                                 message: '评论加载失败',
                                 onRetry: () => ref
-                                    .read(commentNotifierProvider(
-                                            widget.postId)
-                                        .notifier)
+                                    .read(
+                                      commentNotifierProvider(
+                                        widget.postId,
+                                      ).notifier,
+                                    )
                                     .retry(),
                               )
                             : const Padding(
@@ -369,9 +440,11 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                     size: .sm,
                                     mainAxisSize: MainAxisSize.min,
                                     onPress: () => ref
-                                        .read(commentNotifierProvider(
-                                                widget.postId)
-                                            .notifier)
+                                        .read(
+                                          commentNotifierProvider(
+                                            widget.postId,
+                                          ).notifier,
+                                        )
                                         .retry(),
                                     child: const Text('评论加载失败，重试'),
                                   ),
@@ -398,29 +471,32 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                           }
                           final comment = topLevel[index];
                           final id = jsonInt64Id(comment.id);
-                          final expanded = comments.expandedReplies.contains(id);
-                          final loading =
-                              comments.loadingReplies.contains(id);
-                          final replies = comments.threadReplies[id] ??
-                              comment.replies;
+                          final expanded = comments.expandedReplies.contains(
+                            id,
+                          );
+                          final loading = comments.loadingReplies.contains(id);
+                          final replies =
+                              comments.threadReplies[id] ?? comment.replies;
                           return CommentItemWidget(
                             comment: comment,
                             replies: replies,
                             replyCount: comment.replyCount,
                             expanded: expanded,
                             loadingReplies: loading,
-                            hasMoreReplies: expanded &&
+                            hasMoreReplies:
+                                expanded &&
                                 !loading &&
-                                replies.length <
-                                    comment.replyCount.toInt(),
+                                replies.length < comment.replyCount.toInt(),
                             onToggleReplies: () => _onToggleReplies(comment),
                             onLoadMoreReplies: () =>
                                 _onLoadMoreReplies(comment),
                             onReply: () {
                               ref
-                                  .read(commentNotifierProvider(
-                                          widget.postId)
-                                      .notifier)
+                                  .read(
+                                    commentNotifierProvider(
+                                      widget.postId,
+                                    ).notifier,
+                                  )
                                   .setReplyTarget(
                                     userName: comment.userName,
                                     parentId: comment.id,
@@ -430,9 +506,11 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                             onReplyToReply: (target) {
                               // 楼中楼扁平化：仍挂在同一顶级评论下，@被回复用户
                               ref
-                                  .read(commentNotifierProvider(
-                                          widget.postId)
-                                      .notifier)
+                                  .read(
+                                    commentNotifierProvider(
+                                      widget.postId,
+                                    ).notifier,
+                                  )
                                   .setReplyTarget(
                                     userName: target.userName,
                                     parentId: comment.id,

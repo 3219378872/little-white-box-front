@@ -22,23 +22,34 @@ class AssistantStreamException implements Exception {
   String toString() => message;
 }
 
-/// Agent 能力授权状态（AGNT-004/006）。
+/// Agent 能力授权状态（AGNT-004/006/007）。
 class AgentConsentStatus {
   final bool granted;
   final int grantedAt;
   final int revokedAt;
+  final int consentVersion;
+  final int currentVersion;
 
   const AgentConsentStatus({
     required this.granted,
     this.grantedAt = 0,
     this.revokedAt = 0,
+    this.consentVersion = 0,
+    this.currentVersion = 0,
   });
+
+  bool get needsUpgrade =>
+      granted && currentVersion > 0 && consentVersion < currentVersion;
+
+  bool get canUseMemoryWatch => granted && !needsUpgrade;
 
   factory AgentConsentStatus.fromSdk(GetAgentConsentResp resp) {
     return AgentConsentStatus(
       granted: resp.granted,
       grantedAt: resp.grantedAt.toInt(),
       revokedAt: resp.revokedAt.toInt(),
+      consentVersion: resp.consentVersion.toInt(),
+      currentVersion: resp.currentVersion.toInt(),
     );
   }
 }
@@ -61,6 +72,40 @@ abstract interface class AssistantDataSource {
     required String requestId,
     required String callId,
     required bool approved,
+  });
+
+  Future<List<MemoryRecord>> listMemory();
+
+  Future<void> updateMemory({
+    required Object id,
+    required String value,
+    required double score,
+    required bool suppressed,
+  });
+
+  Future<void> deleteMemory(Object id);
+
+  Future<List<WatchTask>> listWatches();
+
+  Future<WatchTask> createWatch({
+    required String conditionType,
+    required String targetType,
+    Object targetId = 0,
+    String targetText = '',
+  });
+
+  Future<void> updateWatch({required Object id, required bool enabled});
+
+  Future<void> deleteWatch(Object id);
+
+  Future<List<WatchHit>> listWatchHits({bool unreadOnly = false});
+
+  Future<void> markWatchHitsRead(List<Object> hitIds);
+
+  Future<void> submitRecommendFeedback({
+    required Object postId,
+    required String reason,
+    String requestId = '',
   });
 }
 
@@ -98,7 +143,7 @@ class AssistantRepository implements AssistantDataSource {
 
     // 认证失败时换发令牌并恰好重试一次，与传输层行为一致。
     late http.StreamedResponse response;
-    for (var attempt = 1;; attempt++) {
+    for (var attempt = 1; ; attempt++) {
       final request = await _buildChatRequest(
         conversationId: conversationId,
         normalized: normalized,
@@ -115,7 +160,8 @@ class AssistantRepository implements AssistantDataSource {
 
       final body = await response.stream.bytesToString();
       final exception = _httpError(response.statusCode, body);
-      final canRetry = attempt == 1 &&
+      final canRetry =
+          attempt == 1 &&
           exception.isAuthError &&
           ((await getTokens())?.refreshToken.trim().isNotEmpty ?? false);
       if (canRetry && await sdk_api.refreshSessionTokens()) {
@@ -136,6 +182,8 @@ class AssistantRepository implements AssistantDataSource {
         final event = AssistantChatEvent.fromJson(
           Map<String, dynamic>.from(decoded),
         );
+        // FX-059：未知事件类型跳过，不作为错误终止。
+        if (event.type == AssistantEventType.unknown) continue;
         yield event;
         if (event.isTerminal) {
           terminal = true;
@@ -198,6 +246,237 @@ class AssistantRepository implements AssistantDataSource {
     );
   }
 
+  @override
+  Future<List<MemoryRecord>> listMemory() async {
+    final resp = await apiCall<ListAssistantMemoryResp>(
+      (ok, fail, eventually) =>
+          gw.listAssistantMemory(ok: ok, fail: fail, eventually: eventually),
+    );
+    return [
+      for (final item in resp.items)
+        if (memoryListLayers.contains(item.layer))
+          MemoryRecord(
+            id: item.id,
+            layer: item.layer,
+            dimension: item.dimension,
+            value: item.value,
+            score: item.score.toDouble(),
+            source: item.source,
+            confidence: item.confidence.toDouble(),
+            confirmed: item.confirmed,
+            suppressed: item.suppressed,
+            updatedAt: item.updatedAt.toInt(),
+          ),
+    ];
+  }
+
+  @override
+  Future<void> updateMemory({
+    required Object id,
+    required String value,
+    required double score,
+    required bool suppressed,
+  }) async {
+    await apiCall<UpdateAssistantMemoryResp>(
+      (ok, fail, eventually) => gw.updateAssistantMemory(
+        jsonInt64Id(id),
+        UpdateAssistantMemoryReq(
+          id: jsonInt64Id(id),
+          value: value,
+          score: score,
+          suppressed: suppressed,
+        ),
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+  }
+
+  @override
+  Future<void> deleteMemory(Object id) async {
+    await apiCall<DeleteAssistantMemoryResp>(
+      (ok, fail, eventually) => gw.deleteAssistantMemory(
+        jsonInt64Id(id),
+        DeleteAssistantMemoryReq(id: jsonInt64Id(id)),
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+  }
+
+  @override
+  Future<List<WatchTask>> listWatches() async {
+    final resp = await apiCall<ListAssistantWatchResp>(
+      (ok, fail, eventually) =>
+          gw.listAssistantWatch(ok: ok, fail: fail, eventually: eventually),
+    );
+    return [
+      for (final task in resp.tasks)
+        WatchTask(
+          id: task.id,
+          conditionType: task.conditionType,
+          targetType: task.targetType,
+          targetId: task.targetId,
+          targetText: task.targetText,
+          enabled: task.enabled,
+          createdAt: task.createdAt.toInt(),
+        ),
+    ];
+  }
+
+  @override
+  Future<WatchTask> createWatch({
+    required String conditionType,
+    required String targetType,
+    Object targetId = 0,
+    String targetText = '',
+  }) async {
+    _requireKnownWatchCondition(
+      conditionType,
+      targetType,
+      targetId,
+      targetText,
+    );
+    final resp = await apiCall<CreateAssistantWatchResp>(
+      (ok, fail, eventually) => gw.createAssistantWatch(
+        CreateAssistantWatchReq(
+          conditionType: conditionType,
+          targetType: targetType,
+          targetId: jsonInt64IsPositive(targetId) ? jsonInt64Id(targetId) : 0,
+          targetText: targetText,
+        ),
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+    final task = resp.task;
+    return WatchTask(
+      id: task.id,
+      conditionType: task.conditionType,
+      targetType: task.targetType,
+      targetId: task.targetId,
+      targetText: task.targetText,
+      enabled: task.enabled,
+      createdAt: task.createdAt.toInt(),
+    );
+  }
+
+  @override
+  Future<void> updateWatch({required Object id, required bool enabled}) async {
+    await apiCall<UpdateAssistantWatchResp>(
+      (ok, fail, eventually) => gw.updateAssistantWatch(
+        jsonInt64Id(id),
+        UpdateAssistantWatchReq(id: jsonInt64Id(id), enabled: enabled),
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+  }
+
+  @override
+  Future<void> deleteWatch(Object id) async {
+    await apiCall<DeleteAssistantWatchResp>(
+      (ok, fail, eventually) => gw.deleteAssistantWatch(
+        jsonInt64Id(id),
+        DeleteAssistantWatchReq(id: jsonInt64Id(id)),
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+  }
+
+  @override
+  Future<List<WatchHit>> listWatchHits({bool unreadOnly = false}) async {
+    final resp = await apiCall<ListAssistantWatchHitsResp>(
+      (ok, fail, eventually) =>
+          gw.listAssistantWatchHits(ok: ok, fail: fail, eventually: eventually),
+    );
+    return [
+      for (final hit in resp.hits)
+        if (!unreadOnly || !hit.read)
+          WatchHit(
+            id: hit.id,
+            taskId: hit.taskId,
+            postId: hit.postId,
+            title: hit.title,
+            summary: hit.summary,
+            createdAt: hit.createdAt.toInt(),
+            read: hit.read,
+          ),
+    ];
+  }
+
+  @override
+  Future<void> markWatchHitsRead(List<Object> hitIds) async {
+    if (hitIds.isEmpty) return;
+    await apiCall<MarkAssistantWatchHitsReadResp>(
+      (ok, fail, eventually) => gw.markAssistantWatchHitsRead(
+        MarkAssistantWatchHitsReadReq(
+          hitIds: [for (final id in hitIds) jsonInt64Id(id)],
+        ),
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+  }
+
+  @override
+  Future<void> submitRecommendFeedback({
+    required Object postId,
+    required String reason,
+    String requestId = '',
+  }) async {
+    final normalizedReason = reason.trim();
+    if (!jsonInt64IsPositive(postId) || normalizedReason.isEmpty) {
+      throw const ApiException('推荐反馈参数无效');
+    }
+    await apiCall<AssistantRecommendFeedbackResp>(
+      (ok, fail, eventually) => gw.submitAssistantRecommendFeedback(
+        AssistantRecommendFeedbackReq(
+          requestId: requestId,
+          postId: jsonInt64Id(postId),
+          reason: normalizedReason,
+        ),
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+  }
+
+  static void _requireKnownWatchCondition(
+    String conditionType,
+    String targetType,
+    Object targetId,
+    String targetText,
+  ) {
+    final expected = watchConditionTargetTypes[conditionType];
+    if (expected == null) {
+      throw const ApiException('未知的追踪条件类型');
+    }
+    if (targetType != expected) {
+      throw const ApiException('追踪目标类型与条件不匹配');
+    }
+    switch (conditionType) {
+      case 'author_new_post':
+      case 'post_revised':
+        if (!jsonInt64IsPositive(targetId)) {
+          throw const ApiException('追踪目标标识无效');
+        }
+      case 'tag_new_post':
+      case 'keyword_new_post':
+        if (targetText.trim().isEmpty) {
+          throw const ApiException('追踪关键词或标签不能为空');
+        }
+    }
+  }
+
   Future<http.Request> _buildChatRequest({
     required String conversationId,
     required String normalized,
@@ -227,10 +506,7 @@ class AssistantRepository implements AssistantDataSource {
       if (attachments.isNotEmpty)
         'attachments': [
           for (final attachment in attachments)
-            {
-              'mediaId': attachment.mediaId,
-              'url': attachment.url,
-            },
+            {'mediaId': attachment.mediaId, 'url': attachment.url},
         ],
     });
     return request;

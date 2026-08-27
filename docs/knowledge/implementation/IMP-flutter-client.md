@@ -27,10 +27,19 @@ tracks:
   - FX-056
   - FX-057
   - FX-058
+  - FX-059
   - FX-060
   - FX-061
   - FX-062
   - FX-070
+  - FX-080
+  - FX-081
+  - FX-082
+  - FX-083
+  - FX-084
+  - FX-085
+  - FX-086
+  - FX-087
   - FQ-001
   - FQ-002
   - FQ-003
@@ -40,6 +49,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-assistant-agent-runtime-2026-08-27
   - EVD-exposure-event-driven-2026-08-25
   - EVD-family-provider-autodispose-2026-08-25
   - EVD-paginated-load-more-error-2026-08-25
@@ -62,8 +72,8 @@ evidence:
   - EVD-client-relative-api-2026-08-18
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
-updated_at: 2026-08-22
-observed_commit: b8ffc8aee4e707e133a0ad2ca990abf1d6e39710
+updated_at: 2026-08-27
+observed_commit: 2a2beaa
 ---
 
 # Flutter 客户端实现映射
@@ -76,7 +86,7 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是本轮 task 提交 `5b2babbabcacdf9c968fae9b17987da245c5d976`。
+本页观察基准是本轮 task 提交 `2a2beaa`。
 
 ## 代码入口
 
@@ -100,7 +110,7 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 | 帖子/评论/互动 | `features/post/`、`comment/`、PostCard | 页面局部状态 | v1 repositories、multipart adapter | PostCard、profile、Mock like 测试 |
 | 资料与用户列表 | `features/profile/presentation/` | `user_posts_notifier.dart` | `user_repository.dart` | `test/features/profile/` |
 | 一对一私信 | `features/message/presentation/` | `message_notifiers.dart` | `message_repository.dart`、models | `test/features/message/` |
-| Assistant | `features/assistant/presentation/` | `assistant_notifier.dart`、`agent_consent_notifier` | 直接 HTTP SSE repository、models、consent/confirm 调用 | `test/features/assistant/` |
+| Assistant | `features/assistant/presentation/`（会话、记忆、追踪、结构化卡片） | `assistant_notifier.dart`、`memory_notifier.dart`、`watch_notifier.dart`、`agentConsentNotifierProvider` | 直接 HTTP SSE repository、models、consent/memory/watch/feedback | `test/features/assistant/` |
 | 行为反馈 | PostCard 可见性/交互钩子 | `behavior_tracker.dart` | 持久 queue、repository、identity store | `test/features/behavior/`、tracking 测试 |
 
 ## 已实现的关键事实
@@ -154,6 +164,16 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
   渲染可重试 ErrorView，不再永久停在进度圈或只弹 toast。
 - 帖子详情页评论读取失败（首屏或分页）进入可重试错误态：空列表渲染「评论加载失败」ErrorView，
   已有条目在列表尾部提供重试按钮，均不再伪装成「还没有评论」；重试与排序切换会复位分页游标。
+- Assistant 运行时忽略无法识别的 SSE `type`，未知事件不终止流、不记为连接错误（FX-059）。
+- Agent 授权同时保存 `consentVersion`/`currentVersion`；版本偏低时记忆/Watch 写入口禁用并只读提示
+  升级，同意后 POST 升级（FX-080）。
+- 认证用户可打开 `/assistant/memory` 与 `/assistant/watch`。记忆只列出 profile/interest/task，
+  区分已确认，支持改值/分值、删除、「不要记住这个」；失败展示 ErrorView 不伪装空成功。Watch 任务
+  仅四种条件，命中收件箱可标已读并打开已发布帖子，不写入私信或通知中心（FX-081～083）。
+  记忆与 Watch 标识经 `jsonInt64Id` 编解码后再走 SDK 路径。
+- SSE `card`/`actions`/`watch_hit` 渲染结构化卡片、动作按钮与命中提示；卡片 payload 只采用服务端
+  已验证 `postId`，推荐卡片「不喜欢/不感兴趣」调用 recommend/feedback（FX-084/085/087）。
+- 帖子详情在已登录时提供「盯作者」「盯本帖修订」；未授权或版本偏低引导去 Assistant（FX-086）。
 
 ## 偏离登记
 
@@ -174,7 +194,7 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 | 搜索 | aligned | 已建模并展示部分降级；搜索帖子带作者身份并在结果中展示 |
 | 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐；评论楼中楼按需展开加载（内嵌预览 + replies 分页接口）见 [EVD-comment-replies-2026-08-22](../evidence/EVD-comment-replies-2026-08-22.md)，接口语义缺口登记于后端仓 PROP-20260822-comment-reply-thread（open） |
 | 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |
-| Assistant | diverged | enhanced_search 仍缺 excerpt 与来源变化；Agent 模式（FX-052～058）已实现并经自动化验证，真实网关与真机图片上传证据待补 |
+| Assistant | diverged | enhanced_search 仍缺 excerpt 与来源变化；Agent 模式（FX-052～058）与运行时（FX-059、FX-080～087）已实现并经自动化验证，真实网关与真机图片上传证据待补 |
 | 行为反馈 | aligned | 客户端不再上报 like/unlike |
 | UI/工程分层 | aligned | 详见 [Forui 实现指南](IMP-forui-ui.md) |
 | Mock/真实同路径 | aligned | transport 注入；Mock HTTP 契约对齐 `gateway.api`；真实网关仍需独立证据 |
@@ -187,4 +207,5 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 [EVD-posts-reload-2026-08-20](../evidence/EVD-posts-reload-2026-08-20.md)、
 [EVD-favorites-reload-2026-08-20](../evidence/EVD-favorites-reload-2026-08-20.md)
 与
-[EVD-client-ui-align-2026-08-20](../evidence/EVD-client-ui-align-2026-08-20.md)。
+[EVD-client-ui-align-2026-08-20](../evidence/EVD-client-ui-align-2026-08-20.md)、
+[EVD-assistant-agent-runtime-2026-08-27](../evidence/EVD-assistant-agent-runtime-2026-08-27.md)。

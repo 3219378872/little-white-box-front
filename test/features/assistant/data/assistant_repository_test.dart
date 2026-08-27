@@ -86,6 +86,38 @@ void main() {
     );
   });
 
+  test('skips unknown SSE types instead of terminating the stream', () async {
+    final client = _CapturingClient(
+      (_) => http.StreamedResponse(
+        Stream.value(
+          utf8.encode(
+            [
+              'data: {"type":"future_event","text":"ignore me","conversationId":"c"}\n\n',
+              'data: {"type":"token","text":"ok","conversationId":"c"}\n\n',
+              'data: {"type":"done","conversationId":"c"}\n\n',
+            ].join(),
+          ),
+        ),
+        200,
+      ),
+    );
+    final repository = AssistantRepository(
+      client: client,
+      baseUrl: 'http://gateway.test',
+      loadAccessToken: () async => null,
+    );
+
+    final events = await repository
+        .chat(message: 'hello', requestId: 'request-1')
+        .toList();
+
+    expect(events.map((event) => event.type), [
+      AssistantEventType.token,
+      AssistantEventType.done,
+    ]);
+    expect(events.first.text, 'ok');
+  });
+
   test('parses a structured error event as a terminal response', () async {
     final client = _CapturingClient(
       (_) => http.StreamedResponse(

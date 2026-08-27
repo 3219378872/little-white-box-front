@@ -1,15 +1,15 @@
-import 'package:xiaobaihe_app/sdk/data/gateway.dart'
-    hide AssistantChatEvent, AssistantSourceReference;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:xiaobaihe_app/features/assistant/application/assistant_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_models.dart';
-import 'package:xiaobaihe_app/features/assistant/data/assistant_repository.dart';
 import 'package:xiaobaihe_app/features/assistant/presentation/assistant_page.dart';
+import 'package:xiaobaihe_app/sdk/data/gateway.dart'
+    hide AssistantChatEvent, AssistantSourceReference;
 
 import '../../../helpers/forui_test_builder.dart';
+import '../helpers/fake_assistant_source.dart';
 
 void main() {
   testWidgets('renders streamed text and opens a source', (tester) async {
@@ -47,8 +47,9 @@ void main() {
     expect(opened?.sourceId, '7');
   });
 
-  testWidgets('renders markdown structure in assistant reply only',
-      (tester) async {
+  testWidgets('renders markdown structure in assistant reply only', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -83,8 +84,7 @@ void main() {
     void walk(InlineSpan span) {
       final spanStyle = span.style;
       final text = span is TextSpan ? span.toPlainText() : '';
-      if (text.contains('加粗') &&
-          boldWeights.contains(spanStyle?.fontWeight)) {
+      if (text.contains('加粗') && boldWeights.contains(spanStyle?.fontWeight)) {
         boldSpans.add(span as TextSpan);
       }
       if (span is TextSpan) {
@@ -94,17 +94,103 @@ void main() {
       }
     }
 
-    for (final element in find.descendant(
-      of: find.byType(GptMarkdown),
-      matching: find.byType(RichText),
-    ).evaluate()) {
+    for (final element
+        in find
+            .descendant(
+              of: find.byType(GptMarkdown),
+              matching: find.byType(RichText),
+            )
+            .evaluate()) {
       walk((element.widget as RichText).text);
     }
     expect(boldSpans, isNotEmpty);
   });
+
+  testWidgets('renders cards, actions and watch hits and skips unknown SSE', (
+    tester,
+  ) async {
+    final source = FakeAssistantSource()
+      ..chatHandler =
+          ({
+            required message,
+            required requestId,
+            required conversationId,
+            required mode,
+            required attachments,
+          }) => Stream.fromIterable(const [
+            AssistantChatEvent(type: AssistantEventType.unknown),
+            AssistantChatEvent(
+              type: AssistantEventType.card,
+              card: AssistantStructuredCard(
+                cardType: 'recommend',
+                postId: '7',
+                title: '推荐帖',
+                summary: '摘要',
+              ),
+              conversationId: 'c-card',
+            ),
+            AssistantChatEvent(
+              type: AssistantEventType.actions,
+              actions: [
+                AssistantStructuredAction(action: 'open_post', postId: '7'),
+                AssistantStructuredAction(
+                  action: 'watch_author',
+                  authorId: '2',
+                ),
+              ],
+              conversationId: 'c-card',
+            ),
+            AssistantChatEvent(
+              type: AssistantEventType.watchHit,
+              watchHit: AssistantWatchHitNotice(
+                hitId: '1',
+                taskId: '1',
+                postId: '7',
+                title: '作者发布了新帖',
+              ),
+              conversationId: 'c-card',
+            ),
+            AssistantChatEvent(
+              type: AssistantEventType.done,
+              conversationId: 'c-card',
+            ),
+          ]);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [assistantRepositoryProvider.overrideWithValue(source)],
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: const AssistantPage(),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(EditableText), 'recommend');
+    await tester.tap(find.byKey(const Key('assistant-send-or-stop')));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('推荐帖'), findsOneWidget);
+    expect(find.text('摘要'), findsOneWidget);
+    expect(find.text('打开帖子'), findsWidgets);
+    expect(find.text('不喜欢'), findsOneWidget);
+    expect(find.text('不感兴趣'), findsOneWidget);
+    expect(find.text('盯作者'), findsOneWidget);
+    expect(find.text('作者发布了新帖'), findsOneWidget);
+    expect(find.textContaining('连接'), findsNothing);
+    expect(find.textContaining('中断'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('assistant-card-dislike-7')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(source.lastFeedbackPostId, '7');
+    expect(source.lastFeedbackReason, 'dislike');
+  });
 }
 
-class _PageAssistantSource implements AssistantDataSource {
+class _PageAssistantSource extends FakeAssistantSource {
   @override
   Stream<AssistantChatEvent> chat({
     required String message,
@@ -147,23 +233,9 @@ class _PageAssistantSource implements AssistantDataSource {
       ),
     ]);
   }
-
-  @override
-  Future<AgentConsentStatus> loadAgentConsent() async =>
-      const AgentConsentStatus(granted: false);
-
-  @override
-  Future<void> setAgentConsent({required bool granted}) async {}
-
-  @override
-  Future<void> confirmTool({
-    required String requestId,
-    required String callId,
-    required bool approved,
-  }) async {}
 }
 
-class _MarkdownAssistantSource implements AssistantDataSource {
+class _MarkdownAssistantSource extends FakeAssistantSource {
   @override
   Stream<AssistantChatEvent> chat({
     required String message,
@@ -184,18 +256,4 @@ class _MarkdownAssistantSource implements AssistantDataSource {
       ),
     ]);
   }
-
-  @override
-  Future<AgentConsentStatus> loadAgentConsent() async =>
-      const AgentConsentStatus(granted: false);
-
-  @override
-  Future<void> setAgentConsent({required bool granted}) async {}
-
-  @override
-  Future<void> confirmTool({
-    required String requestId,
-    required String callId,
-    required bool approved,
-  }) async {}
 }

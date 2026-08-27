@@ -18,13 +18,10 @@ final _personalizationRepoProvider = Provider(
   (ref) => PersonalizationRepository(),
 );
 
-final _userProfileProvider =
-    FutureProvider.autoDispose.family<GetUserResp, String>((
-  ref,
-  userId,
-) {
-  return ref.read(_userRepoProvider).getUserProfile(userId);
-});
+final _userProfileProvider = FutureProvider.autoDispose
+    .family<GetUserResp, String>((ref, userId) {
+      return ref.read(_userRepoProvider).getUserProfile(userId);
+    });
 
 class ProfilePage extends ConsumerWidget {
   final Object? userId;
@@ -55,8 +52,7 @@ class ProfilePage extends ConsumerWidget {
     }
 
     final isOwnProfile =
-        userId == null ||
-        jsonInt64Id(userId) == jsonInt64Id(auth.userId);
+        userId == null || jsonInt64Id(userId) == jsonInt64Id(auth.userId);
 
     return _ProfileContent(
       userId: jsonInt64Id(targetUserId),
@@ -247,6 +243,26 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                           mainAxisSize: MainAxisSize.min,
                           onPress: () => context.push('/profile/edit'),
                           child: const Text('编辑资料'),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            FButton(
+                              variant: .ghost,
+                              size: .sm,
+                              onPress: () => context.push('/assistant/memory'),
+                              child: const Text('记忆'),
+                            ),
+                            FButton(
+                              variant: .ghost,
+                              size: .sm,
+                              onPress: () => context.push('/assistant/watch'),
+                              child: const Text('追踪'),
+                            ),
+                          ],
                         ),
                         if (_personalizationEnabled != null) ...[
                           const SizedBox(height: 16),

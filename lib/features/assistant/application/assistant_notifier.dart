@@ -64,6 +64,9 @@ class AssistantMessage {
   final List<AssistantSourceReference> sources;
   final List<AssistantToolStep> toolSteps;
   final List<PendingChatImage> attachments;
+  final List<AssistantStructuredCard> cards;
+  final List<AssistantStructuredAction> actions;
+  final List<AssistantWatchHitNotice> watchHits;
   final bool isStreaming;
   final bool isCanceled;
   final bool degraded;
@@ -76,6 +79,9 @@ class AssistantMessage {
     this.sources = const [],
     this.toolSteps = const [],
     this.attachments = const [],
+    this.cards = const [],
+    this.actions = const [],
+    this.watchHits = const [],
     this.isStreaming = false,
     this.isCanceled = false,
     this.degraded = false,
@@ -83,14 +89,17 @@ class AssistantMessage {
   });
 
   bool get hasPendingConfirmation => toolSteps.any(
-        (step) => step.status == AssistantToolStatus.awaitingConfirmation,
-      );
+    (step) => step.status == AssistantToolStatus.awaitingConfirmation,
+  );
 
   AssistantMessage copyWith({
     String? text,
     List<AssistantSourceReference>? sources,
     List<AssistantToolStep>? toolSteps,
     List<PendingChatImage>? attachments,
+    List<AssistantStructuredCard>? cards,
+    List<AssistantStructuredAction>? actions,
+    List<AssistantWatchHitNotice>? watchHits,
     bool? isStreaming,
     bool? isCanceled,
     bool? degraded,
@@ -103,6 +112,9 @@ class AssistantMessage {
       sources: sources ?? this.sources,
       toolSteps: toolSteps ?? this.toolSteps,
       attachments: attachments ?? this.attachments,
+      cards: cards ?? this.cards,
+      actions: actions ?? this.actions,
+      watchHits: watchHits ?? this.watchHits,
       isStreaming: isStreaming ?? this.isStreaming,
       isCanceled: isCanceled ?? this.isCanceled,
       degraded: degraded ?? this.degraded,
@@ -382,6 +394,40 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
             );
           }),
         );
+      case AssistantEventType.card:
+        if (event.card == null) return;
+        state = state.copyWith(
+          conversationId: conversationId,
+          messages: _updateMessage(
+            responseId,
+            (message) =>
+                message.copyWith(cards: [...message.cards, event.card!]),
+          ),
+        );
+      case AssistantEventType.actions:
+        if (event.actions.isEmpty) return;
+        state = state.copyWith(
+          conversationId: conversationId,
+          messages: _updateMessage(
+            responseId,
+            (message) => message.copyWith(
+              actions: [...message.actions, ...event.actions],
+            ),
+          ),
+        );
+      case AssistantEventType.watchHit:
+        if (event.watchHit == null) return;
+        state = state.copyWith(
+          conversationId: conversationId,
+          messages: _updateMessage(
+            responseId,
+            (message) => message.copyWith(
+              watchHits: [...message.watchHits, event.watchHit!],
+            ),
+          ),
+        );
+      case AssistantEventType.unknown:
+        return;
       case AssistantEventType.done:
         state = state.copyWith(
           conversationId: conversationId,
@@ -390,14 +436,16 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
             (message) => message.copyWith(
               isStreaming: false,
               degraded: event.degraded,
-              toolSteps: _settleSteps(message.toolSteps, AssistantToolStatus.completed),
+              toolSteps: _settleSteps(
+                message.toolSteps,
+                AssistantToolStatus.completed,
+              ),
             ),
           ),
           isStreaming: false,
         );
       case AssistantEventType.error:
-        final needsAuthorization =
-            event.errorCode == 'AGENT_NOT_AUTHORIZED';
+        final needsAuthorization = event.errorCode == 'AGENT_NOT_AUTHORIZED';
         state = state.copyWith(
           conversationId: conversationId,
           agentAuthorizationRequired: needsAuthorization,
@@ -408,7 +456,10 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
               isStreaming: false,
               degraded: true,
               errorCode: event.errorCode,
-              toolSteps: _settleSteps(message.toolSteps, AssistantToolStatus.failed),
+              toolSteps: _settleSteps(
+                message.toolSteps,
+                AssistantToolStatus.failed,
+              ),
             ),
           ),
           isStreaming: false,
@@ -424,10 +475,15 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     return [
       for (final step in steps)
         switch (step.status) {
-          AssistantToolStatus.running =>
-            step.copyWith(status: terminal == AssistantToolStatus.completed ? .completed : .failed),
+          AssistantToolStatus.running => step.copyWith(
+            status: terminal == AssistantToolStatus.completed
+                ? .completed
+                : .failed,
+          ),
           // 等待确认的卡片在终止事件后按过期呈现（AGNT-021）。
-          AssistantToolStatus.awaitingConfirmation => step.copyWith(status: .expired),
+          AssistantToolStatus.awaitingConfirmation => step.copyWith(
+            status: .expired,
+          ),
           _ => step,
         },
     ];
@@ -444,7 +500,10 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
           isStreaming: false,
           degraded: true,
           errorCode: 'STREAM_DISCONNECTED',
-          toolSteps: _settleSteps(message.toolSteps, AssistantToolStatus.failed),
+          toolSteps: _settleSteps(
+            message.toolSteps,
+            AssistantToolStatus.failed,
+          ),
         ),
       ),
       isStreaming: false,
@@ -493,53 +552,87 @@ class AgentConsentState {
   final bool loading;
   final bool loaded;
   final bool granted;
+  final int consentVersion;
+  final int currentVersion;
 
   const AgentConsentState({
     this.loading = false,
     this.loaded = false,
     this.granted = false,
+    this.consentVersion = 0,
+    this.currentVersion = 0,
   });
+
+  bool get needsUpgrade =>
+      loaded &&
+      granted &&
+      currentVersion > 0 &&
+      consentVersion < currentVersion;
+
+  bool get canUseMemoryWatch => loaded && granted && !needsUpgrade;
 
   AgentConsentState copyWith({
     bool? loading,
     bool? loaded,
     bool? granted,
+    int? consentVersion,
+    int? currentVersion,
   }) {
     return AgentConsentState(
       loading: loading ?? this.loading,
       loaded: loaded ?? this.loaded,
       granted: granted ?? this.granted,
+      consentVersion: consentVersion ?? this.consentVersion,
+      currentVersion: currentVersion ?? this.currentVersion,
     );
   }
 }
 
-/// Agent 能力授权状态（FX-053/054）：进入 Agent 模式前查询，同意后记录。
+/// Agent 能力授权状态（FX-053/054/080）：进入 Agent 模式前查询，同意后记录。
 class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
   final AssistantDataSource _repository;
 
   AgentConsentNotifier({required AssistantDataSource repository})
-      : _repository = repository,
-        super(const AgentConsentState());
+    : _repository = repository,
+      super(const AgentConsentState());
 
   Future<void> ensureLoaded() async {
     if (state.loaded || state.loading) return;
+    await reload();
+  }
+
+  Future<void> reload() async {
     state = state.copyWith(loading: true);
     try {
       final status = await _repository.loadAgentConsent();
-      state = AgentConsentState(loaded: true, granted: status.granted);
+      state = AgentConsentState(
+        loaded: true,
+        granted: status.granted,
+        consentVersion: status.consentVersion,
+        currentVersion: status.currentVersion,
+      );
     } on ApiException {
-      state = AgentConsentState(loaded: true, granted: false);
+      state = const AgentConsentState(loaded: true, granted: false);
     }
   }
 
   Future<void> grant() async {
     await _repository.setAgentConsent(granted: true);
-    state = AgentConsentState(loaded: true, granted: true);
+    await reload();
+    if (!state.granted) {
+      state = state.copyWith(
+        granted: true,
+        consentVersion: state.currentVersion == 0 ? 2 : state.currentVersion,
+      );
+    }
   }
 
   Future<void> revoke() async {
     await _repository.setAgentConsent(granted: false);
-    state = AgentConsentState(loaded: true, granted: false);
+    await reload();
+    if (state.granted) {
+      state = const AgentConsentState(loaded: true);
+    }
   }
 }
 

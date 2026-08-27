@@ -338,10 +338,7 @@ void main() {
       'POST',
       '/api/v2/assistant/chat',
       jsonEncode({'message': '推荐一篇探店帖子', 'requestId': 'assistant-mock-test'}),
-      headers: {
-        ...authHeaders(),
-        'content-type': 'application/json',
-      },
+      headers: {...authHeaders(), 'content-type': 'application/json'},
     );
 
     expect(response.statusCode, 200);
@@ -351,6 +348,25 @@ void main() {
     expect(response.body, contains('"type":"done"'));
     expect(response.body, contains('"sourceType":"post"'));
     expect(response.body, contains('"revision"'));
+  });
+
+  test('assistant agent mock emits cards actions and watch hits', () {
+    final response = mock_router.dispatchResponse(
+      'POST',
+      '/api/v2/assistant/chat',
+      jsonEncode({
+        'message': '盯这个作者',
+        'requestId': 'assistant-agent-mock',
+        'mode': 'agent',
+      }),
+      headers: {...authHeaders(), 'content-type': 'application/json'},
+    );
+
+    expect(response.statusCode, 200);
+    expect(response.body, contains('"type":"card"'));
+    expect(response.body, contains('"type":"actions"'));
+    expect(response.body, contains('"type":"watch_hit"'));
+    expect(response.body, contains('"type":"done"'));
   });
 
   test('v2 post writes require revision and stay idempotent', () {

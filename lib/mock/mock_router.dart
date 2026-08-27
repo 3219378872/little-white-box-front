@@ -59,9 +59,14 @@ late Map<String, int> _messageIdempotencyKeys;
 late List<Map<String, dynamic>> _conversations;
 late Map<int, List<Map<String, dynamic>>> _messages;
 late Map<int, bool> _personalizationEnabled;
+late Map<int, Map<String, dynamic>> _agentConsent;
+late Map<int, List<Map<String, dynamic>>> _assistantMemories;
+late Map<int, List<Map<String, dynamic>>> _assistantWatches;
+late Map<int, List<Map<String, dynamic>>> _assistantWatchHits;
 late int _messageSeedTime;
 late Set<String> _usedRefreshTokens;
 int _mockJwtNonce = 0;
+int _nextWatchId = 1;
 
 bool _seeded = false;
 
@@ -106,9 +111,12 @@ void resetMockState() {
     for (final entry in seedComments.entries)
       entry.key: entry.value.map(_copyMap).toList(),
   };
-  _users = {for (final entry in seedUsers.entries) entry.key: _copyMap(entry.value)};
+  _users = {
+    for (final entry in seedUsers.entries) entry.key: _copyMap(entry.value),
+  };
   _passwords = {
-    for (final user in _users.values) user['username'] as String: mockDevPassword,
+    for (final user in _users.values)
+      user['username'] as String: mockDevPassword,
   };
   _likedByUser = {
     1: {
@@ -192,6 +200,72 @@ void resetMockState() {
     ],
   };
   _personalizationEnabled = {for (final id in _users.keys) id: true};
+  _agentConsent = {
+    for (final id in _users.keys)
+      id: {
+        'granted': true,
+        'grantedAt': DateTime.now().millisecondsSinceEpoch,
+        'revokedAt': 0,
+        'consentVersion': 2,
+        'currentVersion': 2,
+      },
+  };
+  _nextWatchId = 2;
+  _assistantMemories = {
+    1: [
+      {
+        'id': 1,
+        'layer': 'profile',
+        'dimension': 'tag',
+        'value': '美食',
+        'score': 0.9,
+        'source': 'explicit',
+        'confidence': 0.9,
+        'confirmed': true,
+        'suppressed': false,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      },
+      {
+        'id': 2,
+        'layer': 'interest',
+        'dimension': 'author',
+        'value': '萌萌哒小兔',
+        'score': 0.4,
+        'source': 'behavior',
+        'confidence': 0.4,
+        'confirmed': false,
+        'suppressed': false,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      },
+    ],
+  };
+  _assistantWatches = {
+    1: [
+      {
+        'id': 1,
+        'conditionType': 'author_new_post',
+        'targetType': 'author',
+        'targetId': 2,
+        'targetText': '',
+        'enabled': true,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+      },
+    ],
+  };
+  final seedPost = _posts.isEmpty ? <String, dynamic>{} : _posts.first;
+  _assistantWatchHits = {
+    1: [
+      {
+        'id': 1,
+        'taskId': 1,
+        'postId': seedPost['id'] ?? 1,
+        'title': seedPost['title'] ?? '',
+        'summary': '作者发布了新帖',
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'read': false,
+      },
+    ],
+  };
   _usedRefreshTokens = {};
   _mockJwtNonce = 0;
   _seeded = true;
@@ -207,12 +281,7 @@ String dispatch(
   String requestBody, {
   Map<String, String> headers = const {},
 }) {
-  return dispatchResponse(
-    method,
-    path,
-    requestBody,
-    headers: headers,
-  ).body;
+  return dispatchResponse(method, path, requestBody, headers: headers).body;
 }
 
 MockRouterResponse dispatchResponse(
@@ -251,13 +320,7 @@ MockRouterResponse dispatchResponse(
       throw const _MockBiz(404, 4, '资源不存在');
     }
     if (segments[1] == 'v2') {
-      return _routeV2(
-        method.toUpperCase(),
-        segments,
-        query,
-        body,
-        auth,
-      );
+      return _routeV2(method.toUpperCase(), segments, query, body, auth);
     }
     if (segments[1] == 'v1') {
       return _routeV1(
@@ -320,7 +383,9 @@ MockRouterResponse _routeV1(
       return _updateProfile(auth.userId, body ?? const {});
     case 'api/v1/user/follow':
       _requireAuth(auth);
-      if (method == 'POST') return _follow(auth.userId, body ?? const {}, follow: true);
+      if (method == 'POST') {
+        return _follow(auth.userId, body ?? const {}, follow: true);
+      }
       if (method == 'DELETE') {
         return _follow(auth.userId, body ?? const {}, follow: false);
       }
@@ -331,7 +396,9 @@ MockRouterResponse _routeV1(
       return _jsonResponse(_createComment(auth.userId, body ?? const {}));
     case 'api/v1/like':
       _requireAuth(auth);
-      if (method == 'POST') return _like(auth.userId, body ?? const {}, like: true);
+      if (method == 'POST') {
+        return _like(auth.userId, body ?? const {}, like: true);
+      }
       if (method == 'DELETE') {
         return _like(auth.userId, body ?? const {}, like: false);
       }
@@ -354,7 +421,10 @@ MockRouterResponse _routeV1(
 
   if (segments.length == 4 && segments[2] == 'post') {
     _requireMethod(method, 'GET');
-    return _withAuthState(auth, _jsonResponse(_getPost(_pathId(segments[3]), auth)));
+    return _withAuthState(
+      auth,
+      _jsonResponse(_getPost(_pathId(segments[3]), auth)),
+    );
   }
   if (segments.length == 4 && segments[2] == 'comments') {
     _requireMethod(method, 'GET');
@@ -433,13 +503,50 @@ MockRouterResponse _routeV2(
     case 'api/v2/assistant/consent':
       _requireAuth(auth);
       if (method == 'GET') {
-        // Mock 默认已授权，便于开发态走通 Agent 模式。
+        return _jsonResponse(_consentOf(auth.userId));
+      }
+      _requireMethod(method, 'POST');
+      final granted = body?['granted'] == true;
+      _agentConsent[auth.userId] = {
+        'granted': granted,
+        'grantedAt': granted ? DateTime.now().millisecondsSinceEpoch : 0,
+        'revokedAt': granted ? 0 : DateTime.now().millisecondsSinceEpoch,
+        'consentVersion': granted ? 2 : 0,
+        'currentVersion': 2,
+      };
+      return _jsonResponse(const {});
+    case 'api/v2/assistant/memory':
+      _requireAuth(auth);
+      _requireMethod(method, 'GET');
+      return _jsonResponse(_listMemory(auth.userId, query['layer']));
+    case 'api/v2/assistant/watch':
+      _requireAuth(auth);
+      if (method == 'GET') {
         return _jsonResponse({
-          'granted': true,
-          'grantedAt': DateTime.now().millisecondsSinceEpoch,
+          'tasks': _assistantWatches[auth.userId] ?? const [],
         });
       }
       _requireMethod(method, 'POST');
+      return _jsonResponse({
+        'task': _createWatch(auth.userId, body ?? const {}),
+      });
+    case 'api/v2/assistant/watch/hits':
+      _requireMethod(method, 'GET');
+      _requireAuth(auth);
+      return _jsonResponse(_listWatchHits(auth.userId, query));
+    case 'api/v2/assistant/watch/hits/read':
+      _requireMethod(method, 'POST');
+      _requireAuth(auth);
+      _markWatchHitsRead(auth.userId, body ?? const {});
+      return _jsonResponse(const {});
+    case 'api/v2/assistant/recommend/feedback':
+      _requireMethod(method, 'POST');
+      _requireAuth(auth);
+      final postId = body?['postId'];
+      final reason = body?['reason']?.toString().trim() ?? '';
+      if (!_isPositiveId(postId) || reason.isEmpty) {
+        throw const _MockBiz(400, 2, '参数错误');
+      }
       return _jsonResponse(const {});
     case 'api/v2/assistant/tool/confirm':
       _requireMethod(method, 'POST');
@@ -508,6 +615,38 @@ MockRouterResponse _routeV2(
     if (segments.length == 6 && segments[5] == 'read' && method == 'POST') {
       return _markRead(conversationId);
     }
+  }
+
+  if (segments.length == 5 &&
+      segments[2] == 'assistant' &&
+      segments[3] == 'memory') {
+    _requireAuth(auth);
+    final id = _pathId(segments[4]);
+    if (method == 'PATCH') {
+      _updateMemory(auth.userId, id, body ?? const {});
+      return _jsonResponse(const {});
+    }
+    if (method == 'DELETE') {
+      _deleteMemory(auth.userId, id);
+      return _jsonResponse(const {});
+    }
+    throw const _MockBiz(405, 1, '未知错误');
+  }
+
+  if (segments.length == 5 &&
+      segments[2] == 'assistant' &&
+      segments[3] == 'watch') {
+    _requireAuth(auth);
+    final id = _pathId(segments[4]);
+    if (method == 'PATCH') {
+      _updateWatch(auth.userId, id, body ?? const {});
+      return _jsonResponse(const {});
+    }
+    if (method == 'DELETE') {
+      _deleteWatch(auth.userId, id);
+      return _jsonResponse(const {});
+    }
+    throw const _MockBiz(405, 1, '未知错误');
   }
 
   throw const _MockBiz(404, 4, '资源不存在');
@@ -600,9 +739,7 @@ Map<String, dynamic> _refreshTokens(Map<String, dynamic> body) {
   }
   final exp = payload['exp'];
   final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-  if (exp is num &&
-      exp.toInt() > 0 &&
-      exp.toInt() < nowSec) {
+  if (exp is num && exp.toInt() > 0 && exp.toInt() < nowSec) {
     throw const _MockBiz(401, 1004, '登录已过期，请重新登录');
   }
   final userId = payload['userId'];
@@ -629,12 +766,13 @@ Map<String, dynamic> _postList(Map<String, String> query, _Auth auth) {
   );
   final sortBy = _queryInt(query, 'sortBy', defaultValue: 1);
   final published = _publishedPosts();
-  final sorted = [...published]..sort((a, b) {
-    if (sortBy == 2) {
-      return (b['likeCount'] as num).compareTo(a['likeCount'] as num);
-    }
-    return (b['createdAt'] as num).compareTo(a['createdAt'] as num);
-  });
+  final sorted = [...published]
+    ..sort((a, b) {
+      if (sortBy == 2) {
+        return (b['likeCount'] as num).compareTo(a['likeCount'] as num);
+      }
+      return (b['createdAt'] as num).compareTo(a['createdAt'] as num);
+    });
   return _pagedPosts(sorted, cursor, pageSize, auth.userId);
 }
 
@@ -708,7 +846,9 @@ Map<String, dynamic> _updatePost(
   final content = body.containsKey('content')
       ? body['content']?.toString() ?? ''
       : current['content']?.toString() ?? '';
-  final images = body.containsKey('images') ? body['images'] : current['images'];
+  final images = body.containsKey('images')
+      ? body['images']
+      : current['images'];
   final tags = body.containsKey('tags') ? body['tags'] : current['tags'];
   _validatePostFields(title, content, images, tags);
   var status = _statusOf(current);
@@ -749,15 +889,16 @@ Map<String, dynamic> _commentList(int postId, Map<String, String> query) {
     _queryInt(query, 'pageSize', defaultValue: 20),
   );
   final sortBy = _queryInt(query, 'sortBy', defaultValue: 1);
-  final all = [...(_comments[postId] ?? const <Map<String, dynamic>>[])]
-      .where((c) => (c['parentId'] as num).toInt() == 0)
-      .toList()
-    ..sort((a, b) {
-      if (sortBy == 2) {
-        return (b['likeCount'] as num).compareTo(a['likeCount'] as num);
-      }
-      return (b['createdAt'] as num).compareTo(a['createdAt'] as num);
-    });
+  final all =
+      [
+          ...(_comments[postId] ?? const <Map<String, dynamic>>[]),
+        ].where((c) => (c['parentId'] as num).toInt() == 0).toList()
+        ..sort((a, b) {
+          if (sortBy == 2) {
+            return (b['likeCount'] as num).compareTo(a['likeCount'] as num);
+          }
+          return (b['createdAt'] as num).compareTo(a['createdAt'] as num);
+        });
   final start = (page - 1) * pageSize;
   final slice = start >= all.length
       ? const <Map<String, dynamic>>[]
@@ -773,10 +914,13 @@ Map<String, dynamic> _commentList(int postId, Map<String, String> query) {
 
 List<Map<String, dynamic>> _repliesOf(int parentId) {
   for (final entry in _comments.entries) {
-    final replies = entry.value
-        .where((c) => (c['parentId'] as num).toInt() == parentId)
-        .toList()
-      ..sort((a, b) => (a['createdAt'] as num).compareTo(b['createdAt'] as num));
+    final replies =
+        entry.value
+            .where((c) => (c['parentId'] as num).toInt() == parentId)
+            .toList()
+          ..sort(
+            (a, b) => (a['createdAt'] as num).compareTo(b['createdAt'] as num),
+          );
     if (replies.isNotEmpty) return replies;
   }
   return const <Map<String, dynamic>>[];
@@ -792,10 +936,10 @@ Map<String, dynamic> _withReplyPreview(Map<String, dynamic> comment) {
 }
 
 Map<String, dynamic> _stripNested(Map<String, dynamic> reply) => {
-      ...reply,
-      'replyCount': 0,
-      'replies': const <Map<String, dynamic>>[],
-    };
+  ...reply,
+  'replyCount': 0,
+  'replies': const <Map<String, dynamic>>[],
+};
 
 Map<String, dynamic> _commentReplies(int commentId, Map<String, String> query) {
   final page = _clampPage(_queryInt(query, 'page', defaultValue: 1));
@@ -885,7 +1029,10 @@ MockRouterResponse _like(
   } else {
     if (!liked) throw const _MockBiz(400, 3003, '未点赞');
     _likedByUser[userId]!.remove(targetId);
-    post['likeCount'] = ((post['likeCount'] as num).toInt() - 1).clamp(0, 1 << 30);
+    post['likeCount'] = ((post['likeCount'] as num).toInt() - 1).clamp(
+      0,
+      1 << 30,
+    );
   }
   return _jsonResponse(const {});
 }
@@ -956,22 +1103,30 @@ MockRouterResponse _follow(
   return _jsonResponse(const {});
 }
 
-Map<String, dynamic> _userPosts(int userId, Map<String, String> query, _Auth auth) {
+Map<String, dynamic> _userPosts(
+  int userId,
+  Map<String, String> query,
+  _Auth auth,
+) {
   if (!_users.containsKey(userId)) throw const _MockBiz(404, 1001, '用户不存在');
   final sortBy = _queryInt(query, 'sortBy', defaultValue: 1);
-  final filtered = _posts
-      .where((post) {
+  final filtered =
+      _posts.where((post) {
         if ((post['authorId'] as num).toInt() != userId) return false;
-        return _statusOf(post) == 1 || jsonInt64Id(auth.userId) == jsonInt64Id(userId);
-      })
-      .toList()
-    ..sort((a, b) {
-      if (sortBy == 2) {
-        return (b['likeCount'] as num).compareTo(a['likeCount'] as num);
-      }
-      return (b['createdAt'] as num).compareTo(a['createdAt'] as num);
-    });
-  return _pagedPosts(filtered, query['cursor'] ?? '', _userPostsPageSize(query), auth.userId);
+        return _statusOf(post) == 1 ||
+            jsonInt64Id(auth.userId) == jsonInt64Id(userId);
+      }).toList()..sort((a, b) {
+        if (sortBy == 2) {
+          return (b['likeCount'] as num).compareTo(a['likeCount'] as num);
+        }
+        return (b['createdAt'] as num).compareTo(a['createdAt'] as num);
+      });
+  return _pagedPosts(
+    filtered,
+    query['cursor'] ?? '',
+    _userPostsPageSize(query),
+    auth.userId,
+  );
 }
 
 int _userPostsPageSize(Map<String, String> query) =>
@@ -1040,7 +1195,8 @@ MockRouterResponse _recommendFeed(Map<String, String> query, _Auth auth) {
         feedType: 2,
         extra: {
           'score': 1 - (index * 0.05),
-          'reason': '${recallSources[index % recallSources.length]} recommendation',
+          'reason':
+              '${recallSources[index % recallSources.length]} recommendation',
           'recallSource': recallSources[index % recallSources.length],
           'modelVersion': 'mock-rank-v1',
           'experimentId': experimentId,
@@ -1070,10 +1226,14 @@ MockRouterResponse _followFeed(Map<String, String> query, _Auth auth) {
   final following = _followedByUser[auth.userId] ?? const <int>{};
   final sorted =
       _publishedPosts()
-          .where((post) => following.contains((post['authorId'] as num).toInt()))
+          .where(
+            (post) => following.contains((post['authorId'] as num).toInt()),
+          )
           .toList()
         ..sort((a, b) {
-          final createdAt = (b['createdAt'] as num).compareTo(a['createdAt'] as num);
+          final createdAt = (b['createdAt'] as num).compareTo(
+            a['createdAt'] as num,
+          );
           if (createdAt != 0) return createdAt;
           return (b['id'] as num).compareTo(a['id'] as num);
         });
@@ -1110,7 +1270,9 @@ MockRouterResponse _behaviorEvents(Map<String, dynamic>? body, _Auth auth) {
   final results = <Map<String, dynamic>>[];
   var acceptedCount = 0;
   for (final rawEvent in rawEvents) {
-    final event = rawEvent is Map ? Map<String, dynamic>.from(rawEvent) : const <String, dynamic>{};
+    final event = rawEvent is Map
+        ? Map<String, dynamic>.from(rawEvent)
+        : const <String, dynamic>{};
     final clientEventId = event['clientEventId']?.toString().trim() ?? '';
     final reason = _behaviorRejectReason(event, clientEventId);
     final accepted = reason == null;
@@ -1128,17 +1290,17 @@ MockRouterResponse _behaviorEvents(Map<String, dynamic>? body, _Auth auth) {
       'reason': reason ?? '',
     });
   }
-  return _jsonResponse(
-    {
-      'results': results,
-      'acceptedCount': acceptedCount,
-      'rejectedCount': rawEvents.length - acceptedCount,
-    },
-    statusCode: 202,
-  );
+  return _jsonResponse({
+    'results': results,
+    'acceptedCount': acceptedCount,
+    'rejectedCount': rawEvents.length - acceptedCount,
+  }, statusCode: 202);
 }
 
-String? _behaviorRejectReason(Map<String, dynamic> event, String clientEventId) {
+String? _behaviorRejectReason(
+  Map<String, dynamic> event,
+  String clientEventId,
+) {
   if (clientEventId.isEmpty) return 'client_event_id is required';
   if (clientEventId.length > 128) return 'client_event_id is too long';
   final occurredAt = (event['occurredAt'] as num?)?.toInt() ?? 0;
@@ -1225,9 +1387,7 @@ MockRouterResponse _searchTags(Map<String, String> query) {
   if (limit <= 0 || limit > 100) throw const _MockBiz(400, 2, '参数错误');
   final keyword = (query['keyword'] ?? '').trim();
   if (keyword.isEmpty) throw const _MockBiz(400, 5001, '搜索关键词为空');
-  return _jsonResponse({
-    'tags': _matchingTags(keyword.toLowerCase(), limit),
-  });
+  return _jsonResponse({'tags': _matchingTags(keyword.toLowerCase(), limit)});
 }
 
 Map<String, dynamic> _conversationList(Map<String, String> query) {
@@ -1258,11 +1418,12 @@ Map<String, dynamic> _conversationMessages(
   if (lastId < 0 || pageSize <= 0 || pageSize > 100) {
     throw const _MockBiz(400, 2, '参数错误');
   }
-  final all = (_messages[conversationId] ?? const [])
-      .where((message) => lastId == 0 || (message['id'] as int) < lastId)
-      .map(_copyMap)
-      .toList()
-    ..sort((a, b) => (b['id'] as int).compareTo(a['id'] as int));
+  final all =
+      (_messages[conversationId] ?? const [])
+          .where((message) => lastId == 0 || (message['id'] as int) < lastId)
+          .map(_copyMap)
+          .toList()
+        ..sort((a, b) => (b['id'] as int).compareTo(a['id'] as int));
   return {
     'messages': all.take(pageSize).toList(growable: false),
     'hasMore': all.length > pageSize,
@@ -1435,9 +1596,44 @@ MockRouterResponse _agentAssistantChat({
       'conversationId': conversationId,
     },
     {
+      'type': 'card',
+      'card': {
+        'cardType': 'recommend',
+        'payloadJson': jsonEncode({
+          'postId': sourcePost['id'],
+          'title': sourcePost['title'],
+        }),
+      },
+      'conversationId': conversationId,
+    },
+    {
+      'type': 'actions',
+      'actions': [
+        {
+          'action': 'open_post',
+          'payloadJson': jsonEncode({'postId': sourcePost['id']}),
+        },
+        {
+          'action': 'watch_author',
+          'payloadJson': jsonEncode({'authorId': sourcePost['authorId']}),
+        },
+      ],
+      'conversationId': conversationId,
+    },
+    {
+      'type': 'watch_hit',
+      'watchHit': {
+        'hitId': 1,
+        'taskId': 1,
+        'postId': sourcePost['id'],
+        'title': sourcePost['title'],
+        'summary': '作者发布了新帖',
+      },
+      'conversationId': conversationId,
+    },
+    {
       'type': 'token',
-      'text':
-          'Agent 演示：已检索社区内容并生成操作计划。删除类操作需要你逐次确认。',
+      'text': 'Agent 演示：已检索社区内容并生成操作计划。删除类操作需要你逐次确认。',
       'conversationId': conversationId,
     },
     {'type': 'done', 'conversationId': conversationId},
@@ -1581,7 +1777,8 @@ Map<String, dynamic> _pagedPosts(
       ? const <Map<String, dynamic>>[]
       : posts.sublist(start, (start + pageSize).clamp(0, posts.length));
   // 满批且仍有余量时给下一页游标；空串表示没有更多。
-  final hasMore = slice.length == pageSize && start + slice.length < posts.length;
+  final hasMore =
+      slice.length == pageSize && start + slice.length < posts.length;
   return {
     'list': [for (final post in slice) _postItem(post, viewerId)],
     'nextCursor': hasMore ? _encodeCursorPage(page + 1) : '',
@@ -1603,7 +1800,9 @@ Map<String, dynamic> _findPost(int postId) {
 }
 
 int _postIndex(int postId) {
-  final idx = _posts.indexWhere((post) => (post['id'] as num).toInt() == postId);
+  final idx = _posts.indexWhere(
+    (post) => (post['id'] as num).toInt() == postId,
+  );
   if (idx < 0) throw const _MockBiz(404, 2001, '内容不存在');
   return idx;
 }
@@ -1666,7 +1865,11 @@ void _assertPasswordStrength(String password) {
 
 bool _isPhone(String phone) => RegExp(r'^1[3-9]\d{9}$').hasMatch(phone);
 
-int _queryInt(Map<String, String> query, String key, {required int defaultValue}) {
+int _queryInt(
+  Map<String, String> query,
+  String key, {
+  required int defaultValue,
+}) {
   if (!query.containsKey(key) || query[key]!.isEmpty) return defaultValue;
   final value = int.tryParse(query[key]!);
   if (value == null) throw const _MockBiz(400, 2, '参数错误');
@@ -1734,7 +1937,9 @@ Map<String, dynamic>? _decodeJwtPayload(String token) {
   try {
     final parts = token.split('.');
     if (parts.length != 3) return null;
-    final decoded = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+    final decoded = utf8.decode(
+      base64Url.decode(base64Url.normalize(parts[1])),
+    );
     final json = jsonDecode(decoded);
     return json is Map<String, dynamic> ? json : null;
   } catch (_) {
@@ -1744,16 +1949,17 @@ Map<String, dynamic>? _decodeJwtPayload(String token) {
 
 String mockAccessTokenForUser(int userId) => _buildFakeJwt(userId);
 
-String mockExpiredTokenForUser(int userId) =>
-    _buildFakeJwt(userId, exp: DateTime.now().millisecondsSinceEpoch ~/ 1000 - 10);
+String mockExpiredTokenForUser(int userId) => _buildFakeJwt(
+  userId,
+  exp: DateTime.now().millisecondsSinceEpoch ~/ 1000 - 10,
+);
 
 /// 与真实网关对齐的令牌对：access 短时效、refresh 7 天。
 Map<String, String> mockTokenPairForUser(int userId) {
   final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
   return {
     'token': _buildFakeJwt(userId, exp: nowSec + _mockAccessTtlSeconds),
-    'refreshToken':
-        _buildFakeJwt(userId, exp: nowSec + _mockRefreshTtlSeconds),
+    'refreshToken': _buildFakeJwt(userId, exp: nowSec + _mockRefreshTtlSeconds),
   };
 }
 
@@ -1821,3 +2027,140 @@ MockRouterResponse _jsonResponse(
     headers: const {'content-type': 'application/json; charset=utf-8'},
   );
 }
+
+Map<String, dynamic> _consentOf(int userId) {
+  return _copyMap(
+    _agentConsent[userId] ??
+        {
+          'granted': false,
+          'grantedAt': 0,
+          'revokedAt': 0,
+          'consentVersion': 0,
+          'currentVersion': 2,
+        },
+  );
+}
+
+Map<String, dynamic> _listMemory(int userId, String? layer) {
+  final items = [
+    for (final item
+        in _assistantMemories[userId] ?? const <Map<String, dynamic>>[])
+      if (layer == null || layer.isEmpty || item['layer'] == layer)
+        if (item['layer'] != 'episodic') _copyMap(item),
+  ];
+  return {'items': items};
+}
+
+void _updateMemory(int userId, int id, Map<String, dynamic> body) {
+  final items = _assistantMemories[userId];
+  if (items == null) throw const _MockBiz(404, 4, '资源不存在');
+  final index = items.indexWhere((item) => (item['id'] as num).toInt() == id);
+  if (index < 0) throw const _MockBiz(404, 4, '资源不存在');
+  final current = items[index];
+  items[index] = {
+    ...current,
+    if (body.containsKey('value')) 'value': body['value']?.toString() ?? '',
+    if (body.containsKey('score'))
+      'score': (body['score'] as num?)?.toDouble() ?? current['score'],
+    if (body.containsKey('suppressed'))
+      'suppressed': body['suppressed'] == true,
+    'updatedAt': DateTime.now().millisecondsSinceEpoch,
+  };
+}
+
+void _deleteMemory(int userId, int id) {
+  final items = _assistantMemories[userId];
+  if (items == null) throw const _MockBiz(404, 4, '资源不存在');
+  final before = items.length;
+  items.removeWhere((item) => (item['id'] as num).toInt() == id);
+  if (items.length == before) throw const _MockBiz(404, 4, '资源不存在');
+}
+
+const _watchConditions = {
+  'author_new_post': 'author',
+  'tag_new_post': 'tag',
+  'keyword_new_post': 'keyword',
+  'post_revised': 'post',
+};
+
+Map<String, dynamic> _createWatch(int userId, Map<String, dynamic> body) {
+  final condition = body['conditionType']?.toString() ?? '';
+  final targetType = body['targetType']?.toString() ?? '';
+  final expected = _watchConditions[condition];
+  if (expected == null || expected != targetType) {
+    throw const _MockBiz(400, 2, '参数错误');
+  }
+  final targetId = body['targetId'];
+  final targetText = body['targetText']?.toString() ?? '';
+  if ((condition == 'author_new_post' || condition == 'post_revised') &&
+      !_isPositiveId(targetId)) {
+    throw const _MockBiz(400, 2, '参数错误');
+  }
+  if ((condition == 'tag_new_post' || condition == 'keyword_new_post') &&
+      targetText.trim().isEmpty) {
+    throw const _MockBiz(400, 2, '参数错误');
+  }
+  final tasks = _assistantWatches.putIfAbsent(userId, () => []);
+  for (final existing in tasks) {
+    if (existing['conditionType'] == condition &&
+        existing['targetType'] == targetType &&
+        '${existing['targetId']}' == '${targetId ?? 0}' &&
+        existing['targetText'] == targetText) {
+      throw const _MockBiz(409, 2008, '追踪任务已存在');
+    }
+  }
+  final task = {
+    'id': _nextWatchId++,
+    'conditionType': condition,
+    'targetType': targetType,
+    'targetId': _isPositiveId(targetId) ? int.parse(jsonInt64Id(targetId)) : 0,
+    'targetText': targetText,
+    'enabled': true,
+    'createdAt': DateTime.now().millisecondsSinceEpoch,
+  };
+  tasks.add(task);
+  return task;
+}
+
+void _updateWatch(int userId, int id, Map<String, dynamic> body) {
+  final tasks = _assistantWatches[userId];
+  if (tasks == null) throw const _MockBiz(404, 4, '资源不存在');
+  final index = tasks.indexWhere((item) => (item['id'] as num).toInt() == id);
+  if (index < 0) throw const _MockBiz(404, 4, '资源不存在');
+  tasks[index] = {...tasks[index], 'enabled': body['enabled'] == true};
+}
+
+void _deleteWatch(int userId, int id) {
+  final tasks = _assistantWatches[userId];
+  if (tasks == null) throw const _MockBiz(404, 4, '资源不存在');
+  final before = tasks.length;
+  tasks.removeWhere((item) => (item['id'] as num).toInt() == id);
+  if (tasks.length == before) throw const _MockBiz(404, 4, '资源不存在');
+}
+
+Map<String, dynamic> _listWatchHits(int userId, Map<String, String> query) {
+  final unreadOnly = query['unreadOnly'] == 'true';
+  final hits = [
+    for (final hit
+        in _assistantWatchHits[userId] ?? const <Map<String, dynamic>>[])
+      if (!unreadOnly || hit['read'] != true) _copyMap(hit),
+  ];
+  return {'hits': hits};
+}
+
+void _markWatchHitsRead(int userId, Map<String, dynamic> body) {
+  final rawIds = body['hitIds'];
+  if (rawIds is! List || rawIds.isEmpty) {
+    throw const _MockBiz(400, 2, '参数错误');
+  }
+  final ids = {for (final id in rawIds) jsonInt64Id(id)};
+  final hits = _assistantWatchHits[userId];
+  if (hits == null) return;
+  for (var i = 0; i < hits.length; i++) {
+    if (ids.contains(jsonInt64Id(hits[i]['id']))) {
+      hits[i] = {...hits[i], 'read': true};
+    }
+  }
+}
+
+bool _isPositiveId(Object? value) => jsonInt64IsPositive(value);

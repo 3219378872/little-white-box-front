@@ -1,12 +1,10 @@
 import 'dart:async';
 
-import 'package:xiaobaihe_app/sdk/data/gateway.dart'
-    hide AssistantChatEvent, AssistantSourceReference;
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/features/assistant/application/assistant_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_models.dart';
-import 'package:xiaobaihe_app/features/assistant/data/assistant_repository.dart';
+
+import '../helpers/fake_assistant_source.dart';
 
 void main() {
   test('assembles tokens, sources, and terminal state', () async {
@@ -96,31 +94,15 @@ void main() {
   });
 }
 
-class _AssistantSource implements AssistantDataSource {
-  final Stream<AssistantChatEvent> stream;
-
-  _AssistantSource(this.stream);
-
-  @override
-  Stream<AssistantChatEvent> chat({
-    required String message,
-    required String requestId,
-    String conversationId = '',
-    AssistantMode mode = AssistantMode.enhancedSearch,
-    List<AssistantAttachment> attachments = const [],
-  }) => stream;
-
-  @override
-  Future<AgentConsentStatus> loadAgentConsent() async =>
-      const AgentConsentStatus(granted: false);
-
-  @override
-  Future<void> setAgentConsent({required bool granted}) async {}
-
-  @override
-  Future<void> confirmTool({
-    required String requestId,
-    required String callId,
-    required bool approved,
-  }) async {}
+class _AssistantSource extends FakeAssistantSource {
+  _AssistantSource(Stream<AssistantChatEvent> stream) {
+    chatHandler =
+        ({
+          required message,
+          required requestId,
+          required conversationId,
+          required mode,
+          required attachments,
+        }) => stream;
+  }
 }

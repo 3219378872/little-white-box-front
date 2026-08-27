@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,60 +8,65 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/core/widgets/error_view.dart';
+import 'package:xiaobaihe_app/features/assistant/application/assistant_notifier.dart';
 import 'package:xiaobaihe_app/features/post/presentation/post_detail_page.dart';
 import 'package:xiaobaihe_app/sdk/api/api.dart';
 
 import '../../../helpers/forui_test_builder.dart';
 import '../../../helpers/gateway_fake.dart';
+import '../../assistant/helpers/fake_assistant_source.dart';
 
 Map<String, dynamic> _postJson() => {
-      'id': 9,
-      'authorId': 2,
-      'authorName': '作者甲',
-      'authorAvatar': '',
-      'title': '联调标题',
-      'content': '联调正文',
-      'images': <String>[],
-      'tags': <String>['go'],
-      'status': 1,
-      'viewCount': 11,
-      'likeCount': 2,
-      'commentCount': 7,
-      'favoriteCount': 5,
-      'isLiked': false,
-      'isFavorited': false,
-      'createdAt': 1700000000,
-    };
+  'id': 9,
+  'authorId': 2,
+  'authorName': '作者甲',
+  'authorAvatar': '',
+  'title': '联调标题',
+  'content': '联调正文',
+  'images': <String>[],
+  'tags': <String>['go'],
+  'status': 1,
+  'viewCount': 11,
+  'likeCount': 2,
+  'commentCount': 7,
+  'favoriteCount': 5,
+  'isLiked': false,
+  'isFavorited': false,
+  'createdAt': 1700000000,
+};
 
-Map<String, dynamic> _commentJson(int id, String content,
-    {int replyCount = 0, List<Map<String, dynamic>> replies = const []}) =>
-    {
-      'id': id,
-      'userId': 3,
-      'userName': '评论乙',
-      'userAvatar': '',
-      'parentId': 0,
-      'replyUserId': 0,
-      'content': content,
-      'likeCount': 0,
-      'createdAt': 1700000000,
-      'replyCount': replyCount,
-      'replies': replies,
-    };
+Map<String, dynamic> _commentJson(
+  int id,
+  String content, {
+  int replyCount = 0,
+  List<Map<String, dynamic>> replies = const [],
+}) => {
+  'id': id,
+  'userId': 3,
+  'userName': '评论乙',
+  'userAvatar': '',
+  'parentId': 0,
+  'replyUserId': 0,
+  'content': content,
+  'likeCount': 0,
+  'createdAt': 1700000000,
+  'replyCount': replyCount,
+  'replies': replies,
+};
 
 Map<String, dynamic> _replyJson(int id, String content) => {
-      'id': id,
-      'userId': 4,
-      'userName': '回复丙',
-      'userAvatar': '',
-      'parentId': 55,
-      'replyUserId': 3,
-      'content': content,
-      'likeCount': 0,
-      'createdAt': 1700000100,
-      'replyCount': 0,
-      'replies': <dynamic>[],
-    };
+  'id': id,
+  'userId': 4,
+  'userName': '回复丙',
+  'userAvatar': '',
+  'parentId': 55,
+  'replyUserId': 3,
+  'content': content,
+  'likeCount': 0,
+  'createdAt': 1700000100,
+  'replyCount': 0,
+  'replies': <dynamic>[],
+};
 
 class _Harness {
   late final ScriptedGatewayClient client;
@@ -84,34 +91,38 @@ class _Harness {
         return jsonResponse({'code': 500, 'message': '评论服务不可用'}, 500);
       }
       final hottest = request.url.queryParameters['sortBy'] == '2';
-      return jsonResponse(okEnvelope({
-        'list': [
-          _commentJson(
-            hottest ? 66 : 55,
-            hottest ? '最热内容' : '沙发',
-            replyCount: replyCount,
-            replies: embeddedReplies,
-          ),
-        ],
-        'total': 1,
-        'page': 1,
-        'pageSize': 20,
-      }));
+      return jsonResponse(
+        okEnvelope({
+          'list': [
+            _commentJson(
+              hottest ? 66 : 55,
+              hottest ? '最热内容' : '沙发',
+              replyCount: replyCount,
+              replies: embeddedReplies,
+            ),
+          ],
+          'total': 1,
+          'page': 1,
+          'pageSize': 20,
+        }),
+      );
     }
     if (path == '/api/v1/comments/55/replies' ||
         path == '/api/v1/comments/66/replies') {
-      return jsonResponse(okEnvelope({
-        'list': [
-          _replyJson(101, '回复一'),
-          _replyJson(102, '回复二'),
-          _replyJson(103, '回复三'),
-          _replyJson(104, '回复四'),
-          _replyJson(105, '回复五'),
-        ],
-        'total': 5,
-        'page': 1,
-        'pageSize': 10,
-      }));
+      return jsonResponse(
+        okEnvelope({
+          'list': [
+            _replyJson(101, '回复一'),
+            _replyJson(102, '回复二'),
+            _replyJson(103, '回复三'),
+            _replyJson(104, '回复四'),
+            _replyJson(105, '回复五'),
+          ],
+          'total': 5,
+          'page': 1,
+          'pageSize': 10,
+        }),
+      );
     }
     if (path == '/api/v1/like' || path == '/api/v1/favorite') {
       return jsonResponse(okEnvelope(<String, dynamic>{}));
@@ -129,10 +140,7 @@ Future<void> _pumpPage(
     ProviderScope(
       child: router == null
           ? MaterialApp(builder: foruiTestBuilder, home: page)
-          : MaterialApp.router(
-              routerConfig: router,
-              builder: foruiTestBuilder,
-            ),
+          : MaterialApp.router(routerConfig: router, builder: foruiTestBuilder),
     ),
   );
 }
@@ -141,8 +149,9 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   tearDown(() => setApiClient(http.Client()));
 
-  testWidgets('renders the post header, actions and first comment page',
-      (tester) async {
+  testWidgets('renders the post header, actions and first comment page', (
+    tester,
+  ) async {
     final harness = _Harness();
     setApiClient(harness.client);
 
@@ -194,8 +203,9 @@ void main() {
     expect(unlikeCall.method, 'DELETE');
   });
 
-  testWidgets('falls back to an error view and recovers on retry',
-      (tester) async {
+  testWidgets('falls back to an error view and recovers on retry', (
+    tester,
+  ) async {
     final harness = _Harness()..postDetailOk = false;
     setApiClient(harness.client);
 
@@ -212,8 +222,9 @@ void main() {
     expect(find.text('联调正文'), findsOneWidget);
   });
 
-  testWidgets('switching to hottest refetches comments sorted by likes',
-      (tester) async {
+  testWidgets('switching to hottest refetches comments sorted by likes', (
+    tester,
+  ) async {
     final harness = _Harness();
     setApiClient(harness.client);
 
@@ -234,8 +245,9 @@ void main() {
     expect(find.text('最热内容'), findsOneWidget);
   });
 
-  testWidgets('expands replies on demand and loads the full thread',
-      (tester) async {
+  testWidgets('expands replies on demand and loads the full thread', (
+    tester,
+  ) async {
     final harness = _Harness()
       ..replyCount = 5
       ..embeddedReplies = [
@@ -256,8 +268,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // 展开触发楼中楼接口，全量替换内嵌预览
-    final replyCall = harness.client.requests
-        .firstWhere((r) => r.url.path == '/api/v1/comments/55/replies');
+    final replyCall = harness.client.requests.firstWhere(
+      (r) => r.url.path == '/api/v1/comments/55/replies',
+    );
     expect(replyCall.url.queryParameters['page'], '1');
     expect(find.text('回复一'), findsOneWidget);
     expect(find.text('回复五'), findsOneWidget);
@@ -269,8 +282,9 @@ void main() {
     expect(find.text('回复一'), findsNothing);
   });
 
-  testWidgets('anonymous comment submission redirects to login',
-      (tester) async {
+  testWidgets('anonymous comment submission redirects to login', (
+    tester,
+  ) async {
     final harness = _Harness();
     setApiClient(harness.client);
     final router = GoRouter(
@@ -287,11 +301,7 @@ void main() {
       ],
     );
 
-    await _pumpPage(
-      tester,
-      const PostDetailPage(postId: '9'),
-      router: router,
-    );
+    await _pumpPage(tester, const PostDetailPage(postId: '9'), router: router);
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(EditableText).first, '路过留名');
@@ -301,30 +311,80 @@ void main() {
     expect(find.text('登录页占位'), findsOneWidget);
   });
 
-  testWidgets('failed comment loads show a retryable error, not an empty list',
-      (tester) async {
-    // 回归 FX-001：评论读取失败不得伪装成"还没有评论"。
-    final harness = _Harness()..commentsOk = false;
+  testWidgets(
+    'failed comment loads show a retryable error, not an empty list',
+    (tester) async {
+      // 回归 FX-001：评论读取失败不得伪装成"还没有评论"。
+      final harness = _Harness()..commentsOk = false;
+      setApiClient(harness.client);
+      // 放大视口让评论区完全可见：排除滚动触发分页对重试按钮的干扰。
+      tester.view.physicalSize = const Size(800, 2200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await _pumpPage(tester, const PostDetailPage(postId: '9'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+
+      expect(find.text('联调正文'), findsOneWidget); // 帖子本体正常
+      expect(find.text('还没有评论'), findsNothing);
+      expect(find.text('评论加载失败'), findsOneWidget);
+
+      harness.commentsOk = true;
+      await tester.tap(find.text('重试'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('沙发'), findsOneWidget);
+      expect(find.text('评论加载失败'), findsNothing);
+    },
+  );
+
+  testWidgets('authenticated users can create author and revision watches', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'tokens': jsonEncode({
+        'access_token': _testJwt(userId: 1),
+        'access_expire': 0,
+        'refresh_token': '',
+        'refresh_expire': 0,
+        'refresh_after': 0,
+      }),
+    });
+    final harness = _Harness();
     setApiClient(harness.client);
-    // 放大视口让评论区完全可见：排除滚动触发分页对重试按钮的干扰。
-    tester.view.physicalSize = const Size(800, 2200);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+    final source = FakeAssistantSource()
+      ..granted = true
+      ..consentVersion = 2
+      ..currentVersion = 2;
 
-    await _pumpPage(tester, const PostDetailPage(postId: '9'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [assistantRepositoryProvider.overrideWithValue(source)],
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: const PostDetailPage(postId: '9'),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('联调正文'), findsOneWidget); // 帖子本体正常
-    expect(find.text('还没有评论'), findsNothing);
-    expect(find.text('评论加载失败'), findsOneWidget);
+    expect(find.byKey(const Key('post-watch-author')), findsOneWidget);
+    expect(find.byKey(const Key('post-watch-revision')), findsOneWidget);
 
-    harness.commentsOk = true;
-    await tester.tap(find.text('重试'));
+    await tester.tap(find.byKey(const Key('post-watch-author')));
     await tester.pumpAndSettle();
+    expect(source.lastCreateCondition, 'author_new_post');
 
-    expect(find.text('沙发'), findsOneWidget);
-    expect(find.text('评论加载失败'), findsNothing);
+    await tester.tap(find.byKey(const Key('post-watch-revision')));
+    await tester.pumpAndSettle();
+    expect(source.lastCreateCondition, 'post_revised');
   });
+}
+
+String _testJwt({required int userId}) {
+  String segment(Object json) =>
+      base64Url.encode(utf8.encode(jsonEncode(json))).replaceAll('=', '');
+  return '${segment({'alg': 'none'})}.${segment({'userId': userId})}.sig';
 }

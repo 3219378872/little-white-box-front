@@ -19,7 +19,11 @@ void main() {
     expect(bodyOf(health)['status'], 'ok');
     expect(bodyOf(health).containsKey('data'), isFalse);
 
-    final ready = mock_router.dispatchResponse('GET', '/api/v1/health/ready', '');
+    final ready = mock_router.dispatchResponse(
+      'GET',
+      '/api/v1/health/ready',
+      '',
+    );
     expect(ready.statusCode, 200);
     expect(bodyOf(ready)['status'], 'ready');
     expect(bodyOf(ready)['dependencies'], isA<Map>());
@@ -75,45 +79,54 @@ void main() {
     expect(bodyOf(replies), containsPair('total', isA<num>()));
   });
 
-  test('comment list embeds reply preview and replies endpoint paginates asc',
-      () {
-    final list = bodyOf(
-      mock_router.dispatchResponse('GET', '/api/v1/comments/1?page=1&pageSize=50', ''),
-    );
-    final threads = (list['list'] as List).cast<Map<String, dynamic>>();
-    final threadWithReplies = threads.firstWhere(
-      (c) => (c['replyCount'] as num).toInt() > 0,
-    );
-    expect(threadWithReplies['replies'], isA<List>());
-    final preview = (threadWithReplies['replies'] as List).length;
-    expect(preview, lessThanOrEqualTo(3));
-
-    final replies = bodyOf(
-      mock_router.dispatchResponse(
-        'GET',
-        '/api/v1/comments/${threadWithReplies['id']}/replies?page=1&pageSize=20',
-        '',
-      ),
-    );
-    expect((replies['total'] as num).toInt(), threadWithReplies['replyCount']);
-    final rows = (replies['list'] as List).cast<Map<String, dynamic>>();
-    for (final row in rows) {
-      expect((row['parentId'] as num).toInt(), threadWithReplies['id']);
-      expect((row['replies'] as List).isEmpty, isTrue);
-    }
-    final created = rows.map((r) => r['createdAt'] as num).toList();
-    expect(created, equals([...created]..sort()));
-
-    // 回复楼中楼不存在：父评论必须是顶级评论
-    if (rows.isNotEmpty) {
-      final nested = mock_router.dispatchResponse(
-        'GET',
-        '/api/v1/comments/${rows.first['id']}/replies?page=1&pageSize=20',
-        '',
+  test(
+    'comment list embeds reply preview and replies endpoint paginates asc',
+    () {
+      final list = bodyOf(
+        mock_router.dispatchResponse(
+          'GET',
+          '/api/v1/comments/1?page=1&pageSize=50',
+          '',
+        ),
       );
-      expect(nested.statusCode, 404);
-    }
-  });
+      final threads = (list['list'] as List).cast<Map<String, dynamic>>();
+      final threadWithReplies = threads.firstWhere(
+        (c) => (c['replyCount'] as num).toInt() > 0,
+      );
+      expect(threadWithReplies['replies'], isA<List>());
+      final preview = (threadWithReplies['replies'] as List).length;
+      expect(preview, lessThanOrEqualTo(3));
+
+      final replies = bodyOf(
+        mock_router.dispatchResponse(
+          'GET',
+          '/api/v1/comments/${threadWithReplies['id']}/replies?page=1&pageSize=20',
+          '',
+        ),
+      );
+      expect(
+        (replies['total'] as num).toInt(),
+        threadWithReplies['replyCount'],
+      );
+      final rows = (replies['list'] as List).cast<Map<String, dynamic>>();
+      for (final row in rows) {
+        expect((row['parentId'] as num).toInt(), threadWithReplies['id']);
+        expect((row['replies'] as List).isEmpty, isTrue);
+      }
+      final created = rows.map((r) => r['createdAt'] as num).toList();
+      expect(created, equals([...created]..sort()));
+
+      // 回复楼中楼不存在：父评论必须是顶级评论
+      if (rows.isNotEmpty) {
+        final nested = mock_router.dispatchResponse(
+          'GET',
+          '/api/v1/comments/${rows.first['id']}/replies?page=1&pageSize=20',
+          '',
+        );
+        expect(nested.statusCode, 404);
+      }
+    },
+  );
 
   test('jwt-required routes return 401 login required without Bearer', () {
     const protected = [
@@ -122,9 +135,21 @@ void main() {
       ['POST', '/api/v2/post', '{"title":"t","content":"c","status":1}'],
       ['GET', '/api/v2/me/personalization', ''],
       ['GET', '/api/v2/feed/follow?pageSize=20', ''],
+      ['GET', '/api/v2/assistant/memory', ''],
+      ['GET', '/api/v2/assistant/watch', ''],
+      ['GET', '/api/v2/assistant/watch/hits', ''],
+      [
+        'POST',
+        '/api/v2/assistant/recommend/feedback',
+        '{"postId":1,"reason":"dislike"}',
+      ],
     ];
     for (final entry in protected) {
-      final response = mock_router.dispatchResponse(entry[0], entry[1], entry[2]);
+      final response = mock_router.dispatchResponse(
+        entry[0],
+        entry[1],
+        entry[2],
+      );
       expect(response.statusCode, 401, reason: entry[1]);
       expect(bodyOf(response)['code'], 1006, reason: entry[1]);
       expect(bodyOf(response)['message'], '请先登录');
@@ -180,55 +205,151 @@ void main() {
     expect(bodyOf(duplicate)['code'], 1002);
   });
 
-  test('personalization and media image require jwt and return typed payloads', () {
+  test(
+    'personalization and media image require jwt and return typed payloads',
+    () {
+      final headers = bearer();
+      final pref = mock_router.dispatchResponse(
+        'GET',
+        '/api/v2/me/personalization',
+        '',
+        headers: headers,
+      );
+      expect(pref.statusCode, 200);
+      expect(bodyOf(pref)['enabled'], isTrue);
+
+      expect(
+        mock_router
+            .dispatchResponse(
+              'PUT',
+              '/api/v2/me/personalization',
+              jsonEncode({'enabled': false}),
+              headers: headers,
+            )
+            .statusCode,
+        200,
+      );
+      expect(
+        bodyOf(
+          mock_router.dispatchResponse(
+            'GET',
+            '/api/v2/me/personalization',
+            '',
+            headers: headers,
+          ),
+        )['enabled'],
+        isFalse,
+      );
+
+      final notMultipart = mock_router.dispatchResponse(
+        'POST',
+        '/api/v1/media/image',
+        'not-multipart',
+        headers: headers,
+      );
+      expect(notMultipart.statusCode, 400);
+
+      final uploaded = mock_router.dispatchResponse(
+        'POST',
+        '/api/v1/media/image',
+        '<multipart-1-files>',
+        headers: headers,
+      );
+      expect(uploaded.statusCode, 200);
+      expect(
+        bodyOf(uploaded).keys,
+        containsAll(['mediaId', 'url', 'thumbnailUrl']),
+      );
+    },
+  );
+
+  test('assistant memory watch and feedback return typed payloads', () {
     final headers = bearer();
-    final pref = mock_router.dispatchResponse(
-      'GET',
-      '/api/v2/me/personalization',
-      '',
+    final memory = bodyOf(
+      mock_router.dispatchResponse(
+        'GET',
+        '/api/v2/assistant/memory',
+        '',
+        headers: headers,
+      ),
+    );
+    expect(memory['items'], isA<List>());
+    expect((memory['items'] as List), isNotEmpty);
+    expect(
+      (memory['items'] as List).every(
+        (item) => (item as Map)['layer'] != 'episodic',
+      ),
+      isTrue,
+    );
+
+    final watches = bodyOf(
+      mock_router.dispatchResponse(
+        'GET',
+        '/api/v2/assistant/watch',
+        '',
+        headers: headers,
+      ),
+    );
+    expect(watches['tasks'], isA<List>());
+
+    final created = bodyOf(
+      mock_router.dispatchResponse(
+        'POST',
+        '/api/v2/assistant/watch',
+        jsonEncode({
+          'conditionType': 'tag_new_post',
+          'targetType': 'tag',
+          'targetText': '美食',
+        }),
+        headers: headers,
+      ),
+    );
+    expect((created['task'] as Map)['id'], greaterThan(0));
+    expect((created['task'] as Map)['conditionType'], 'tag_new_post');
+
+    final unknown = mock_router.dispatchResponse(
+      'POST',
+      '/api/v2/assistant/watch',
+      jsonEncode({
+        'conditionType': 'discussion_spike',
+        'targetType': 'post',
+        'targetId': 1,
+      }),
       headers: headers,
     );
-    expect(pref.statusCode, 200);
-    expect(bodyOf(pref)['enabled'], isTrue);
+    expect(unknown.statusCode, 400);
+
+    final hits = bodyOf(
+      mock_router.dispatchResponse(
+        'GET',
+        '/api/v2/assistant/watch/hits',
+        '',
+        headers: headers,
+      ),
+    );
+    expect(hits['hits'], isA<List>());
+    final hitId = ((hits['hits'] as List).first as Map)['id'];
 
     expect(
       mock_router
           .dispatchResponse(
-            'PUT',
-            '/api/v2/me/personalization',
-            jsonEncode({'enabled': false}),
+            'POST',
+            '/api/v2/assistant/watch/hits/read',
+            jsonEncode({
+              'hitIds': [hitId],
+            }),
             headers: headers,
           )
           .statusCode,
       200,
     );
-    expect(
-      bodyOf(
-        mock_router.dispatchResponse(
-          'GET',
-          '/api/v2/me/personalization',
-          '',
-          headers: headers,
-        ),
-      )['enabled'],
-      isFalse,
-    );
 
-    final notMultipart = mock_router.dispatchResponse(
+    final feedback = mock_router.dispatchResponse(
       'POST',
-      '/api/v1/media/image',
-      'not-multipart',
+      '/api/v2/assistant/recommend/feedback',
+      jsonEncode({'postId': 1, 'reason': 'dislike'}),
       headers: headers,
     );
-    expect(notMultipart.statusCode, 400);
-
-    final uploaded = mock_router.dispatchResponse(
-      'POST',
-      '/api/v1/media/image',
-      '<multipart-1-files>',
-      headers: headers,
-    );
-    expect(uploaded.statusCode, 200);
-    expect(bodyOf(uploaded).keys, containsAll(['mediaId', 'url', 'thumbnailUrl']));
+    expect(feedback.statusCode, 200);
   });
 }
