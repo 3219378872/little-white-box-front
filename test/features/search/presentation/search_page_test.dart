@@ -61,6 +61,47 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     expect(openedUser, 7);
   });
+
+  testWidgets('shows degradation even when every type returned zero hits', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(_DegradedEmptySource()),
+        ],
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: const SearchPage(),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(EditableText), 'flutter');
+    await tester.tap(find.byKey(const Key('search-submit')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('部分结果暂不可用'), findsOneWidget);
+    expect(find.textContaining('暂不可用'), findsWidgets);
+    expect(find.text('没有找到相关结果'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+  });
+}
+
+class _DegradedEmptySource implements SearchDataSource {
+  @override
+  Future<SearchResults> search({
+    required SearchScope scope,
+    required String keyword,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    return const SearchResults(
+      degraded: true,
+      unavailableTypes: ['user'],
+    );
+  }
 }
 
 class _PageSearchSource implements SearchDataSource {

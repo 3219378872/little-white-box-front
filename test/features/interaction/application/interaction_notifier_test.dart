@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/features/interaction/application/interaction_notifier.dart';
 import 'package:xiaobaihe_app/features/interaction/data/interaction_repository.dart';
@@ -100,4 +102,32 @@ void main() {
     expect(notifier.state.optimisticIsFavorited, isFalse);
     expect(notifier.state.favoriteCountDelta, 0);
   });
+
+  test('忽略进行中的重复点赞', () async {
+    final gate = Completer<void>();
+    final repo = _GatedInteractionRepository(gate);
+    final notifier = InteractionNotifier(repository: repo);
+    final post = _post();
+
+    final first = notifier.toggleLike(post);
+    final ignored = notifier.toggleLike(post);
+    gate.complete();
+    await Future.wait([first, ignored]);
+
+    expect(repo.calls, ['like:9']);
+    expect(notifier.state.optimisticIsLiked, isTrue);
+    expect(notifier.state.likeCountDelta, 1);
+  });
+}
+
+class _GatedInteractionRepository extends _FakeInteractionRepository {
+  final Completer<void> gate;
+
+  _GatedInteractionRepository(this.gate);
+
+  @override
+  Future<void> likeTarget(Object targetId, int targetType) async {
+    await gate.future;
+    await super.likeTarget(targetId, targetType);
+  }
 }

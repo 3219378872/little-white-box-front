@@ -99,6 +99,43 @@ void main() {
     expect(notifier.state.hasMore, isTrue);
     expect(notifier.state.isLoadingMore, isFalse);
     expect(notifier.state.error, 'page 2 failed');
+    expect(notifier.state.loadMoreFailed, isTrue);
+  });
+
+  test('advances empty hasMore pages until visible items arrive', () async {
+    final repository = _FakeFeedRepository([
+      page([], requestId: 'request-1', cursor: 'cursor-1'),
+      page([entry(9)], requestId: 'request-1', hasMore: false),
+    ]);
+    final notifier = FeedNotifier(
+      repository: repository,
+      kind: FeedKind.follow,
+      loadImmediately: false,
+    );
+
+    await notifier.loadInitial();
+
+    expect(notifier.state.entries.single.post.id, 9);
+    expect(repository.calls, hasLength(2));
+    expect(repository.calls[1].recommendCursor, 'cursor-1');
+  });
+
+  test('refresh failure with items is not treated as load-more failure', () async {
+    final notifier = FeedNotifier(
+      repository: _SequenceFeedRepository([
+        page([entry(1)], requestId: 'request-1'),
+        Exception('refresh failed'),
+      ]),
+      kind: FeedKind.recommend,
+      loadImmediately: false,
+    );
+
+    await notifier.loadInitial();
+    await notifier.refresh();
+
+    expect(notifier.state.entries.single.post.id, 1);
+    expect(notifier.state.error, 'refresh failed');
+    expect(notifier.state.loadMoreFailed, isFalse);
   });
 }
 

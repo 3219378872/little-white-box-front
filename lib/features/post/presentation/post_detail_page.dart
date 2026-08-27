@@ -58,6 +58,10 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   }
 
   Future<void> _toggleLike(GetPostResp post) async {
+    if (!ref.read(authNotifierProvider).isAuthenticated) {
+      context.push('/auth/login');
+      return;
+    }
     try {
       await ref
           .read(interactionNotifierProvider(widget.postId).notifier)
@@ -70,6 +74,10 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   }
 
   Future<void> _toggleFavorite(GetPostResp post) async {
+    if (!ref.read(authNotifierProvider).isAuthenticated) {
+      context.push('/auth/login');
+      return;
+    }
     try {
       await ref
           .read(interactionNotifierProvider(widget.postId).notifier)
@@ -153,11 +161,13 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       if (mounted) {
         showAppError(context, '评论失败: ${friendlyErrorMessage(e)}');
       }
+      rethrow;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(authNotifierProvider);
     final postAsync = ref.watch(_postDetailProvider(widget.postId));
     final theme = context.theme;
 

@@ -4,7 +4,7 @@ import 'package:forui/forui.dart';
 
 class CommentInput extends StatefulWidget {
   final String? replyTo;
-  final ValueChanged<String> onSubmit;
+  final Future<void> Function(String) onSubmit;
 
   const CommentInput({super.key, this.replyTo, required this.onSubmit});
 
@@ -14,6 +14,7 @@ class CommentInput extends StatefulWidget {
 
 class _CommentInputState extends State<CommentInput> {
   final _controller = TextEditingController();
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -21,11 +22,18 @@ class _CommentInputState extends State<CommentInput> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    widget.onSubmit(text);
-    _controller.clear();
+    if (text.isEmpty || _submitting) return;
+    setState(() => _submitting = true);
+    try {
+      await widget.onSubmit(text);
+      if (mounted) _controller.clear();
+    } catch (_) {
+      // 页面已提示；保留输入供重试。
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -52,7 +60,7 @@ class _CommentInputState extends State<CommentInput> {
             ),
             const SizedBox(width: 8),
             FButton.icon(
-              onPress: _submit,
+              onPress: _submitting ? null : _submit,
               semanticsLabel: '发送评论',
               child: const Icon(FLucideIcons.send, size: 20),
             ),

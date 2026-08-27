@@ -21,7 +21,9 @@ class _FakeCommentRepository implements CommentRepository {
   final List<List<Map<String, dynamic>>> pages;
   final List<List<Map<String, dynamic>>> replyPages;
   final List<String> calls = [];
+  final List<String> idempotencyKeys = [];
   Object? failRepliesFor;
+  Object? failCreate;
   int _replyPageIndex = 0;
 
   _FakeCommentRepository({
@@ -78,6 +80,12 @@ class _FakeCommentRepository implements CommentRepository {
   @override
   Future<CreateCommentResp> createNewComment(CreateCommentReq req) async {
     calls.add('create:${req.content}');
+    idempotencyKeys.add(req.idempotencyKey);
+    if (failCreate != null) {
+      final error = failCreate!;
+      failCreate = null;
+      throw error;
+    }
     return CreateCommentResp.fromJson({'commentId': 777});
   }
 
@@ -211,6 +219,90 @@ void main() {
       'list:1:1',
     ]);
   });
+
+  test('分页失败进入可重试错误态，重试续拉下一页', () async {
+    final repo = _PagingThenFailRepository();
+    final notifier = CommentNotifier(
+      repository: repo,
+      postId: '9',
+      loadImmediately: false,
+    );
+    await notifier.loadInitial();
+    expect(notifier.state.comments, hasLength(20));
+    expect(notifier.state.hasMore, isTrue);
+
+    await notifier.loadMore();
+    expect(notifier.state.hasError, isTrue);
+    expect(notifier.state.comments, hasLength(20));
+
+    await notifier.retry();
+    expect(notifier.state.hasError, isFalse);
+    expect(notifier.state.comments, hasLength(21));
+    expect(repo.calls.where((c) => c.startsWith('list:')), [
+      'list:1:1',
+      'list:2:1',
+      'list:2:1',
+    ]);
+  });
+
+  test('同一失败评论重试复用幂等键', () async {
+    final repo = _FakeCommentRepository(pages: [
+      [_commentJson(1)],
+    ])
+      ..failCreate = Exception('create failed');
+    final notifier = CommentNotifier(
+      repository: repo,
+      postId: '9',
+      loadImmediately: false,
+    );
+    await notifier.loadInitial();
+
+    await expectLater(notifier.submit('同一条'), throwsException);
+    await notifier.submit('同一条');
+
+    expect(repo.idempotencyKeys, hasLength(2));
+    expect(repo.idempotencyKeys[0], repo.idempotencyKeys[1]);
+    expect(repo.idempotencyKeys[0], isNotEmpty);
+  });
+}
+
+class _PagingThenFailRepository extends _FakeCommentRepository {
+  var _failNext = false;
+
+  _PagingThenFailRepository()
+      : super(pages: [
+          List.generate(20, (i) => _commentJson(100 + i)),
+          [_commentJson(3)],
+        ]);
+
+  @override
+  Future<GetCommentListResp> fetchComments({
+    required Object postId,
+    required int page,
+    required int pageSize,
+    required int sortBy,
+  }) async {
+    calls.add('list:$page:$sortBy');
+    if (page == 2 && !_failNext) {
+      _failNext = true;
+      throw Exception('page 2 failed');
+    }
+    if (page > pages.length) {
+      return GetCommentListResp.fromJson({
+        'list': <Map<String, dynamic>>[],
+        'total': 0,
+        'page': page,
+        'pageSize': pageSize,
+      });
+    }
+    final list = pages[page - 1];
+    return GetCommentListResp.fromJson({
+      'list': list,
+      'total': list.length,
+      'page': page,
+      'pageSize': pageSize,
+    });
+  }
 }
 
 class _FailingListRepository extends _FakeCommentRepository {

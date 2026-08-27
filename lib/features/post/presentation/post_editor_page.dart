@@ -42,6 +42,8 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   int _revision = 0;
   bool _isLoading = false;
   bool _isInitialized = false;
+  String? _createIdempotencyKey;
+  int? _createStatus;
 
   bool get _isEditMode => widget.postId != null;
 
@@ -183,6 +185,10 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
             );
         if (mounted) context.pop();
       } else {
+        if (_createIdempotencyKey == null || _createStatus != status) {
+          _createIdempotencyKey = newIdempotencyKey();
+          _createStatus = status;
+        }
         await ref
             .read(_postRepoProvider)
             .createNewPost(
@@ -192,10 +198,12 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                 images: allImages,
                 tags: _tags,
                 status: status,
-                idempotencyKey: newIdempotencyKey(),
+                idempotencyKey: _createIdempotencyKey!,
                 mediaIds: mediaIds,
               ),
             );
+        _createIdempotencyKey = null;
+        _createStatus = null;
         if (mounted) {
           context.go('/feed');
         }

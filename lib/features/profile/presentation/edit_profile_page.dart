@@ -122,7 +122,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           FButton(
             size: .sm,
             mainAxisSize: MainAxisSize.min,
-            onPress: _isLoading ? null : _save,
+            onPress: (_isLoading || !_isInitialized || _loadError != null)
+                ? null
+                : _save,
             child: _isLoading
                 ? const FCircularProgress(size: .sm)
                 : const Text('保存'),

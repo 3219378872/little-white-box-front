@@ -40,12 +40,16 @@ class InteractionState {
 
 class InteractionNotifier extends StateNotifier<InteractionState> {
   final InteractionRepository _repository;
+  bool _likeInFlight = false;
+  bool _favoriteInFlight = false;
 
   InteractionNotifier({required InteractionRepository repository})
       : _repository = repository,
         super(const InteractionState());
 
   Future<void> toggleLike(GetPostResp post) async {
+    if (_likeInFlight) return;
+    _likeInFlight = true;
     final currentlyLiked = state.optimisticIsLiked ?? post.isLiked;
     state = state.copyWith(
       optimisticIsLiked: !currentlyLiked,
@@ -64,10 +68,14 @@ class InteractionNotifier extends StateNotifier<InteractionState> {
         likeCountDelta: state.likeCountDelta + (currentlyLiked ? 1 : -1),
       );
       rethrow;
+    } finally {
+      _likeInFlight = false;
     }
   }
 
   Future<void> toggleFavorite(GetPostResp post) async {
+    if (_favoriteInFlight) return;
+    _favoriteInFlight = true;
     final currentlyFav = state.optimisticIsFavorited ?? post.isFavorited;
     state = state.copyWith(
       optimisticIsFavorited: !currentlyFav,
@@ -86,6 +94,8 @@ class InteractionNotifier extends StateNotifier<InteractionState> {
         favoriteCountDelta: state.favoriteCountDelta + (currentlyFav ? 1 : -1),
       );
       rethrow;
+    } finally {
+      _favoriteInFlight = false;
     }
   }
 }

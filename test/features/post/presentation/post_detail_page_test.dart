@@ -170,6 +170,15 @@ void main() {
   });
 
   testWidgets('likes optimistically and can toggle back', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'tokens': jsonEncode({
+        'access_token': _testJwt(userId: 1),
+        'access_expire': 0,
+        'refresh_token': '',
+        'refresh_expire': 0,
+        'refresh_after': 0,
+      }),
+    });
     final harness = _Harness();
     setApiClient(harness.client);
 

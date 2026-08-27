@@ -122,10 +122,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ? null
             : ref.read(searchNotifierProvider.notifier).retry,
       ),
-      SearchPhase.success when state.results.isEmpty => const EmptyView(
-        message: '没有找到相关结果',
-        icon: FLucideIcons.searchX,
-      ),
       SearchPhase.success => Column(
         children: [
           if (state.results.degraded)
@@ -141,20 +137,35 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ),
             ),
           Expanded(
-            child: _SearchResultList(
-              results: state.results,
-              scope: state.scope,
-              onOpenPost: _openPost,
-              onOpenUser: _openUser,
-              onSearchTag: (tag) {
-                _controller.text = tag;
-                _submit(tag);
-              },
-            ),
+            child: state.results.isEmpty
+                ? EmptyView(
+                    message: _emptySearchMessage(state.results),
+                    icon: FLucideIcons.searchX,
+                  )
+                : _SearchResultList(
+                    results: state.results,
+                    scope: state.scope,
+                    onOpenPost: _openPost,
+                    onOpenUser: _openUser,
+                    onSearchTag: (tag) {
+                      _controller.text = tag;
+                      _submit(tag);
+                    },
+                  ),
           ),
         ],
       ),
     };
+  }
+
+  String _emptySearchMessage(SearchResults results) {
+    final unavailable = {
+      for (final type in results.unavailableTypes) type.toLowerCase(),
+    };
+    if (unavailable.contains('post') || unavailable.contains('posts')) {
+      return '帖子搜索暂不可用';
+    }
+    return '没有找到相关结果';
   }
 }
 

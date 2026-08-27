@@ -82,6 +82,8 @@ class CommentNotifier extends StateNotifier<CommentState> {
   static const _replyPageSize = 10;
 
   int _page = 0;
+  String? _submitIdempotencyKey;
+  String? _submitContent;
 
   CommentNotifier({
     required CommentRepository repository,
@@ -138,11 +140,20 @@ class CommentNotifier extends StateNotifier<CommentState> {
       );
     } catch (_) {
       if (!mounted) return;
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(isLoading: false, hasError: true);
     }
   }
 
-  Future<void> retry() => loadInitial();
+  Future<void> retry() async {
+    if (state.comments.isNotEmpty) {
+      if (state.hasError) {
+        state = state.copyWith(hasError: false);
+      }
+      await loadMore();
+      return;
+    }
+    await loadInitial();
+  }
 
   Future<void> selectSort(int value) async {
     if (value == state.sortBy) return;
@@ -241,15 +252,22 @@ class CommentNotifier extends StateNotifier<CommentState> {
   /// 创建评论；成功后清空回复目标并从第 1 页刷新。
   /// 失败时抛出由 UI 提示，本地回复目标保持不变。
   Future<void> submit(String content) async {
+    final normalized = content.trim();
+    if (_submitContent != normalized || _submitIdempotencyKey == null) {
+      _submitIdempotencyKey = newIdempotencyKey();
+      _submitContent = normalized;
+    }
     await _repository.createNewComment(
       CreateCommentReq(
         postId: postId,
         parentId: state.replyParentId,
         replyUserId: state.replyUserId,
-        content: content,
-        idempotencyKey: newIdempotencyKey(),
+        content: normalized,
+        idempotencyKey: _submitIdempotencyKey!,
       ),
     );
+    _submitIdempotencyKey = null;
+    _submitContent = null;
     // 回复成功后重置该父评论的楼中楼缓存，刷新后重新拉取
     final hadExpanded = state.expandedReplies.isNotEmpty;
     state = state.copyWith(

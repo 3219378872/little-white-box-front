@@ -122,9 +122,16 @@ Future<T> apiPostMultipart<T>({
 
         final canRetry = attempt == 1 &&
             (tokens?.refreshToken.trim().isNotEmpty ?? false) &&
-            ErrorCodes.isAuthError(code);
-        if (canRetry && await sdk_api.refreshSessionTokens()) {
-          continue;
+            (ErrorCodes.isAuthError(code) ||
+                (code == null && rp.statusCode == 401));
+        if (canRetry) {
+          if (await sdk_api.refreshSessionTokens()) {
+            continue;
+          }
+          final leftover = await getTokens();
+          if (leftover?.refreshToken.trim().isNotEmpty ?? false) {
+            throw const ApiException('会话刷新失败，请重试');
+          }
         }
 
         final ex = ApiException(msg, code: code);

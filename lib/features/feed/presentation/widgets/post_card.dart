@@ -49,6 +49,7 @@ class _PostCardState extends ConsumerState<PostCard>
   DateTime? _visibleSince;
   DateTime? _dwellStartedAt;
   bool _exposureReported = false;
+  double _lastVisibleFraction = 0;
 
   PostItem get post => widget.post;
 
@@ -76,6 +77,9 @@ class _PostCardState extends ConsumerState<PostCard>
         recommendationContext: oldWidget.recommendationContext,
       );
     }
+    if (!oldWidget.trackingActive && widget.trackingActive) {
+      _restartVisibilityIfNeeded();
+    }
     if (contextChanged) {
       _exposureTimer?.cancel();
       _exposureTimer = null;
@@ -99,7 +103,9 @@ class _PostCardState extends ConsumerState<PostCard>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) {
       _endVisibilitySession();
+      return;
     }
+    _restartVisibilityIfNeeded();
   }
 
   @override
@@ -161,6 +167,7 @@ class _PostCardState extends ConsumerState<PostCard>
   /// 由 [VisibilityDetector] 在布局变化时回调，取代原先每卡 100ms 的
   /// Timer.periodic 几何轮询。
   void _onVisibilityChanged(VisibilityInfo info) {
+    _lastVisibleFraction = info.visibleFraction;
     final trackingContext = widget.recommendationContext;
     if (!mounted || trackingContext == null || !widget.trackingActive) {
       return;
@@ -174,6 +181,35 @@ class _PostCardState extends ConsumerState<PostCard>
     _visibleSince ??= now;
     _dwellStartedAt ??= now;
     if (_exposureReported || _exposureTimer != null) return;
+    _exposureTimer = Timer(_exposureThreshold, () {
+      _exposureTimer = null;
+      if (!mounted ||
+          !widget.trackingActive ||
+          _visibleSince == null ||
+          widget.recommendationContext == null) {
+        return;
+      }
+      _exposureReported = true;
+      _trackSafely(
+        () => ref
+            .read(behaviorTrackerProvider)
+            .trackExposure(post.id, trackingContext),
+      );
+    });
+  }
+
+  void _restartVisibilityIfNeeded() {
+    if (!mounted ||
+        !widget.trackingActive ||
+        widget.recommendationContext == null ||
+        _lastVisibleFraction < _visibilityThreshold) {
+      return;
+    }
+    final now = DateTime.now();
+    _visibleSince ??= now;
+    _dwellStartedAt ??= now;
+    if (_exposureReported || _exposureTimer != null) return;
+    final trackingContext = widget.recommendationContext!;
     _exposureTimer = Timer(_exposureThreshold, () {
       _exposureTimer = null;
       if (!mounted ||

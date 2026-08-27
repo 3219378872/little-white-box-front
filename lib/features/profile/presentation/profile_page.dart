@@ -145,6 +145,10 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
   }
 
   Future<void> _toggleFollow() async {
+    if (!ref.read(authNotifierProvider).isAuthenticated) {
+      context.push('/auth/login');
+      return;
+    }
     final repo = ref.read(_userRepoProvider);
     final wasFollowing = _isFollowing;
     setState(() => _isFollowing = !_isFollowing);

@@ -114,6 +114,45 @@ void main() {
     expect(tracker.dwellDurations, hasLength(1));
   });
 
+  testWidgets('restarts the exposure timer after returning to foreground', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(400, 600);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final tracker = _RecordingTracker();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [behaviorTrackerProvider.overrideWithValue(tracker)],
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: Scaffold(
+            body: PostCard(
+              post: post,
+              recommendationContext: trackingContext,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await pumpPolling(tester, const Duration(milliseconds: 400));
+    expect(tracker.actions.where((action) => action == 'exposure'), isEmpty);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    await pumpPolling(tester, const Duration(milliseconds: 1100));
+
+    expect(
+      tracker.actions.where((action) => action == 'exposure'),
+      hasLength(1),
+    );
+  });
+
   testWidgets('records click before navigating to the post', (tester) async {
     final tracker = _RecordingTracker();
     final router = GoRouter(

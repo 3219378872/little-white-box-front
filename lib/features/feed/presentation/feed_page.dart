@@ -72,12 +72,25 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
     final feedState = ref.watch(feedNotifierProvider(widget.kind));
     final notifier = ref.read(feedNotifierProvider(widget.kind).notifier);
 
+    if (feedState.error != null && feedState.entries.isEmpty) {
+      return ErrorView(message: feedState.error!, onRetry: notifier.refresh);
+    }
+
     if (feedState.isLoading && feedState.entries.isEmpty) {
       return const PostCardSkeletonList();
     }
 
-    if (feedState.error != null && feedState.entries.isEmpty) {
-      return ErrorView(message: feedState.error!, onRetry: notifier.refresh);
+    if (feedState.entries.isEmpty &&
+        feedState.hasMore &&
+        feedState.error == null &&
+        (feedState.isLoadingMore || feedState.requestId.isNotEmpty)) {
+      if (!feedState.isLoadingMore) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !widget.active) return;
+          ref.read(feedNotifierProvider(widget.kind).notifier).loadMore();
+        });
+      }
+      return const PostCardSkeletonList();
     }
 
     if (feedState.entries.isEmpty) {
@@ -167,8 +180,12 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
   void _maybeLoadMore(ScrollMetrics metrics) {
     if (!widget.active || metrics.axis != Axis.vertical) return;
     if (metrics.extentAfter > _loadMoreExtent) return;
+    final feedState = ref.read(feedNotifierProvider(widget.kind));
+    if (feedState.error != null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !widget.active) return;
+      final latest = ref.read(feedNotifierProvider(widget.kind));
+      if (latest.error != null) return;
       ref.read(feedNotifierProvider(widget.kind).notifier).loadMore();
     });
   }
@@ -202,7 +219,9 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
             const SizedBox(height: 12),
             FButton(
               variant: FButtonVariant.secondary,
-              onPress: notifier.loadMore,
+              onPress: state.loadMoreFailed
+                  ? notifier.loadMore
+                  : notifier.refresh,
               child: const Text('重试'),
             ),
           ],

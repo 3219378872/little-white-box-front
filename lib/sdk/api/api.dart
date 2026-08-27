@@ -225,11 +225,12 @@ Future _apiRequest(
       if (method != 'GET') {
         headers['Content-Type'] = 'application/json; charset=utf-8';
       }
-      if (tokens != null) {
-        headers['Authorization'] = _bearerAuthorization(tokens.accessToken);
-      }
       if (header != null) {
         headers.addAll(header);
+      }
+      // 当前令牌必须最后写入，避免调用方缓存的 Authorization 盖掉换发结果。
+      if (tokens != null) {
+        headers['Authorization'] = _bearerAuthorization(tokens.accessToken);
       }
 
       final uri = apiUri(path);
@@ -255,8 +256,18 @@ Future _apiRequest(
           path != _refreshPath &&
           (tokens?.refreshToken.trim().isNotEmpty ?? false) &&
           _isAuthFailure(rp.statusCode, decoded);
-      if (canRetry && await refreshSessionTokens()) {
-        continue;
+      if (canRetry) {
+        if (await refreshSessionTokens()) {
+          continue;
+        }
+        // 换发网络失败会保留 refreshToken；不要把原始 401 交给 onAuthError。
+        final leftover = await getTokens();
+        if (leftover?.refreshToken.trim().isNotEmpty ?? false) {
+          if (fail != null) {
+            fail(jsonEncode({'message': '会话刷新失败，请重试'}));
+          }
+          break;
+        }
       }
 
       if (rp.statusCode == 404) {

@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/core/api/api_adapter.dart';
+import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
 import 'package:xiaobaihe_app/core/auth/session_tokens.dart';
 import 'package:xiaobaihe_app/sdk/api/api.dart';
 import 'package:xiaobaihe_app/sdk/vars/kv.dart';
@@ -16,6 +18,7 @@ void main() {
 
   tearDown(() {
     onSessionInvalid = null;
+    onAuthError = null;
   });
 
   test('认证失败时换发令牌并恰好重试一次', () async {
@@ -211,6 +214,82 @@ void main() {
     expect(sessionInvalidated, isFalse);
     final stored = await getTokens();
     expect(stored?.accessToken, 'access-1');
+  });
+
+  test('调用方缓存的 Authorization 不会盖掉换发后的重试', () async {
+    var protectedCalls = 0;
+    final authHeaders = <String?>[];
+    final client = _ScriptedClient((request) async {
+      if (request.url.path.endsWith('/api/v1/auth/refresh')) {
+        return _jsonResponse({
+          'token': 'access-2',
+          'refreshToken': 'refresh-2',
+        }, 200);
+      }
+      protectedCalls++;
+      authHeaders.add(request.headers['Authorization']);
+      if (protectedCalls == 1) {
+        return _jsonResponse({'code': 1004, 'message': 'token 已过期'}, 401);
+      }
+      return _jsonResponse({'items': <Object>[]}, 200);
+    });
+    setApiClient(client);
+    await setTokens(buildStoredTokens(
+      accessToken: 'access-1',
+      refreshToken: 'refresh-1',
+    ));
+
+    await apiGet(
+      '/api/v1/posts',
+      header: {'Authorization': 'Bearer access-1'},
+      ok: (_) {},
+      fail: (error) => fail('unexpected failure: $error'),
+    );
+
+    expect(protectedCalls, 2);
+    expect(authHeaders, ['Bearer access-1', 'Bearer access-2']);
+  });
+
+  test('换发网络失败时保留会话，且 apiCall 不触发 onAuthError', () async {
+    var sessionInvalidated = false;
+    var authError = false;
+    onSessionInvalid = () async {
+      sessionInvalidated = true;
+    };
+    onAuthError = () async {
+      authError = true;
+    };
+    final client = _ScriptedClient((request) async {
+      if (request.url.path.endsWith('/api/v1/auth/refresh')) {
+        throw http.ClientException('network down', request.url);
+      }
+      return _jsonResponse({'code': 1004, 'message': 'token 已过期'}, 401);
+    });
+    setApiClient(client);
+    await setTokens(buildStoredTokens(
+      accessToken: 'access-1',
+      refreshToken: 'refresh-1',
+    ));
+
+    try {
+      await apiCall<Map<String, dynamic>>(
+        (ok, fail, eventually) => apiGet(
+          '/api/v1/posts',
+          ok: ok,
+          fail: fail,
+          eventually: eventually,
+        ),
+      );
+      fail('should have thrown');
+    } on ApiException catch (e) {
+      expect(e.isAuthError, isFalse);
+      expect(e.message, contains('会话刷新失败'));
+    }
+
+    expect(sessionInvalidated, isFalse);
+    expect(authError, isFalse);
+    final stored = await getTokens();
+    expect(stored?.refreshToken, 'refresh-1');
   });
 }
 

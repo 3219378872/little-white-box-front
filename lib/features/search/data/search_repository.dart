@@ -73,6 +73,7 @@ class SearchRepository implements SearchDataSource {
     Object? value,
     T Function(Map<String, dynamic>) decode,
   ) {
+    if (value == null) return const [];
     if (value is! List) throw const FormatException('missing result list');
     return value
         .map((item) {
