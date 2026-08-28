@@ -49,6 +49,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-audit-fixes-2026-08-28
   - EVD-non-agent-bugs-2026-08-27
   - EVD-assistant-agent-runtime-2026-08-27
   - EVD-exposure-event-driven-2026-08-25
@@ -73,21 +74,21 @@ evidence:
   - EVD-client-relative-api-2026-08-18
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
-updated_at: 2026-08-27
-observed_commit: 53511f3
+updated_at: 2026-08-28
+observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
 ---
 
 # Flutter 客户端实现映射
 
 ## 结论
 
-当前实现已用 `goctl api dart` 同步后端 `gateway.api`（观察提交
-d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，PUT/DELETE
+当前实现已用 `goctl api dart` 同步后端 `gateway.api`（观察后端提交
+249f766b6ffa1ba2669e1bfa7400739ad8a85076），帖子写入走 `/api/v2/post*`，PUT/DELETE
 由同步脚本修补，搜索降级、Assistant 帖子来源、行为事件所有权和输入边界已跟进。桌面 Feed
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是本轮 task 提交 `53511f3`。
+本页观察基准是本轮 task 提交 `291097f`。
 
 ## 代码入口
 
@@ -156,8 +157,9 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 - 双令牌会话：登录/注册保存网关返回的 `refreshToken`，有效期取各自 JWT `exp`；共享 transport 遇
   认证错误（401 或 `1004/1005/1006`）时用 refreshToken 换发并恰好重试一次（single-flight 合并并发），
   调用方缓存的 `Authorization` 不能盖掉换发后的重试头。换发被拒则清空令牌并经 `onSessionInvalid`
-  同步 `AuthNotifier`；换发网络失败保留 refreshToken，不把原始 401 交给 `onAuthError`。multipart 与
-  Assistant SSE 复用同一刷新入口。Mock router 返回 30 分钟/7 天令牌对并提供 `POST /auth/refresh`
+  同步 `AuthNotifier`；换发网络失败、5xx 或 2xx 非法响应均保留 refreshToken，不把原始 401 交给
+  `onAuthError`。multipart 与 Assistant SSE 复用同一刷新入口及“凭据仍在则不清会话”判定。Mock router
+  返回 30 分钟/7 天令牌对并提供 `POST /auth/refresh`
   一次性轮换（唯一 `jti`），重放旧 refreshToken 返回 `401/1005`。应用壳经
   `authTransportBindingProvider` 把 `onSessionInvalid` 与 `onAuthError` 统一绑定到
   `AuthNotifier.onSessionExpired`：无 refreshToken 的过期会话、multipart 与 SSE 直连路径同样
@@ -168,7 +170,9 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 - 推荐/关注流在一页可见项为空且 `hasMore` 时继续翻页，不以合法空态短接；刷新失败与加载更多
   失败分开，页脚「重试」分别调用 `refresh` / `loadMore`。
 - 综合搜索零命中时若 `degraded` 仍展示降级横幅；缺省结果列表按空数组解析。
-- 创建帖与评论对同一失败命令复用幂等键；评论输入待提交成功后再清空。
+- 创建帖以标题/正文/图片/标签/状态/mediaIds 完整指纹、评论以帖子/父评论/回复用户/正文完整指纹判断
+  同一失败命令；相同命令复用幂等键，命令变化换新键。已上传本地图片按选择指纹复用，避免响应丢失后
+  重新上传换 mediaId；匿名评论跳登录时保留输入。
 - 帖子详情页评论读取失败（首屏或分页）进入可重试错误态：空列表渲染「评论加载失败」ErrorView，
   已有条目在列表尾部提供重试按钮，均不再伪装成「还没有评论」；分页重试续拉下一页，排序切换复位游标。
 - 详情赞/藏与他人资料关注在未登录时跳转登录；`InteractionNotifier` 忽略进行中的重复点赞/收藏。
@@ -190,7 +194,7 @@ d713fd3fa0fad4e08312873a68bbdcbc1b7e41d7），帖子写入走 `/api/v2/post*`，
 | ID | 条款 | 当前事实 | 影响与收敛条件 |
 | --- | --- | --- | --- |
 | `DIV-001` | `FX-060` | 已收敛：点赞成功不再 `trackLike/Unlike`；Mock 拒绝权威动作 | 无 |
-| `DIV-002` | `FX-030` | 已收敛：创建带幂等键且失败重试复用原键，编辑/删除带 `expectedRevision`，409 保留输入 | 无 |
+| `DIV-002` | `FX-030` | 已收敛：完整命令指纹决定创建/评论幂等键复用，编辑/删除带 `expectedRevision`，409 保留输入 | 无 |
 | `DIV-003` | `FX-032` | 已收敛：标题 120、正文 20000、标签 10，选择后校验类型与 10 MiB | 无 |
 | `DIV-004` | `FX-022` | 已收敛：综合搜索展示 `degraded` 与 `unavailableTypes`，零命中降级不再伪装成普通空结果 | 无 |
 | `DIV-005` | `FX-040` | 部分收敛：文本上限 1000，图片可上传发送；视频/语音无网关上传，发送入口禁用 | 需后端补 `POST /api/v1/media/video` 及语音上传后再闭环发送 |
