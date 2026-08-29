@@ -2,7 +2,7 @@
 id: EVD-assistant-agent-runtime-2026-08-27
 layer: evidence
 title: Assistant 记忆、Watch 与卡片表面 2026-08-27
-status: partial
+status: superseded
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -16,11 +16,15 @@ covers:
   - FX-085
   - FX-086
   - FX-087
-updated_at: 2026-08-27
+updated_at: 2026-08-29
 observed_commit: 2a2beaa
 ---
 
 # Assistant 记忆、Watch 与卡片表面 2026-08-27
+
+本证据已被 [EVD-assistant-hermes-2026-08-29](EVD-assistant-hermes-2026-08-29.md) 替代。原条款
+中的 Profile/Interest/Task 分层记忆、Watch 命中收件箱以及 SSE `card`/`actions`/`watch_hit`
+已从规格中删除；保留本页仅作历史观察，不再证明当前 FX-059、FX-080～087 语义。
 
 ## 范围与环境
 

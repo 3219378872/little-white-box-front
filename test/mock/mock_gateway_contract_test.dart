@@ -137,7 +137,7 @@ void main() {
       ['GET', '/api/v2/feed/follow?pageSize=20', ''],
       ['GET', '/api/v2/assistant/memory', ''],
       ['GET', '/api/v2/assistant/watch', ''],
-      ['GET', '/api/v2/assistant/watch/hits', ''],
+      ['GET', '/api/v2/assistant/thread', ''],
       [
         'POST',
         '/api/v2/assistant/recommend/feedback',
@@ -277,10 +277,12 @@ void main() {
     expect((memory['items'] as List), isNotEmpty);
     expect(
       (memory['items'] as List).every(
-        (item) => (item as Map)['layer'] != 'episodic',
+        (item) =>
+            (item as Map)['target'] == 'memory' || item['target'] == 'user',
       ),
       isTrue,
     );
+    expect(memory['capacities'], isA<List>());
 
     final watches = bodyOf(
       mock_router.dispatchResponse(
@@ -319,29 +321,16 @@ void main() {
     );
     expect(unknown.statusCode, 400);
 
-    final hits = bodyOf(
-      mock_router.dispatchResponse(
-        'GET',
-        '/api/v2/assistant/watch/hits',
-        '',
-        headers: headers,
-      ),
-    );
-    expect(hits['hits'], isA<List>());
-    final hitId = ((hits['hits'] as List).first as Map)['id'];
-
     expect(
       mock_router
           .dispatchResponse(
-            'POST',
-            '/api/v2/assistant/watch/hits/read',
-            jsonEncode({
-              'hitIds': [hitId],
-            }),
+            'GET',
+            '/api/v2/assistant/watch/hits',
+            '',
             headers: headers,
           )
           .statusCode,
-      200,
+      404,
     );
 
     final feedback = mock_router.dispatchResponse(

@@ -2,7 +2,7 @@
 id: EVD-assistant-agent-mode-2026-08-26
 layer: evidence
 title: Assistant Agent 模式前端闭环 2026-08-26
-status: partial
+status: superseded
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -14,11 +14,15 @@ covers:
   - FX-056
   - FX-057
   - FX-058
-updated_at: 2026-08-26
+updated_at: 2026-08-29
 observed_commit: 45e767c
 ---
 
 # Assistant Agent 模式前端闭环 2026-08-26
+
+本证据已被 [EVD-assistant-hermes-2026-08-29](EVD-assistant-hermes-2026-08-29.md) 替代。原条款
+描述的 enhanced_search/agent 模式开关与 `/assistant/chat` 同步流已从规格中删除；保留本页仅作
+历史观察，不再证明当前 FX-052～058 语义。
 
 ## 范围与环境
 

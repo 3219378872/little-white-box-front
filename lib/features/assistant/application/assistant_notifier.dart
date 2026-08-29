@@ -4,13 +4,12 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_exceptions.dart';
-import '../../../sdk/data/gateway.dart' show AssistantAttachment;
+import '../../../core/api/json_int64.dart';
 import '../data/assistant_models.dart';
 import '../data/assistant_repository.dart';
 
-enum AssistantMessageRole { user, assistant }
+enum AssistantMessageRole { user, assistant, system }
 
-/// 工具步骤状态（AGNT-060 / FX-056）：confirm_required 渲染为确认卡片。
 enum AssistantToolStatus {
   running,
   awaitingConfirmation,
@@ -34,17 +33,16 @@ class AssistantToolStep {
     required this.status,
   });
 
-  AssistantToolStep copyWith({AssistantToolStatus? status}) {
+  AssistantToolStep copyWith({AssistantToolStatus? status, String? summary}) {
     return AssistantToolStep(
       callId: callId,
       tool: tool,
-      summary: summary,
+      summary: summary ?? this.summary,
       status: status ?? this.status,
     );
   }
 }
 
-/// 用户随消息携带的会话附件缩略信息（仅展示用）。
 class PendingChatImage {
   final Object mediaId;
   final String url;
@@ -60,13 +58,12 @@ class PendingChatImage {
 class AssistantMessage {
   final String id;
   final AssistantMessageRole role;
+  final String kind;
   final String text;
-  final List<AssistantSourceReference> sources;
+  final List<AssistantSourceCard> sources;
   final List<AssistantToolStep> toolSteps;
   final List<PendingChatImage> attachments;
-  final List<AssistantStructuredCard> cards;
-  final List<AssistantStructuredAction> actions;
-  final List<AssistantWatchHitNotice> watchHits;
+  final Object changeId;
   final bool isStreaming;
   final bool isCanceled;
   final bool degraded;
@@ -76,12 +73,11 @@ class AssistantMessage {
     required this.id,
     required this.role,
     required this.text,
+    this.kind = '',
     this.sources = const [],
     this.toolSteps = const [],
     this.attachments = const [],
-    this.cards = const [],
-    this.actions = const [],
-    this.watchHits = const [],
+    this.changeId = 0,
     this.isStreaming = false,
     this.isCanceled = false,
     this.degraded = false,
@@ -92,14 +88,14 @@ class AssistantMessage {
     (step) => step.status == AssistantToolStatus.awaitingConfirmation,
   );
 
+  bool get isMemoryChanged => kind == 'memory_changed';
+
   AssistantMessage copyWith({
     String? text,
-    List<AssistantSourceReference>? sources,
+    List<AssistantSourceCard>? sources,
     List<AssistantToolStep>? toolSteps,
     List<PendingChatImage>? attachments,
-    List<AssistantStructuredCard>? cards,
-    List<AssistantStructuredAction>? actions,
-    List<AssistantWatchHitNotice>? watchHits,
+    Object? changeId,
     bool? isStreaming,
     bool? isCanceled,
     bool? degraded,
@@ -108,13 +104,12 @@ class AssistantMessage {
     return AssistantMessage(
       id: id,
       role: role,
+      kind: kind,
       text: text ?? this.text,
       sources: sources ?? this.sources,
       toolSteps: toolSteps ?? this.toolSteps,
       attachments: attachments ?? this.attachments,
-      cards: cards ?? this.cards,
-      actions: actions ?? this.actions,
-      watchHits: watchHits ?? this.watchHits,
+      changeId: changeId ?? this.changeId,
       isStreaming: isStreaming ?? this.isStreaming,
       isCanceled: isCanceled ?? this.isCanceled,
       degraded: degraded ?? this.degraded,
@@ -124,50 +119,80 @@ class AssistantMessage {
 }
 
 class AssistantState {
-  final String conversationId;
+  final Object sessionId;
+  final Object activeRunId;
+  final String activeRunPhase;
+  final AssistantDisposition? lastDisposition;
   final List<AssistantMessage> messages;
   final bool isStreaming;
+  final bool isSending;
+  final bool isQueued;
   final String? connectionError;
-  final AssistantMode mode;
   final List<PendingChatImage> pendingAttachments;
   final bool agentAuthorizationRequired;
+  final String pendingRetryMessage;
 
   const AssistantState({
-    this.conversationId = '',
+    this.sessionId = 0,
+    this.activeRunId = 0,
+    this.activeRunPhase = '',
+    this.lastDisposition,
     this.messages = const [],
     this.isStreaming = false,
+    this.isSending = false,
+    this.isQueued = false,
     this.connectionError,
-    this.mode = AssistantMode.enhancedSearch,
     this.pendingAttachments = const [],
     this.agentAuthorizationRequired = false,
+    this.pendingRetryMessage = '',
   });
 
+  bool get hasActiveRun => jsonInt64IsPositive(activeRunId);
+
+  bool get canSend => !isSending;
+
   AssistantState copyWith({
-    String? conversationId,
+    Object? sessionId,
+    Object? activeRunId,
+    bool clearActiveRun = false,
+    String? activeRunPhase,
+    AssistantDisposition? lastDisposition,
     List<AssistantMessage>? messages,
     bool? isStreaming,
+    bool? isSending,
+    bool? isQueued,
     String? connectionError,
     bool clearConnectionError = false,
-    AssistantMode? mode,
     List<PendingChatImage>? pendingAttachments,
     bool clearPendingAttachments = false,
     bool? agentAuthorizationRequired,
     bool clearAgentAuthorizationRequired = false,
+    String? pendingRetryMessage,
+    bool clearPendingRetryMessage = false,
   }) {
     return AssistantState(
-      conversationId: conversationId ?? this.conversationId,
+      sessionId: sessionId ?? this.sessionId,
+      activeRunId: clearActiveRun ? 0 : (activeRunId ?? this.activeRunId),
+      activeRunPhase: clearActiveRun
+          ? ''
+          : (activeRunPhase ?? this.activeRunPhase),
+      lastDisposition: lastDisposition ?? this.lastDisposition,
       messages: messages ?? this.messages,
       isStreaming: isStreaming ?? this.isStreaming,
+      isSending: isSending ?? this.isSending,
+      isQueued: isQueued ?? this.isQueued,
       connectionError: clearConnectionError
           ? null
           : (connectionError ?? this.connectionError),
-      mode: mode ?? this.mode,
       pendingAttachments: clearPendingAttachments
           ? const []
           : (pendingAttachments ?? this.pendingAttachments),
       agentAuthorizationRequired: clearAgentAuthorizationRequired
           ? false
           : (agentAuthorizationRequired ?? this.agentAuthorizationRequired),
+      pendingRetryMessage: clearPendingRetryMessage
+          ? ''
+          : (pendingRetryMessage ?? this.pendingRetryMessage),
     );
   }
 }
@@ -175,9 +200,10 @@ class AssistantState {
 class AssistantNotifier extends StateNotifier<AssistantState> {
   final AssistantDataSource _repository;
   final String Function() _createRequestId;
-  StreamSubscription<AssistantChatEvent>? _subscription;
+  StreamSubscription<AssistantRunEvent>? _subscription;
   int _generation = 0;
-  String _activeRequestId = '';
+  int _lastSeq = 0;
+  int _reconnects = 0;
 
   AssistantNotifier({
     required AssistantDataSource repository,
@@ -186,16 +212,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
        _createRequestId = createRequestId ?? _defaultRequestId,
        super(const AssistantState());
 
-  AssistantMode get mode => state.mode;
-
-  /// 切换模式（AGNT-001/FX-052）；流式进行中不允许切换。
-  void setMode(AssistantMode next) {
-    if (state.mode == next || state.isStreaming) return;
-    state = state.copyWith(mode: next, clearAgentAuthorizationRequired: true);
-  }
-
   void addPendingAttachment(PendingChatImage image) {
-    if (state.mode != AssistantMode.agent) return;
     state = state.copyWith(
       pendingAttachments: [...state.pendingAttachments, image],
     );
@@ -210,20 +227,40 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     );
   }
 
-  bool send(String message) {
+  Future<void> load() async {
+    try {
+      final thread = await _repository.getThread();
+      final history = await _repository.listMessages(
+        sessionId: thread.sessionId,
+      );
+      if (!mounted) return;
+      state = state.copyWith(
+        sessionId: thread.sessionId,
+        activeRunId: thread.activeRunId,
+        activeRunPhase: thread.activeRunPhase,
+        messages: [for (final item in history) _fromHistory(item)],
+        isStreaming: thread.hasActiveRun,
+        isQueued: thread.activeRunPhase == 'queued',
+        clearConnectionError: true,
+      );
+      if (thread.hasActiveRun) {
+        _subscribe(thread.activeRunId, afterSeq: 0);
+      }
+      unawaited(_markRead());
+    } catch (error) {
+      if (!mounted) return;
+      state = state.copyWith(connectionError: friendlyErrorMessage(error));
+    }
+  }
+
+  Future<bool> send(String message) async {
     final normalized = message.trim();
-    if (normalized.isEmpty || normalized.length > 2000 || state.isStreaming) {
+    if (normalized.isEmpty || normalized.length > 2000 || state.isSending) {
       return false;
     }
 
     final requestId = _createRequestId();
-    final generation = ++_generation;
-    final responseId = 'assistant-$requestId';
-    final mode = state.mode;
-    final attachments = state.mode == AssistantMode.agent
-        ? state.pendingAttachments
-        : const <PendingChatImage>[];
-    _activeRequestId = requestId;
+    final attachments = [...state.pendingAttachments];
     state = state.copyWith(
       messages: [
         ...state.messages,
@@ -231,54 +268,116 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
           id: 'user-$requestId',
           role: AssistantMessageRole.user,
           text: normalized,
-          attachments: [...attachments],
-        ),
-        AssistantMessage(
-          id: responseId,
-          role: AssistantMessageRole.assistant,
-          text: '',
-          isStreaming: true,
+          attachments: attachments,
         ),
       ],
-      isStreaming: true,
+      isSending: true,
+      pendingRetryMessage: normalized,
       clearConnectionError: true,
       clearPendingAttachments: true,
+      clearAgentAuthorizationRequired: true,
     );
 
-    final stream = _repository.chat(
-      message: normalized,
-      requestId: requestId,
-      conversationId: state.conversationId,
-      mode: mode,
-      attachments: [
-        for (final item in attachments)
-          AssistantAttachment(mediaId: item.mediaId, url: item.url),
-      ],
-    );
-    _subscription = stream.listen(
-      (event) {
-        if (generation != _generation) return;
-        _applyEvent(responseId, event);
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        if (generation != _generation) return;
-        _finishWithTransportError(responseId, friendlyErrorMessage(error));
-      },
-      onDone: () {
-        if (generation != _generation || !state.isStreaming) return;
-        _finishWithTransportError(responseId, 'Assistant 连接意外中断');
-      },
-      cancelOnError: false,
-    );
-    return true;
+    try {
+      final accepted = await _repository.postMessage(
+        message: normalized,
+        requestId: requestId,
+        attachments: [
+          for (final item in attachments)
+            AssistantAttachment(mediaId: item.mediaId, url: item.url),
+        ],
+      );
+      if (!mounted) return false;
+      final userMessages = [
+        for (final item in state.messages)
+          if (item.id == 'user-$requestId')
+            AssistantMessage(
+              id: jsonInt64Id(accepted.messageId),
+              role: item.role,
+              text: item.text,
+              attachments: item.attachments,
+            )
+          else
+            item,
+      ];
+      final queued = accepted.disposition == AssistantDisposition.queued;
+      final shouldStream =
+          accepted.disposition == AssistantDisposition.started ||
+          accepted.disposition == AssistantDisposition.redirected ||
+          accepted.disposition == AssistantDisposition.steered ||
+          queued;
+      state = state.copyWith(
+        sessionId: accepted.sessionId,
+        activeRunId: accepted.runId,
+        lastDisposition: accepted.disposition,
+        messages: queued
+            ? userMessages
+            : [
+                ...userMessages,
+                if (!_hasStreamingAssistant)
+                  AssistantMessage(
+                    id: 'run-${jsonInt64Id(accepted.runId)}',
+                    role: AssistantMessageRole.assistant,
+                    text: '',
+                    isStreaming: true,
+                  ),
+              ],
+        isSending: false,
+        isStreaming: shouldStream,
+        isQueued: queued,
+        activeRunPhase: switch (accepted.disposition) {
+          AssistantDisposition.queued => 'queued',
+          AssistantDisposition.steered => 'tool_executing',
+          AssistantDisposition.redirected ||
+          AssistantDisposition.started => 'model_request',
+          _ => state.activeRunPhase,
+        },
+        clearPendingRetryMessage: true,
+      );
+      if (shouldStream && jsonInt64IsPositive(accepted.runId)) {
+        if (accepted.disposition == AssistantDisposition.redirected) {
+          _lastSeq = 0;
+        }
+        _subscribe(
+          accepted.runId,
+          afterSeq: accepted.disposition == AssistantDisposition.steered
+              ? _lastSeq
+              : 0,
+        );
+      }
+      return true;
+    } on ApiException catch (error) {
+      if (!mounted) return false;
+      final unauthorized = error.message.contains('AGENT_NOT_AUTHORIZED');
+      state = state.copyWith(
+        isSending: false,
+        agentAuthorizationRequired: unauthorized,
+        connectionError: friendlyErrorMessage(error),
+        pendingRetryMessage: normalized,
+      );
+      return false;
+    } catch (error) {
+      if (!mounted) return false;
+      state = state.copyWith(
+        isSending: false,
+        connectionError: friendlyErrorMessage(error),
+        pendingRetryMessage: normalized,
+      );
+      return false;
+    }
   }
 
-  /// 高危操作逐次确认（FX-056/057）：回调服务端并立即把卡片置为不可交互。
+  Future<bool> retryPending() async {
+    final pending = state.pendingRetryMessage;
+    if (pending.isEmpty) return false;
+    return send(pending);
+  }
+
   Future<void> respondToConfirmation(String callId, bool approved) async {
-    final requestId = _activeRequestId;
-    if (!state.isStreaming || requestId.isEmpty) return;
+    final runId = state.activeRunId;
+    if (!jsonInt64IsPositive(runId)) return;
     state = state.copyWith(
-      messages: _updateMessage(_responseIdOf(requestId), (message) {
+      messages: _updateLastAssistant((message) {
         return message.copyWith(
           toolSteps: [
             for (final step in message.toolSteps)
@@ -296,22 +395,31 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
       }),
     );
     try {
-      await _repository.confirmTool(
-        requestId: requestId,
+      await _repository.confirmRun(
+        runId: runId,
         callId: callId,
         approved: approved,
       );
     } on ApiException {
-      // 卡片已置为已处理；失败结果由后续错误事件或超时语义呈现。
+      // Card is already non-interactive; later error/timeout events present the outcome.
     }
   }
 
-  Future<void> cancel() async {
-    if (!state.isStreaming) return;
+  Future<void> stop() async {
+    if (!state.hasActiveRun && !state.isStreaming) return;
+    final runId = state.activeRunId;
     _generation++;
     final subscription = _subscription;
     _subscription = null;
     await subscription?.cancel();
+    if (jsonInt64IsPositive(runId)) {
+      try {
+        await _repository.cancelRun(runId);
+      } on ApiException {
+        // Local stop still applies even if the cancel request fails.
+      }
+    }
+    if (!mounted) return;
     state = state.copyWith(
       messages: _updateLastAssistant(
         (message) => message.copyWith(
@@ -321,116 +429,173 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         ),
       ),
       isStreaming: false,
+      isQueued: false,
+      clearActiveRun: true,
       clearConnectionError: true,
     );
   }
 
-  void clear() {
-    unawaited(cancel());
-    state = AssistantState(mode: state.mode);
+  Future<void> startNewSession() async {
+    await stop();
+    try {
+      final sessionId = await _repository.createSession();
+      if (!mounted) return;
+      state = AssistantState(
+        sessionId: sessionId,
+        pendingAttachments: state.pendingAttachments,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      state = state.copyWith(connectionError: friendlyErrorMessage(error));
+    }
   }
 
-  void _applyEvent(String responseId, AssistantChatEvent event) {
-    final conversationId = event.conversationId.isEmpty
-        ? state.conversationId
-        : event.conversationId;
+  Future<void> clearHistory() async {
+    await stop();
+    try {
+      await _repository.deleteHistory();
+      if (!mounted) return;
+      state = AssistantState(pendingAttachments: state.pendingAttachments);
+    } catch (error) {
+      if (!mounted) return;
+      state = state.copyWith(connectionError: friendlyErrorMessage(error));
+    }
+  }
+
+  Future<void> undoMemoryChange(Object changeId) async {
+    try {
+      await _repository.undoMemoryChange(changeId);
+    } catch (error) {
+      if (!mounted) return;
+      state = state.copyWith(connectionError: friendlyErrorMessage(error));
+    }
+  }
+
+  void _subscribe(Object runId, {required Object afterSeq}) {
+    _generation++;
+    final generation = _generation;
+    _lastSeq = _asInt(afterSeq);
+    _reconnects = 0;
+    unawaited(_subscription?.cancel());
+    _listen(runId, generation);
+  }
+
+  void _listen(Object runId, int generation) {
+    final stream = _repository.runEvents(runId: runId, afterSeq: _lastSeq);
+    _subscription = stream.listen(
+      (event) {
+        if (generation != _generation) return;
+        if (event.seq > _lastSeq) _lastSeq = event.seq;
+        _applyEvent(runId, event);
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        if (generation != _generation) return;
+        if (error is AssistantStreamException &&
+            state.hasActiveRun &&
+            _reconnects < 1) {
+          _reconnects++;
+          _listen(runId, generation);
+          return;
+        }
+        _finishWithTransportError(friendlyErrorMessage(error));
+      },
+      onDone: () {
+        if (generation != _generation || !state.isStreaming) return;
+        if (state.hasActiveRun && _reconnects < 1) {
+          _reconnects++;
+          _listen(runId, generation);
+          return;
+        }
+        _finishWithTransportError('Assistant 连接意外中断');
+      },
+      cancelOnError: false,
+    );
+  }
+
+  void _applyEvent(Object runId, AssistantRunEvent event) {
+    final sessionId = jsonInt64IsPositive(event.sessionId)
+        ? event.sessionId
+        : state.sessionId;
+    final responseId = 'run-${jsonInt64Id(runId)}';
     switch (event.type) {
+      case AssistantEventType.runStarted:
+        state = state.copyWith(
+          sessionId: sessionId,
+          activeRunId: runId,
+          activeRunPhase: 'model_request',
+          isQueued: false,
+          isStreaming: true,
+          messages: _ensureAssistant(responseId),
+        );
       case AssistantEventType.token:
         state = state.copyWith(
-          conversationId: conversationId,
+          sessionId: sessionId,
           messages: _updateMessage(
             responseId,
             (message) => message.copyWith(text: '${message.text}${event.text}'),
+            createIfMissing: true,
           ),
-        );
-      case AssistantEventType.source:
-        state = state.copyWith(
-          conversationId: conversationId,
-          messages: _updateMessage(responseId, (message) {
-            final source = event.source!;
-            return message.sources.contains(source)
-                ? message
-                : message.copyWith(sources: [...message.sources, source]);
-          }),
+          isStreaming: true,
+          isQueued: false,
         );
       case AssistantEventType.toolCall:
         state = state.copyWith(
-          conversationId: conversationId,
-          messages: _updateMessage(responseId, (message) {
-            final call = event.toolCall!;
-            final existing = message.toolSteps.indexWhere(
-              (step) => step.callId == call.callId,
-            );
-            final steps = [...message.toolSteps];
-            final step = AssistantToolStep(
-              callId: call.callId,
-              tool: call.tool,
-              summary: call.summary,
-              status: AssistantToolStatus.running,
-            );
-            if (existing >= 0) {
-              steps[existing] = steps[existing].copyWith(status: .running);
-            } else {
-              steps.add(step);
-            }
-            return message.copyWith(toolSteps: steps);
-          }),
+          sessionId: sessionId,
+          activeRunPhase: 'tool_executing',
+          messages: _upsertTool(
+            responseId,
+            event.toolCall!,
+            AssistantToolStatus.running,
+          ),
+        );
+      case AssistantEventType.toolResult:
+        state = state.copyWith(
+          sessionId: sessionId,
+          messages: _upsertTool(
+            responseId,
+            event.toolCall!,
+            AssistantToolStatus.completed,
+          ),
         );
       case AssistantEventType.confirmRequired:
         state = state.copyWith(
-          conversationId: conversationId,
+          sessionId: sessionId,
+          messages: _upsertTool(
+            responseId,
+            event.toolCall!,
+            AssistantToolStatus.awaitingConfirmation,
+          ),
+        );
+      case AssistantEventType.sourceCard:
+        if (event.sourceCard == null) return;
+        state = state.copyWith(
+          sessionId: sessionId,
           messages: _updateMessage(responseId, (message) {
-            final call = event.toolCall!;
-            return message.copyWith(
-              toolSteps: [
-                ...message.toolSteps,
-                AssistantToolStep(
-                  callId: call.callId,
-                  tool: call.tool,
-                  summary: call.summary,
-                  status: AssistantToolStatus.awaitingConfirmation,
-                ),
-              ],
-            );
-          }),
+            final source = event.sourceCard!;
+            return message.sources.contains(source)
+                ? message
+                : message.copyWith(sources: [...message.sources, source]);
+          }, createIfMissing: true),
         );
-      case AssistantEventType.card:
-        if (event.card == null) return;
+      case AssistantEventType.memoryChanged:
         state = state.copyWith(
-          conversationId: conversationId,
-          messages: _updateMessage(
-            responseId,
-            (message) =>
-                message.copyWith(cards: [...message.cards, event.card!]),
-          ),
-        );
-      case AssistantEventType.actions:
-        if (event.actions.isEmpty) return;
-        state = state.copyWith(
-          conversationId: conversationId,
-          messages: _updateMessage(
-            responseId,
-            (message) => message.copyWith(
-              actions: [...message.actions, ...event.actions],
+          sessionId: sessionId,
+          messages: [
+            ...state.messages,
+            AssistantMessage(
+              id: 'memory-${jsonInt64Id(event.changeId)}-${event.seq}',
+              role: AssistantMessageRole.system,
+              kind: 'memory_changed',
+              text: event.text.isEmpty ? '记忆已更新' : event.text,
+              changeId: event.changeId,
             ),
-          ),
-        );
-      case AssistantEventType.watchHit:
-        if (event.watchHit == null) return;
-        state = state.copyWith(
-          conversationId: conversationId,
-          messages: _updateMessage(
-            responseId,
-            (message) => message.copyWith(
-              watchHits: [...message.watchHits, event.watchHit!],
-            ),
-          ),
+          ],
         );
       case AssistantEventType.unknown:
         return;
       case AssistantEventType.done:
         state = state.copyWith(
-          conversationId: conversationId,
+          sessionId: sessionId,
           messages: _updateMessage(
             responseId,
             (message) => message.copyWith(
@@ -441,13 +606,16 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
                 AssistantToolStatus.completed,
               ),
             ),
+            createIfMissing: true,
           ),
           isStreaming: false,
+          isQueued: false,
+          clearActiveRun: true,
         );
       case AssistantEventType.error:
         final needsAuthorization = event.errorCode == 'AGENT_NOT_AUTHORIZED';
         state = state.copyWith(
-          conversationId: conversationId,
+          sessionId: sessionId,
           agentAuthorizationRequired: needsAuthorization,
           messages: _updateMessage(
             responseId,
@@ -461,11 +629,62 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
                 AssistantToolStatus.failed,
               ),
             ),
+            createIfMissing: true,
           ),
           isStreaming: false,
+          isQueued: false,
           connectionError: event.text,
+          clearActiveRun: true,
         );
     }
+  }
+
+  bool get _hasStreamingAssistant => state.messages.any(
+    (message) =>
+        message.role == AssistantMessageRole.assistant && message.isStreaming,
+  );
+
+  List<AssistantMessage> _ensureAssistant(String id) {
+    if (state.messages.any((message) => message.id == id)) {
+      return state.messages;
+    }
+    return [
+      ...state.messages,
+      AssistantMessage(
+        id: id,
+        role: AssistantMessageRole.assistant,
+        text: '',
+        isStreaming: true,
+      ),
+    ];
+  }
+
+  List<AssistantMessage> _upsertTool(
+    String responseId,
+    AssistantToolCall call,
+    AssistantToolStatus status,
+  ) {
+    return _updateMessage(responseId, (message) {
+      final existing = message.toolSteps.indexWhere(
+        (step) => step.callId == call.callId,
+      );
+      final steps = [...message.toolSteps];
+      final step = AssistantToolStep(
+        callId: call.callId,
+        tool: call.tool,
+        summary: call.summary,
+        status: status,
+      );
+      if (existing >= 0) {
+        steps[existing] = steps[existing].copyWith(
+          status: status,
+          summary: call.summary.isEmpty ? null : call.summary,
+        );
+      } else {
+        steps.add(step);
+      }
+      return message.copyWith(toolSteps: steps);
+    }, createIfMissing: true);
   }
 
   List<AssistantToolStep> _settleSteps(
@@ -477,46 +696,61 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         switch (step.status) {
           AssistantToolStatus.running => step.copyWith(
             status: terminal == AssistantToolStatus.completed
-                ? .completed
-                : .failed,
+                ? AssistantToolStatus.completed
+                : AssistantToolStatus.failed,
           ),
-          // 等待确认的卡片在终止事件后按过期呈现（AGNT-021）。
           AssistantToolStatus.awaitingConfirmation => step.copyWith(
-            status: .expired,
+            status: AssistantToolStatus.expired,
           ),
           _ => step,
         },
     ];
   }
 
-  String _responseIdOf(String requestId) => 'assistant-$requestId';
-
-  void _finishWithTransportError(String responseId, String error) {
+  void _finishWithTransportError(String error) {
     state = state.copyWith(
-      messages: _updateMessage(
-        responseId,
+      messages: _updateLastAssistant(
         (message) => message.copyWith(
           text: message.text.isEmpty ? '响应中断' : message.text,
           isStreaming: false,
           degraded: true,
           errorCode: 'STREAM_DISCONNECTED',
-          toolSteps: _settleSteps(
-            message.toolSteps,
-            AssistantToolStatus.failed,
-          ),
+          toolSteps: _settleSteps(message.toolSteps, AssistantToolStatus.failed),
         ),
       ),
       isStreaming: false,
+      isQueued: false,
       connectionError: error,
     );
   }
 
   List<AssistantMessage> _updateMessage(
     String id,
+    AssistantMessage Function(AssistantMessage) update, {
+    bool createIfMissing = false,
+  }) {
+    final exists = state.messages.any((message) => message.id == id);
+    if (!exists && createIfMissing) {
+      return updateAll([
+        ...state.messages,
+        AssistantMessage(
+          id: id,
+          role: AssistantMessageRole.assistant,
+          text: '',
+          isStreaming: true,
+        ),
+      ], id, update);
+    }
+    return updateAll(state.messages, id, update);
+  }
+
+  static List<AssistantMessage> updateAll(
+    List<AssistantMessage> messages,
+    String id,
     AssistantMessage Function(AssistantMessage) update,
   ) {
     return [
-      for (final message in state.messages)
+      for (final message in messages)
         if (message.id == id) update(message) else message,
     ];
   }
@@ -530,6 +764,34 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     );
     if (index >= 0) messages[index] = update(messages[index]);
     return messages;
+  }
+
+  Future<void> _markRead() async {
+    try {
+      await _repository.markThreadRead();
+    } on ApiException {
+      // Read failure is independently retryable via refresh.
+    }
+  }
+
+  static AssistantMessage _fromHistory(AssistantHistoryMessage item) {
+    final role = switch (item.role) {
+      'user' => AssistantMessageRole.user,
+      'system' => AssistantMessageRole.system,
+      _ => AssistantMessageRole.assistant,
+    };
+    return AssistantMessage(
+      id: jsonInt64Id(item.id),
+      role: role,
+      kind: item.kind,
+      text: item.content,
+      changeId: item.changeId,
+    );
+  }
+
+  static int _asInt(Object? value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   static String _defaultRequestId() {
@@ -571,6 +833,8 @@ class AgentConsentState {
 
   bool get canUseMemoryWatch => loaded && granted && !needsUpgrade;
 
+  bool get canStartRun => loaded && granted && !needsUpgrade;
+
   AgentConsentState copyWith({
     bool? loading,
     bool? loaded,
@@ -588,7 +852,6 @@ class AgentConsentState {
   }
 }
 
-/// Agent 能力授权状态（FX-053/054/080）：进入 Agent 模式前查询，同意后记录。
 class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
   final AssistantDataSource _repository;
 

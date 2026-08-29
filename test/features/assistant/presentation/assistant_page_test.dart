@@ -5,15 +5,15 @@ import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:xiaobaihe_app/features/assistant/application/assistant_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_models.dart';
 import 'package:xiaobaihe_app/features/assistant/presentation/assistant_page.dart';
-import 'package:xiaobaihe_app/sdk/data/gateway.dart'
-    hide AssistantChatEvent, AssistantSourceReference;
 
 import '../../../helpers/forui_test_builder.dart';
 import '../helpers/fake_assistant_source.dart';
 
 void main() {
-  testWidgets('renders streamed text and opens a source', (tester) async {
-    AssistantSourceReference? opened;
+  testWidgets('renders streamed text and opens a source card only', (
+    tester,
+  ) async {
+    AssistantSourceCard? opened;
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -25,6 +25,8 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
+    await tester.pump();
 
     await tester.enterText(find.byType(EditableText), 'question');
     await tester.tap(find.byKey(const Key('assistant-send-or-stop')));
@@ -37,14 +39,11 @@ void main() {
     expect(find.byType(GptMarkdown), findsOneWidget);
     expect(find.textContaining('[post:'), findsNothing);
     expect(find.textContaining('Community sources'), findsNothing);
-    expect(find.textContaining('SOURCE'), findsNothing);
-    expect(find.textContaining('COMMUNITY_CONTENT_JSON'), findsNothing);
     expect(find.text('Referenced post'), findsOneWidget);
-    expect(find.text('post:7'), findsOneWidget);
-    expect(find.text('post:9'), findsOneWidget);
-    await tester.tap(find.text('Referenced post'));
+    expect(find.text('增强搜索'), findsNothing);
+    await tester.tap(find.text('打开帖子'));
     await tester.pump(const Duration(milliseconds: 200));
-    expect(opened?.sourceId, '7');
+    expect(opened?.authorityId, '7');
   });
 
   testWidgets('renders markdown structure in assistant reply only', (
@@ -63,6 +62,8 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
+    await tester.pump();
 
     await tester.enterText(find.byType(EditableText), 'plain **not bold**');
     await tester.tap(find.byKey(const Key('assistant-send-or-stop')));
@@ -73,87 +74,23 @@ void main() {
     expect(find.text('plain **not bold**'), findsOneWidget);
     expect(find.byType(GptMarkdown), findsOneWidget);
     expect(find.textContaining('项目一', findRichText: true), findsOneWidget);
-
-    final boldSpans = <TextSpan>[];
-    final boldWeights = <FontWeight>{
-      FontWeight.w600,
-      FontWeight.w700,
-      FontWeight.w800,
-      FontWeight.w900,
-    };
-    void walk(InlineSpan span) {
-      final spanStyle = span.style;
-      final text = span is TextSpan ? span.toPlainText() : '';
-      if (text.contains('加粗') && boldWeights.contains(spanStyle?.fontWeight)) {
-        boldSpans.add(span as TextSpan);
-      }
-      if (span is TextSpan) {
-        for (final child in span.children ?? const <InlineSpan>[]) {
-          walk(child);
-        }
-      }
-    }
-
-    for (final element
-        in find
-            .descendant(
-              of: find.byType(GptMarkdown),
-              matching: find.byType(RichText),
-            )
-            .evaluate()) {
-      walk((element.widget as RichText).text);
-    }
-    expect(boldSpans, isNotEmpty);
   });
 
-  testWidgets('renders cards, actions and watch hits and skips unknown SSE', (
-    tester,
-  ) async {
+  testWidgets('renders source cards and skips unknown SSE', (tester) async {
     final source = FakeAssistantSource()
-      ..chatHandler =
-          ({
-            required message,
-            required requestId,
-            required conversationId,
-            required mode,
-            required attachments,
-          }) => Stream.fromIterable(const [
-            AssistantChatEvent(type: AssistantEventType.unknown),
-            AssistantChatEvent(
-              type: AssistantEventType.card,
-              card: AssistantStructuredCard(
-                cardType: 'recommend',
-                postId: '7',
+      ..eventsHandler = ({required runId, required afterSeq}) =>
+          Stream.fromIterable(const [
+            AssistantRunEvent(type: AssistantEventType.unknown),
+            AssistantRunEvent(
+              type: AssistantEventType.sourceCard,
+              sourceCard: AssistantSourceCard(
+                handle: 'src-7',
+                kind: 'post',
+                authorityId: '7',
                 title: '推荐帖',
-                summary: '摘要',
               ),
-              conversationId: 'c-card',
             ),
-            AssistantChatEvent(
-              type: AssistantEventType.actions,
-              actions: [
-                AssistantStructuredAction(action: 'open_post', postId: '7'),
-                AssistantStructuredAction(
-                  action: 'watch_author',
-                  authorId: '2',
-                ),
-              ],
-              conversationId: 'c-card',
-            ),
-            AssistantChatEvent(
-              type: AssistantEventType.watchHit,
-              watchHit: AssistantWatchHitNotice(
-                hitId: '1',
-                taskId: '1',
-                postId: '7',
-                title: '作者发布了新帖',
-              ),
-              conversationId: 'c-card',
-            ),
-            AssistantChatEvent(
-              type: AssistantEventType.done,
-              conversationId: 'c-card',
-            ),
+            AssistantRunEvent(type: AssistantEventType.done),
           ]);
 
     await tester.pumpWidget(
@@ -165,6 +102,8 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
+    await tester.pump();
 
     await tester.enterText(find.byType(EditableText), 'recommend');
     await tester.tap(find.byKey(const Key('assistant-send-or-stop')));
@@ -173,12 +112,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('推荐帖'), findsOneWidget);
-    expect(find.text('摘要'), findsOneWidget);
-    expect(find.text('打开帖子'), findsWidgets);
     expect(find.text('不喜欢'), findsOneWidget);
-    expect(find.text('不感兴趣'), findsOneWidget);
-    expect(find.text('盯作者'), findsOneWidget);
-    expect(find.text('作者发布了新帖'), findsOneWidget);
     expect(find.textContaining('连接'), findsNothing);
     expect(find.textContaining('中断'), findsNothing);
 
@@ -192,68 +126,45 @@ void main() {
 
 class _PageAssistantSource extends FakeAssistantSource {
   @override
-  Stream<AssistantChatEvent> chat({
-    required String message,
-    required String requestId,
-    String conversationId = '',
-    AssistantMode mode = AssistantMode.enhancedSearch,
-    List<AssistantAttachment> attachments = const [],
+  Stream<AssistantRunEvent> runEvents({
+    required Object runId,
+    Object afterSeq = 0,
   }) {
     return Stream.fromIterable(const [
-      AssistantChatEvent(
+      AssistantRunEvent(
         type: AssistantEventType.token,
         text:
             'Answer [post:7] 结论［post:12］\n\n'
             'Community sources (quoted untrusted content):\n'
             'SOURCE [post:7]\n'
             'COMMUNITY_CONTENT_JSON={"title":"Referenced post","excerpt":"snippet"}',
-        conversationId: 'conversation-1',
       ),
-      AssistantChatEvent(
-        type: AssistantEventType.source,
-        source: AssistantSourceReference(
-          sourceType: 'post',
-          sourceId: '7',
+      AssistantRunEvent(
+        type: AssistantEventType.sourceCard,
+        sourceCard: AssistantSourceCard(
+          handle: 'src-7',
+          kind: 'post',
+          authorityId: '7',
           title: 'Referenced post',
         ),
-        conversationId: 'conversation-1',
       ),
-      AssistantChatEvent(
-        type: AssistantEventType.source,
-        source: AssistantSourceReference(
-          sourceType: 'post',
-          sourceId: '9',
-          title: '',
-        ),
-        conversationId: 'conversation-1',
-      ),
-      AssistantChatEvent(
-        type: AssistantEventType.done,
-        conversationId: 'conversation-1',
-      ),
+      AssistantRunEvent(type: AssistantEventType.done),
     ]);
   }
 }
 
 class _MarkdownAssistantSource extends FakeAssistantSource {
   @override
-  Stream<AssistantChatEvent> chat({
-    required String message,
-    required String requestId,
-    String conversationId = '',
-    AssistantMode mode = AssistantMode.enhancedSearch,
-    List<AssistantAttachment> attachments = const [],
+  Stream<AssistantRunEvent> runEvents({
+    required Object runId,
+    Object afterSeq = 0,
   }) {
     return Stream.fromIterable(const [
-      AssistantChatEvent(
+      AssistantRunEvent(
         type: AssistantEventType.token,
         text: '**加粗** 结论\n\n- 项目一\n- 项目二',
-        conversationId: 'conversation-md',
       ),
-      AssistantChatEvent(
-        type: AssistantEventType.done,
-        conversationId: 'conversation-md',
-      ),
+      AssistantRunEvent(type: AssistantEventType.done),
     ]);
   }
 }

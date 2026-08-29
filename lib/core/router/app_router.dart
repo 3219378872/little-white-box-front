@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/assistant/application/assistant_thread_notifier.dart';
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
@@ -25,7 +26,7 @@ import 'public_routes.dart';
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
-enum _AppDestination { feed, search, create, messages, assistant, profile }
+enum _AppDestination { feed, search, create, messages, profile }
 
 const _mobileDestinations = [
   _AppDestination.feed,
@@ -94,6 +95,27 @@ final routerProvider = Provider<GoRouter>((ref) {
                 const NoTransitionPage(child: MessagesShell()),
           ),
           GoRoute(
+            path: '/messages/assistant/memory',
+            builder: (context, state) => const MessagesShell(
+              assistantSelected: true,
+              thread: MemoryPage(),
+            ),
+          ),
+          GoRoute(
+            path: '/messages/assistant/watch',
+            builder: (context, state) => const MessagesShell(
+              assistantSelected: true,
+              thread: WatchPage(),
+            ),
+          ),
+          GoRoute(
+            path: '/messages/assistant',
+            builder: (context, state) => const MessagesShell(
+              assistantSelected: true,
+              thread: AssistantPage(),
+            ),
+          ),
+          GoRoute(
             path: '/messages/:conversationId',
             redirect: (context, state) {
               final conversationId = int.tryParse(
@@ -119,16 +141,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: '/assistant',
-            builder: (context, state) => const AssistantPage(),
-          ),
-          GoRoute(
             path: '/assistant/memory',
-            builder: (context, state) => const MemoryPage(),
+            redirect: (context, state) => '/messages/assistant/memory',
           ),
           GoRoute(
             path: '/assistant/watch',
-            builder: (context, state) => const WatchPage(),
+            redirect: (context, state) => '/messages/assistant/watch',
+          ),
+          GoRoute(
+            path: '/assistant',
+            redirect: (context, state) => '/messages/assistant',
           ),
           GoRoute(
             path: '/post/new',
@@ -190,7 +212,6 @@ class MainShell extends ConsumerWidget {
       _AppDestination.search => '/search',
       _AppDestination.create => '/post/new',
       _AppDestination.messages => '/messages',
-      _AppDestination.assistant => '/assistant',
       _AppDestination.profile => '/profile',
     });
   }
@@ -201,6 +222,10 @@ class MainShell extends ConsumerWidget {
     final messageUnread = ref.watch(
       unreadSummaryProvider.select((state) => state.summary.messageUnread),
     );
+    final assistantUnread = ref.watch(
+      assistantThreadProvider.select((state) => state.thread.unreadCount),
+    );
+    final navUnread = messageUnread + assistantUnread;
     final width = MediaQuery.sizeOf(context).width;
     final breakpoints = context.theme.breakpoints;
     final isDesktop = width >= breakpoints.lg;
@@ -212,7 +237,7 @@ class MainShell extends ConsumerWidget {
       sidebar: isDesktop
           ? _DesktopSidebar(
               selectedDestination: destination,
-              messageUnread: messageUnread,
+              messageUnread: navUnread,
               onDestinationSelected: (selected) =>
                   _onDestinationSelected(context, ref, selected),
             )
@@ -220,7 +245,7 @@ class MainShell extends ConsumerWidget {
       footer: showBottomNavigation
           ? _MobileBottomNavigation(
               destination: destination,
-              messageUnread: messageUnread,
+              messageUnread: navUnread,
               onChange: (selected) => _onDestinationSelected(
                 context,
                 ref,
@@ -228,10 +253,15 @@ class MainShell extends ConsumerWidget {
               ),
             )
           : null,
-      child: ContentConstraint(
-        maxWidth: _contentMaxWidth(location, width),
-        horizontalPadding: horizontalPadding,
-        child: child,
+      child: Stack(
+        children: [
+          ContentConstraint(
+            maxWidth: _contentMaxWidth(location, width),
+            horizontalPadding: horizontalPadding,
+            child: child,
+          ),
+          const AssistantThreadPollBinding(),
+        ],
       ),
     );
   }
@@ -239,7 +269,6 @@ class MainShell extends ConsumerWidget {
   _AppDestination _destinationFor(String location) {
     if (location.startsWith('/search')) return _AppDestination.search;
     if (location.startsWith('/messages')) return _AppDestination.messages;
-    if (location.startsWith('/assistant')) return _AppDestination.assistant;
     if (location.startsWith('/profile')) return _AppDestination.profile;
     if (location.startsWith('/post/new') || location.startsWith('/post/edit')) {
       return _AppDestination.create;
@@ -263,7 +292,6 @@ class MainShell extends ConsumerWidget {
     if (location == '/messages' || location.startsWith('/messages/')) {
       return width >= 1024 ? 1100 : 720;
     }
-    if (location.startsWith('/assistant')) return 760;
     if (location == '/profile/edit') return 560;
     if (location == '/feed' && width >= 1024) return 1100;
     return 680;
@@ -325,12 +353,6 @@ class _DesktopSidebar extends StatelessWidget {
           label: const Text('消息'),
           selected: selectedDestination == _AppDestination.messages,
           onPress: () => onDestinationSelected(_AppDestination.messages),
-        ),
-        FSidebarItem(
-          icon: const Icon(FLucideIcons.sparkles),
-          label: const Text('Assistant'),
-          selected: selectedDestination == _AppDestination.assistant,
-          onPress: () => onDestinationSelected(_AppDestination.assistant),
         ),
         FSidebarItem(
           icon: const Icon(FLucideIcons.circlePlus),

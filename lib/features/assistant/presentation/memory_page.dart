@@ -39,9 +39,24 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
         title: const Text('记忆'),
         prefixes: [
           FHeaderAction.back(
-            onPress: () =>
-                context.canPop() ? context.pop() : context.go('/assistant'),
+            onPress: () => context.canPop()
+                ? context.pop()
+                : context.go('/messages/assistant'),
           ),
+        ],
+        suffixes: [
+          if (consent.canUseMemoryWatch)
+            FHeaderAction(
+              icon: const Icon(FLucideIcons.plus),
+              semanticsLabel: '新增记忆',
+              onPress: _add,
+            ),
+          if (consent.canUseMemoryWatch && state.lastChangeId != null)
+            FHeaderAction(
+              icon: const Icon(FLucideIcons.rotateCcw),
+              semanticsLabel: '撤销',
+              onPress: _undo,
+            ),
         ],
       ),
       child: Column(
@@ -58,8 +73,25 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
                 subtitle: Text(
                   consent.granted
                       ? '当前授权版本 ${consent.consentVersion}，披露版本 ${consent.currentVersion}。仍可只读查看。'
-                      : '可只读查看已有记忆；写入需在 Assistant 完成授权。',
+                      : '可只读查看已有记忆；写入需在小白盒 Agent 完成授权。',
                 ),
+              ),
+            ),
+          if (state.capacities.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final cap in state.capacities)
+                    FBadge(
+                      variant: .secondary,
+                      child: Text(
+                        '${cap.target} ${cap.used}/${cap.limit}',
+                      ),
+                    ),
+                ],
               ),
             ),
           Expanded(
@@ -85,7 +117,6 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
                         record: item,
                         canWrite: consent.canUseMemoryWatch,
                         onEdit: () => _edit(item),
-                        onSuppress: () => _suppress(item),
                         onDelete: () => _delete(item),
                       );
                     },
@@ -106,9 +137,92 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
     );
   }
 
+  Future<void> _add() async {
+    var target = 'memory';
+    final contentCtrl = TextEditingController();
+    var confirmed = false;
+    try {
+      await showFDialog<void>(
+        context: context,
+        builder: (dialogContext, style, animation) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('新增记忆', style: style.titleTextStyle),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        FButton(
+                          variant: target == 'memory' ? .secondary : .ghost,
+                          size: .sm,
+                          onPress: () =>
+                              setDialogState(() => target = 'memory'),
+                          child: const Text('MEMORY'),
+                        ),
+                        const SizedBox(width: 8),
+                        FButton(
+                          variant: target == 'user' ? .secondary : .ghost,
+                          size: .sm,
+                          onPress: () => setDialogState(() => target = 'user'),
+                          child: const Text('USER'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    FTextField.multiline(
+                      control: FTextFieldControl.managed(
+                        controller: contentCtrl,
+                      ),
+                      label: const Text('内容'),
+                      minLines: 2,
+                      maxLines: 6,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        FButton(
+                          variant: .outline,
+                          onPress: () => Navigator.of(dialogContext).pop(),
+                          child: const Text('取消'),
+                        ),
+                        const SizedBox(width: 8),
+                        FButton(
+                          onPress: () {
+                            confirmed = true;
+                            Navigator.of(dialogContext).pop();
+                          },
+                          child: const Text('保存'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
+      if (!confirmed || !mounted) return;
+      try {
+        await ref
+            .read(memoryListProvider.notifier)
+            .addRecord(target: target, content: contentCtrl.text.trim());
+      } catch (error) {
+        if (mounted) showAppError(context, friendlyErrorMessage(error));
+      }
+    } finally {
+      contentCtrl.dispose();
+    }
+  }
+
   Future<void> _edit(MemoryRecord record) async {
-    final valueCtrl = TextEditingController(text: record.value);
-    final scoreCtrl = TextEditingController(text: record.score.toString());
+    final contentCtrl = TextEditingController(text: record.content);
     var confirmed = false;
     try {
       await showFDialog<void>(
@@ -121,14 +235,11 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
             children: [
               Text('修改记忆', style: style.titleTextStyle),
               const SizedBox(height: 12),
-              FTextField(
-                control: FTextFieldControl.managed(controller: valueCtrl),
-                label: const Text('值'),
-              ),
-              const SizedBox(height: 8),
-              FTextField(
-                control: FTextFieldControl.managed(controller: scoreCtrl),
-                label: const Text('分值'),
+              FTextField.multiline(
+                control: FTextFieldControl.managed(controller: contentCtrl),
+                label: const Text('内容'),
+                minLines: 2,
+                maxLines: 6,
               ),
               const SizedBox(height: 16),
               Row(
@@ -154,39 +265,15 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
         ),
       );
       if (!confirmed || !mounted) return;
-      final score = double.tryParse(scoreCtrl.text.trim());
-      if (score == null) {
-        showAppError(context, '分值无效');
-        return;
-      }
       try {
         await ref
             .read(memoryListProvider.notifier)
-            .updateRecord(
-              record: record,
-              value: valueCtrl.text.trim(),
-              score: score,
-            );
+            .updateRecord(record: record, content: contentCtrl.text.trim());
       } catch (error) {
-        if (mounted) {
-          showAppError(context, friendlyErrorMessage(error));
-        }
+        if (mounted) showAppError(context, friendlyErrorMessage(error));
       }
     } finally {
-      valueCtrl.dispose();
-      scoreCtrl.dispose();
-    }
-  }
-
-  Future<void> _suppress(MemoryRecord record) async {
-    try {
-      await ref
-          .read(memoryListProvider.notifier)
-          .updateRecord(record: record, suppressed: true);
-    } catch (error) {
-      if (mounted) {
-        showAppError(context, friendlyErrorMessage(error));
-      }
+      contentCtrl.dispose();
     }
   }
 
@@ -194,9 +281,15 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
     try {
       await ref.read(memoryListProvider.notifier).deleteRecord(record);
     } catch (error) {
-      if (mounted) {
-        showAppError(context, friendlyErrorMessage(error));
-      }
+      if (mounted) showAppError(context, friendlyErrorMessage(error));
+    }
+  }
+
+  Future<void> _undo() async {
+    try {
+      await ref.read(memoryListProvider.notifier).undoLastChange();
+    } catch (error) {
+      if (mounted) showAppError(context, friendlyErrorMessage(error));
     }
   }
 }
@@ -205,14 +298,12 @@ class _MemoryTile extends StatelessWidget {
   final MemoryRecord record;
   final bool canWrite;
   final VoidCallback onEdit;
-  final VoidCallback onSuppress;
   final VoidCallback onDelete;
 
   const _MemoryTile({
     required this.record,
     required this.canWrite,
     required this.onEdit,
-    required this.onSuppress,
     required this.onDelete,
   });
 
@@ -231,12 +322,13 @@ class _MemoryTile extends StatelessWidget {
           children: [
             Row(
               children: [
-                FBadge(variant: .secondary, child: Text(record.layer)),
-                const SizedBox(width: 8),
-                Text(record.dimension, style: theme.typography.body.sm),
+                FBadge(
+                  variant: .secondary,
+                  child: Text(record.target.toUpperCase()),
+                ),
                 const Spacer(),
                 Text(
-                  record.confirmed ? '已确认' : '可能的偏好',
+                  'v${record.version}',
                   style: theme.typography.body.xs.copyWith(
                     color: theme.colors.mutedForeground,
                   ),
@@ -244,15 +336,7 @@ class _MemoryTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(record.value, style: theme.typography.body.md),
-            const SizedBox(height: 4),
-            Text(
-              '分值 ${record.score.toStringAsFixed(2)} · ${record.source}'
-              '${record.suppressed ? ' · 已禁止记住' : ''}',
-              style: theme.typography.body.xs.copyWith(
-                color: theme.colors.mutedForeground,
-              ),
-            ),
+            Text(record.content, style: theme.typography.body.md),
             if (canWrite) ...[
               const SizedBox(height: 8),
               Wrap(
@@ -263,12 +347,6 @@ class _MemoryTile extends StatelessWidget {
                     size: .sm,
                     onPress: onEdit,
                     child: const Text('修改'),
-                  ),
-                  FButton(
-                    variant: .ghost,
-                    size: .sm,
-                    onPress: onSuppress,
-                    child: const Text('不要记住这个'),
                   ),
                   FButton(
                     variant: .ghost,

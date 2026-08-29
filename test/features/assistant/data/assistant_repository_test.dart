@@ -19,20 +19,19 @@ void main() {
     setApiClient(http.Client());
   });
 
-  test('parses fragmented token, source, and done SSE events', () async {
+  test('parses fragmented token, source_card, and done SSE events', () async {
     final payload = [
-      'data: {"type":"token","text":"你","conversationId":"c-1"}\n\n',
-      'data: {"type":"source","source":{"sourceType":"post","sourceId":"7","title":"Source"},"conversationId":"c-1"}\n\n',
-      'data: {"type":"done","conversationId":"c-1"}\n\n',
+      'id: 1\ndata: {"type":"token","text":"你","runId":21,"seq":1}\n\n',
+      'id: 2\ndata: {"type":"source_card","sourceCard":{"handle":"src-7","kind":"post","authorityId":"7","title":"Source","revision":3},"runId":21,"seq":2}\n\n',
+      'id: 3\ndata: {"type":"done","runId":21,"seq":3}\n\n',
     ].join();
     final bytes = utf8.encode(payload);
     final client = _CapturingClient(
       (_) => http.StreamedResponse(
         Stream<List<int>>.fromIterable([
           bytes.sublist(0, 13),
-          bytes.sublist(13, 31),
-          bytes.sublist(31, 77),
-          bytes.sublist(77),
+          bytes.sublist(13, 40),
+          bytes.sublist(40),
         ]),
         200,
         headers: const {'content-type': 'text/event-stream'},
@@ -44,29 +43,22 @@ void main() {
       loadAccessToken: () async => 'jwt-token',
     );
 
-    final events = await repository
-        .chat(message: ' hello ', requestId: 'request-1', conversationId: 'c-0')
-        .toList();
+    final events = await repository.runEvents(runId: 21, afterSeq: 4).toList();
 
     expect(events.map((event) => event.type), [
       AssistantEventType.token,
-      AssistantEventType.source,
+      AssistantEventType.sourceCard,
       AssistantEventType.done,
     ]);
     expect(events[0].text, '你');
-    expect(events[1].source?.sourceId, '7');
+    expect(events[1].sourceCard?.authorityId, '7');
     expect(
       client.request?.url.toString(),
-      'http://gateway.test/api/v2/assistant/chat',
+      'http://gateway.test/api/v2/assistant/runs/21/events?afterSeq=4',
     );
     expect(client.request?.headers['Authorization'], 'Bearer jwt-token');
     expect(client.request?.headers['Accept'], 'text/event-stream');
-    expect(jsonDecode(client.request!.body), {
-      'conversationId': 'c-0',
-      'message': 'hello',
-      'requestId': 'request-1',
-      'mode': 'enhanced_search',
-    });
+    expect(client.request?.headers['Last-Event-ID'], '4');
   });
 
   test('reports a closed stream without a terminal event', () async {
@@ -74,7 +66,7 @@ void main() {
       (_) => http.StreamedResponse(
         Stream.value(
           utf8.encode(
-            'data: {"type":"token","text":"partial","conversationId":"c"}\n\n',
+            'data: {"type":"token","text":"partial","runId":21,"seq":1}\n\n',
           ),
         ),
         200,
@@ -87,7 +79,7 @@ void main() {
     );
 
     await expectLater(
-      repository.chat(message: 'hello', requestId: 'request-1').toList(),
+      repository.runEvents(runId: 21).toList(),
       throwsA(
         isA<AssistantStreamException>().having(
           (error) => error.message,
@@ -104,9 +96,9 @@ void main() {
         Stream.value(
           utf8.encode(
             [
-              'data: {"type":"future_event","text":"ignore me","conversationId":"c"}\n\n',
-              'data: {"type":"token","text":"ok","conversationId":"c"}\n\n',
-              'data: {"type":"done","conversationId":"c"}\n\n',
+              'data: {"type":"future_event","text":"ignore me"}\n\n',
+              'data: {"type":"token","text":"ok","seq":1}\n\n',
+              'data: {"type":"done","seq":2}\n\n',
             ].join(),
           ),
         ),
@@ -119,15 +111,11 @@ void main() {
       loadAccessToken: () async => null,
     );
 
-    final events = await repository
-        .chat(message: 'hello', requestId: 'request-1')
-        .toList();
-
+    final events = await repository.runEvents(runId: 21).toList();
     expect(events.map((event) => event.type), [
       AssistantEventType.token,
       AssistantEventType.done,
     ]);
-    expect(events.first.text, 'ok');
   });
 
   test('parses a structured error event as a terminal response', () async {
@@ -135,7 +123,7 @@ void main() {
       (_) => http.StreamedResponse(
         Stream.value(
           utf8.encode(
-            'data: {"type":"error","text":"quota reached","degraded":true,"errorCode":"QUOTA_EXCEEDED","conversationId":"c"}\n\n',
+            'data: {"type":"error","text":"quota reached","degraded":true,"errorCode":"QUOTA_EXCEEDED"}\n\n',
           ),
         ),
         200,
@@ -147,13 +135,9 @@ void main() {
       loadAccessToken: () async => null,
     );
 
-    final events = await repository
-        .chat(message: 'hello', requestId: 'request-1')
-        .toList();
-
+    final events = await repository.runEvents(runId: 21).toList();
     expect(events.single.type, AssistantEventType.error);
     expect(events.single.errorCode, 'QUOTA_EXCEEDED');
-    expect(events.single.degraded, isTrue);
   });
 
   test(
@@ -175,17 +159,13 @@ void main() {
         loadAccessToken: () async => null,
       );
       final token = Completer<void>();
-      final subscription = repository
-          .chat(message: 'hello', requestId: 'request-1')
-          .listen((event) {
-            if (!token.isCompleted) token.complete();
-          });
+      final subscription = repository.runEvents(runId: 21).listen((event) {
+        if (!token.isCompleted) token.complete();
+      });
 
       await Future<void>.delayed(Duration.zero);
       controller.add(
-        utf8.encode(
-          'data: {"type":"token","text":"partial","conversationId":"c"}\n\n',
-        ),
+        utf8.encode('data: {"type":"token","text":"partial","seq":1}\n\n'),
       );
       await token.future;
       await subscription.cancel();
@@ -217,7 +197,7 @@ void main() {
     final repository = AssistantRepository(baseUrl: 'http://gateway.test');
 
     await expectLater(
-      repository.chat(message: 'hello', requestId: 'request-1').toList(),
+      repository.runEvents(runId: 21).toList(),
       throwsA(
         isA<ApiException>().having(
           (error) => error.message,

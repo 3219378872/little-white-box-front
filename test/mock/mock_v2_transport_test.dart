@@ -333,40 +333,55 @@ void main() {
     expect(unreadAfter['messageUnread'], 0);
   });
 
-  test('assistant mock emits a source-backed terminal SSE stream', () {
+  test('assistant mock posts a message then emits source_card SSE', () {
+    final posted = decodeBody(
+      mock_router.dispatchResponse(
+        'POST',
+        '/api/v2/assistant/messages',
+        jsonEncode({
+          'message': '推荐一篇探店帖子',
+          'requestId': 'assistant-mock-test',
+        }),
+        headers: {...authHeaders(), 'content-type': 'application/json'},
+      ),
+    );
+    expect(posted['disposition'], 'started');
+    expect(posted['runId'], greaterThan(0));
+
     final response = mock_router.dispatchResponse(
-      'POST',
-      '/api/v2/assistant/chat',
-      jsonEncode({'message': '推荐一篇探店帖子', 'requestId': 'assistant-mock-test'}),
-      headers: {...authHeaders(), 'content-type': 'application/json'},
+      'GET',
+      '/api/v2/assistant/runs/${posted['runId']}/events',
+      '',
+      headers: authHeaders(),
     );
 
     expect(response.statusCode, 200);
     expect(response.headers['content-type'], 'text/event-stream');
     expect(response.body, contains('"type":"token"'));
-    expect(response.body, contains('"type":"source"'));
+    expect(response.body, contains('"type":"source_card"'));
     expect(response.body, contains('"type":"done"'));
-    expect(response.body, contains('"sourceType":"post"'));
-    expect(response.body, contains('"revision"'));
+    expect(response.body, contains('"kind":"post"'));
+    expect(response.body, isNot(contains('"type":"source"')));
+    expect(response.body, isNot(contains('"type":"card"')));
   });
 
-  test('assistant agent mock emits cards actions and watch hits', () {
-    final response = mock_router.dispatchResponse(
-      'POST',
-      '/api/v2/assistant/chat',
-      jsonEncode({
-        'message': '盯这个作者',
-        'requestId': 'assistant-agent-mock',
-        'mode': 'agent',
-      }),
-      headers: {...authHeaders(), 'content-type': 'application/json'},
+  test('assistant run events reconnect from Last-Event-ID', () {
+    final posted = decodeBody(
+      mock_router.dispatchResponse(
+        'POST',
+        '/api/v2/assistant/messages',
+        jsonEncode({'message': 'hello', 'requestId': 'reconnect'}),
+        headers: {...authHeaders(), 'content-type': 'application/json'},
+      ),
     );
-
-    expect(response.statusCode, 200);
-    expect(response.body, contains('"type":"card"'));
-    expect(response.body, contains('"type":"actions"'));
-    expect(response.body, contains('"type":"watch_hit"'));
-    expect(response.body, contains('"type":"done"'));
+    final response = mock_router.dispatchResponse(
+      'GET',
+      '/api/v2/assistant/runs/${posted['runId']}/events?afterSeq=1',
+      '',
+      headers: {...authHeaders(), 'Last-Event-ID': '1'},
+    );
+    expect(response.body, isNot(contains('"seq":1')));
+    expect(response.body, contains('"type":"token"'));
   });
 
   test('v2 post writes require revision and stay idempotent', () {

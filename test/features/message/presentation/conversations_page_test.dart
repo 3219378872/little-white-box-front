@@ -37,7 +37,8 @@ void main() {
     expect(find.text('Target user'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
     expect(find.text('通知 3'), findsOneWidget);
-    expect(find.bySemanticsLabel('打开 Assistant'), findsOneWidget);
+    expect(find.text('小白盒 Agent'), findsOneWidget);
+    expect(find.byKey(const Key('assistant-pinned-thread')), findsOneWidget);
     await tester.tap(find.text('Target user'));
     await tester.pump(const Duration(milliseconds: 200));
     expect(opened?.id, 8);

@@ -6,16 +6,16 @@ status: approved
 owner: human
 upstream:
   - INT-content-community-client
-updated_at: 2026-08-27
+updated_at: 2026-08-29
 approved_at: 2026-08-13
 ---
 
 # 客户端体验与接口规格
 
-本规格已于 2026-08-13 获得人类明确批准；2026-08-26 增补的 Assistant Agent 模式条款（FX-052～
-FX-058）经同一人类开发者在评审对话中批准。2026-08-27 增补 Agent 运行时客户端条款（FX-059、
-FX-080～FX-087）及 FX-053 授权披露补充，同样经当前对话明确批准。条款定义目标行为；当前代码
-是否满足条款，以实现层和证据层为准。
+本规格已于 2026-08-13 获得人类明确批准。2026-08-29 按当前对话明确授权，重写 Assistant 条款
+（保留 FX-050～059、FX-080～093 编号，替换语义），删除模式开关和 Watch 命中收件箱要求。接口
+语义以同级后端仓库 `SPEC-assistant-agent`、`SPEC-agent-memory`、`SPEC-agent-watch` 与当前
+`gateway.api` 为准。条款定义目标行为；当前代码是否满足条款，以实现层和证据层为准。
 
 ## 访问与身份
 
@@ -53,54 +53,63 @@ FX-080～FX-087）及 FX-053 授权披露补充，同样经当前对话明确批
 
 ## Assistant
 
-- `FX-050`：Assistant 输入为 1～2,000 个字符。一次请求生成稳定 `requestId`，消费 token、source 和
-  唯一 done/error 终止事件；用户取消后忽略该请求的后续事件，断流保留已收到文本并显示失败状态。
-- `FX-051`：可点击来源只接受已验证的帖子证据，并保留帖子 ID、标题、支持回答的片段及 revision 或
-  内容 hash。客户端必须显示降级、错误和来源不可用/已变化状态，不把用户资料或未知来源当作事实证据。
+接口语义以同级后端仓库 `SPEC-assistant-agent`、`SPEC-agent-memory`、`SPEC-agent-watch` 与当前
+`gateway.api` 为准。Assistant 不是机器人用户，也不写入普通 Message API。
 
-### Assistant Agent 模式（接口语义以同级后端仓库 `SPEC-assistant-agent-mode` 当前版本为准）
-
-- `FX-052`：Assistant 提供模式控件：「增强搜索」（缺省）与「Agent」，位于输入区上方；切换模式
-  不清空已输入内容与会话历史。
-- `FX-053`：进入 Agent 模式时先查询服务端授权状态；未授权必须展示能力说明对话框——披露 Agent 将
-  以用户身份读写内容、将保存用户可见的结构化记忆、将创建仅在助手内投递的条件追踪、当前披露版本
-  的完整工具分组清单、删除操作逐次确认——用户同意后才记录授权，取消则回到增强搜索，未经同意不得
-  发送 agent 消息。
+- `FX-050`：Assistant 是认证用户在消息页中的固定虚拟私信线程「小白盒 Agent」。独立 `/assistant`
+  主导航入口删除；旧 `/assistant*` 重定向到 `/messages/assistant*`。输入为 1～2,000 个字符，一次
+  发送生成稳定 `requestId`。
+- `FX-051`：可点击来源只接受 SSE `source_card` 中的已验证标识（handle、kind、authorityId、title、
+  revision）。客户端不得从 Markdown 或回答正文解析帖子 ID、链接或引用。帖子来源可打开已发布帖子；
+  网页等非帖子类型以类型标识展示，不作为帖子证据。没有来源卡不影响普通回答成功。
+- `FX-052`：桌面 MessagesShell 在会话列表上方固定「小白盒 Agent」，选中后右侧展示助手线程。移动端
+  路径为 `/messages/assistant`。记忆页 `/messages/assistant/memory`、Watch 页
+  `/messages/assistant/watch`，均认证守卫。
+- `FX-053`：首次用户 run 前必须查询 `GET /assistant/consent`。未授权须展示能力说明——当前工具分组、
+  数据边界、delete_post 逐次确认、Memory/Watch 与长任务预算——用户同意后才 `POST /assistant/consent`。
+  取消则不发送。未经同意不得发起用户 run。
 - `FX-054`：收到 `AGENT_NOT_AUTHORIZED` 结构化错误时重新触发授权流程；授权成功后允许重发当前消息。
-- `FX-055`：Agent 模式提供图片附件入口：从相册选择图片，按发布规则校验类型与大小（JPEG/PNG/WebP、
-  单图 ≤10 MiB），上传换取 mediaId 后以缩略图呈现且发送前可移除；附件随当次消息提交，仅对该次请求
-  生效。
-- `FX-056`：工具调用事件在会话流内渲染为进度行（图标与人可读摘要）；终止后折叠为摘要行；确认请求
-  事件渲染为含操作摘要的确认卡片，确认与取消动作调用配套确认接口。
-- `FX-057`：确认卡片一次性有效：操作后转为不可交互并显示结果；超时或失败按拒绝/过期呈现，不得
-  阻塞后续事件渲染。
-- `FX-058`：网络来源以区别于帖子来源的图标或类型标识展示，不作为帖子证据处理；预算耗尽等结构化
-  错误按终止事件语义呈现失败状态。
+- `FX-055`：发送支持图片附件：从相册选择图片，按发布规则校验类型与大小（JPEG/PNG/WebP、单图
+  ≤10 MiB），上传换取 mediaId 后以缩略图呈现且发送前可移除；附件随当次消息提交。
+- `FX-056`：SSE `tool_call` / `tool_result` 在会话流内渲染为进度行（图标与人可读摘要），终止后折叠
+  为摘要行；`confirm_required` 渲染为含操作摘要的确认卡片。
+- `FX-057`：确认卡片一次性有效：`POST /assistant/runs/:id/confirm` 携带 `{callId, approved}` 后转为
+  不可交互并显示结果；超时或失败按拒绝/过期呈现，不得阻塞后续事件渲染。
+- `FX-058`：忙碌输入语义：当前 run 处于 `model_request` 时新消息 redirect；`tool_executing` 时
+  steer；compact/附件等不能安全注入的阶段 FIFO 排队（服务端上限 32）。输入在忙碌时仍可发送。只有
+  显式 Stop 调用 `POST /assistant/runs/:id/cancel` 硬取消；断线不取消 run。
+- `FX-059`：客户端必须忽略无法识别的 SSE `type`，不得把未知事件当成错误终止。持久事件类型为
+  `run_started|token|tool_call|tool_result|confirm_required|source_card|memory_changed|done|error`。
 
-### Assistant Agent 运行时（接口语义以同级后端仓库 `SPEC-assistant-agent-mode`、
-`SPEC-agent-memory`、`SPEC-agent-watch` 与当前 `gateway.api` 为准）
-
-- `FX-059`：客户端必须忽略无法识别的 Assistant SSE `type`；不得把未知事件当成错误终止，也不得把
-  未知来源类型当成可点击帖子证据（对齐 AGNT-060）。
 - `FX-080`：`GET /assistant/consent` 同时展示 `consentVersion` 与 `currentVersion`。已授权但版本
-  低于当前披露版本时，再次展示完整工具分组清单并确认后才能 `POST` 升级；未升级不得调用仅新版本
-  覆盖的能力入口（记忆页、Watch 页仍可只读提示需升级）。
-- `FX-081`：认证用户可打开记忆页，列出本人 Profile/Interest/Task；可修改值或分值、删除、标记
-  「不要记住这个」（PATCH suppressed）；越权/失败展示可恢复错误，不伪装空成功。列表区分已确认。
-  不展示 Episodic 默认列表（除非后续产品要求；当前只列出 profile/interest/task）。
+  低于当前披露版本时，再次展示完整工具分组清单并确认后才能 `POST` 升级；未升级不得发起用户 run，
+  记忆/Watch 页仍可只读提示需升级。
+- `FX-081`：认证用户可打开记忆页，列出 `target=memory|user` 的自然语言条目（content + version），
+  展示容量 used/limit；可新增、替换、删除，并按 changeId 撤销。不展示 layer/score/suppressed。
+  越权/失败展示可恢复错误，不伪装空成功。
 - `FX-082`：认证用户可列出、创建、启用/停用、删除 Watch 任务。条件类型仅 `author_new_post` |
-  `tag_new_post` | `keyword_new_post` | `post_revised`（第一版 UI 可不做 `discussion_spike`）。
-  未知类型不得提交。
-- `FX-083`：Watch 命中有助手内收件箱：列出、标记已读；点击命中打开对应已发布帖子。不是系统通知
-  中心，不写入私信。
-- `FX-084`：SSE `card` 事件渲染结构化卡片；卡片 payload 只使用服务端给出的已验证标识，不得用模型
-  自由文本里的数字冒充 postId。
-- `FX-085`：SSE `actions` 渲染为动作按钮（打开帖子、创建 Watch 等）；动作失败独立提示，不阻塞后续
-  事件。
+  `tag_new_post` | `keyword_new_post` | `post_revised`。未知类型不得提交。不提供独立命中收件箱。
+- `FX-083`：Watch 主动消息进入 Assistant 虚拟线程并计入未读，不是系统通知中心，不写入普通私信。
+  消息导航未读徽标 = 普通私信未读 + Assistant 未读。
+- `FX-084`：仅 `source_card` 渲染结构化来源卡；只使用服务端给出的已验证标识，不得用模型自由文本
+  里的数字冒充 postId。
+- `FX-085`：`memory_changed` 系统行不计未读，并提供撤销入口（`POST /assistant/memory/changes/:id/undo`）；
+  失败独立提示，不阻塞后续事件。
 - `FX-086`：帖子详情在 Agent 已授权时提供「盯作者」「盯本帖修订」入口（创建 `author_new_post` /
-  `post_revised`），未授权则引导去 Assistant 授权。
-- `FX-087`：推荐卡片提供不喜欢/不感兴趣，调用 `POST /assistant/recommend/feedback`（reason 如
-  `dislike`），失败不回写成功态。
+  `post_revised`），未授权则引导去 `/messages/assistant` 而非 `/assistant`。
+- `FX-087`：推荐类来源卡在适用时提供不喜欢/不感兴趣，调用 `POST /assistant/recommend/feedback`
+  （reason 如 `dislike`），失败不回写成功态。
+- `FX-088`：打开消息能力时并行拉取会话列表与 `GET /assistant/thread`。消息 feature 挂载期间每 30
+  秒轮询 thread。未读数在成功标记已读后收敛，不因局部刷新失败伪造零未读。
+- `FX-089`：`POST /assistant/messages` 返回 `messageId`、`sessionId`、`runId` 和
+  `disposition=started|redirected|steered|queued`；客户端不等待模型完成即接受异步 run。
+- `FX-090`：`GET /assistant/runs/:id/events` 以 SSE 消费事件；重连携带 `Last-Event-ID` 与
+  `afterSeq`。断流保留已收到文本并显示失败/恢复状态，不伪造 done。
+- `FX-091`：显式 Stop 调用 `POST /assistant/runs/:id/cancel`；取消后忽略该 run 的后续事件。
+- `FX-092`：新会话 `POST /assistant/sessions` 滚动 session，但不删除历史、MEMORY/USER 或 Watch。
+  清除历史 `DELETE /assistant/history` 不影响后三者。
+- `FX-093`：进入助手线程后 `POST /assistant/thread/read` 标记已读；已读失败可独立重试。Watch 主动
+  消息计入未读，`memory_changed` 不计未读。
 
 ## 行为反馈
 

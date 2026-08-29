@@ -34,6 +34,37 @@ class V2ApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> patch(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    return apiCall<Map<String, dynamic>>(
+      (ok, fail, eventually) => apiPatch(
+        path,
+        body,
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> delete(
+    String path, {
+    Map<String, dynamic> body = const {},
+    Map<String, Object?> query = const {},
+  }) async {
+    return apiCall<Map<String, dynamic>>(
+      (ok, fail, eventually) => apiDelete(
+        _withQuery(path, query),
+        body,
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+  }
+
   String _withQuery(String path, Map<String, Object?> query) {
     final values = <String, String>{};
     for (final entry in query.entries) {

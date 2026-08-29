@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
@@ -9,8 +11,8 @@ import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
-import '../application/assistant_notifier.dart';
 import '../../post/data/post_repository.dart';
+import '../application/assistant_notifier.dart';
 import '../data/assistant_models.dart';
 import 'assistant_runtime_widgets.dart';
 
@@ -52,7 +54,7 @@ String stripCitationMarkers(String text) {
 }
 
 class AssistantPage extends ConsumerStatefulWidget {
-  final ValueChanged<AssistantSourceReference>? onOpenSource;
+  final ValueChanged<AssistantSourceCard>? onOpenSource;
 
   const AssistantPage({super.key, this.onOpenSource});
 
@@ -63,6 +65,22 @@ class AssistantPage extends ConsumerStatefulWidget {
 class _AssistantPageState extends ConsumerState<AssistantPage> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
+  var _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _loaded) return;
+      _loaded = true;
+      unawaitedLoad();
+    });
+  }
+
+  void unawaitedLoad() {
+    ref.read(agentConsentNotifierProvider.notifier).ensureLoaded();
+    ref.read(assistantNotifierProvider.notifier).load();
+  }
 
   @override
   void dispose() {
@@ -71,46 +89,39 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     super.dispose();
   }
 
-  void _send() {
-    final accepted = ref
-        .read(assistantNotifierProvider.notifier)
-        .send(_controller.text);
-    if (accepted) _controller.clear();
+  Future<void> _recoverAuthorization() async {
+    final agreed = await _showAgentConsentDialog();
+    if (!agreed || !mounted) return;
+    try {
+      await ref.read(agentConsentNotifierProvider.notifier).grant();
+      await ref.read(assistantNotifierProvider.notifier).retryPending();
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      showAppError(context, friendlyErrorMessage(error));
+    }
   }
 
-  /// 切换到 Agent 模式前先查询授权（FX-053/080）；未授权或版本偏低弹完整清单。
-  Future<void> _switchMode(AssistantMode next) async {
+  Future<void> _send() async {
     final notifier = ref.read(assistantNotifierProvider.notifier);
-    if (next == AssistantMode.agent) {
-      final consent = ref.read(agentConsentNotifierProvider.notifier);
-      await consent.ensureLoaded();
-      if (!mounted) return;
-      final status = ref.read(agentConsentNotifierProvider);
-      if (status.granted && !status.needsUpgrade) {
-        notifier.setMode(next);
-        return;
-      }
-      final agreed = await _showAgentConsentDialog(
-        upgrade: status.needsUpgrade,
-      );
-      if (!mounted) return;
-      if (!agreed) {
-        if (status.granted) notifier.setMode(next);
-        return;
-      }
+    final text = _controller.text;
+    final consent = ref.read(agentConsentNotifierProvider.notifier);
+    await consent.ensureLoaded();
+    if (!mounted) return;
+    final status = ref.read(agentConsentNotifierProvider);
+    if (!status.canStartRun) {
+      final agreed = await _showAgentConsentDialog(upgrade: status.needsUpgrade);
+      if (!mounted || !agreed) return;
       try {
         await consent.grant();
       } on ApiException catch (error) {
         if (mounted) showAppError(context, friendlyErrorMessage(error));
         return;
       }
-      notifier.setMode(next);
-      return;
     }
-    notifier.setMode(next);
+    final accepted = await notifier.send(text);
+    if (accepted) _controller.clear();
   }
 
-  /// FX-053/080：披露当前版本完整工具分组、记忆与 Watch。
   Future<bool> _showAgentConsentDialog({bool upgrade = false}) async {
     var agreed = false;
     final status = ref.read(agentConsentNotifierProvider);
@@ -124,7 +135,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              upgrade ? '升级 Agent 授权' : '启用 Agent 模式',
+              upgrade ? '升级 Agent 授权' : '启用小白盒 Agent',
               style: dialogStyle.titleTextStyle,
             ),
             const SizedBox(height: 8),
@@ -159,71 +170,8 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     return agreed;
   }
 
-  Future<void> _runAction(AssistantStructuredAction action) async {
-    try {
-      switch (action.action) {
-        case 'open_post':
-          if (action.postId == null) return;
-          context.push('/post/${jsonInt64Id(action.postId)}');
-        case 'watch_author':
-          final authorId = action.authorId ?? action.targetId;
-          if (authorId == null) return;
-          await ref
-              .read(assistantRepositoryProvider)
-              .createWatch(
-                conditionType: 'author_new_post',
-                targetType: 'author',
-                targetId: authorId,
-              );
-          if (mounted) showAppSuccess(context, '已盯该作者');
-        case 'watch_tag':
-          final tag = action.targetText;
-          if (tag.isEmpty) return;
-          await ref
-              .read(assistantRepositoryProvider)
-              .createWatch(
-                conditionType: 'tag_new_post',
-                targetType: 'tag',
-                targetText: tag,
-              );
-          if (mounted) showAppSuccess(context, '已盯该标签');
-        case 'create_watch':
-          final condition = action.conditionType;
-          final targetType = action.targetType.isEmpty
-              ? (watchConditionTargetTypes[condition] ?? '')
-              : action.targetType;
-          if (!watchConditionTargetTypes.containsKey(condition)) return;
-          await ref
-              .read(assistantRepositoryProvider)
-              .createWatch(
-                conditionType: condition,
-                targetType: targetType,
-                targetId: action.targetId ?? action.authorId ?? 0,
-                targetText: action.targetText,
-              );
-          if (mounted) showAppSuccess(context, '已创建追踪');
-        case 'dislike':
-        case 'not_interested':
-          if (action.postId == null) return;
-          await ref
-              .read(assistantRepositoryProvider)
-              .submitRecommendFeedback(
-                postId: action.postId!,
-                reason: action.action == 'not_interested'
-                    ? 'not_interested'
-                    : 'dislike',
-              );
-          if (mounted) showAppSuccess(context, '已记录反馈');
-        default:
-          return;
-      }
-    } catch (error) {
-      if (mounted) showAppError(context, friendlyErrorMessage(error));
-    }
-  }
-
-  Future<void> _dislikeCard(AssistantStructuredCard card) async {
-    if (!card.hasVerifiedPost) return;
+  Future<void> _dislikeCard(AssistantSourceCard card) async {
+    if (!card.isVerifiedPost || card.postId == null) return;
     try {
       await ref
           .read(assistantRepositoryProvider)
@@ -265,19 +213,18 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     }
   }
 
-  void _openSource(AssistantSourceReference source) {
+  void _openSource(AssistantSourceCard source) {
     final callback = widget.onOpenSource;
     if (callback != null) {
       callback(source);
       return;
     }
-    final id = Uri.encodeComponent(source.sourceId);
     if (source.isVerifiedPost) {
-      context.push('/post/$id');
+      context.push('/post/${jsonInt64Id(source.authorityId)}');
     }
   }
 
-  bool _canOpen(AssistantSourceReference source) {
+  bool _canOpen(AssistantSourceCard source) {
     return widget.onOpenSource != null || source.isVerifiedPost;
   }
 
@@ -297,17 +244,10 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     final state = ref.watch(assistantNotifierProvider);
     final consent = ref.watch(agentConsentNotifierProvider);
     ref.listen<AssistantState>(assistantNotifierProvider, (previous, next) {
-      // FX-054：AGENT_NOT_AUTHORIZED 错误重新触发授权流程。
-      if (!previous!.agentAuthorizationRequired &&
+      if (previous != null &&
+          !previous.agentAuthorizationRequired &&
           next.agentAuthorizationRequired) {
-        _switchMode(AssistantMode.enhancedSearch);
-        _showAgentConsentDialog().then((agreed) {
-          if (agreed && mounted) {
-            ref
-                .read(assistantNotifierProvider.notifier)
-                .setMode(AssistantMode.agent);
-          }
-        });
+        unawaited(_recoverAuthorization());
       }
       if (next.messages.isNotEmpty) _scheduleScroll();
     });
@@ -315,24 +255,32 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     return FScaffold(
       childPad: false,
       header: FHeader(
-        title: const Text('Assistant'),
+        title: const Text('小白盒 Agent'),
         suffixes: [
           FHeaderAction(
             icon: const Icon(FLucideIcons.brain),
             semanticsLabel: '记忆',
-            onPress: () => context.push('/assistant/memory'),
+            onPress: () => context.push('/messages/assistant/memory'),
           ),
           FHeaderAction(
             icon: const Icon(FLucideIcons.bell),
             semanticsLabel: '追踪',
-            onPress: () => context.push('/assistant/watch'),
+            onPress: () => context.push('/messages/assistant/watch'),
           ),
-          if (state.messages.isNotEmpty)
-            FHeaderAction(
-              icon: const Icon(FLucideIcons.trash2),
-              semanticsLabel: '清空对话',
-              onPress: ref.read(assistantNotifierProvider.notifier).clear,
-            ),
+          FHeaderAction(
+            key: const Key('assistant-new-session'),
+            icon: const Icon(FLucideIcons.plus),
+            semanticsLabel: '新会话',
+            onPress: () =>
+                ref.read(assistantNotifierProvider.notifier).startNewSession(),
+          ),
+          FHeaderAction(
+            key: const Key('assistant-clear-history'),
+            icon: const Icon(FLucideIcons.trash2),
+            semanticsLabel: '清除历史',
+            onPress: () =>
+                ref.read(assistantNotifierProvider.notifier).clearHistory(),
+          ),
         ],
       ),
       child: Column(
@@ -354,12 +302,10 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                       onConfirm: (callId, approved) => ref
                           .read(assistantNotifierProvider.notifier)
                           .respondToConfirmation(callId, approved),
-                      onAction: _runAction,
                       onDislikeCard: _dislikeCard,
-                      onOpenHit: (hit) {
-                        if (!hit.hasVerifiedPost) return;
-                        context.push('/post/${jsonInt64Id(hit.postId)}');
-                      },
+                      onUndo: (changeId) => ref
+                          .read(assistantNotifierProvider.notifier)
+                          .undoMemoryChange(changeId),
                     ),
                   ),
           ),
@@ -369,6 +315,17 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
               child: FAlert(
                 variant: FAlertVariant.destructive,
                 title: Text(state.connectionError!),
+              ),
+            ),
+          if (state.isQueued || state.lastDisposition != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FBadge(
+                  variant: .secondary,
+                  child: Text(_busyLabel(state)),
+                ),
               ),
             ),
           SafeArea(
@@ -381,23 +338,6 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                 children: [
                   Row(
                     children: [
-                      _ModeChip(
-                        key: const Key('assistant-mode-enhanced'),
-                        label: '增强搜索',
-                        icon: FLucideIcons.search,
-                        active: state.mode == AssistantMode.enhancedSearch,
-                        onPress: () =>
-                            _switchMode(AssistantMode.enhancedSearch),
-                      ),
-                      const SizedBox(width: 8),
-                      _ModeChip(
-                        key: const Key('assistant-mode-agent'),
-                        label: 'Agent',
-                        icon: FLucideIcons.bot,
-                        active: state.mode == AssistantMode.agent,
-                        onPress: () => _switchMode(AssistantMode.agent),
-                      ),
-                      const Spacer(),
                       if (consent.loaded && consent.granted)
                         FBadge(
                           variant: .secondary,
@@ -410,8 +350,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                         ),
                     ],
                   ),
-                  if (state.mode == AssistantMode.agent &&
-                      state.pendingAttachments.isNotEmpty) ...[
+                  if (state.pendingAttachments.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     _PendingAttachmentRow(state: state),
                   ],
@@ -419,48 +358,50 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      if (state.mode == AssistantMode.agent) ...[
-                        FButton.icon(
-                          key: const Key('assistant-add-attachment'),
-                          variant: .ghost,
-                          onPress: state.isStreaming ? null : _pickAttachment,
-                          child: const Icon(
-                            FLucideIcons.imagePlus,
-                            semanticLabel: '添加图片附件',
-                          ),
+                      FButton.icon(
+                        key: const Key('assistant-add-attachment'),
+                        variant: .ghost,
+                        onPress: state.isSending ? null : _pickAttachment,
+                        child: const Icon(
+                          FLucideIcons.imagePlus,
+                          semanticLabel: '添加图片附件',
                         ),
-                        const SizedBox(width: 4),
-                      ],
+                      ),
+                      const SizedBox(width: 4),
                       Expanded(
                         child: FTextField.multiline(
                           control: FTextFieldControl.managed(
                             controller: _controller,
                           ),
                           label: const Text('消息'),
-                          hint: state.mode == AssistantMode.agent
-                              ? '描述任务，例如“把这张图发成一个帖子”'
-                              : '输入消息',
+                          hint: '输入消息',
                           minLines: 1,
                           maxLines: 5,
                           maxLength: 2000,
                         ),
                       ),
                       const SizedBox(width: 8),
+                      if (state.hasActiveRun || state.isStreaming) ...[
+                        FButton.icon(
+                          key: const Key('assistant-stop'),
+                          variant: FButtonVariant.secondary,
+                          onPress: ref
+                              .read(assistantNotifierProvider.notifier)
+                              .stop,
+                          child: const Icon(
+                            FLucideIcons.square,
+                            semanticLabel: '停止生成',
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       FButton.icon(
                         key: const Key('assistant-send-or-stop'),
-                        variant: state.isStreaming
-                            ? FButtonVariant.secondary
-                            : FButtonVariant.primary,
-                        onPress: state.isStreaming
-                            ? ref
-                                  .read(assistantNotifierProvider.notifier)
-                                  .cancel
-                            : _send,
-                        child: Icon(
-                          state.isStreaming
-                              ? FLucideIcons.square
-                              : FLucideIcons.send,
-                          semanticLabel: state.isStreaming ? '停止生成' : '发送',
+                        variant: FButtonVariant.primary,
+                        onPress: state.canSend ? _send : null,
+                        child: const Icon(
+                          FLucideIcons.send,
+                          semanticLabel: '发送',
                         ),
                       ),
                     ],
@@ -475,32 +416,19 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
   }
 }
 
-class _ModeChip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool active;
-  final VoidCallback onPress;
-
-  const _ModeChip({
-    super.key,
-    required this.label,
-    required this.icon,
-    required this.active,
-    required this.onPress,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return FButton(
-      variant: active ? .secondary : .ghost,
-      size: .sm,
-      onPress: onPress,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [Icon(icon, size: 14), const SizedBox(width: 6), Text(label)],
-      ),
-    );
+String _busyLabel(AssistantState state) {
+  if (state.isQueued ||
+      state.lastDisposition == AssistantDisposition.queued) {
+    return '已排队，等待当前任务可注入';
   }
+  return switch (state.lastDisposition) {
+    AssistantDisposition.redirected => '已转向新的回答',
+    AssistantDisposition.steered => '已注入当前任务',
+    AssistantDisposition.started => state.activeRunPhase == 'tool_executing'
+        ? '正在使用工具'
+        : '正在思考',
+    _ => state.activeRunPhase == 'tool_executing' ? '正在使用工具' : '处理中',
+  };
 }
 
 class _PendingAttachmentRow extends ConsumerWidget {
@@ -577,21 +505,19 @@ String _toolStatusLabel(AssistantToolStatus status) {
 
 class _AssistantMessageBubble extends StatelessWidget {
   final AssistantMessage message;
-  final bool Function(AssistantSourceReference) canOpenSource;
-  final ValueChanged<AssistantSourceReference> onOpenSource;
+  final bool Function(AssistantSourceCard) canOpenSource;
+  final ValueChanged<AssistantSourceCard> onOpenSource;
   final void Function(String callId, bool approved)? onConfirm;
-  final ValueChanged<AssistantStructuredAction>? onAction;
-  final ValueChanged<AssistantStructuredCard>? onDislikeCard;
-  final ValueChanged<AssistantWatchHitNotice>? onOpenHit;
+  final ValueChanged<AssistantSourceCard>? onDislikeCard;
+  final ValueChanged<Object>? onUndo;
 
   const _AssistantMessageBubble({
     required this.message,
     required this.canOpenSource,
     required this.onOpenSource,
     this.onConfirm,
-    this.onAction,
     this.onDislikeCard,
-    this.onOpenHit,
+    this.onUndo,
   });
 
   @override
@@ -612,7 +538,11 @@ class _AssistantMessageBubble extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 5),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: own ? theme.colors.primary : theme.colors.secondary,
+              color: own
+                  ? theme.colors.primary
+                  : message.role == AssistantMessageRole.system
+                  ? theme.colors.muted
+                  : theme.colors.secondary,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Padding(
@@ -665,71 +595,24 @@ class _AssistantMessageBubble extends StatelessWidget {
                     if (bodyText.isNotEmpty) const SizedBox(height: 8),
                     const FCircularProgress(size: .sm),
                   ],
-                  if (message.sources.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final source in message.sources)
-                          if (canOpenSource(source))
-                            FButton(
-                              variant: FButtonVariant.ghost,
-                              onPress: () => onOpenSource(source),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    FLucideIcons.externalLink,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Flexible(
-                                    child: Text(
-                                      source.title,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${source.sourceType}:${source.sourceId}',
-                                    style: theme.typography.body.xs.copyWith(
-                                      color: theme.colors.mutedForeground,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
-                            FBadge(
-                              variant: FBadgeVariant.outline,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    source.sourceType == 'web'
-                                        ? FLucideIcons.globe
-                                        : FLucideIcons.fileQuestion,
-                                    size: 12,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    source.title.isEmpty
-                                        ? '${source.sourceType}:${source.sourceId}'
-                                        : source.title,
-                                  ),
-                                ],
-                              ),
-                            ),
-                      ],
+                  AssistantSourceCards(
+                    message: message,
+                    canOpen: canOpenSource,
+                    onOpen: onOpenSource,
+                    onDislike: onDislikeCard ?? (_) {},
+                  ),
+                  if (message.isMemoryChanged &&
+                      jsonInt64IsPositive(message.changeId)) ...[
+                    const SizedBox(height: 8),
+                    FButton(
+                      variant: .ghost,
+                      size: .sm,
+                      onPress: onUndo == null
+                          ? null
+                          : () => onUndo!(message.changeId),
+                      child: const Text('撤销这次记忆变更'),
                     ),
                   ],
-                  AssistantCardsAndActions(
-                    message: message,
-                    onAction: onAction ?? (_) {},
-                    onDislike: onDislikeCard ?? (_) {},
-                    onOpenHit: onOpenHit ?? (_) {},
-                  ),
                   if (message.degraded || message.isCanceled) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -749,7 +632,6 @@ class _AssistantMessageBubble extends StatelessWidget {
   }
 }
 
-/// 工具进度行与确认卡片（FX-056~058）。
 class _ToolStepEntry extends StatelessWidget {
   final AssistantToolStep step;
   final void Function(String callId, bool approved)? onConfirm;

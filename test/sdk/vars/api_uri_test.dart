@@ -14,8 +14,8 @@ void main() {
         Uri.parse('http://127.0.0.1:8888/api/v1/auth/login'),
       );
       expect(
-        apiUri('/api/v2/assistant/chat', host: 'http://gateway.test/'),
-        Uri.parse('http://gateway.test/api/v2/assistant/chat'),
+        apiUri('/api/v2/assistant/thread', host: 'http://gateway.test/'),
+        Uri.parse('http://gateway.test/api/v2/assistant/thread'),
       );
     });
   });

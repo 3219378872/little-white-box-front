@@ -1,18 +1,41 @@
-// --/home/dev/projects/little/little-white-box-content-community/.worktree/task-audit-fixes/app/gateway/gateway--
+// --/home/dev/projects/little/little-white-box-content-community/.worktree/task-hermes-agent/app/gateway/gateway--
 
-class AssistantAction {
-  final String action;
+class AddAssistantMemoryReq {
+  final String target;
 
-  final String payloadJson;
-  AssistantAction({required this.action, required this.payloadJson});
-  factory AssistantAction.fromJson(Map<String, dynamic> m) {
-    return AssistantAction(
-      action: m['action'] ?? "",
-      payloadJson: m['payloadJson'] ?? "",
+  final String content;
+
+  final String requestId;
+  AddAssistantMemoryReq({
+    required this.target,
+    required this.content,
+    required this.requestId,
+  });
+  factory AddAssistantMemoryReq.fromJson(Map<String, dynamic> m) {
+    return AddAssistantMemoryReq(
+      target: m['target'] ?? "",
+      content: m['content'] ?? "",
+      requestId: m['requestId'] ?? "",
     );
   }
   Map<String, dynamic> toJson() {
-    return {'action': action, 'payloadJson': payloadJson};
+    return {'target': target, 'content': content, 'requestId': requestId};
+  }
+}
+
+class AddAssistantMemoryResp {
+  final AssistantMemoryEntry entry;
+
+  final Object changeId;
+  AddAssistantMemoryResp({required this.entry, required this.changeId});
+  factory AddAssistantMemoryResp.fromJson(Map<String, dynamic> m) {
+    return AddAssistantMemoryResp(
+      entry: AssistantMemoryEntry.fromJson(m['entry']),
+      changeId: m['changeId'] ?? 0,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'entry': entry.toJson(), 'changeId': changeId};
   }
 }
 
@@ -29,194 +52,161 @@ class AssistantAttachment {
   }
 }
 
-class AssistantCard {
-  final String cardType;
+class AssistantMemoryCapacity {
+  final String target;
 
-  final String payloadJson;
-  AssistantCard({required this.cardType, required this.payloadJson});
-  factory AssistantCard.fromJson(Map<String, dynamic> m) {
-    return AssistantCard(
-      cardType: m['cardType'] ?? "",
-      payloadJson: m['payloadJson'] ?? "",
-    );
-  }
-  Map<String, dynamic> toJson() {
-    return {'cardType': cardType, 'payloadJson': payloadJson};
-  }
-}
+  final num used;
 
-class AssistantChatEvent {
-  final String type;
-
-  final String text;
-
-  final AssistantSourceReference? source;
-
-  final bool degraded;
-
-  final String errorCode;
-
-  final String conversationId;
-
-  final AssistantToolCallInfo? toolCall;
-
-  final AssistantCard? card;
-
-  final List<AssistantAction> actions;
-
-  final AssistantWatchHitEvent? watchHit;
-  AssistantChatEvent({
-    required this.type,
-    required this.text,
-    required this.source,
-    required this.degraded,
-    required this.errorCode,
-    required this.conversationId,
-    required this.toolCall,
-    required this.card,
-    required this.actions,
-    required this.watchHit,
+  final num limit;
+  AssistantMemoryCapacity({
+    required this.target,
+    required this.used,
+    required this.limit,
   });
-  factory AssistantChatEvent.fromJson(Map<String, dynamic> m) {
-    return AssistantChatEvent(
-      type: m['type'] ?? "",
-      text: m['text'] ?? "",
-      source: m['source'] == null
-          ? null
-          : AssistantSourceReference?.fromJson(m['source']),
-      degraded: m['degraded'] ?? false,
-      errorCode: m['errorCode'] ?? "",
-      conversationId: m['conversationId'] ?? "",
-      toolCall: m['toolCall'] == null
-          ? null
-          : AssistantToolCallInfo?.fromJson(m['toolCall']),
-      card: m['card'] == null ? null : AssistantCard?.fromJson(m['card']),
-      actions: ((m['actions'] ?? []) as List<dynamic>)
-          .map((i) => AssistantAction.fromJson(i))
-          .toList(),
-      watchHit: m['watchHit'] == null
-          ? null
-          : AssistantWatchHitEvent?.fromJson(m['watchHit']),
+  factory AssistantMemoryCapacity.fromJson(Map<String, dynamic> m) {
+    return AssistantMemoryCapacity(
+      target: m['target'] ?? "",
+      used: m['used'] ?? 0,
+      limit: m['limit'] ?? 0,
     );
   }
   Map<String, dynamic> toJson() {
-    return {
-      'type': type,
-      'text': text,
-      'source': source?.toJson(),
-      'degraded': degraded,
-      'errorCode': errorCode,
-      'conversationId': conversationId,
-      'toolCall': toolCall?.toJson(),
-      'card': card?.toJson(),
-      'actions': actions.map((i) => i.toJson()),
-      'watchHit': watchHit?.toJson(),
-    };
+    return {'target': target, 'used': used, 'limit': limit};
   }
 }
 
-class AssistantChatReq {
-  final String conversationId;
-
-  final String message;
-
-  final String requestId;
-
-  final String mode;
-
-  final List<AssistantAttachment> attachments;
-
-  final Object contextPostId;
-  AssistantChatReq({
-    required this.conversationId,
-    required this.message,
-    required this.requestId,
-    required this.mode,
-    required this.attachments,
-    required this.contextPostId,
-  });
-  factory AssistantChatReq.fromJson(Map<String, dynamic> m) {
-    return AssistantChatReq(
-      conversationId: m['conversationId'] ?? "",
-      message: m['message'] ?? "",
-      requestId: m['requestId'] ?? "",
-      mode: m['mode'] ?? "",
-      attachments: ((m['attachments'] ?? []) as List<dynamic>)
-          .map((i) => AssistantAttachment.fromJson(i))
-          .toList(),
-      contextPostId: m['contextPostId'] ?? 0,
-    );
-  }
-  Map<String, dynamic> toJson() {
-    return {
-      'conversationId': conversationId,
-      'message': message,
-      'requestId': requestId,
-      'mode': mode,
-      'attachments': attachments.map((i) => i.toJson()),
-      'contextPostId': contextPostId,
-    };
-  }
-}
-
-class AssistantMemoryItem {
+class AssistantMemoryEntry {
   final Object id;
 
-  final String layer;
+  final String target;
 
-  final String dimension;
+  final String content;
 
-  final String value;
+  final num version;
 
-  final num score;
+  final num createdAtMs;
 
-  final String source;
-
-  final num confidence;
-
-  final bool confirmed;
-
-  final bool suppressed;
-
-  final num updatedAt;
-  AssistantMemoryItem({
+  final num updatedAtMs;
+  AssistantMemoryEntry({
     required this.id,
-    required this.layer,
-    required this.dimension,
-    required this.value,
-    required this.score,
-    required this.source,
-    required this.confidence,
-    required this.confirmed,
-    required this.suppressed,
-    required this.updatedAt,
+    required this.target,
+    required this.content,
+    required this.version,
+    required this.createdAtMs,
+    required this.updatedAtMs,
   });
-  factory AssistantMemoryItem.fromJson(Map<String, dynamic> m) {
-    return AssistantMemoryItem(
+  factory AssistantMemoryEntry.fromJson(Map<String, dynamic> m) {
+    return AssistantMemoryEntry(
       id: m['id'] ?? 0,
-      layer: m['layer'] ?? "",
-      dimension: m['dimension'] ?? "",
-      value: m['value'] ?? "",
-      score: m['score'] ?? 0.0,
-      source: m['source'] ?? "",
-      confidence: m['confidence'] ?? 0.0,
-      confirmed: m['confirmed'] ?? false,
-      suppressed: m['suppressed'] ?? false,
-      updatedAt: m['updatedAt'] ?? 0,
+      target: m['target'] ?? "",
+      content: m['content'] ?? "",
+      version: m['version'] ?? 0,
+      createdAtMs: m['createdAtMs'] ?? 0,
+      updatedAtMs: m['updatedAtMs'] ?? 0,
     );
   }
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'layer': layer,
-      'dimension': dimension,
-      'value': value,
-      'score': score,
-      'source': source,
-      'confidence': confidence,
-      'confirmed': confirmed,
-      'suppressed': suppressed,
-      'updatedAt': updatedAt,
+      'target': target,
+      'content': content,
+      'version': version,
+      'createdAtMs': createdAtMs,
+      'updatedAtMs': updatedAtMs,
+    };
+  }
+}
+
+class AssistantMemoryOp {
+  final String op;
+
+  final Object id;
+
+  final String target;
+
+  final String content;
+
+  final num version;
+  AssistantMemoryOp({
+    required this.op,
+    required this.id,
+    required this.target,
+    required this.content,
+    required this.version,
+  });
+  factory AssistantMemoryOp.fromJson(Map<String, dynamic> m) {
+    return AssistantMemoryOp(
+      op: m['op'] ?? "",
+      id: m['id'] ?? 0,
+      target: m['target'] ?? "",
+      content: m['content'] ?? "",
+      version: m['version'] ?? 0,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'op': op,
+      'id': id,
+      'target': target,
+      'content': content,
+      'version': version,
+    };
+  }
+}
+
+class AssistantMessage {
+  final Object id;
+
+  final Object sessionId;
+
+  final Object runId;
+
+  final String role;
+
+  final String kind;
+
+  final String content;
+
+  final bool unread;
+
+  final num createdAtMs;
+
+  final Object changeId;
+  AssistantMessage({
+    required this.id,
+    required this.sessionId,
+    required this.runId,
+    required this.role,
+    required this.kind,
+    required this.content,
+    required this.unread,
+    required this.createdAtMs,
+    required this.changeId,
+  });
+  factory AssistantMessage.fromJson(Map<String, dynamic> m) {
+    return AssistantMessage(
+      id: m['id'] ?? 0,
+      sessionId: m['sessionId'] ?? 0,
+      runId: m['runId'] ?? 0,
+      role: m['role'] ?? "",
+      kind: m['kind'] ?? "",
+      content: m['content'] ?? "",
+      unread: m['unread'] ?? false,
+      createdAtMs: m['createdAtMs'] ?? 0,
+      changeId: m['changeId'] ?? 0,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'sessionId': sessionId,
+      'runId': runId,
+      'role': role,
+      'kind': kind,
+      'content': content,
+      'unread': unread,
+      'createdAtMs': createdAtMs,
+      'changeId': changeId,
     };
   }
 }
@@ -254,34 +244,178 @@ class AssistantRecommendFeedbackResp {
   }
 }
 
-class AssistantSourceReference {
-  final String sourceType;
+class AssistantRunEvent {
+  final Object runId;
 
-  final String sourceId;
+  final num seq;
 
-  final String title;
+  final String type;
 
-  final num revision;
-  AssistantSourceReference({
-    required this.sourceType,
-    required this.sourceId,
-    required this.title,
-    required this.revision,
+  final String text;
+
+  final bool degraded;
+
+  final String errorCode;
+
+  final Object sessionId;
+
+  final AssistantToolCallInfo? toolCall;
+
+  final AssistantSourceCard? sourceCard;
+
+  final Object changeId;
+  AssistantRunEvent({
+    required this.runId,
+    required this.seq,
+    required this.type,
+    required this.text,
+    required this.degraded,
+    required this.errorCode,
+    required this.sessionId,
+    required this.toolCall,
+    required this.sourceCard,
+    required this.changeId,
   });
-  factory AssistantSourceReference.fromJson(Map<String, dynamic> m) {
-    return AssistantSourceReference(
-      sourceType: m['sourceType'] ?? "",
-      sourceId: m['sourceId'] ?? "",
-      title: m['title'] ?? "",
-      revision: m['revision'] ?? 0,
+  factory AssistantRunEvent.fromJson(Map<String, dynamic> m) {
+    return AssistantRunEvent(
+      runId: m['runId'] ?? 0,
+      seq: m['seq'] ?? 0,
+      type: m['type'] ?? "",
+      text: m['text'] ?? "",
+      degraded: m['degraded'] ?? false,
+      errorCode: m['errorCode'] ?? "",
+      sessionId: m['sessionId'] ?? 0,
+      toolCall: m['toolCall'] == null
+          ? null
+          : AssistantToolCallInfo?.fromJson(m['toolCall']),
+      sourceCard: m['sourceCard'] == null
+          ? null
+          : AssistantSourceCard?.fromJson(m['sourceCard']),
+      changeId: m['changeId'] ?? 0,
     );
   }
   Map<String, dynamic> toJson() {
     return {
-      'sourceType': sourceType,
-      'sourceId': sourceId,
+      'runId': runId,
+      'seq': seq,
+      'type': type,
+      'text': text,
+      'degraded': degraded,
+      'errorCode': errorCode,
+      'sessionId': sessionId,
+      'toolCall': toolCall?.toJson(),
+      'sourceCard': sourceCard?.toJson(),
+      'changeId': changeId,
+    };
+  }
+}
+
+class AssistantRunEventsReq {
+  final Object id;
+
+  final num afterSeq;
+  AssistantRunEventsReq({required this.id, required this.afterSeq});
+  factory AssistantRunEventsReq.fromJson(Map<String, dynamic> m) {
+    return AssistantRunEventsReq(
+      id: m['id'] ?? 0,
+      afterSeq: m['afterSeq'] ?? 0,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'id': id, 'afterSeq': afterSeq};
+  }
+}
+
+class AssistantSourceCard {
+  final String handle;
+
+  final String kind;
+
+  final String authorityId;
+
+  final String title;
+
+  final num revision;
+
+  final String payloadJson;
+  AssistantSourceCard({
+    required this.handle,
+    required this.kind,
+    required this.authorityId,
+    required this.title,
+    required this.revision,
+    required this.payloadJson,
+  });
+  factory AssistantSourceCard.fromJson(Map<String, dynamic> m) {
+    return AssistantSourceCard(
+      handle: m['handle'] ?? "",
+      kind: m['kind'] ?? "",
+      authorityId: m['authorityId'] ?? "",
+      title: m['title'] ?? "",
+      revision: m['revision'] ?? 0,
+      payloadJson: m['payloadJson'] ?? "",
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'handle': handle,
+      'kind': kind,
+      'authorityId': authorityId,
       'title': title,
       'revision': revision,
+      'payloadJson': payloadJson,
+    };
+  }
+}
+
+class AssistantThread {
+  final Object sessionId;
+
+  final num unreadCount;
+
+  final Object lastMessageId;
+
+  final String lastMessagePreview;
+
+  final num lastMessageAtMs;
+
+  final Object activeRunId;
+
+  final String activeRunStatus;
+
+  final String activeRunPhase;
+  AssistantThread({
+    required this.sessionId,
+    required this.unreadCount,
+    required this.lastMessageId,
+    required this.lastMessagePreview,
+    required this.lastMessageAtMs,
+    required this.activeRunId,
+    required this.activeRunStatus,
+    required this.activeRunPhase,
+  });
+  factory AssistantThread.fromJson(Map<String, dynamic> m) {
+    return AssistantThread(
+      sessionId: m['sessionId'] ?? 0,
+      unreadCount: m['unreadCount'] ?? 0,
+      lastMessageId: m['lastMessageId'] ?? 0,
+      lastMessagePreview: m['lastMessagePreview'] ?? "",
+      lastMessageAtMs: m['lastMessageAtMs'] ?? 0,
+      activeRunId: m['activeRunId'] ?? 0,
+      activeRunStatus: m['activeRunStatus'] ?? "",
+      activeRunPhase: m['activeRunPhase'] ?? "",
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'sessionId': sessionId,
+      'unreadCount': unreadCount,
+      'lastMessageId': lastMessageId,
+      'lastMessagePreview': lastMessagePreview,
+      'lastMessageAtMs': lastMessageAtMs,
+      'activeRunId': activeRunId,
+      'activeRunStatus': activeRunStatus,
+      'activeRunPhase': activeRunPhase,
     };
   }
 }
@@ -318,123 +452,6 @@ class AssistantToolCallInfo {
   }
 }
 
-class AssistantToolConfirmReq {
-  final String requestId;
-
-  final String callId;
-
-  final bool approved;
-  AssistantToolConfirmReq({
-    required this.requestId,
-    required this.callId,
-    required this.approved,
-  });
-  factory AssistantToolConfirmReq.fromJson(Map<String, dynamic> m) {
-    return AssistantToolConfirmReq(
-      requestId: m['requestId'] ?? "",
-      callId: m['callId'] ?? "",
-      approved: m['approved'] ?? false,
-    );
-  }
-  Map<String, dynamic> toJson() {
-    return {'requestId': requestId, 'callId': callId, 'approved': approved};
-  }
-}
-
-class AssistantToolConfirmResp {
-  AssistantToolConfirmResp();
-  factory AssistantToolConfirmResp.fromJson(Map<String, dynamic> m) {
-    return AssistantToolConfirmResp();
-  }
-  Map<String, dynamic> toJson() {
-    return {};
-  }
-}
-
-class AssistantWatchHit {
-  final Object id;
-
-  final Object taskId;
-
-  final Object postId;
-
-  final String title;
-
-  final String summary;
-
-  final num createdAt;
-
-  final bool read;
-  AssistantWatchHit({
-    required this.id,
-    required this.taskId,
-    required this.postId,
-    required this.title,
-    required this.summary,
-    required this.createdAt,
-    required this.read,
-  });
-  factory AssistantWatchHit.fromJson(Map<String, dynamic> m) {
-    return AssistantWatchHit(
-      id: m['id'] ?? 0,
-      taskId: m['taskId'] ?? 0,
-      postId: m['postId'] ?? 0,
-      title: m['title'] ?? "",
-      summary: m['summary'] ?? "",
-      createdAt: m['createdAt'] ?? 0,
-      read: m['read'] ?? false,
-    );
-  }
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'taskId': taskId,
-      'postId': postId,
-      'title': title,
-      'summary': summary,
-      'createdAt': createdAt,
-      'read': read,
-    };
-  }
-}
-
-class AssistantWatchHitEvent {
-  final Object hitId;
-
-  final Object taskId;
-
-  final Object postId;
-
-  final String title;
-
-  final String summary;
-  AssistantWatchHitEvent({
-    required this.hitId,
-    required this.taskId,
-    required this.postId,
-    required this.title,
-    required this.summary,
-  });
-  factory AssistantWatchHitEvent.fromJson(Map<String, dynamic> m) {
-    return AssistantWatchHitEvent(
-      hitId: m['hitId'] ?? 0,
-      taskId: m['taskId'] ?? 0,
-      postId: m['postId'] ?? 0,
-      title: m['title'] ?? "",
-      summary: m['summary'] ?? "",
-    );
-  }
-  Map<String, dynamic> toJson() {
-    return {
-      'hitId': hitId,
-      'taskId': taskId,
-      'postId': postId,
-      'title': title,
-      'summary': summary,
-    };
-  }
-}
-
 class AssistantWatchTask {
   final Object id;
 
@@ -448,6 +465,8 @@ class AssistantWatchTask {
 
   final bool enabled;
 
+  final num version;
+
   final num createdAt;
   AssistantWatchTask({
     required this.id,
@@ -456,6 +475,7 @@ class AssistantWatchTask {
     required this.targetId,
     required this.targetText,
     required this.enabled,
+    required this.version,
     required this.createdAt,
   });
   factory AssistantWatchTask.fromJson(Map<String, dynamic> m) {
@@ -466,6 +486,7 @@ class AssistantWatchTask {
       targetId: m['targetId'] ?? 0,
       targetText: m['targetText'] ?? "",
       enabled: m['enabled'] ?? false,
+      version: m['version'] ?? 0,
       createdAt: m['createdAt'] ?? 0,
     );
   }
@@ -477,8 +498,47 @@ class AssistantWatchTask {
       'targetId': targetId,
       'targetText': targetText,
       'enabled': enabled,
+      'version': version,
       'createdAt': createdAt,
     };
+  }
+}
+
+class BatchAssistantMemoryReq {
+  final String requestId;
+
+  final List<AssistantMemoryOp> ops;
+  BatchAssistantMemoryReq({required this.requestId, required this.ops});
+  factory BatchAssistantMemoryReq.fromJson(Map<String, dynamic> m) {
+    return BatchAssistantMemoryReq(
+      requestId: m['requestId'] ?? "",
+      ops: ((m['ops'] ?? []) as List<dynamic>)
+          .map((i) => AssistantMemoryOp.fromJson(i))
+          .toList(),
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'requestId': requestId, 'ops': ops.map((i) => i.toJson())};
+  }
+}
+
+class BatchAssistantMemoryResp {
+  final List<AssistantMemoryEntry> entries;
+
+  final List<Object> changeIds;
+  BatchAssistantMemoryResp({required this.entries, required this.changeIds});
+  factory BatchAssistantMemoryResp.fromJson(Map<String, dynamic> m) {
+    return BatchAssistantMemoryResp(
+      entries: ((m['entries'] ?? []) as List<dynamic>)
+          .map((i) => AssistantMemoryEntry.fromJson(i))
+          .toList(),
+      changeIds: m['changeIds'] is List
+          ? List<Object>.from(m['changeIds'] as List)
+          : <Object>[],
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'entries': entries.map((i) => i.toJson()), 'changeIds': changeIds};
   }
 }
 
@@ -529,16 +589,10 @@ class BehaviorEvent {
       targetType: m['targetType'] ?? "",
       scene: m['scene'] ?? "",
       requestId: m['requestId'] ?? "",
-      position: m['position'] == null
-          ? null
-          : (m['position'] is num)
-          ? (m['position'] as num).toInt()
-          : null,
+      position: m['position'] == null ? null : (m['position'] is num) ? (m['position'] as num).toInt() : null,
       durationMs: m['durationMs'] == null
           ? null
-          : (m['durationMs'] is num)
-          ? (m['durationMs'] as num).toInt()
-          : null,
+          : (m['durationMs'] is num) ? (m['durationMs'] as num).toInt() : null,
       recallSource: m['recallSource'] ?? "",
       modelVersion: m['modelVersion'] ?? "",
       experimentId: m['experimentId'] ?? "",
@@ -596,6 +650,27 @@ class BehaviorEventResult {
       'code': code,
       'reason': reason,
     };
+  }
+}
+
+class CancelAssistantRunReq {
+  final Object id;
+  CancelAssistantRunReq({required this.id});
+  factory CancelAssistantRunReq.fromJson(Map<String, dynamic> m) {
+    return CancelAssistantRunReq(id: m['id'] ?? 0);
+  }
+  Map<String, dynamic> toJson() {
+    return {'id': id};
+  }
+}
+
+class CancelAssistantRunResp {
+  CancelAssistantRunResp();
+  factory CancelAssistantRunResp.fromJson(Map<String, dynamic> m) {
+    return CancelAssistantRunResp();
+  }
+  Map<String, dynamic> toJson() {
+    return {};
   }
 }
 
@@ -670,6 +745,39 @@ class CommentItem {
   }
 }
 
+class ConfirmAssistantRunReq {
+  final Object id;
+
+  final String callId;
+
+  final bool approved;
+  ConfirmAssistantRunReq({
+    required this.id,
+    required this.callId,
+    required this.approved,
+  });
+  factory ConfirmAssistantRunReq.fromJson(Map<String, dynamic> m) {
+    return ConfirmAssistantRunReq(
+      id: m['id'] ?? 0,
+      callId: m['callId'] ?? "",
+      approved: m['approved'] ?? false,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'id': id, 'callId': callId, 'approved': approved};
+  }
+}
+
+class ConfirmAssistantRunResp {
+  ConfirmAssistantRunResp();
+  factory ConfirmAssistantRunResp.fromJson(Map<String, dynamic> m) {
+    return ConfirmAssistantRunResp();
+  }
+  Map<String, dynamic> toJson() {
+    return {};
+  }
+}
+
 class ConversationItem {
   final Object id;
 
@@ -714,6 +822,17 @@ class ConversationItem {
       'lastMessageTime': lastMessageTime,
       'unreadCount': unreadCount,
     };
+  }
+}
+
+class CreateAssistantSessionResp {
+  final Object sessionId;
+  CreateAssistantSessionResp({required this.sessionId});
+  factory CreateAssistantSessionResp.fromJson(Map<String, dynamic> m) {
+    return CreateAssistantSessionResp(sessionId: m['sessionId'] ?? 0);
+  }
+  Map<String, dynamic> toJson() {
+    return {'sessionId': sessionId};
   }
 }
 
@@ -883,21 +1002,10 @@ class CreatePostResp {
   }
 }
 
-class DeleteAssistantMemoryReq {
-  final Object id;
-  DeleteAssistantMemoryReq({required this.id});
-  factory DeleteAssistantMemoryReq.fromJson(Map<String, dynamic> m) {
-    return DeleteAssistantMemoryReq(id: m['id'] ?? 0);
-  }
-  Map<String, dynamic> toJson() {
-    return {'id': id};
-  }
-}
-
-class DeleteAssistantMemoryResp {
-  DeleteAssistantMemoryResp();
-  factory DeleteAssistantMemoryResp.fromJson(Map<String, dynamic> m) {
-    return DeleteAssistantMemoryResp();
+class DeleteAssistantHistoryResp {
+  DeleteAssistantHistoryResp();
+  factory DeleteAssistantHistoryResp.fromJson(Map<String, dynamic> m) {
+    return DeleteAssistantHistoryResp();
   }
   Map<String, dynamic> toJson() {
     return {};
@@ -1136,6 +1244,19 @@ class GetAgentConsentResp {
       'consentVersion': consentVersion,
       'currentVersion': currentVersion,
     };
+  }
+}
+
+class GetAssistantThreadResp {
+  final AssistantThread thread;
+  GetAssistantThreadResp({required this.thread});
+  factory GetAssistantThreadResp.fromJson(Map<String, dynamic> m) {
+    return GetAssistantThreadResp(
+      thread: AssistantThread.fromJson(m['thread']),
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'thread': thread.toJson()};
   }
 }
 
@@ -1882,54 +2003,74 @@ class LikeResp {
 }
 
 class ListAssistantMemoryReq {
-  final String layer;
-  ListAssistantMemoryReq({required this.layer});
+  final String target;
+  ListAssistantMemoryReq({required this.target});
   factory ListAssistantMemoryReq.fromJson(Map<String, dynamic> m) {
-    return ListAssistantMemoryReq(layer: m['layer'] ?? "");
+    return ListAssistantMemoryReq(target: m['target'] ?? "");
   }
   Map<String, dynamic> toJson() {
-    return {'layer': layer};
+    return {'target': target};
   }
 }
 
 class ListAssistantMemoryResp {
-  final List<AssistantMemoryItem> items;
-  ListAssistantMemoryResp({required this.items});
+  final List<AssistantMemoryEntry> items;
+
+  final List<AssistantMemoryCapacity> capacities;
+  ListAssistantMemoryResp({required this.items, required this.capacities});
   factory ListAssistantMemoryResp.fromJson(Map<String, dynamic> m) {
     return ListAssistantMemoryResp(
       items: ((m['items'] ?? []) as List<dynamic>)
-          .map((i) => AssistantMemoryItem.fromJson(i))
+          .map((i) => AssistantMemoryEntry.fromJson(i))
+          .toList(),
+      capacities: ((m['capacities'] ?? []) as List<dynamic>)
+          .map((i) => AssistantMemoryCapacity.fromJson(i))
           .toList(),
     );
   }
   Map<String, dynamic> toJson() {
-    return {'items': items.map((i) => i.toJson())};
+    return {
+      'items': items.map((i) => i.toJson()),
+      'capacities': capacities.map((i) => i.toJson()),
+    };
   }
 }
 
-class ListAssistantWatchHitsReq {
-  final bool unreadOnly;
-  ListAssistantWatchHitsReq({required this.unreadOnly});
-  factory ListAssistantWatchHitsReq.fromJson(Map<String, dynamic> m) {
-    return ListAssistantWatchHitsReq(unreadOnly: m['unreadOnly'] ?? false);
+class ListAssistantMessagesReq {
+  final Object sessionId;
+
+  final Object afterId;
+
+  final num limit;
+  ListAssistantMessagesReq({
+    required this.sessionId,
+    required this.afterId,
+    required this.limit,
+  });
+  factory ListAssistantMessagesReq.fromJson(Map<String, dynamic> m) {
+    return ListAssistantMessagesReq(
+      sessionId: m['sessionId'] ?? 0,
+      afterId: m['afterId'] ?? 0,
+      limit: m['limit'] ?? 0,
+    );
   }
   Map<String, dynamic> toJson() {
-    return {'unreadOnly': unreadOnly};
+    return {'sessionId': sessionId, 'afterId': afterId, 'limit': limit};
   }
 }
 
-class ListAssistantWatchHitsResp {
-  final List<AssistantWatchHit> hits;
-  ListAssistantWatchHitsResp({required this.hits});
-  factory ListAssistantWatchHitsResp.fromJson(Map<String, dynamic> m) {
-    return ListAssistantWatchHitsResp(
-      hits: ((m['hits'] ?? []) as List<dynamic>)
-          .map((i) => AssistantWatchHit.fromJson(i))
+class ListAssistantMessagesResp {
+  final List<AssistantMessage> messages;
+  ListAssistantMessagesResp({required this.messages});
+  factory ListAssistantMessagesResp.fromJson(Map<String, dynamic> m) {
+    return ListAssistantMessagesResp(
+      messages: ((m['messages'] ?? []) as List<dynamic>)
+          .map((i) => AssistantMessage.fromJson(i))
           .toList(),
     );
   }
   Map<String, dynamic> toJson() {
-    return {'hits': hits.map((i) => i.toJson())};
+    return {'messages': messages.map((i) => i.toJson())};
   }
 }
 
@@ -2019,28 +2160,14 @@ class LoginResp {
   }
 }
 
-class MarkAssistantWatchHitsReadReq {
-  final List<Object> hitIds;
-  MarkAssistantWatchHitsReadReq({required this.hitIds});
-  factory MarkAssistantWatchHitsReadReq.fromJson(Map<String, dynamic> m) {
-    return MarkAssistantWatchHitsReadReq(
-      hitIds: m['hitIds'] is List
-          ? List<Object>.from(m['hitIds'] as List)
-          : <Object>[],
-    );
+class MarkAssistantThreadReadResp {
+  final num unreadCount;
+  MarkAssistantThreadReadResp({required this.unreadCount});
+  factory MarkAssistantThreadReadResp.fromJson(Map<String, dynamic> m) {
+    return MarkAssistantThreadReadResp(unreadCount: m['unreadCount'] ?? 0);
   }
   Map<String, dynamic> toJson() {
-    return {'hitIds': hitIds};
-  }
-}
-
-class MarkAssistantWatchHitsReadResp {
-  MarkAssistantWatchHitsReadResp();
-  factory MarkAssistantWatchHitsReadResp.fromJson(Map<String, dynamic> m) {
-    return MarkAssistantWatchHitsReadResp();
-  }
-  Map<String, dynamic> toJson() {
-    return {};
+    return {'unreadCount': unreadCount};
   }
 }
 
@@ -2113,6 +2240,72 @@ class MessageItem {
       'msgType': msgType,
       'status': status,
       'createdAt': createdAt,
+    };
+  }
+}
+
+class PostAssistantMessageReq {
+  final String message;
+
+  final String requestId;
+
+  final List<AssistantAttachment> attachments;
+
+  final Object contextPostId;
+  PostAssistantMessageReq({
+    required this.message,
+    required this.requestId,
+    required this.attachments,
+    required this.contextPostId,
+  });
+  factory PostAssistantMessageReq.fromJson(Map<String, dynamic> m) {
+    return PostAssistantMessageReq(
+      message: m['message'] ?? "",
+      requestId: m['requestId'] ?? "",
+      attachments: ((m['attachments'] ?? []) as List<dynamic>)
+          .map((i) => AssistantAttachment.fromJson(i))
+          .toList(),
+      contextPostId: m['contextPostId'] ?? 0,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'message': message,
+      'requestId': requestId,
+      'attachments': attachments.map((i) => i.toJson()),
+      'contextPostId': contextPostId,
+    };
+  }
+}
+
+class PostAssistantMessageResp {
+  final Object messageId;
+
+  final Object sessionId;
+
+  final Object runId;
+
+  final String disposition;
+  PostAssistantMessageResp({
+    required this.messageId,
+    required this.sessionId,
+    required this.runId,
+    required this.disposition,
+  });
+  factory PostAssistantMessageResp.fromJson(Map<String, dynamic> m) {
+    return PostAssistantMessageResp(
+      messageId: m['messageId'] ?? 0,
+      sessionId: m['sessionId'] ?? 0,
+      runId: m['runId'] ?? 0,
+      disposition: m['disposition'] ?? "",
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'messageId': messageId,
+      'sessionId': sessionId,
+      'runId': runId,
+      'disposition': disposition,
     };
   }
 }
@@ -2468,6 +2661,88 @@ class RegisterResp {
   }
   Map<String, dynamic> toJson() {
     return {'userId': userId, 'token': token, 'refreshToken': refreshToken};
+  }
+}
+
+class RemoveAssistantMemoryReq {
+  final Object id;
+
+  final num version;
+
+  final String requestId;
+  RemoveAssistantMemoryReq({
+    required this.id,
+    required this.version,
+    required this.requestId,
+  });
+  factory RemoveAssistantMemoryReq.fromJson(Map<String, dynamic> m) {
+    return RemoveAssistantMemoryReq(
+      id: m['id'] ?? 0,
+      version: m['version'] ?? 0,
+      requestId: m['requestId'] ?? "",
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'id': id, 'version': version, 'requestId': requestId};
+  }
+}
+
+class RemoveAssistantMemoryResp {
+  final Object changeId;
+  RemoveAssistantMemoryResp({required this.changeId});
+  factory RemoveAssistantMemoryResp.fromJson(Map<String, dynamic> m) {
+    return RemoveAssistantMemoryResp(changeId: m['changeId'] ?? 0);
+  }
+  Map<String, dynamic> toJson() {
+    return {'changeId': changeId};
+  }
+}
+
+class ReplaceAssistantMemoryReq {
+  final Object id;
+
+  final String content;
+
+  final num version;
+
+  final String requestId;
+  ReplaceAssistantMemoryReq({
+    required this.id,
+    required this.content,
+    required this.version,
+    required this.requestId,
+  });
+  factory ReplaceAssistantMemoryReq.fromJson(Map<String, dynamic> m) {
+    return ReplaceAssistantMemoryReq(
+      id: m['id'] ?? 0,
+      content: m['content'] ?? "",
+      version: m['version'] ?? 0,
+      requestId: m['requestId'] ?? "",
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'content': content,
+      'version': version,
+      'requestId': requestId,
+    };
+  }
+}
+
+class ReplaceAssistantMemoryResp {
+  final AssistantMemoryEntry entry;
+
+  final Object changeId;
+  ReplaceAssistantMemoryResp({required this.entry, required this.changeId});
+  factory ReplaceAssistantMemoryResp.fromJson(Map<String, dynamic> m) {
+    return ReplaceAssistantMemoryResp(
+      entry: AssistantMemoryEntry.fromJson(m['entry']),
+      changeId: m['changeId'] ?? 0,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'entry': entry.toJson(), 'changeId': changeId};
   }
 }
 
@@ -2832,6 +3107,30 @@ class SetPersonalizationPreferenceResp {
   }
 }
 
+class UndoAssistantMemoryChangeReq {
+  final Object id;
+  UndoAssistantMemoryChangeReq({required this.id});
+  factory UndoAssistantMemoryChangeReq.fromJson(Map<String, dynamic> m) {
+    return UndoAssistantMemoryChangeReq(id: m['id'] ?? 0);
+  }
+  Map<String, dynamic> toJson() {
+    return {'id': id};
+  }
+}
+
+class UndoAssistantMemoryChangeResp {
+  final AssistantMemoryEntry entry;
+  UndoAssistantMemoryChangeResp({required this.entry});
+  factory UndoAssistantMemoryChangeResp.fromJson(Map<String, dynamic> m) {
+    return UndoAssistantMemoryChangeResp(
+      entry: AssistantMemoryEntry.fromJson(m['entry']),
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'entry': entry.toJson()};
+  }
+}
+
 class UnfavoriteReq {
   final Object postId;
   UnfavoriteReq({required this.postId});
@@ -2894,51 +3193,6 @@ class UnlikeResp {
   UnlikeResp();
   factory UnlikeResp.fromJson(Map<String, dynamic> m) {
     return UnlikeResp();
-  }
-  Map<String, dynamic> toJson() {
-    return {};
-  }
-}
-
-class UpdateAssistantMemoryReq {
-  final Object id;
-
-  final String? value;
-
-  final double? score;
-
-  final bool? suppressed;
-  UpdateAssistantMemoryReq({
-    required this.id,
-    required this.value,
-    required this.score,
-    required this.suppressed,
-  });
-  factory UpdateAssistantMemoryReq.fromJson(Map<String, dynamic> m) {
-    return UpdateAssistantMemoryReq(
-      id: m['id'] ?? 0,
-      value: m['value'] == null ? null : m['value']?.toString(),
-      score: m['score'] == null
-          ? null
-          : (m['score'] is num)
-          ? (m['score'] as num).toDouble()
-          : null,
-      suppressed: m['suppressed'] == null
-          ? null
-          : (m['suppressed'] is bool)
-          ? m['suppressed'] as bool
-          : null,
-    );
-  }
-  Map<String, dynamic> toJson() {
-    return {'id': id, 'value': value, 'score': score, 'suppressed': suppressed};
-  }
-}
-
-class UpdateAssistantMemoryResp {
-  UpdateAssistantMemoryResp();
-  factory UpdateAssistantMemoryResp.fromJson(Map<String, dynamic> m) {
-    return UpdateAssistantMemoryResp();
   }
   Map<String, dynamic> toJson() {
     return {};
@@ -3021,11 +3275,7 @@ class UpdatePostV2Req {
       content: m['content'] ?? "",
       images: m['images']?.cast<String>() ?? [],
       tags: m['tags']?.cast<String>() ?? [],
-      status: m['status'] == null
-          ? null
-          : (m['status'] is num)
-          ? (m['status'] as num).toInt()
-          : null,
+      status: m['status'] == null ? null : (m['status'] is num) ? (m['status'] as num).toInt() : null,
       expectedRevision: m['expectedRevision'] ?? 0,
       mediaIds: m['mediaIds'] is List
           ? List<Object>.from(m['mediaIds'] as List)

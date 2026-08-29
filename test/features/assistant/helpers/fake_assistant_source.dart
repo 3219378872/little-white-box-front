@@ -3,52 +3,45 @@ import 'dart:async';
 import 'package:xiaobaihe_app/core/api/json_int64.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_models.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_repository.dart';
-import 'package:xiaobaihe_app/sdk/data/gateway.dart' hide AssistantChatEvent;
 
 class FakeAssistantSource implements AssistantDataSource {
-  Stream<AssistantChatEvent> Function({
+  Stream<AssistantRunEvent> Function({
+    required Object runId,
+    required Object afterSeq,
+  })?
+  eventsHandler;
+
+  Future<AssistantPostResult> Function({
     required String message,
     required String requestId,
-    required String conversationId,
-    required AssistantMode mode,
     required List<AssistantAttachment> attachments,
   })?
-  chatHandler;
+  postHandler;
 
-  bool granted = false;
-  int consentVersion = 0;
+  bool granted = true;
+  int consentVersion = 2;
   int currentVersion = 2;
+  AssistantThreadSummary thread = const AssistantThreadSummary(sessionId: 1);
+  List<AssistantHistoryMessage> messages = const [];
   List<MemoryRecord> memories = const [];
+  List<MemoryCapacity> capacities = const [];
   List<WatchTask> watches = const [];
-  List<WatchHit> hits = const [];
   Object? lastError;
   int confirmCalls = 0;
   bool? lastApproved;
-  AssistantMode? lastMode;
+  Object? lastCancelRunId;
   List<AssistantAttachment> lastAttachments = const [];
   String? lastFeedbackReason;
   Object? lastFeedbackPostId;
   String? lastCreateCondition;
-
-  @override
-  Stream<AssistantChatEvent> chat({
-    required String message,
-    required String requestId,
-    String conversationId = '',
-    AssistantMode mode = AssistantMode.enhancedSearch,
-    List<AssistantAttachment> attachments = const [],
-  }) {
-    lastMode = mode;
-    lastAttachments = attachments;
-    return chatHandler?.call(
-          message: message,
-          requestId: requestId,
-          conversationId: conversationId,
-          mode: mode,
-          attachments: attachments,
-        ) ??
-        const Stream.empty();
-  }
+  String? lastPostedMessage;
+  Object lastEventsAfterSeq = 0;
+  Object lastEventsRunId = 0;
+  int sessionCreates = 0;
+  int historyDeletes = 0;
+  int threadReads = 0;
+  Object? lastUndoChangeId;
+  List<int> eventCalls = [];
 
   @override
   Future<AgentConsentStatus> loadAgentConsent() async => AgentConsentStatus(
@@ -64,8 +57,95 @@ class FakeAssistantSource implements AssistantDataSource {
   }
 
   @override
-  Future<void> confirmTool({
+  Future<AssistantThreadSummary> getThread() async {
+    if (lastError != null) throw lastError!;
+    return thread;
+  }
+
+  @override
+  Future<List<AssistantHistoryMessage>> listMessages({
+    Object sessionId = 0,
+    Object afterId = 0,
+    int limit = 50,
+  }) async {
+    if (lastError != null) throw lastError!;
+    return messages;
+  }
+
+  @override
+  Future<AssistantPostResult> postMessage({
+    required String message,
     required String requestId,
+    List<AssistantAttachment> attachments = const [],
+  }) async {
+    lastPostedMessage = message;
+    lastAttachments = attachments;
+    if (postHandler != null) {
+      return postHandler!(
+        message: message,
+        requestId: requestId,
+        attachments: attachments,
+      );
+    }
+    return const AssistantPostResult(
+      messageId: 11,
+      sessionId: 1,
+      runId: 21,
+      disposition: AssistantDisposition.started,
+    );
+  }
+
+  @override
+  Stream<AssistantRunEvent> runEvents({
+    required Object runId,
+    Object afterSeq = 0,
+  }) {
+    lastEventsRunId = runId;
+    lastEventsAfterSeq = afterSeq;
+    eventCalls.add(_asInt(afterSeq));
+    return eventsHandler?.call(runId: runId, afterSeq: afterSeq) ??
+        const Stream.empty();
+  }
+
+  @override
+  Future<Object> createSession() async {
+    sessionCreates++;
+    thread = AssistantThreadSummary(
+      sessionId: sessionCreates + 1,
+      unreadCount: thread.unreadCount,
+    );
+    return thread.sessionId;
+  }
+
+  @override
+  Future<int> markThreadRead() async {
+    threadReads++;
+    thread = AssistantThreadSummary(
+      sessionId: thread.sessionId,
+      lastMessageId: thread.lastMessageId,
+      lastMessagePreview: thread.lastMessagePreview,
+      lastMessageAtMs: thread.lastMessageAtMs,
+      activeRunId: thread.activeRunId,
+      activeRunStatus: thread.activeRunStatus,
+      activeRunPhase: thread.activeRunPhase,
+    );
+    return 0;
+  }
+
+  @override
+  Future<void> deleteHistory() async {
+    historyDeletes++;
+    messages = const [];
+  }
+
+  @override
+  Future<void> cancelRun(Object runId) async {
+    lastCancelRunId = runId;
+  }
+
+  @override
+  Future<void> confirmRun({
+    required Object runId,
     required String callId,
     required bool approved,
   }) async {
@@ -74,17 +154,40 @@ class FakeAssistantSource implements AssistantDataSource {
   }
 
   @override
-  Future<List<MemoryRecord>> listMemory() async {
+  Future<(List<MemoryRecord>, List<MemoryCapacity>)> listMemory({
+    String target = '',
+  }) async {
     if (lastError != null) throw lastError!;
-    return memories;
+    final items = [
+      for (final item in memories)
+        if (target.isEmpty || item.target == target) item,
+    ];
+    return (items, capacities);
   }
 
   @override
-  Future<void> updateMemory({
+  Future<MemoryWriteResult> addMemory({
+    required String target,
+    required String content,
+    String requestId = '',
+  }) async {
+    if (lastError != null) throw lastError!;
+    final record = MemoryRecord(
+      id: memories.length + 1,
+      target: target,
+      content: content,
+      version: 1,
+    );
+    memories = [...memories, record];
+    return MemoryWriteResult(entry: record, changeId: memories.length);
+  }
+
+  @override
+  Future<MemoryWriteResult> replaceMemory({
     required Object id,
-    required String value,
-    required double score,
-    required bool suppressed,
+    required String content,
+    required int version,
+    String requestId = '',
   }) async {
     if (lastError != null) throw lastError!;
     memories = [
@@ -92,28 +195,39 @@ class FakeAssistantSource implements AssistantDataSource {
         if (jsonInt64Id(item.id) == jsonInt64Id(id))
           MemoryRecord(
             id: item.id,
-            layer: item.layer,
-            dimension: item.dimension,
-            value: value,
-            score: score,
-            source: item.source,
-            confidence: item.confidence,
-            confirmed: item.confirmed,
-            suppressed: suppressed,
-            updatedAt: item.updatedAt,
+            target: item.target,
+            content: content,
+            version: item.version + 1,
+            createdAtMs: item.createdAtMs,
+            updatedAtMs: item.updatedAtMs,
           )
         else
           item,
     ];
+    return MemoryWriteResult(changeId: 1);
   }
 
   @override
-  Future<void> deleteMemory(Object id) async {
+  Future<MemoryWriteResult> removeMemory({
+    required Object id,
+    required int version,
+    String requestId = '',
+  }) async {
     if (lastError != null) throw lastError!;
     memories = [
       for (final item in memories)
         if (jsonInt64Id(item.id) != jsonInt64Id(id)) item,
     ];
+    return const MemoryWriteResult(changeId: 1);
+  }
+
+  @override
+  Future<MemoryRecord> undoMemoryChange(Object changeId) async {
+    lastUndoChangeId = changeId;
+    if (lastError != null) throw lastError!;
+    return memories.isEmpty
+        ? const MemoryRecord(id: 0, target: 'memory', content: '')
+        : memories.first;
   }
 
   @override
@@ -158,6 +272,7 @@ class FakeAssistantSource implements AssistantDataSource {
             targetId: task.targetId,
             targetText: task.targetText,
             enabled: enabled,
+            version: task.version,
             createdAt: task.createdAt,
           )
         else
@@ -175,36 +290,6 @@ class FakeAssistantSource implements AssistantDataSource {
   }
 
   @override
-  Future<List<WatchHit>> listWatchHits({bool unreadOnly = false}) async {
-    if (lastError != null) throw lastError!;
-    return [
-      for (final hit in hits)
-        if (!unreadOnly || !hit.read) hit,
-    ];
-  }
-
-  @override
-  Future<void> markWatchHitsRead(List<Object> hitIds) async {
-    if (lastError != null) throw lastError!;
-    final ids = {for (final id in hitIds) jsonInt64Id(id)};
-    hits = [
-      for (final hit in hits)
-        if (ids.contains(jsonInt64Id(hit.id)))
-          WatchHit(
-            id: hit.id,
-            taskId: hit.taskId,
-            postId: hit.postId,
-            title: hit.title,
-            summary: hit.summary,
-            createdAt: hit.createdAt,
-            read: true,
-          )
-        else
-          hit,
-    ];
-  }
-
-  @override
   Future<void> submitRecommendFeedback({
     required Object postId,
     required String reason,
@@ -213,5 +298,10 @@ class FakeAssistantSource implements AssistantDataSource {
     if (lastError != null) throw lastError!;
     lastFeedbackPostId = postId;
     lastFeedbackReason = reason;
+  }
+
+  static int _asInt(Object? value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 }

@@ -62,11 +62,21 @@ late Map<int, bool> _personalizationEnabled;
 late Map<int, Map<String, dynamic>> _agentConsent;
 late Map<int, List<Map<String, dynamic>>> _assistantMemories;
 late Map<int, List<Map<String, dynamic>>> _assistantWatches;
-late Map<int, List<Map<String, dynamic>>> _assistantWatchHits;
+late Map<int, Map<String, dynamic>> _assistantThreads;
+late Map<int, List<Map<String, dynamic>>> _assistantMessages;
+late Map<int, List<Map<String, dynamic>>> _assistantRunEvents;
+late Map<int, Map<String, dynamic>> _assistantRuns;
+late Map<int, List<Map<String, dynamic>>> _assistantQueue;
+late Map<int, List<Map<String, dynamic>>> _assistantMemoryChanges;
 late int _messageSeedTime;
 late Set<String> _usedRefreshTokens;
 int _mockJwtNonce = 0;
 int _nextWatchId = 1;
+int _nextAssistantMessageId = 1;
+int _nextAssistantRunId = 1;
+int _nextAssistantSessionId = 1;
+int _nextMemoryId = 1;
+int _nextChangeId = 1;
 
 bool _seeded = false;
 
@@ -211,31 +221,29 @@ void resetMockState() {
       },
   };
   _nextWatchId = 2;
+  _nextAssistantMessageId = 1;
+  _nextAssistantRunId = 1;
+  _nextAssistantSessionId = 2;
+  _nextMemoryId = 3;
+  _nextChangeId = 1;
+  final nowMs = DateTime.now().millisecondsSinceEpoch;
   _assistantMemories = {
     1: [
       {
         'id': 1,
-        'layer': 'profile',
-        'dimension': 'tag',
-        'value': '美食',
-        'score': 0.9,
-        'source': 'explicit',
-        'confidence': 0.9,
-        'confirmed': true,
-        'suppressed': false,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        'target': 'memory',
+        'content': '喜欢美食探店',
+        'version': 1,
+        'createdAtMs': nowMs,
+        'updatedAtMs': nowMs,
       },
       {
         'id': 2,
-        'layer': 'interest',
-        'dimension': 'author',
-        'value': '萌萌哒小兔',
-        'score': 0.4,
-        'source': 'behavior',
-        'confidence': 0.4,
-        'confirmed': false,
-        'suppressed': false,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        'target': 'user',
+        'content': '常用中文交流',
+        'version': 1,
+        'createdAtMs': nowMs,
+        'updatedAtMs': nowMs,
       },
     ],
   };
@@ -248,24 +256,29 @@ void resetMockState() {
         'targetId': 2,
         'targetText': '',
         'enabled': true,
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'version': 1,
+        'createdAt': nowMs,
       },
     ],
   };
-  final seedPost = _posts.isEmpty ? <String, dynamic>{} : _posts.first;
-  _assistantWatchHits = {
-    1: [
-      {
-        'id': 1,
-        'taskId': 1,
-        'postId': seedPost['id'] ?? 1,
-        'title': seedPost['title'] ?? '',
-        'summary': '作者发布了新帖',
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
-        'read': false,
+  _assistantThreads = {
+    for (final id in _users.keys)
+      id: {
+        'sessionId': 1,
+        'unreadCount': id == 1 ? 1 : 0,
+        'lastMessageId': 0,
+        'lastMessagePreview': id == 1 ? '有新的作者动态' : '',
+        'lastMessageAtMs': nowMs,
+        'activeRunId': 0,
+        'activeRunStatus': '',
+        'activeRunPhase': '',
       },
-    ],
   };
+  _assistantMessages = {1: <Map<String, dynamic>>[]};
+  _assistantRunEvents = {};
+  _assistantRuns = {};
+  _assistantQueue = {};
+  _assistantMemoryChanges = {};
   _usedRefreshTokens = {};
   _mockJwtNonce = 0;
   _seeded = true;
@@ -320,7 +333,14 @@ MockRouterResponse dispatchResponse(
       throw const _MockBiz(404, 4, '资源不存在');
     }
     if (segments[1] == 'v2') {
-      return _routeV2(method.toUpperCase(), segments, query, body, auth);
+      return _routeV2(
+        method.toUpperCase(),
+        segments,
+        query,
+        body,
+        auth,
+        headers,
+      );
     }
     if (segments[1] == 'v1') {
       return _routeV1(
@@ -473,6 +493,7 @@ MockRouterResponse _routeV2(
   Map<String, String> query,
   Map<String, dynamic>? body,
   _Auth auth,
+  Map<String, String> headers,
 ) {
   final route = segments.join('/');
 
@@ -496,10 +517,6 @@ MockRouterResponse _routeV2(
     case 'api/v2/search/tags':
       _requireMethod(method, 'GET');
       return _searchTags(query);
-    case 'api/v2/assistant/chat':
-      _requireMethod(method, 'POST');
-      _requireAuth(auth);
-      return _assistantChat(body, auth);
     case 'api/v2/assistant/consent':
       _requireAuth(auth);
       if (method == 'GET') {
@@ -515,10 +532,41 @@ MockRouterResponse _routeV2(
         'currentVersion': 2,
       };
       return _jsonResponse(const {});
+    case 'api/v2/assistant/thread':
+      _requireMethod(method, 'GET');
+      _requireAuth(auth);
+      return _jsonResponse({'thread': _threadOf(auth.userId)});
+    case 'api/v2/assistant/thread/read':
+      _requireMethod(method, 'POST');
+      _requireAuth(auth);
+      return _jsonResponse(_markAssistantRead(auth.userId));
+    case 'api/v2/assistant/messages':
+      _requireAuth(auth);
+      if (method == 'GET') {
+        return _jsonResponse(_listAssistantMessages(auth.userId, query));
+      }
+      _requireMethod(method, 'POST');
+      return _jsonResponse(_postAssistantMessage(auth.userId, body ?? const {}));
+    case 'api/v2/assistant/sessions':
+      _requireMethod(method, 'POST');
+      _requireAuth(auth);
+      return _jsonResponse(_createAssistantSession(auth.userId));
+    case 'api/v2/assistant/history':
+      _requireMethod(method, 'DELETE');
+      _requireAuth(auth);
+      _deleteAssistantHistory(auth.userId);
+      return _jsonResponse(const {});
     case 'api/v2/assistant/memory':
       _requireAuth(auth);
-      _requireMethod(method, 'GET');
-      return _jsonResponse(_listMemory(auth.userId, query['layer']));
+      if (method == 'GET') {
+        return _jsonResponse(_listMemory(auth.userId, query['target']));
+      }
+      _requireMethod(method, 'POST');
+      return _jsonResponse(_addMemory(auth.userId, body ?? const {}));
+    case 'api/v2/assistant/memory/batch':
+      _requireMethod(method, 'POST');
+      _requireAuth(auth);
+      return _jsonResponse(_batchMemory(auth.userId, body ?? const {}));
     case 'api/v2/assistant/watch':
       _requireAuth(auth);
       if (method == 'GET') {
@@ -530,30 +578,12 @@ MockRouterResponse _routeV2(
       return _jsonResponse({
         'task': _createWatch(auth.userId, body ?? const {}),
       });
-    case 'api/v2/assistant/watch/hits':
-      _requireMethod(method, 'GET');
-      _requireAuth(auth);
-      return _jsonResponse(_listWatchHits(auth.userId, query));
-    case 'api/v2/assistant/watch/hits/read':
-      _requireMethod(method, 'POST');
-      _requireAuth(auth);
-      _markWatchHitsRead(auth.userId, body ?? const {});
-      return _jsonResponse(const {});
     case 'api/v2/assistant/recommend/feedback':
       _requireMethod(method, 'POST');
       _requireAuth(auth);
       final postId = body?['postId'];
       final reason = body?['reason']?.toString().trim() ?? '';
       if (!_isPositiveId(postId) || reason.isEmpty) {
-        throw const _MockBiz(400, 2, '参数错误');
-      }
-      return _jsonResponse(const {});
-    case 'api/v2/assistant/tool/confirm':
-      _requireMethod(method, 'POST');
-      _requireAuth(auth);
-      final requestId = body?['requestId']?.toString() ?? '';
-      final callId = body?['callId']?.toString() ?? '';
-      if (requestId.isEmpty || callId.isEmpty) {
         throw const _MockBiz(400, 2, '参数错误');
       }
       return _jsonResponse(const {});
@@ -617,18 +647,48 @@ MockRouterResponse _routeV2(
     }
   }
 
+  if (segments.length == 6 &&
+      segments[2] == 'assistant' &&
+      segments[3] == 'runs') {
+    _requireAuth(auth);
+    final runId = _pathId(segments[4]);
+    if (segments[5] == 'events' && method == 'GET') {
+      return _streamAssistantRunEvents(auth.userId, runId, query, headers);
+    }
+    if (segments[5] == 'cancel' && method == 'POST') {
+      _cancelAssistantRun(auth.userId, runId);
+      return _jsonResponse(const {});
+    }
+    if (segments[5] == 'confirm' && method == 'POST') {
+      _confirmAssistantRun(auth.userId, runId, body ?? const {});
+      return _jsonResponse(const {});
+    }
+    throw const _MockBiz(405, 1, '未知错误');
+  }
+
+  if (segments.length == 6 &&
+      segments[2] == 'assistant' &&
+      segments[3] == 'memory' &&
+      segments[4] == 'changes' &&
+      method == 'POST') {
+    _requireAuth(auth);
+    return _jsonResponse({
+      'entry': _undoMemory(auth.userId, _pathId(segments[5])),
+    });
+  }
+
   if (segments.length == 5 &&
       segments[2] == 'assistant' &&
       segments[3] == 'memory') {
     _requireAuth(auth);
     final id = _pathId(segments[4]);
     if (method == 'PATCH') {
-      _updateMemory(auth.userId, id, body ?? const {});
-      return _jsonResponse(const {});
+      return _jsonResponse(_replaceMemory(auth.userId, id, body ?? const {}));
     }
     if (method == 'DELETE') {
-      _deleteMemory(auth.userId, id);
-      return _jsonResponse(const {});
+      return _jsonResponse(
+        _removeMemory(auth.userId, id, query, body ?? const {}),
+      );
     }
     throw const _MockBiz(405, 1, '未知错误');
   }
@@ -637,6 +697,9 @@ MockRouterResponse _routeV2(
       segments[2] == 'assistant' &&
       segments[3] == 'watch') {
     _requireAuth(auth);
+    if (!RegExp(r'^\d+$').hasMatch(segments[4])) {
+      throw const _MockBiz(404, 4, '资源不存在');
+    }
     final id = _pathId(segments[4]);
     if (method == 'PATCH') {
       _updateWatch(auth.userId, id, body ?? const {});
@@ -1502,45 +1565,233 @@ Map<String, dynamic> _sendMessage(int userId, Map<String, dynamic> body) {
   return {'messageId': messageId};
 }
 
-MockRouterResponse _assistantChat(Map<String, dynamic>? body, _Auth auth) {
-  final message = body?['message']?.toString().trim() ?? '';
+Map<String, dynamic> _threadOf(int userId) {
+  return _copyMap(
+    _assistantThreads[userId] ??
+        {
+          'sessionId': 1,
+          'unreadCount': 0,
+          'lastMessageId': 0,
+          'lastMessagePreview': '',
+          'lastMessageAtMs': 0,
+          'activeRunId': 0,
+          'activeRunStatus': '',
+          'activeRunPhase': '',
+        },
+  );
+}
+
+Map<String, dynamic> _markAssistantRead(int userId) {
+  final thread = _assistantThreads.putIfAbsent(userId, _emptyThread);
+  thread['unreadCount'] = 0;
+  return {'unreadCount': 0};
+}
+
+Map<String, dynamic> _listAssistantMessages(
+  int userId,
+  Map<String, String> query,
+) {
+  final sessionId = query['sessionId'];
+  final afterId = int.tryParse(query['afterId'] ?? '') ?? 0;
+  final items = [
+    for (final item
+        in _assistantMessages[userId] ?? const <Map<String, dynamic>>[])
+      if (sessionId == null ||
+          sessionId.isEmpty ||
+          '${item['sessionId']}' == sessionId)
+        if (afterId <= 0 || ((item['id'] as num).toInt() > afterId))
+          _copyMap(item),
+  ];
+  return {'messages': items};
+}
+
+Map<String, dynamic> _postAssistantMessage(
+  int userId,
+  Map<String, dynamic> body,
+) {
+  final message = body['message']?.toString().trim() ?? '';
   if (message.isEmpty || message.length > 2000) {
     throw const _MockBiz(400, 2, '参数错误');
   }
-  final requestId = body?['requestId']?.toString().trim() ?? '';
-  final conversationId =
-      body?['conversationId']?.toString().trim().isNotEmpty == true
-      ? body!['conversationId'].toString().trim()
-      : 'mock-${requestId.isEmpty ? auth.userId : requestId}';
-  final sourcePost = _publishedPosts().first;
-  if (body?['mode']?.toString() == 'agent') {
-    return _agentAssistantChat(
-      body: body ?? const {},
-      auth: auth,
-      conversationId: conversationId,
-      sourcePost: sourcePost,
-    );
+  final attachments = (body['attachments'] as List<dynamic>? ?? const []);
+  if (attachments.length > 9) {
+    throw const _MockBiz(400, 2, '参数错误');
   }
-  final events = [
+  final thread = _assistantThreads.putIfAbsent(userId, _emptyThread);
+  final sessionId = (thread['sessionId'] as num?)?.toInt() ?? 1;
+  final activeRunId = (thread['activeRunId'] as num?)?.toInt() ?? 0;
+  final phase = thread['activeRunPhase']?.toString() ?? '';
+  final queue = _assistantQueue.putIfAbsent(userId, () => []);
+  var disposition = 'started';
+  if (activeRunId > 0) {
+    if (phase == 'tool_executing' || message.contains('steer-me')) {
+      disposition = 'steered';
+    } else if (phase == 'compact' ||
+        phase == 'attachment' ||
+        attachments.isNotEmpty ||
+        message.contains('queue-me')) {
+      if (queue.length >= 32) {
+        throw const _MockBiz(429, 2, '排队已满');
+      }
+      disposition = 'queued';
+    } else {
+      disposition = 'redirected';
+      _completeRun(activeRunId);
+    }
+  }
+  final messageId = _nextAssistantMessageId++;
+  final nowMs = DateTime.now().millisecondsSinceEpoch;
+  final stored = {
+    'id': messageId,
+    'sessionId': sessionId,
+    'runId': 0,
+    'role': 'user',
+    'kind': 'message',
+    'content': message,
+    'unread': false,
+    'createdAtMs': nowMs,
+    'changeId': 0,
+  };
+  _assistantMessages.putIfAbsent(userId, () => []).add(stored);
+  var runId = activeRunId;
+  if (disposition == 'queued') {
+    runId = _nextAssistantRunId++;
+    stored['runId'] = runId;
+    queue.add({'runId': runId, 'messageId': messageId, 'message': message});
+  } else if (disposition != 'steered') {
+    runId = _nextAssistantRunId++;
+    stored['runId'] = runId;
+    _startRun(userId, runId, sessionId, message);
+  } else {
+    stored['runId'] = runId;
+    thread['activeRunPhase'] = 'tool_executing';
+  }
+  thread['lastMessageId'] = messageId;
+  thread['lastMessagePreview'] = message;
+  thread['lastMessageAtMs'] = nowMs;
+  if (disposition != 'queued') {
+    thread['activeRunId'] = runId;
+    thread['activeRunStatus'] = 'running';
+    thread['activeRunPhase'] = disposition == 'steered'
+        ? 'tool_executing'
+        : 'model_request';
+  }
+  return {
+    'messageId': messageId,
+    'sessionId': sessionId,
+    'runId': runId,
+    'disposition': disposition,
+  };
+}
+
+void _startRun(int userId, int runId, int sessionId, String message) {
+  final sourcePost = _publishedPosts().isEmpty
+      ? <String, dynamic>{'id': 1, 'title': '示例帖', 'revision': 1, 'authorId': 2}
+      : _publishedPosts().first;
+  final events = <Map<String, dynamic>>[
     {
+      'seq': 1,
+      'type': 'run_started',
+      'runId': runId,
+      'sessionId': sessionId,
+    },
+    {
+      'seq': 2,
       'type': 'token',
       'text': '我根据社区内容找到了与“$message”相关的信息。',
-      'conversationId': conversationId,
+      'runId': runId,
+      'sessionId': sessionId,
     },
     {
-      'type': 'source',
-      'source': {
-        'sourceType': 'post',
-        'sourceId': '${sourcePost['id']}',
-        'title': sourcePost['title'],
+      'seq': 3,
+      'type': 'source_card',
+      'runId': runId,
+      'sessionId': sessionId,
+      'sourceCard': {
+        'handle': 'src-${sourcePost['id']}',
+        'kind': 'post',
+        'authorityId': '${sourcePost['id']}',
+        'title': sourcePost['title'] ?? '',
         'revision': sourcePost['revision'] ?? 1,
       },
-      'conversationId': conversationId,
     },
-    {'type': 'done', 'conversationId': conversationId},
   ];
+  if (message.contains('删除') || message.contains('delete')) {
+    events.addAll([
+      {
+        'seq': 4,
+        'type': 'tool_call',
+        'runId': runId,
+        'sessionId': sessionId,
+        'toolCall': {
+          'callId': 'mock-call-search',
+          'tool': 'search_posts',
+          'summary': '搜索帖子',
+        },
+      },
+      {
+        'seq': 5,
+        'type': 'confirm_required',
+        'runId': runId,
+        'sessionId': sessionId,
+        'toolCall': {
+          'callId': 'mock-call-delete',
+          'tool': 'delete_post',
+          'summary': '请求删除帖子 #${sourcePost['id']}',
+        },
+      },
+    ]);
+  } else if (message.contains('memory')) {
+    events.add({
+      'seq': 4,
+      'type': 'memory_changed',
+      'runId': runId,
+      'sessionId': sessionId,
+      'text': '已更新记忆',
+      'changeId': 1,
+    });
+  }
+  if (!message.contains('steer-me') && !message.contains('hang')) {
+    events.add({
+      'seq': events.length + 1,
+      'type': 'done',
+      'runId': runId,
+      'sessionId': sessionId,
+    });
+  }
+  _assistantRunEvents[runId] = events;
+  _assistantRuns[runId] = {
+    'userId': userId,
+    'sessionId': sessionId,
+    'status': message.contains('hang') ? 'running' : 'completed',
+    'phase': message.contains('steer-me') ? 'tool_executing' : 'model_request',
+  };
+}
+
+MockRouterResponse _streamAssistantRunEvents(
+  int userId,
+  int runId,
+  Map<String, String> query,
+  Map<String, String> headers,
+) {
+  final run = _assistantRuns[runId];
+  if (run == null || run['userId'] != userId) {
+    throw const _MockBiz(404, 4, '资源不存在');
+  }
+  final lastHeader = headers['last-event-id'] ?? headers['Last-Event-ID'] ?? '';
+  final afterSeq = int.tryParse(query['afterSeq'] ?? lastHeader) ?? 0;
+  final events = [
+    for (final event in _assistantRunEvents[runId] ?? const <Map<String, dynamic>>[])
+      if (((event['seq'] as num?)?.toInt() ?? 0) > afterSeq) event,
+  ];
+  final body = events
+      .map((event) {
+        final seq = event['seq'];
+        return 'id: $seq\ndata: ${jsonEncode(event)}\n\n';
+      })
+      .join();
   return MockRouterResponse(
-    body: events.map((event) => 'data: ${jsonEncode(event)}\n\n').join(),
+    body: body,
     statusCode: 200,
     headers: {
       'content-type': 'text/event-stream',
@@ -1550,104 +1801,66 @@ MockRouterResponse _assistantChat(Map<String, dynamic>? body, _Auth auth) {
   );
 }
 
-/// Agent 模式 mock：回放工具调用与高危确认事件序列，便于开发态联调 UI。
-MockRouterResponse _agentAssistantChat({
-  required Map<String, dynamic> body,
-  required _Auth auth,
-  required String conversationId,
-  required Map<String, dynamic> sourcePost,
-}) {
-  final attachments = (body['attachments'] as List<dynamic>? ?? const [])
-      .whereType<Map<dynamic, dynamic>>()
-      .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
-      .toList();
-  if (attachments.length > 9) {
-    throw const _MockBiz(400, 2, '参数错误');
+void _cancelAssistantRun(int userId, int runId) {
+  final run = _assistantRuns[runId];
+  if (run == null || run['userId'] != userId) {
+    throw const _MockBiz(404, 4, '资源不存在');
   }
-  final events = <Map<String, dynamic>>[
-    {
-      'type': 'tool_call',
-      'toolCall': {
-        'callId': 'mock-call-search',
-        'tool': 'search_posts',
-        'summary': '搜索帖子：${body['message']}',
-        'payloadJson': '{}',
-      },
-      'conversationId': conversationId,
-    },
-    {
-      'type': 'source',
-      'source': {
-        'sourceType': 'post',
-        'sourceId': '${sourcePost['id']}',
-        'title': sourcePost['title'],
-        'revision': sourcePost['revision'] ?? 1,
-      },
-      'conversationId': conversationId,
-    },
-    {
-      'type': 'confirm_required',
-      'toolCall': {
-        'callId': 'mock-call-delete',
-        'tool': 'delete_post',
-        'summary': '请求删除帖子 #${sourcePost['id']}',
-        'payloadJson': '{}',
-      },
-      'conversationId': conversationId,
-    },
-    {
-      'type': 'card',
-      'card': {
-        'cardType': 'recommend',
-        'payloadJson': jsonEncode({
-          'postId': sourcePost['id'],
-          'title': sourcePost['title'],
-        }),
-      },
-      'conversationId': conversationId,
-    },
-    {
-      'type': 'actions',
-      'actions': [
-        {
-          'action': 'open_post',
-          'payloadJson': jsonEncode({'postId': sourcePost['id']}),
-        },
-        {
-          'action': 'watch_author',
-          'payloadJson': jsonEncode({'authorId': sourcePost['authorId']}),
-        },
-      ],
-      'conversationId': conversationId,
-    },
-    {
-      'type': 'watch_hit',
-      'watchHit': {
-        'hitId': 1,
-        'taskId': 1,
-        'postId': sourcePost['id'],
-        'title': sourcePost['title'],
-        'summary': '作者发布了新帖',
-      },
-      'conversationId': conversationId,
-    },
-    {
-      'type': 'token',
-      'text': 'Agent 演示：已检索社区内容并生成操作计划。删除类操作需要你逐次确认。',
-      'conversationId': conversationId,
-    },
-    {'type': 'done', 'conversationId': conversationId},
-  ];
-  return MockRouterResponse(
-    body: events.map((event) => 'data: ${jsonEncode(event)}\n\n').join(),
-    statusCode: 200,
-    headers: {
-      'content-type': 'text/event-stream',
-      'cache-control': 'no-cache',
-      'x-auth-state': 'authenticated',
-    },
-  );
+  run['status'] = 'cancelled';
+  _completeRun(runId);
 }
+
+void _confirmAssistantRun(int userId, int runId, Map<String, dynamic> body) {
+  final callId = body['callId']?.toString() ?? '';
+  if (callId.isEmpty) throw const _MockBiz(400, 2, '参数错误');
+  final run = _assistantRuns[runId];
+  if (run == null || run['userId'] != userId) {
+    throw const _MockBiz(404, 4, '资源不存在');
+  }
+}
+
+void _completeRun(int runId) {
+  final run = _assistantRuns[runId];
+  if (run == null) return;
+  run['status'] = 'completed';
+  final userId = run['userId'] as int;
+  final thread = _assistantThreads[userId];
+  if (thread != null && thread['activeRunId'] == runId) {
+    thread['activeRunId'] = 0;
+    thread['activeRunStatus'] = '';
+    thread['activeRunPhase'] = '';
+  }
+}
+
+Map<String, dynamic> _createAssistantSession(int userId) {
+  final sessionId = _nextAssistantSessionId++;
+  final thread = _assistantThreads.putIfAbsent(userId, _emptyThread);
+  thread['sessionId'] = sessionId;
+  thread['activeRunId'] = 0;
+  thread['activeRunStatus'] = '';
+  thread['activeRunPhase'] = '';
+  return {'sessionId': sessionId};
+}
+
+void _deleteAssistantHistory(int userId) {
+  _assistantMessages[userId] = [];
+  final thread = _assistantThreads.putIfAbsent(userId, _emptyThread);
+  thread['lastMessageId'] = 0;
+  thread['lastMessagePreview'] = '';
+  thread['unreadCount'] = 0;
+  thread['activeRunId'] = 0;
+}
+
+Map<String, dynamic> _emptyThread() => {
+  'sessionId': 1,
+  'unreadCount': 0,
+  'lastMessageId': 0,
+  'lastMessagePreview': '',
+  'lastMessageAtMs': 0,
+  'activeRunId': 0,
+  'activeRunStatus': '',
+  'activeRunPhase': '',
+};
 
 Map<String, dynamic> _postItem(Map<String, dynamic> post, int viewerId) {
   final postId = (post['id'] as num).toInt();
@@ -2041,39 +2254,165 @@ Map<String, dynamic> _consentOf(int userId) {
   );
 }
 
-Map<String, dynamic> _listMemory(int userId, String? layer) {
+Map<String, dynamic> _listMemory(int userId, String? target) {
   final items = [
     for (final item
         in _assistantMemories[userId] ?? const <Map<String, dynamic>>[])
-      if (layer == null || layer.isEmpty || item['layer'] == layer)
-        if (item['layer'] != 'episodic') _copyMap(item),
+      if (target == null || target.isEmpty || item['target'] == target)
+        _copyMap(item),
   ];
-  return {'items': items};
+  return {'items': items, 'capacities': _memoryCapacities(userId)};
 }
 
-void _updateMemory(int userId, int id, Map<String, dynamic> body) {
+List<Map<String, dynamic>> _memoryCapacities(int userId) {
+  final items = _assistantMemories[userId] ?? const <Map<String, dynamic>>[];
+  int used(String target) => items
+      .where((item) => item['target'] == target)
+      .fold<int>(0, (total, item) => total + '${item['content']}'.length);
+  return [
+    {'target': 'memory', 'used': used('memory'), 'limit': 2200},
+    {'target': 'user', 'used': used('user'), 'limit': 1375},
+  ];
+}
+
+Map<String, dynamic> _addMemory(int userId, Map<String, dynamic> body) {
+  final target = body['target']?.toString() ?? '';
+  final content = body['content']?.toString().trim() ?? '';
+  if (target != 'memory' && target != 'user') {
+    throw const _MockBiz(400, 2, '参数错误');
+  }
+  if (content.isEmpty) throw const _MockBiz(400, 2, '参数错误');
+  final nowMs = DateTime.now().millisecondsSinceEpoch;
+  final entry = {
+    'id': _nextMemoryId++,
+    'target': target,
+    'content': content,
+    'version': 1,
+    'createdAtMs': nowMs,
+    'updatedAtMs': nowMs,
+  };
+  _assistantMemories.putIfAbsent(userId, () => []).add(entry);
+  final changeId = _recordMemoryChange(userId, null, entry);
+  return {'entry': _copyMap(entry), 'changeId': changeId};
+}
+
+Map<String, dynamic> _replaceMemory(
+  int userId,
+  int id,
+  Map<String, dynamic> body,
+) {
   final items = _assistantMemories[userId];
   if (items == null) throw const _MockBiz(404, 4, '资源不存在');
   final index = items.indexWhere((item) => (item['id'] as num).toInt() == id);
   if (index < 0) throw const _MockBiz(404, 4, '资源不存在');
   final current = items[index];
+  final expected = (body['version'] as num?)?.toInt();
+  if (expected != null && expected != (current['version'] as num).toInt()) {
+    throw const _MockBiz(409, 2008, '版本冲突');
+  }
+  final before = _copyMap(current);
+  final nowMs = DateTime.now().millisecondsSinceEpoch;
   items[index] = {
     ...current,
-    if (body.containsKey('value')) 'value': body['value']?.toString() ?? '',
-    if (body.containsKey('score'))
-      'score': (body['score'] as num?)?.toDouble() ?? current['score'],
-    if (body.containsKey('suppressed'))
-      'suppressed': body['suppressed'] == true,
-    'updatedAt': DateTime.now().millisecondsSinceEpoch,
+    'content': body['content']?.toString() ?? current['content'],
+    'version': (current['version'] as num).toInt() + 1,
+    'updatedAtMs': nowMs,
   };
+  final changeId = _recordMemoryChange(userId, before, items[index]);
+  return {'entry': _copyMap(items[index]), 'changeId': changeId};
 }
 
-void _deleteMemory(int userId, int id) {
+Map<String, dynamic> _removeMemory(
+  int userId,
+  int id,
+  Map<String, String> query,
+  Map<String, dynamic> body,
+) {
   final items = _assistantMemories[userId];
   if (items == null) throw const _MockBiz(404, 4, '资源不存在');
-  final before = items.length;
-  items.removeWhere((item) => (item['id'] as num).toInt() == id);
-  if (items.length == before) throw const _MockBiz(404, 4, '资源不存在');
+  final index = items.indexWhere((item) => (item['id'] as num).toInt() == id);
+  if (index < 0) throw const _MockBiz(404, 4, '资源不存在');
+  final expected =
+      int.tryParse(query['version'] ?? '') ?? (body['version'] as num?)?.toInt();
+  final current = items[index];
+  if (expected != null && expected != (current['version'] as num).toInt()) {
+    throw const _MockBiz(409, 2008, '版本冲突');
+  }
+  final before = items.removeAt(index);
+  final changeId = _recordMemoryChange(userId, before, null);
+  return {'changeId': changeId};
+}
+
+Map<String, dynamic> _batchMemory(int userId, Map<String, dynamic> body) {
+  final ops = body['ops'];
+  if (ops is! List || ops.isEmpty) throw const _MockBiz(400, 2, '参数错误');
+  final entries = <Map<String, dynamic>>[];
+  final changeIds = <int>[];
+  for (final raw in ops) {
+    if (raw is! Map) continue;
+    final op = Map<String, dynamic>.from(raw);
+    switch (op['op']?.toString()) {
+      case 'add':
+        final result = _addMemory(userId, op);
+        entries.add(result['entry'] as Map<String, dynamic>);
+        changeIds.add(result['changeId'] as int);
+      case 'replace':
+        final result = _replaceMemory(
+          userId,
+          (op['id'] as num).toInt(),
+          op,
+        );
+        entries.add(result['entry'] as Map<String, dynamic>);
+        changeIds.add(result['changeId'] as int);
+      case 'remove':
+        final result = _removeMemory(userId, (op['id'] as num).toInt(), {}, op);
+        changeIds.add(result['changeId'] as int);
+      default:
+        throw const _MockBiz(400, 2, '参数错误');
+    }
+  }
+  return {'entries': entries, 'changeIds': changeIds};
+}
+
+int _recordMemoryChange(
+  int userId,
+  Map<String, dynamic>? before,
+  Map<String, dynamic>? after,
+) {
+  final changeId = _nextChangeId++;
+  _assistantMemoryChanges.putIfAbsent(userId, () => []).add({
+    'id': changeId,
+    'before': before == null ? null : _copyMap(before),
+    'after': after == null ? null : _copyMap(after),
+  });
+  return changeId;
+}
+
+Map<String, dynamic> _undoMemory(int userId, int changeId) {
+  final changes = _assistantMemoryChanges[userId];
+  if (changes == null) throw const _MockBiz(404, 4, '资源不存在');
+  final index = changes.indexWhere(
+    (item) => (item['id'] as num).toInt() == changeId,
+  );
+  if (index < 0) throw const _MockBiz(404, 4, '资源不存在');
+  final change = changes.removeAt(index);
+  final before = change['before'] is Map
+      ? Map<String, dynamic>.from(change['before'] as Map)
+      : null;
+  final after = change['after'] is Map
+      ? Map<String, dynamic>.from(change['after'] as Map)
+      : null;
+  final items = _assistantMemories.putIfAbsent(userId, () => []);
+  if (after != null) {
+    final id = (after['id'] as num).toInt();
+    items.removeWhere((item) => (item['id'] as num).toInt() == id);
+    if (before != null) items.add(_copyMap(before));
+  } else if (before != null) {
+    items.add(_copyMap(before));
+  }
+  if (before != null) return _copyMap(before);
+  if (after != null) return _copyMap(after);
+  throw const _MockBiz(404, 4, '资源不存在');
 }
 
 const _watchConditions = {
@@ -2116,6 +2455,7 @@ Map<String, dynamic> _createWatch(int userId, Map<String, dynamic> body) {
     'targetId': _isPositiveId(targetId) ? int.parse(jsonInt64Id(targetId)) : 0,
     'targetText': targetText,
     'enabled': true,
+    'version': 1,
     'createdAt': DateTime.now().millisecondsSinceEpoch,
   };
   tasks.add(task);
@@ -2136,31 +2476,6 @@ void _deleteWatch(int userId, int id) {
   final before = tasks.length;
   tasks.removeWhere((item) => (item['id'] as num).toInt() == id);
   if (tasks.length == before) throw const _MockBiz(404, 4, '资源不存在');
-}
-
-Map<String, dynamic> _listWatchHits(int userId, Map<String, String> query) {
-  final unreadOnly = query['unreadOnly'] == 'true';
-  final hits = [
-    for (final hit
-        in _assistantWatchHits[userId] ?? const <Map<String, dynamic>>[])
-      if (!unreadOnly || hit['read'] != true) _copyMap(hit),
-  ];
-  return {'hits': hits};
-}
-
-void _markWatchHitsRead(int userId, Map<String, dynamic> body) {
-  final rawIds = body['hitIds'];
-  if (rawIds is! List || rawIds.isEmpty) {
-    throw const _MockBiz(400, 2, '参数错误');
-  }
-  final ids = {for (final id in rawIds) jsonInt64Id(id)};
-  final hits = _assistantWatchHits[userId];
-  if (hits == null) return;
-  for (var i = 0; i < hits.length; i++) {
-    if (ids.contains(jsonInt64Id(hits[i]['id']))) {
-      hits[i] = {...hits[i], 'read': true};
-    }
-  }
 }
 
 bool _isPositiveId(Object? value) => jsonInt64IsPositive(value);

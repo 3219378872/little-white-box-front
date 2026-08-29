@@ -257,13 +257,15 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                             FButton(
                               variant: .ghost,
                               size: .sm,
-                              onPress: () => context.push('/assistant/memory'),
+                              onPress: () =>
+                                  context.push('/messages/assistant/memory'),
                               child: const Text('记忆'),
                             ),
                             FButton(
                               variant: .ghost,
                               size: .sm,
-                              onPress: () => context.push('/assistant/watch'),
+                              onPress: () =>
+                                  context.push('/messages/assistant/watch'),
                               child: const Text('追踪'),
                             ),
                           ],

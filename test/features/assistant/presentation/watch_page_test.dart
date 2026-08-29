@@ -27,11 +27,12 @@ Future<void> _pumpWatch(WidgetTester tester, FakeAssistantSource source) async {
 }
 
 void main() {
-  testWidgets('shows empty tasks and hits', (tester) async {
+  testWidgets('shows empty tasks without a hits inbox', (tester) async {
     await _pumpWatch(tester, _grantedSource());
 
     expect(find.text('还没有追踪任务'), findsOneWidget);
-    expect(find.text('还没有追踪命中'), findsOneWidget);
+    expect(find.text('命中收件箱'), findsNothing);
+    expect(find.text('还没有追踪命中'), findsNothing);
     expect(find.byType(ErrorView), findsNothing);
   });
 
@@ -46,9 +47,7 @@ void main() {
     expect(find.text('还没有追踪任务'), findsNothing);
   });
 
-  testWidgets('lists tasks and hits with read and write actions', (
-    tester,
-  ) async {
+  testWidgets('lists tasks with write actions and no hits', (tester) async {
     final source = _grantedSource()
       ..watches = const [
         WatchTask(
@@ -57,24 +56,13 @@ void main() {
           targetType: 'author',
           targetId: '2',
         ),
-      ]
-      ..hits = const [
-        WatchHit(id: 9, taskId: 1, postId: '7', title: '作者发布了新帖'),
       ];
     await _pumpWatch(tester, source);
 
     expect(find.text('盯作者新帖'), findsOneWidget);
     expect(find.textContaining('author:2'), findsOneWidget);
-    expect(find.text('作者发布了新帖'), findsOneWidget);
-    expect(find.text('未读'), findsOneWidget);
     expect(find.text('停用'), findsOneWidget);
     expect(find.text('删除'), findsOneWidget);
-    expect(find.text('标为已读'), findsOneWidget);
-
-    await tester.tap(find.text('标为已读'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(source.hits.single.read, isTrue);
-    expect(find.text('已读'), findsOneWidget);
+    expect(find.text('标为已读'), findsNothing);
   });
 }

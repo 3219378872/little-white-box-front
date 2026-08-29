@@ -40,6 +40,12 @@ tracks:
   - FX-085
   - FX-086
   - FX-087
+  - FX-088
+  - FX-089
+  - FX-090
+  - FX-091
+  - FX-092
+  - FX-093
   - FQ-001
   - FQ-002
   - FQ-003
@@ -49,6 +55,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-assistant-hermes-2026-08-29
   - EVD-audit-fixes-2026-08-28
   - EVD-non-agent-bugs-2026-08-27
   - EVD-assistant-agent-runtime-2026-08-27
@@ -74,7 +81,7 @@ evidence:
   - EVD-client-relative-api-2026-08-18
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
-updated_at: 2026-08-28
+updated_at: 2026-08-29
 observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
 ---
 
@@ -112,7 +119,7 @@ observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
 | 帖子/评论/互动 | `features/post/`、`comment/`、PostCard | 页面局部状态 | v1 repositories、multipart adapter | PostCard、profile、Mock like 测试 |
 | 资料与用户列表 | `features/profile/presentation/` | `user_posts_notifier.dart` | `user_repository.dart` | `test/features/profile/` |
 | 一对一私信 | `features/message/presentation/` | `message_notifiers.dart` | `message_repository.dart`、models | `test/features/message/` |
-| Assistant | `features/assistant/presentation/`（会话、记忆、追踪、结构化卡片） | `assistant_notifier.dart`、`memory_notifier.dart`、`watch_notifier.dart`、`agentConsentNotifierProvider` | 直接 HTTP SSE repository、models、consent/memory/watch/feedback | `test/features/assistant/` |
+| Assistant | `features/assistant/presentation/`（虚拟线程、记忆、Watch 任务）嵌入 `MessagesShell` | `assistant_notifier.dart`、`assistant_thread_notifier.dart`、`memory_notifier.dart`、`watch_notifier.dart`、`agentConsentNotifierProvider` | REST + run SSE repository、thread/messages/memory/watch/consent | `test/features/assistant/`、`test/features/message/` |
 | 行为反馈 | PostCard 可见性/交互钩子 | `behavior_tracker.dart` | 持久 queue、repository、identity store | `test/features/behavior/`、tracking 测试 |
 
 ## 已实现的关键事实
@@ -131,8 +138,9 @@ observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
 - 行为队列用 SharedPreferences 持久化，默认最多 500 条、单批 100 条；按 anonymousId/sessionId
   分组发送，只移除 accepted 或 permanently rejected，暂时失败指数退避到 1 分钟。
 - Message notifier 为发送命令生成随机幂等键，失败时保存命令，显式重试复用原键；已读失败独立重试。
-- Assistant repository 校验 1～2,000 字符、SSE JSON 事件和终止事件；notifier 通过 generation 和
-  subscription cancel 隔离取消/陈旧流，断流不会标记正常完成。
+- Assistant repository 校验 1～2,000 字符、`POST /assistant/messages` 的 disposition，以及
+  `GET /assistant/runs/:id/events` 的 SSE 帧、`Last-Event-ID`/`afterSeq` 续流和终止事件；
+  notifier 通过 generation 隔离陈旧流，显式 Stop 才请求 cancel，断流不会标记正常完成。
 - Assistant 气泡在展示层剥离回答文本中的引用残留（仅 assistant 消息，用户消息原样显示）：半角
   `[type:id]` 与全角 `［post:id］` 标记，以及后端为 ASST-010 追加的 `Community sources` /
   `SOURCE` / `COMMUNITY_CONTENT_JSON` 证据行。可跳转来源按钮由结构化 source 事件渲染，同时显示
@@ -178,16 +186,17 @@ observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
 - 详情赞/藏与他人资料关注在未登录时跳转登录；`InteractionNotifier` 忽略进行中的重复点赞/收藏。
 - 编辑资料在身份未就绪或资料未加载成功时禁用保存。
 - `PostCard` 从后台回到前台且仍 ≥50% 可见时重装曝光计时。
-- Assistant 运行时忽略无法识别的 SSE `type`，未知事件不终止流、不记为连接错误（FX-059）。
-- Agent 授权同时保存 `consentVersion`/`currentVersion`；版本偏低时记忆/Watch 写入口禁用并只读提示
-  升级，同意后 POST 升级（FX-080）。
-- 认证用户可打开 `/assistant/memory` 与 `/assistant/watch`。记忆只列出 profile/interest/task，
-  区分已确认，支持改值/分值、删除、「不要记住这个」；失败展示 ErrorView 不伪装空成功。Watch 任务
-  仅四种条件，命中收件箱可标已读并打开已发布帖子，不写入私信或通知中心（FX-081～083）。
-  记忆与 Watch 标识经 `jsonInt64Id` 编解码后再走 SDK 路径。
-- SSE `card`/`actions`/`watch_hit` 渲染结构化卡片、动作按钮与命中提示；卡片 payload 只采用服务端
-  已验证 `postId`，推荐卡片「不喜欢/不感兴趣」调用 recommend/feedback（FX-084/085/087）。
-- 帖子详情在已登录时提供「盯作者」「盯本帖修订」；未授权或版本偏低引导去 Assistant（FX-086）。
+- Assistant 是消息页固定虚拟线程，不是主导航 destination。桌面会话列表置顶「小白盒 Agent」，
+  移动端 `/messages/assistant`；旧 `/assistant*` 重定向。并行拉取会话列表与 thread，导航未读
+  合并 Assistant 未读，thread 每 30 秒轮询（FX-050/052/083/088）。
+- 首次发送前查询 consent；版本偏低只读提示并要求升级。忽略未知 SSE `type`。来源只渲染
+  `source_card`，不从 Markdown 解析。工具进度、确认、`memory_changed` undo、推荐反馈按新事件
+  类型处理（FX-051/053～059/080/084/085/087）。
+- 认证用户可打开 `/messages/assistant/memory` 与 `/messages/assistant/watch`。记忆列出
+  MEMORY/USER、容量 used/limit，支持 content+version 写入与 undo。Watch 仅任务 CRUD，无命中
+  收件箱。帖子详情盯梢未授权引导 `/messages/assistant`（FX-081/082/086）。
+- `POST /assistant/messages` 接受 started/redirected/steered/queued；忙碌时仍可发送；显式 Stop
+  才 `POST /assistant/runs/:id/cancel`。新会话与清历史不删除 MEMORY/USER/Watch（FX-058/089～093）。
 
 ## 偏离登记
 
@@ -198,7 +207,7 @@ observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
 | `DIV-003` | `FX-032` | 已收敛：标题 120、正文 20000、标签 10，选择后校验类型与 10 MiB | 无 |
 | `DIV-004` | `FX-022` | 已收敛：综合搜索展示 `degraded` 与 `unavailableTypes`，零命中降级不再伪装成普通空结果 | 无 |
 | `DIV-005` | `FX-040` | 部分收敛：文本上限 1000，图片可上传发送；视频/语音无网关上传，发送入口禁用 | 需后端补 `POST /api/v1/media/video` 及语音上传后再闭环发送 |
-| `DIV-006` | `FX-051` | 部分收敛：来源带 `revision`，只打开 `post`；仍无 excerpt 与来源已变化状态 | 等 SSE 契约补 excerpt/变化标记后再展示 |
+| `DIV-006` | `FX-051` | 已按 `source_card` 展示 handle/kind/authorityId/title/revision；不从 Markdown 解析来源。来源已变化/不可用的细粒度标记仍取决于服务端 payload | 服务端若在 `payloadJson` 给出变化标记再展示 |
 
 ## 对齐摘要
 
@@ -208,7 +217,7 @@ observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
 | 搜索 | aligned | 已建模并展示部分降级；搜索帖子带作者身份并在结果中展示 |
 | 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐；评论楼中楼按需展开加载（内嵌预览 + replies 分页接口）见 [EVD-comment-replies-2026-08-22](../evidence/EVD-comment-replies-2026-08-22.md)，接口语义缺口登记于后端仓 PROP-20260822-comment-reply-thread（open） |
 | 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |
-| Assistant | diverged | enhanced_search 仍缺 excerpt 与来源变化；Agent 模式（FX-052～058）与运行时（FX-059、FX-080～087）已实现并经自动化验证，真实网关与真机图片上传证据待补 |
+| Assistant | aligned | Hermes 虚拟线程、异步 run SSE、consent、MEMORY/USER、Watch CRUD 已按当前规格落地并经自动化验证；真实网关与真机图片上传证据待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
 | 行为反馈 | aligned | 客户端不再上报 like/unlike |
 | UI/工程分层 | aligned | 详见 [Forui 实现指南](IMP-forui-ui.md) |
 | Mock/真实同路径 | aligned | transport 注入；Mock HTTP 契约对齐 `gateway.api`；真实网关仍需独立证据 |
@@ -222,4 +231,4 @@ observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
 [EVD-favorites-reload-2026-08-20](../evidence/EVD-favorites-reload-2026-08-20.md)
 与
 [EVD-client-ui-align-2026-08-20](../evidence/EVD-client-ui-align-2026-08-20.md)、
-[EVD-assistant-agent-runtime-2026-08-27](../evidence/EVD-assistant-agent-runtime-2026-08-27.md)。
+[EVD-assistant-hermes-2026-08-29](../evidence/EVD-assistant-hermes-2026-08-29.md)。

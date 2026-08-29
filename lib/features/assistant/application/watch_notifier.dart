@@ -30,31 +30,6 @@ class WatchListState {
   }
 }
 
-class WatchHitsState {
-  final bool loading;
-  final String? error;
-  final List<WatchHit> items;
-
-  const WatchHitsState({
-    this.loading = false,
-    this.error,
-    this.items = const [],
-  });
-
-  WatchHitsState copyWith({
-    bool? loading,
-    String? error,
-    bool clearError = false,
-    List<WatchHit>? items,
-  }) {
-    return WatchHitsState(
-      loading: loading ?? this.loading,
-      error: clearError ? null : (error ?? this.error),
-      items: items ?? this.items,
-    );
-  }
-}
-
 class WatchListNotifier extends StateNotifier<WatchListState> {
   final AssistantDataSource _repository;
 
@@ -123,52 +98,9 @@ class WatchListNotifier extends StateNotifier<WatchListState> {
   }
 }
 
-class WatchHitsNotifier extends StateNotifier<WatchHitsState> {
-  final AssistantDataSource _repository;
-
-  WatchHitsNotifier({required AssistantDataSource repository})
-    : _repository = repository,
-      super(const WatchHitsState());
-
-  Future<void> load() async {
-    state = state.copyWith(loading: true, clearError: true);
-    try {
-      final items = await _repository.listWatchHits();
-      if (!mounted) return;
-      state = WatchHitsState(items: items);
-    } catch (error) {
-      if (!mounted) return;
-      state = WatchHitsState(
-        items: state.items,
-        error: friendlyErrorMessage(error),
-      );
-    }
-  }
-
-  Future<void> markHitRead(WatchHit hit) async {
-    try {
-      await _repository.markWatchHitsRead([hit.id]);
-      await load();
-    } catch (error) {
-      if (!mounted) return;
-      state = state.copyWith(error: friendlyErrorMessage(error));
-      rethrow;
-    }
-  }
-}
-
 final watchListProvider =
     StateNotifierProvider.autoDispose<WatchListNotifier, WatchListState>((ref) {
       final notifier = WatchListNotifier(
-        repository: ref.read(assistantRepositoryProvider),
-      );
-      notifier.load();
-      return notifier;
-    });
-
-final watchHitsProvider =
-    StateNotifierProvider.autoDispose<WatchHitsNotifier, WatchHitsState>((ref) {
-      final notifier = WatchHitsNotifier(
         repository: ref.read(assistantRepositoryProvider),
       );
       notifier.load();

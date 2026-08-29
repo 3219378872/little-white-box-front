@@ -1,34 +1,21 @@
 import '../../../core/api/json_int64.dart';
 
 enum AssistantEventType {
+  runStarted,
   token,
-  source,
   toolCall,
+  toolResult,
   confirmRequired,
-  card,
-  actions,
-  watchHit,
+  sourceCard,
+  memoryChanged,
   done,
   error,
   unknown,
 }
 
-/// Assistant 模式（AGNT-001）：enhanced_search 为缺省，agent 需要授权。
-enum AssistantMode {
-  enhancedSearch('enhanced_search'),
-  agent('agent');
+enum AssistantDisposition { started, redirected, steered, queued, unknown }
 
-  const AssistantMode(this.wireValue);
-
-  final String wireValue;
-
-  static AssistantMode fromWire(String? value) =>
-      value == AssistantMode.agent.wireValue
-      ? AssistantMode.agent
-      : AssistantMode.enhancedSearch;
-}
-
-const memoryListLayers = {'profile', 'interest', 'task'};
+const memoryTargets = {'memory', 'user'};
 
 const watchConditionTargetTypes = {
   'author_new_post': 'author',
@@ -36,6 +23,120 @@ const watchConditionTargetTypes = {
   'keyword_new_post': 'keyword',
   'post_revised': 'post',
 };
+
+class AssistantAttachment {
+  final Object mediaId;
+  final String url;
+
+  const AssistantAttachment({required this.mediaId, required this.url});
+
+  Map<String, dynamic> toJson() => {'mediaId': mediaId, 'url': url};
+}
+
+class AssistantThreadSummary {
+  final Object sessionId;
+  final int unreadCount;
+  final Object lastMessageId;
+  final String lastMessagePreview;
+  final int lastMessageAtMs;
+  final Object activeRunId;
+  final String activeRunStatus;
+  final String activeRunPhase;
+
+  const AssistantThreadSummary({
+    this.sessionId = 0,
+    this.unreadCount = 0,
+    this.lastMessageId = 0,
+    this.lastMessagePreview = '',
+    this.lastMessageAtMs = 0,
+    this.activeRunId = 0,
+    this.activeRunStatus = '',
+    this.activeRunPhase = '',
+  });
+
+  bool get hasActiveRun => jsonInt64IsPositive(activeRunId);
+
+  factory AssistantThreadSummary.fromJson(Map<String, dynamic> json) {
+    return AssistantThreadSummary(
+      sessionId: json['sessionId'] ?? 0,
+      unreadCount: _integer(json['unreadCount']),
+      lastMessageId: json['lastMessageId'] ?? 0,
+      lastMessagePreview: _string(json['lastMessagePreview']),
+      lastMessageAtMs: _integer(json['lastMessageAtMs']),
+      activeRunId: json['activeRunId'] ?? 0,
+      activeRunStatus: _string(json['activeRunStatus']),
+      activeRunPhase: _string(json['activeRunPhase']),
+    );
+  }
+}
+
+class AssistantHistoryMessage {
+  final Object id;
+  final Object sessionId;
+  final Object runId;
+  final String role;
+  final String kind;
+  final String content;
+  final bool unread;
+  final int createdAtMs;
+  final Object changeId;
+
+  const AssistantHistoryMessage({
+    required this.id,
+    this.sessionId = 0,
+    this.runId = 0,
+    this.role = '',
+    this.kind = '',
+    this.content = '',
+    this.unread = false,
+    this.createdAtMs = 0,
+    this.changeId = 0,
+  });
+
+  factory AssistantHistoryMessage.fromJson(Map<String, dynamic> json) {
+    final id = json['id'];
+    if (id == null) {
+      throw const FormatException('invalid assistant message');
+    }
+    return AssistantHistoryMessage(
+      id: id,
+      sessionId: json['sessionId'] ?? 0,
+      runId: json['runId'] ?? 0,
+      role: _string(json['role']),
+      kind: _string(json['kind']),
+      content: _string(json['content']),
+      unread: json['unread'] == true,
+      createdAtMs: _integer(json['createdAtMs']),
+      changeId: json['changeId'] ?? 0,
+    );
+  }
+}
+
+class AssistantPostResult {
+  final Object messageId;
+  final Object sessionId;
+  final Object runId;
+  final AssistantDisposition disposition;
+
+  const AssistantPostResult({
+    required this.messageId,
+    required this.sessionId,
+    required this.runId,
+    required this.disposition,
+  });
+
+  factory AssistantPostResult.fromJson(Map<String, dynamic> json) {
+    return AssistantPostResult(
+      messageId: json['messageId'] ?? 0,
+      sessionId: json['sessionId'] ?? 0,
+      runId: json['runId'] ?? 0,
+      disposition: AssistantDisposition.values.firstWhere(
+        (value) => value.name == _string(json['disposition']),
+        orElse: () => AssistantDisposition.unknown,
+      ),
+    );
+  }
+}
 
 class AssistantToolCall {
   final String callId;
@@ -65,306 +166,187 @@ class AssistantToolCall {
   }
 }
 
-class AssistantSourceReference {
-  final String sourceType;
-  final String sourceId;
+class AssistantSourceCard {
+  final String handle;
+  final String kind;
+  final String authorityId;
   final String title;
   final int revision;
+  final String payloadJson;
 
-  const AssistantSourceReference({
-    required this.sourceType,
-    required this.sourceId,
-    required this.title,
+  const AssistantSourceCard({
+    required this.handle,
+    required this.kind,
+    required this.authorityId,
+    this.title = '',
     this.revision = 0,
+    this.payloadJson = '',
   });
 
-  bool get isVerifiedPost => sourceType == 'post' && sourceId.isNotEmpty;
+  bool get isVerifiedPost =>
+      kind == 'post' && jsonInt64IsPositive(authorityId);
 
-  factory AssistantSourceReference.fromJson(Map<String, dynamic> json) {
-    final sourceType = _string(json['sourceType']).trim();
-    final sourceId = _string(json['sourceId']).trim();
-    if (sourceType.isEmpty || sourceId.isEmpty) {
-      throw const FormatException('invalid assistant source');
+  bool get isRecommend => kind == 'recommend' || kind == 'post';
+
+  Object? get postId => isVerifiedPost ? jsonInt64Id(authorityId) : null;
+
+  factory AssistantSourceCard.fromJson(Map<String, dynamic> json) {
+    final handle = _string(json['handle']).trim();
+    final kind = _string(json['kind']).trim();
+    final authorityId = _string(json['authorityId']).trim();
+    if (handle.isEmpty || kind.isEmpty) {
+      throw const FormatException('invalid assistant source card');
     }
-    return AssistantSourceReference(
-      sourceType: sourceType,
-      sourceId: sourceId,
+    return AssistantSourceCard(
+      handle: handle,
+      kind: kind,
+      authorityId: authorityId,
       title: _string(json['title']),
       revision: _integer(json['revision']),
+      payloadJson: _string(json['payloadJson']),
     );
   }
 
   @override
   bool operator ==(Object other) {
-    return other is AssistantSourceReference &&
-        other.sourceType == sourceType &&
-        other.sourceId == sourceId;
+    return other is AssistantSourceCard &&
+        other.handle == handle &&
+        other.kind == kind &&
+        other.authorityId == authorityId;
   }
 
   @override
-  int get hashCode => Object.hash(sourceType, sourceId);
+  int get hashCode => Object.hash(handle, kind, authorityId);
 }
 
-/// SSE card：只采用 payload 里服务端给出的已验证标识（FX-084）。
-class AssistantStructuredCard {
-  final String cardType;
-  final String payloadJson;
-  final Object? postId;
-  final String title;
-  final String summary;
-
-  const AssistantStructuredCard({
-    required this.cardType,
-    this.payloadJson = '',
-    this.postId,
-    this.title = '',
-    this.summary = '',
-  });
-
-  bool get hasVerifiedPost => jsonInt64IsPositive(postId);
-
-  bool get isRecommend =>
-      cardType == 'recommend' || cardType == 'post' || cardType == 'posts';
-
-  factory AssistantStructuredCard.fromJson(Map<String, dynamic> json) {
-    final cardType = _string(json['cardType']).trim();
-    if (cardType.isEmpty) {
-      throw const FormatException('invalid assistant card');
-    }
-    final payloadJson = _string(json['payloadJson']);
-    final payload = decodePayloadJson(payloadJson);
-    return AssistantStructuredCard(
-      cardType: cardType,
-      payloadJson: payloadJson,
-      postId: verifiedPayloadId(payload, 'postId'),
-      title: _string(payload?['title']).trim(),
-      summary: _string(payload?['summary']).trim(),
-    );
-  }
-}
-
-class AssistantStructuredAction {
-  final String action;
-  final String payloadJson;
-  final Object? postId;
-  final Object? authorId;
-  final String targetText;
-  final String conditionType;
-  final String targetType;
-  final Object? targetId;
-
-  const AssistantStructuredAction({
-    required this.action,
-    this.payloadJson = '',
-    this.postId,
-    this.authorId,
-    this.targetText = '',
-    this.conditionType = '',
-    this.targetType = '',
-    this.targetId,
-  });
-
-  factory AssistantStructuredAction.fromJson(Map<String, dynamic> json) {
-    final action = _string(json['action']).trim();
-    if (action.isEmpty) {
-      throw const FormatException('invalid assistant action');
-    }
-    final payloadJson = _string(json['payloadJson']);
-    final payload = decodePayloadJson(payloadJson);
-    final conditionType = _string(payload?['conditionType']).trim();
-    final targetType = _string(payload?['targetType']).trim();
-    return AssistantStructuredAction(
-      action: action,
-      payloadJson: payloadJson,
-      postId: verifiedPayloadId(payload, 'postId'),
-      authorId: verifiedPayloadId(payload, 'authorId'),
-      targetText: _string(payload?['targetText']).trim().isNotEmpty
-          ? _string(payload?['targetText']).trim()
-          : _string(payload?['tag']).trim(),
-      conditionType: conditionType,
-      targetType: targetType,
-      targetId: verifiedPayloadId(payload, 'targetId'),
-    );
-  }
-}
-
-class AssistantWatchHitNotice {
-  final Object hitId;
-  final Object taskId;
-  final Object postId;
-  final String title;
-  final String summary;
-
-  const AssistantWatchHitNotice({
-    required this.hitId,
-    required this.taskId,
-    required this.postId,
-    this.title = '',
-    this.summary = '',
-  });
-
-  bool get hasVerifiedPost => jsonInt64IsPositive(postId);
-
-  factory AssistantWatchHitNotice.fromJson(Map<String, dynamic> json) {
-    final hitId = json['hitId'] ?? 0;
-    final taskId = json['taskId'] ?? 0;
-    final postId = json['postId'] ?? 0;
-    if (!jsonInt64IsPositive(hitId) || !jsonInt64IsPositive(postId)) {
-      throw const FormatException('invalid assistant watch hit');
-    }
-    return AssistantWatchHitNotice(
-      hitId: jsonInt64Id(hitId),
-      taskId: jsonInt64Id(taskId),
-      postId: jsonInt64Id(postId),
-      title: _string(json['title']),
-      summary: _string(json['summary']),
-    );
-  }
-}
-
-class AssistantChatEvent {
+class AssistantRunEvent {
+  final Object runId;
+  final int seq;
   final AssistantEventType type;
   final String text;
-  final AssistantSourceReference? source;
-  final AssistantToolCall? toolCall;
-  final AssistantStructuredCard? card;
-  final List<AssistantStructuredAction> actions;
-  final AssistantWatchHitNotice? watchHit;
   final bool degraded;
   final String errorCode;
-  final String conversationId;
+  final Object sessionId;
+  final AssistantToolCall? toolCall;
+  final AssistantSourceCard? sourceCard;
+  final Object changeId;
 
-  const AssistantChatEvent({
+  const AssistantRunEvent({
     required this.type,
+    this.runId = 0,
+    this.seq = 0,
     this.text = '',
-    this.source,
-    this.toolCall,
-    this.card,
-    this.actions = const [],
-    this.watchHit,
     this.degraded = false,
     this.errorCode = '',
-    this.conversationId = '',
+    this.sessionId = 0,
+    this.toolCall,
+    this.sourceCard,
+    this.changeId = 0,
   });
 
   bool get isTerminal =>
       type == AssistantEventType.done || type == AssistantEventType.error;
 
-  factory AssistantChatEvent.fromJson(Map<String, dynamic> json) {
+  factory AssistantRunEvent.fromJson(Map<String, dynamic> json) {
     final rawType = _string(json['type']);
     final type = switch (rawType) {
+      'run_started' => AssistantEventType.runStarted,
       'token' => AssistantEventType.token,
-      'source' => AssistantEventType.source,
       'tool_call' => AssistantEventType.toolCall,
+      'tool_result' => AssistantEventType.toolResult,
       'confirm_required' => AssistantEventType.confirmRequired,
-      'card' => AssistantEventType.card,
-      'actions' => AssistantEventType.actions,
-      'watch_hit' => AssistantEventType.watchHit,
+      'source_card' => AssistantEventType.sourceCard,
+      'memory_changed' => AssistantEventType.memoryChanged,
       'done' => AssistantEventType.done,
       'error' => AssistantEventType.error,
       _ => AssistantEventType.unknown,
     };
     if (type == AssistantEventType.unknown) {
-      return AssistantChatEvent(
+      return AssistantRunEvent(
         type: type,
-        conversationId: _string(json['conversationId']),
+        runId: json['runId'] ?? 0,
+        seq: _integer(json['seq']),
+        sessionId: json['sessionId'] ?? 0,
       );
     }
     final text = _string(json['text']);
-    final rawSource = json['source'];
-    final source = rawSource is Map
-        ? AssistantSourceReference.fromJson(
-            Map<String, dynamic>.from(rawSource),
-          )
-        : null;
     final rawToolCall = json['toolCall'];
     final toolCall = rawToolCall is Map
         ? AssistantToolCall.fromJson(Map<String, dynamic>.from(rawToolCall))
         : null;
-    final rawCard = json['card'];
-    final card = rawCard is Map
-        ? AssistantStructuredCard.fromJson(Map<String, dynamic>.from(rawCard))
-        : null;
-    final rawActions = json['actions'];
-    final actions = <AssistantStructuredAction>[];
-    if (rawActions is List) {
-      for (final item in rawActions) {
-        if (item is! Map) continue;
-        final action = AssistantStructuredAction.fromJson(
-          Map<String, dynamic>.from(item),
-        );
-        if (action.action.isNotEmpty) actions.add(action);
-      }
-    }
-    final rawWatchHit = json['watchHit'];
-    final watchHit = rawWatchHit is Map
-        ? AssistantWatchHitNotice.fromJson(
-            Map<String, dynamic>.from(rawWatchHit),
-          )
+    final rawSourceCard = json['sourceCard'];
+    final sourceCard = rawSourceCard is Map
+        ? AssistantSourceCard.fromJson(Map<String, dynamic>.from(rawSourceCard))
         : null;
     final errorCode = _string(json['errorCode']);
     if (type == AssistantEventType.token && text.isEmpty) {
       throw const FormatException('empty assistant token');
     }
-    if (type == AssistantEventType.source && source == null) {
-      throw const FormatException('missing assistant source');
-    }
     if ((type == AssistantEventType.toolCall ||
+            type == AssistantEventType.toolResult ||
             type == AssistantEventType.confirmRequired) &&
         toolCall == null) {
       throw const FormatException('missing assistant tool call');
     }
-    if (type == AssistantEventType.card && card == null) {
-      throw const FormatException('missing assistant card');
-    }
-    if (type == AssistantEventType.watchHit && watchHit == null) {
-      throw const FormatException('missing assistant watch hit');
+    if (type == AssistantEventType.sourceCard && sourceCard == null) {
+      throw const FormatException('missing assistant source card');
     }
     if (type == AssistantEventType.error &&
         (text.isEmpty || errorCode.isEmpty)) {
       throw const FormatException('invalid assistant error');
     }
-    return AssistantChatEvent(
+    return AssistantRunEvent(
+      runId: json['runId'] ?? 0,
+      seq: _integer(json['seq']),
       type: type,
       text: text,
-      source: source,
-      toolCall: toolCall,
-      card: card,
-      actions: actions,
-      watchHit: watchHit,
       degraded: json['degraded'] == true,
       errorCode: errorCode,
-      conversationId: _string(json['conversationId']),
+      sessionId: json['sessionId'] ?? 0,
+      toolCall: toolCall,
+      sourceCard: sourceCard,
+      changeId: json['changeId'] ?? 0,
     );
   }
 }
 
 class MemoryRecord {
   final Object id;
-  final String layer;
-  final String dimension;
-  final String value;
-  final double score;
-  final String source;
-  final double confidence;
-  final bool confirmed;
-  final bool suppressed;
-  final int updatedAt;
+  final String target;
+  final String content;
+  final int version;
+  final int createdAtMs;
+  final int updatedAtMs;
 
   const MemoryRecord({
     required this.id,
-    required this.layer,
-    required this.dimension,
-    required this.value,
-    this.score = 0,
-    this.source = '',
-    this.confidence = 0,
-    this.confirmed = false,
-    this.suppressed = false,
-    this.updatedAt = 0,
+    required this.target,
+    required this.content,
+    this.version = 0,
+    this.createdAtMs = 0,
+    this.updatedAtMs = 0,
   });
 
   String get idText => jsonInt64Id(id);
+}
+
+class MemoryCapacity {
+  final String target;
+  final int used;
+  final int limit;
+
+  const MemoryCapacity({
+    required this.target,
+    required this.used,
+    required this.limit,
+  });
+}
+
+class MemoryWriteResult {
+  final MemoryRecord? entry;
+  final Object changeId;
+
+  const MemoryWriteResult({this.entry, this.changeId = 0});
 }
 
 class WatchTask {
@@ -374,6 +356,7 @@ class WatchTask {
   final Object targetId;
   final String targetText;
   final bool enabled;
+  final int version;
   final int createdAt;
 
   const WatchTask({
@@ -383,53 +366,11 @@ class WatchTask {
     this.targetId = 0,
     this.targetText = '',
     this.enabled = true,
+    this.version = 0,
     this.createdAt = 0,
   });
 
   String get idText => jsonInt64Id(id);
-}
-
-class WatchHit {
-  final Object id;
-  final Object taskId;
-  final Object postId;
-  final String title;
-  final String summary;
-  final int createdAt;
-  final bool read;
-
-  const WatchHit({
-    required this.id,
-    required this.taskId,
-    required this.postId,
-    this.title = '',
-    this.summary = '',
-    this.createdAt = 0,
-    this.read = false,
-  });
-
-  String get idText => jsonInt64Id(id);
-
-  bool get hasVerifiedPost => jsonInt64IsPositive(postId);
-}
-
-Map<String, dynamic>? decodePayloadJson(String raw) {
-  final trimmed = raw.trim();
-  if (trimmed.isEmpty) return null;
-  try {
-    final decoded = decodeApiJson(trimmed);
-    if (decoded is Map) return Map<String, dynamic>.from(decoded);
-  } catch (_) {
-    return null;
-  }
-  return null;
-}
-
-Object? verifiedPayloadId(Map<String, dynamic>? payload, String key) {
-  if (payload == null) return null;
-  final value = payload[key];
-  if (!jsonInt64IsPositive(value)) return null;
-  return jsonInt64Id(value);
 }
 
 String _string(Object? value) => value?.toString() ?? '';

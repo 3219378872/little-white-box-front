@@ -6,13 +6,20 @@ import 'package:go_router/go_router.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/paginated_list.dart';
+import '../../assistant/application/assistant_thread_notifier.dart';
+import '../../assistant/data/assistant_models.dart';
 import '../application/message_notifiers.dart';
 import '../data/message_models.dart';
 
 class MessagesShell extends StatelessWidget {
   final Widget? thread;
+  final bool assistantSelected;
 
-  const MessagesShell({super.key, this.thread});
+  const MessagesShell({
+    super.key,
+    this.thread,
+    this.assistantSelected = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +30,10 @@ class MessagesShell extends StatelessWidget {
     }
     return Row(
       children: [
-        const SizedBox(width: 320, child: ConversationsPage()),
+        SizedBox(
+          width: 320,
+          child: ConversationsPage(assistantSelected: assistantSelected),
+        ),
         ColoredBox(
           color: context.theme.colors.border,
           child: const SizedBox(width: 1, height: double.infinity),
@@ -43,15 +53,23 @@ class MessagesShell extends StatelessWidget {
 
 class ConversationsPage extends ConsumerWidget {
   final ValueChanged<ConversationSummary>? onOpenConversation;
+  final bool assistantSelected;
 
-  const ConversationsPage({super.key, this.onOpenConversation});
+  const ConversationsPage({
+    super.key,
+    this.onOpenConversation,
+    this.assistantSelected = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(conversationListProvider);
     final unread = ref.watch(unreadSummaryProvider);
+    final assistant = ref.watch(assistantThreadProvider);
     final notifier = ref.read(conversationListProvider.notifier);
     final unreadNotifier = ref.read(unreadSummaryProvider.notifier);
+    final assistantNotifier = ref.read(assistantThreadProvider.notifier);
+    final selected = assistantSelected || _assistantRouteSelected(context);
     return Column(
       children: [
         FHeader(
@@ -64,12 +82,12 @@ class ConversationsPage extends ConsumerWidget {
                   child: Text('通知 ${unread.summary.notificationUnread}'),
                 ),
               ),
-            FHeaderAction(
-              icon: const Icon(FLucideIcons.sparkles),
-              semanticsLabel: '打开 Assistant',
-              onPress: () => context.go('/assistant'),
-            ),
           ],
+        ),
+        _AssistantPin(
+          thread: assistant.thread,
+          selected: selected,
+          onPress: () => context.go('/messages/assistant'),
         ),
         Expanded(
           child: state.error != null && state.conversations.isEmpty
@@ -85,6 +103,7 @@ class ConversationsPage extends ConsumerWidget {
                     await Future.wait([
                       notifier.refresh(),
                       unreadNotifier.refresh(),
+                      assistantNotifier.refresh(),
                     ]);
                   },
                   emptyWidget: const EmptyView(
@@ -119,6 +138,14 @@ class ConversationsPage extends ConsumerWidget {
     );
   }
 
+  bool _assistantRouteSelected(BuildContext context) {
+    final route = GoRouter.maybeOf(context);
+    if (route == null) return assistantSelected;
+    return route.routerDelegate.currentConfiguration.uri.path.startsWith(
+      '/messages/assistant',
+    );
+  }
+
   void _open(BuildContext context, ConversationSummary conversation) {
     final callback = onOpenConversation;
     if (callback != null) {
@@ -133,6 +160,49 @@ class ConversationsPage extends ConsumerWidget {
           'targetUserName': conversation.targetUserName,
         },
       ).toString(),
+    );
+  }
+}
+
+class _AssistantPin extends StatelessWidget {
+  final AssistantThreadSummary thread;
+  final bool selected;
+  final VoidCallback onPress;
+
+  const _AssistantPin({
+    required this.thread,
+    required this.selected,
+    required this.onPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: selected ? theme.colors.secondary : theme.colors.background,
+          borderRadius: theme.style.borderRadius.md,
+        ),
+        child: FItem(
+          key: const Key('assistant-pinned-thread'),
+          prefix: Icon(FLucideIcons.sparkles, color: theme.colors.primary),
+          title: const Text('小白盒 Agent'),
+          subtitle: Text(
+            thread.lastMessagePreview.isEmpty
+                ? '随时问我任何问题'
+                : thread.lastMessagePreview,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          details: thread.unreadCount > 0
+              ? FBadge(child: Text('${thread.unreadCount}'))
+              : null,
+          suffix: const Icon(FLucideIcons.chevronRight),
+          onPress: onPress,
+        ),
+      ),
     );
   }
 }

@@ -48,37 +48,30 @@ void main() {
     expect(find.text('还没有可展示的记忆'), findsNothing);
   });
 
-  testWidgets('lists memories and distinguishes confirmed records', (
-    tester,
-  ) async {
+  testWidgets('lists dual memory targets and capacity', (tester) async {
     final source = _grantedSource()
       ..memories = const [
         MemoryRecord(
           id: 1,
-          layer: 'profile',
-          dimension: 'tag',
-          value: '美食',
-          score: 0.9,
-          source: 'explicit',
-          confirmed: true,
+          target: 'memory',
+          content: '喜欢美食',
+          version: 1,
         ),
-        MemoryRecord(
-          id: 2,
-          layer: 'interest',
-          dimension: 'author',
-          value: '萌萌哒小兔',
-          score: 0.4,
-          source: 'behavior',
-        ),
+        MemoryRecord(id: 2, target: 'user', content: '用中文', version: 1),
+      ]
+      ..capacities = const [
+        MemoryCapacity(target: 'memory', used: 4, limit: 2200),
+        MemoryCapacity(target: 'user', used: 3, limit: 1375),
       ];
     await _pumpMemory(tester, source);
 
-    expect(find.text('美食'), findsOneWidget);
-    expect(find.text('萌萌哒小兔'), findsOneWidget);
-    expect(find.text('已确认'), findsOneWidget);
-    expect(find.text('可能的偏好'), findsOneWidget);
+    expect(find.text('喜欢美食'), findsOneWidget);
+    expect(find.text('用中文'), findsOneWidget);
+    expect(find.text('MEMORY'), findsOneWidget);
+    expect(find.text('USER'), findsOneWidget);
+    expect(find.text('memory 4/2200'), findsOneWidget);
     expect(find.text('修改'), findsNWidgets(2));
-    expect(find.text('不要记住这个'), findsNWidgets(2));
+    expect(find.text('不要记住这个'), findsNothing);
   });
 
   testWidgets('stale consent is read-only with an upgrade prompt', (
@@ -89,18 +82,12 @@ void main() {
       ..consentVersion = 1
       ..currentVersion = 2
       ..memories = const [
-        MemoryRecord(
-          id: 1,
-          layer: 'profile',
-          dimension: 'tag',
-          value: '美食',
-          confirmed: true,
-        ),
+        MemoryRecord(id: 1, target: 'memory', content: '喜欢美食', version: 1),
       ];
     await _pumpMemory(tester, source);
 
     expect(find.text('需要升级 Agent 授权才能修改记忆'), findsOneWidget);
-    expect(find.text('美食'), findsOneWidget);
+    expect(find.text('喜欢美食'), findsOneWidget);
     expect(find.text('修改'), findsNothing);
   });
 }

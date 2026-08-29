@@ -32,10 +32,6 @@ class _WatchPageState extends ConsumerState<WatchPage> {
   Widget build(BuildContext context) {
     final consent = ref.watch(agentConsentNotifierProvider);
     final tasks = ref.watch(watchListProvider);
-    final hits = ref.watch(watchHitsProvider);
-    final empty = tasks.items.isEmpty && hits.items.isEmpty;
-    final loading = (tasks.loading || hits.loading) && empty;
-    final error = tasks.error ?? hits.error;
 
     return FScaffold(
       childPad: false,
@@ -43,8 +39,9 @@ class _WatchPageState extends ConsumerState<WatchPage> {
         title: const Text('追踪'),
         prefixes: [
           FHeaderAction.back(
-            onPress: () =>
-                context.canPop() ? context.pop() : context.go('/assistant'),
+            onPress: () => context.canPop()
+                ? context.pop()
+                : context.go('/messages/assistant'),
           ),
         ],
         suffixes: [
@@ -67,14 +64,18 @@ class _WatchPageState extends ConsumerState<WatchPage> {
                       ? '需要升级 Agent 授权才能管理追踪'
                       : '需要先授权 Agent 才能管理追踪',
                 ),
-                subtitle: const Text('命中仍只出现在助手内，不会写入私信。未升级时仅可只读查看。'),
+                subtitle: const Text('命中会进入小白盒 Agent 线程，不会写入普通私信。未升级时仅可只读查看。'),
               ),
             ),
           Expanded(
-            child: loading
+            child: tasks.loading && tasks.items.isEmpty
                 ? const Center(child: FCircularProgress())
-                : error != null && empty
-                ? ErrorView(message: error, onRetry: _reload)
+                : tasks.error != null && tasks.items.isEmpty
+                ? ErrorView(
+                    message: tasks.error!,
+                    onRetry: () =>
+                        ref.read(watchListProvider.notifier).load(),
+                  )
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                     children: [
@@ -104,54 +105,12 @@ class _WatchPageState extends ConsumerState<WatchPage> {
                               ),
                             ),
                           ),
-                      const SizedBox(height: 16),
-                      Text('命中收件箱', style: context.theme.typography.body.md),
-                      const SizedBox(height: 8),
-                      if (hits.items.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Text('还没有追踪命中'),
-                        )
-                      else
-                        for (final hit in hits.items)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _HitTile(
-                              hit: hit,
-                              onOpen: hit.hasVerifiedPost
-                                  ? () {
-                                      context.push(
-                                        '/post/${jsonInt64Id(hit.postId)}',
-                                      );
-                                      if (!hit.read) {
-                                        _runWatchAction(
-                                          () => ref
-                                              .read(watchHitsProvider.notifier)
-                                              .markHitRead(hit),
-                                        );
-                                      }
-                                    }
-                                  : null,
-                              onMarkRead: hit.read
-                                  ? null
-                                  : () => _runWatchAction(
-                                      () => ref
-                                          .read(watchHitsProvider.notifier)
-                                          .markHitRead(hit),
-                                    ),
-                            ),
-                          ),
                     ],
                   ),
           ),
         ],
       ),
     );
-  }
-
-  void _reload() {
-    ref.read(watchListProvider.notifier).load();
-    ref.read(watchHitsProvider.notifier).load();
   }
 
   Future<void> _runWatchAction(Future<void> Function() action) async {
@@ -254,9 +213,7 @@ class _WatchPageState extends ConsumerState<WatchPage> {
                   : '',
             );
       } catch (error) {
-        if (mounted) {
-          showAppError(context, friendlyErrorMessage(error));
-        }
+        if (mounted) showAppError(context, friendlyErrorMessage(error));
       }
     } finally {
       targetCtrl.dispose();
@@ -323,59 +280,6 @@ class _TaskTile extends StatelessWidget {
                 child: const Text('删除'),
               ),
             ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HitTile extends StatelessWidget {
-  final WatchHit hit;
-  final VoidCallback? onOpen;
-  final VoidCallback? onMarkRead;
-
-  const _HitTile({required this.hit, this.onOpen, this.onMarkRead});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colors.secondary,
-        borderRadius: theme.style.borderRadius.md,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(
-              child: FTappable(
-                onPress: onOpen,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      hit.title.isEmpty ? '已发布帖子' : hit.title,
-                      style: theme.typography.body.md,
-                    ),
-                    Text(
-                      hit.read ? '已读' : '未读',
-                      style: theme.typography.body.xs.copyWith(
-                        color: theme.colors.mutedForeground,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (onMarkRead != null)
-              FButton(
-                variant: .ghost,
-                size: .sm,
-                onPress: onMarkRead,
-                child: const Text('标为已读'),
-              ),
           ],
         ),
       ),

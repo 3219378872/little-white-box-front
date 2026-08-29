@@ -52,6 +52,12 @@ ENTITY_ID_FIELDS = (
     "hitId",
     "taskId",
     "contextPostId",
+    "runId",
+    "sessionId",
+    "changeId",
+    "lastMessageId",
+    "activeRunId",
+    "afterId",
 )
 PATH_ID_PARAMS = ("postId", "userId", "commentId", "id")
 
@@ -136,6 +142,15 @@ def patch_generated_types(source: str) -> str:
         "          ? List<Object>.from(m['hitIds'] as List)\n"
         "          : <Object>[],",
     )
+    source = source.replace(
+        "final List<int> changeIds;", "final List<Object> changeIds;"
+    )
+    source = source.replace(
+        "changeIds: m['changeIds']?.cast<int>() ?? [],",
+        "changeIds: m['changeIds'] is List\n"
+        "          ? List<Object>.from(m['changeIds'] as List)\n"
+        "          : <Object>[],",
+    )
     return source
 
 
@@ -143,7 +158,20 @@ def patch_generated_api(source: str) -> str:
     for field in PATH_ID_PARAMS:
         source = source.replace(f"  int {field},", f"  Object {field},")
         source = source.replace(f"  int {field}", f"  Object {field}")
-    return source
+    return patch_bodyless_request_args(source)
+
+
+def patch_bodyless_request_args(source: str) -> str:
+    """goctl emits `request` for POST/DELETE helpers that have no request type."""
+    parts = source.split("Future ")
+    out = [parts[0]]
+    for chunk in parts[1:]:
+        header, sep, rest = chunk.partition("{")
+        signature = header.split(")", 1)[0]
+        if sep and "request" not in signature and "    request," in rest:
+            rest = rest.replace("    request,", "    const {},", 1)
+        out.append("Future " + header + sep + rest)
+    return "".join(out)
 
 
 def copy_generated(src_root: Path, dest_root: Path, files: list[str]) -> None:

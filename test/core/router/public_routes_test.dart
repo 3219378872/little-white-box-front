@@ -29,8 +29,9 @@ void main() {
     test('受保护页面不公开', () {
       expect(isPublicRoute('/messages'), isFalse);
       expect(isPublicRoute('/assistant'), isFalse);
-      expect(isPublicRoute('/assistant/memory'), isFalse);
-      expect(isPublicRoute('/assistant/watch'), isFalse);
+      expect(isPublicRoute('/messages/assistant'), isFalse);
+      expect(isPublicRoute('/messages/assistant/memory'), isFalse);
+      expect(isPublicRoute('/messages/assistant/watch'), isFalse);
       expect(isPublicRoute('/profile'), isFalse);
       expect(isPublicRoute('/profile/edit'), isFalse);
     });

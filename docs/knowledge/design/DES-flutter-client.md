@@ -41,6 +41,12 @@ tracks:
   - FX-085
   - FX-086
   - FX-087
+  - FX-088
+  - FX-089
+  - FX-090
+  - FX-091
+  - FX-092
+  - FX-093
   - FQ-001
   - FQ-002
   - FQ-003
@@ -49,7 +55,7 @@ tracks:
   - FQ-006
   - FQ-007
   - FQ-008
-updated_at: 2026-08-27
+updated_at: 2026-08-29
 ---
 
 # Flutter 内容社区客户端设计
@@ -155,65 +161,49 @@ adapter。生成来源与应用副本保持清晰，契约新增 revision 或幂
 - 私信发送命令在 application 层生成幂等键；同一失败命令重试复用原对象。
 - 行为批次只包含客户端拥有的动作，权威互动由服务端业务事务和 outbox 归因。
 
-### Assistant 流
+### Assistant 虚拟线程与异步 run（FX-050～059、FX-080～093）
 
-Assistant 使用独立 SSE transport，因为它需要逐事件消费并支持取消。repository 校验 HTTP、SSE 帧和
-唯一终止事件；notifier 以 generation 丢弃旧订阅事件，累积 token、去重来源并保留降级/错误状态。
-来源模型只接受规格允许的帖子证据字段；页面重新打开来源时仍走普通帖子权限。
+入口与导航：
 
-### Assistant Agent 模式（FX-052～FX-058）
+- Assistant 不是独立主导航 destination。桌面 MessagesShell 在会话列表上方固定「小白盒 Agent」；
+  选中后右侧展示助手线程。移动端为 `/messages/assistant`。记忆与 Watch 为
+  `/messages/assistant/memory`、`/messages/assistant/watch`。旧 `/assistant*` 重定向到对应
+  `/messages/assistant*` 路径（FX-050/052）。
+- 打开消息能力时并行拉取会话列表与 `GET /api/v2/assistant/thread`。`assistantThreadProvider`
+  在认证壳挂载期间每 30 秒轮询 thread，因为合并未读徽标位于全局导航。导航未读 =
+  普通私信未读 + Assistant 未读（FX-083/088）。进入线程后 `POST /assistant/thread/read`
+  标记已读，失败可独立重试（FX-093）。
 
-模式与授权：
+发送与忙碌：
 
-- 模式控件放在 assistant 页输入区上方，状态保存在 `AssistantNotifier` 所属的 provider
-  中，切换只改请求参数不清历史；请求体经 `assistant_repository` 增加 `mode` 与
-  `attachments` 字段。
-- 进入 Agent 模式时由 repository 调用 `GET /api/v2/assistant/consent` 查询授权；
-  未授权时页面弹出能力说明对话框（Forui 组件 + `FLucideIcons`），同意后调
-  `POST /api/v2/assistant/consent` 记录，取消回退 enhanced_search。收到
-  `AGENT_NOT_AUTHORIZED` 业务码同样触发该对话框。
+- 页面在首次用户 run 前查询 `GET /assistant/consent`；未授权或版本偏低弹出能力说明，同意后
+  `POST` 记录。取消不发送。`AGENT_NOT_AUTHORIZED` 再次触发授权，成功后可重发（FX-053/054/080）。
+- `POST /api/v2/assistant/messages` 携带 message、requestId、attachments，返回
+  `messageId/sessionId/runId/disposition`。客户端立即接受异步 run，不把 POST 当成模型完成
+  （FX-089）。忙碌时输入仍可发送：`model_request` redirect、`tool_executing` steer、
+  compact/附件 FIFO（服务端 32）。只有显式 Stop 调用 `POST /assistant/runs/:id/cancel`
+  （FX-058/091）。新会话 `POST /assistant/sessions`，清历史 `DELETE /assistant/history`，
+  二者都不删除 MEMORY/USER/Watch（FX-092）。
+- 图片附件始终可用：选图、MIME/大小校验、multipart 上传、发送前可移除（FX-055）。
 
-附件：
+SSE：
 
-- 附件入口复用私信线程的选图模式：`ImagePicker` 选图 → 与帖子发布一致的 MIME 白名单
-  （JPEG/PNG/WebP）和 ≤10 MiB 校验 → 复用 `PostRepository.uploadImageMultipart`
-  上传 → 会话内暂存 `{mediaId, url, thumbnailUrl}` 列表，发送前可移除。
-- 发送时把附件映射进请求 `attachments`；上传失败的图片中止本次发送并提示，不静默剔除。
+- `GET /api/v2/assistant/runs/:id/events` 使用独立 SSE transport。重连携带 `Last-Event-ID`
+  与 `afterSeq`。repository 校验帧、忽略未知 `type`，只把 `done`/`error` 当终止；断流保留
+  已收到文本，不伪造 done（FX-059/090）。
+- 解析 `run_started|token|tool_call|tool_result|confirm_required|source_card|memory_changed|done|error`。
+  工具行与确认卡片按 callId 更新；确认调用 `POST /assistant/runs/:id/confirm`
+  `{callId, approved}` 后立即不可交互（FX-056/057）。
+- 来源只渲染 `source_card`。`kind=post` 且 `authorityId` 为正才可打开帖子；网页等以类型标识
+  展示。禁止从 Markdown 解析来源。推荐类来源卡可提交 `POST /assistant/recommend/feedback`
+  （FX-051/084/087）。`memory_changed` 不计未读，提供 undo（FX-085）。
 
-工具进度与确认：
+记忆与 Watch：
 
-- `AssistantChatEvent` 解析扩展 `TOOL_CALL` / `CONFIRM_REQUIRED` 类型与 `toolCall`
-  载荷；notifier 把工具行追加进当前消息的步骤列表，终止后由页面折叠渲染。
-- 确认卡片是独立 widget：持有 `callId`，确认/取消调用 `POST /api/v2/assistant/tool/confirm`
-  后立即转为不可交互并显示结果；卡片不阻塞后续 SSE 事件渲染。
-- 网络来源以独立类型标识渲染（非帖子证据样式），预算耗尽错误沿用既有错误态呈现。
-
-### Assistant Agent 运行时（FX-059、FX-080～FX-087）
-
-SSE 扩展：
-
-- repository 解析 `card` / `actions` / `watch_hit`；无法识别的 `type` 直接跳过，不抛终止错误
-  （FX-059）。未知 `sourceType` 仍只作徽章，不可点击进帖子。
-- `card.payloadJson` 只抽取服务端给出的已验证 `postId` 等标识渲染卡片，禁止从回答正文数字推断
-  ID（FX-084）。推荐卡片附不喜欢/不感兴趣，成功后才标记已反馈（FX-087）。
-- `actions` 渲染为独立按钮（打开帖子、创建 Watch 等），失败 toast 不中断后续事件（FX-085）。
-- `watch_hit` 追加到当前助手消息，点击已验证 `postId` 打开已发布帖子。
-
-授权版本：
-
-- `GET /api/v2/assistant/consent` 同时保存 `consentVersion` 与 `currentVersion`。已授权但版本
-  偏低时再次弹出完整工具分组清单，确认后 `POST` 升级；记忆/Watch 写入口在升级前禁用，页面可只读
-  提示（FX-080）。
-
-记忆与 Watch 页：
-
-- 路由 `/assistant/memory`、`/assistant/watch`，与 `/assistant` 同样受认证守卫；Assistant 页头
-  与个人资料入口导航，不新增第六个主 Tab。
-- 记忆页列出 profile/interest/task，区分已确认，支持改值/分值、删除、标记「不要记住这个」
-  （PATCH `suppressed`）；失败展示 ErrorView，不伪装空成功（FX-081）。
-- Watch 页列出任务与命中收件箱：创建/启停/删除仅允许四种规则条件；命中可标记已读并打开帖子，
-  不写入私信或通知中心（FX-082/083）。
-- 帖子详情在已授权且版本覆盖 Watch 时提供「盯作者」「盯本帖修订」芯片；未授权引导去 Assistant
+- 记忆页列出 MEMORY/USER 自然语言条目、容量 used/limit，支持 add/replace/remove 与 change
+  undo，不展示 layer/score/suppressed（FX-081）。
+- Watch 页只做任务 CRUD，四种条件类型，无命中收件箱。命中以助手主动消息进入虚拟线程
+  （FX-082/083）。帖子详情「盯作者」「盯本帖修订」未授权时引导 `/messages/assistant`
   （FX-086）。
 
 ## 关键数据流
@@ -244,8 +234,8 @@ tab、或从其它路由返回且仍为当前 tab 时，都重新请求第一页
 - 私信线程先加载并独立标记已读；发送失败保存原命令，用户重试复用幂等键。列表、线程和导航未读数通过
   明确刷新收敛。文本上限 1000；图片先上传再带 `mediaId` 发送，并把 URL 写入 `content`。视频/语音
   仅在 `content` 为 URL 时展示，当前网关无对应上传接口，发送入口保持不可用。
-- Assistant 每次只允许一个活跃流；取消先增加 generation 再关闭订阅。断流保留部分文本但不标记完成，
-  source、done、error 都携带并更新会话上下文。
+- Assistant 线程与会话列表并行加载。活跃 run 通过 generation 隔离陈旧 SSE；显式 Stop 取消订阅并
+  请求硬取消，断线则从 `afterSeq` 续流。disposition 为 queued 时展示排队态，不把排队当成完成。
 
 ## UI 系统
 
@@ -254,9 +244,10 @@ tab、或从其它路由返回且仍为当前 tab 时，都重新请求第一页
 variant。
 
 主壳在 Forui `lg` 断点切换底部导航和桌面侧栏；正文由 `ContentConstraint` 限宽。`lg` 及以上
-Feed 使用双列卡片、私信使用左列表右线程，Feed/私信内容宽放宽到 1100。移动端底栏仍为 5 项，
-Assistant 从「我的」和消息页进入。主 Tab 页不再嵌套第二层 `FScaffold`。新增 feature 页面
-优先使用 Forui/`FLucideIcons`，无法等价时才使用 Material，不为局部需求创建第二套主题或 overlay 根。
+Feed 使用双列卡片、私信使用左列表右线程，Feed/私信内容宽放宽到 1100。移动端底栏为 5 项，桌面
+侧栏同样 5 项，Assistant 作为消息页固定虚拟线程进入。主 Tab 页不再嵌套第二层 `FScaffold`。
+新增 feature 页面优先使用 Forui/`FLucideIcons`，无法等价时才使用 Material，不为局部需求创建
+第二套主题或 overlay 根。
 
 ## 失败与恢复
 
@@ -279,9 +270,10 @@ Assistant 从「我的」和消息页进入。主 Tab 页不再嵌套第二层 `
 | `FX-020`～`FX-022` | Feed/Search repository、游标、状态机和降级显示 |
 | `FX-030`～`FX-032` | v1 生成契约、multipart、写入幂等与 revision |
 | `FX-040`～`FX-041` | Message command、线程状态和未读收敛 |
-| `FX-050`～`FX-051` | SSE transport、Assistant notifier、证据来源模型 |
-| `FX-052`～`FX-058` | Agent 模式控件、授权对话框、附件上传、工具进度与确认卡片 |
-| `FX-059`、`FX-080`～`FX-087` | 未知 SSE 忽略、consent_version、记忆/Watch 页、卡片与动作、帖子盯梢、推荐反馈 |
+| `FX-050`～`FX-051` | 虚拟私信入口、输入边界、仅 `source_card` 来源 |
+| `FX-052`～`FX-058` | 消息页固定线程、授权、附件、工具进度、确认卡片、忙碌 redirect/steer/FIFO |
+| `FX-059`、`FX-080`～`FX-087` | 未知 SSE 忽略、consent 版本、MEMORY/USER、Watch CRUD、来源卡、memory_changed、盯梢、推荐反馈 |
+| `FX-088`～`FX-093` | 并行拉取与 30s 轮询、异步 POST disposition、SSE 续流、Stop、新会话/清历史、线程已读 |
 | `FX-060`～`FX-062` | 可见性测量、事件所有权、持久队列 |
 | `FX-070` | 共享 transport 与 Mock router |
 | `FQ-001`～`FQ-008` | 分层、适配、UI 系统、异步状态、测试和知识治理 |

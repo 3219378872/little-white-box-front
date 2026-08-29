@@ -58,7 +58,7 @@ void main() {
               builder: (_, _) => const SizedBox.expand(),
             ),
             GoRoute(
-              path: '/assistant',
+              path: '/messages/assistant',
               builder: (_, _) => const SizedBox.expand(),
             ),
             GoRoute(
@@ -157,7 +157,7 @@ void main() {
     final items = tester
         .widgetList<FSidebarItem>(find.byType(FSidebarItem))
         .toList();
-    expect(items, hasLength(6));
+    expect(items, hasLength(5));
     expect(items[0].selected, isTrue);
     expect(items.skip(1).every((item) => !item.selected), isTrue);
   });
@@ -172,27 +172,27 @@ void main() {
         .map((item) => item.selected)
         .toList();
 
-    expect(selection(), [true, false, false, false, false, false]);
+    expect(selection(), [true, false, false, false, false]);
 
     router.go('/search');
     await tester.pump();
-    expect(selection(), [false, true, false, false, false, false]);
+    expect(selection(), [false, true, false, false, false]);
 
     router.go('/messages');
     await tester.pump();
-    expect(selection(), [false, false, true, false, false, false]);
+    expect(selection(), [false, false, true, false, false]);
 
-    router.go('/assistant');
+    router.go('/messages/assistant');
     await tester.pump();
-    expect(selection(), [false, false, false, true, false, false]);
+    expect(selection(), [false, false, true, false, false]);
 
     router.go('/post/new');
     await tester.pump();
-    expect(selection(), [false, false, false, false, true, false]);
+    expect(selection(), [false, false, false, true, false]);
 
     router.go('/profile');
     await tester.pump();
-    expect(selection(), [false, false, false, false, false, true]);
+    expect(selection(), [false, false, false, false, true]);
   });
 
   testWidgets('hides primary navigation on mobile secondary routes', (
@@ -208,7 +208,7 @@ void main() {
   testWidgets('hides stale message navigation after opening Assistant', (
     tester,
   ) async {
-    await pumpShell(tester, location: '/assistant', width: 390);
+    await pumpShell(tester, location: '/messages/assistant', width: 390);
 
     expect(find.byType(FSidebar), findsNothing);
     expect(find.byType(FBottomNavigationBar), findsNothing);
@@ -255,14 +255,18 @@ void main() {
       expect(find.byType(ConversationsPage), findsOneWidget);
       expect(find.byType(FBottomNavigationBar), findsOneWidget);
 
-      tester.widget<FHeaderAction>(find.byType(FHeaderAction)).onPress!();
-      for (var i = 0; i < 4; i++) {
+      await tester.tap(find.byKey(const Key('assistant-pinned-thread')));
+      for (var i = 0; i < 16; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
-      expect(router.routeInformationProvider.value.uri.path, '/assistant');
+      expect(
+        router.routeInformationProvider.value.uri.path,
+        '/messages/assistant',
+      );
       expect(find.byType(AssistantPage), findsOneWidget);
       expect(find.byType(FBottomNavigationBar), findsNothing);
+      expect(find.text('Assistant'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -456,8 +460,8 @@ void main() {
 
 void _expectSidebarItemsAligned(WidgetTester tester) {
   final items = find.byType(FSidebarItem);
-  expect(items, findsNWidgets(6));
-  final rects = [for (var i = 0; i < 6; i++) tester.getRect(items.at(i))];
+  expect(items, findsNWidgets(5));
+  final rects = [for (var i = 0; i < 5; i++) tester.getRect(items.at(i))];
   final first = rects.first;
   for (final rect in rects.skip(1)) {
     expect(rect.height, closeTo(first.height, 0.5));

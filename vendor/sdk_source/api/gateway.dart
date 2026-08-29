@@ -41,21 +41,20 @@ Future healthReady({
   );
 }
 
-/// --/api/v2/assistant/chat--
+/// --/api/v2/assistant/runs/:id/events--
 ///
-/// request: AssistantChatReq
-/// response: AssistantChatEvent
-Future assistantChat(
-  AssistantChatReq request, {
-  Function(AssistantChatEvent)? ok,
+/// request: AssistantRunEventsReq
+/// response: AssistantRunEvent
+Future assistantRunEvents(
+  Object id, {
+  Function(AssistantRunEvent)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
-  await apiPost(
-    "/api/v2/assistant/chat",
-    request,
+  await apiGet(
+    "/api/v2/assistant/runs/${id}/events",
     ok: (data) {
-      if (ok != null) ok(AssistantChatEvent.fromJson(data));
+      if (ok != null) ok(AssistantRunEvent.fromJson(data));
     },
     fail: fail,
     eventually: eventually,
@@ -102,6 +101,26 @@ Future setAgentConsent(
   );
 }
 
+/// --/api/v2/assistant/history--
+///
+/// request:
+/// response: DeleteAssistantHistoryResp
+Future deleteAssistantHistory({
+  Function(DeleteAssistantHistoryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiDelete(
+    "/api/v2/assistant/history",
+    const {},
+    ok: (data) {
+      if (ok != null) ok(DeleteAssistantHistoryResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 /// --/api/v2/assistant/memory--
 ///
 /// request: ListAssistantMemoryReq
@@ -121,22 +140,21 @@ Future listAssistantMemory({
   );
 }
 
-/// --/api/v2/assistant/memory/:id--
+/// --/api/v2/assistant/memory--
 ///
-/// request: UpdateAssistantMemoryReq
-/// response: UpdateAssistantMemoryResp
-Future updateAssistantMemory(
-  Object id,
-  UpdateAssistantMemoryReq request, {
-  Function(UpdateAssistantMemoryResp)? ok,
+/// request: AddAssistantMemoryReq
+/// response: AddAssistantMemoryResp
+Future addAssistantMemory(
+  AddAssistantMemoryReq request, {
+  Function(AddAssistantMemoryResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
-  await apiPatch(
-    "/api/v2/assistant/memory/${id}",
+  await apiPost(
+    "/api/v2/assistant/memory",
     request,
     ok: (data) {
-      if (ok != null) ok(UpdateAssistantMemoryResp.fromJson(data));
+      if (ok != null) ok(AddAssistantMemoryResp.fromJson(data));
     },
     fail: fail,
     eventually: eventually,
@@ -145,12 +163,34 @@ Future updateAssistantMemory(
 
 /// --/api/v2/assistant/memory/:id--
 ///
-/// request: DeleteAssistantMemoryReq
-/// response: DeleteAssistantMemoryResp
-Future deleteAssistantMemory(
+/// request: ReplaceAssistantMemoryReq
+/// response: ReplaceAssistantMemoryResp
+Future replaceAssistantMemory(
   Object id,
-  DeleteAssistantMemoryReq request, {
-  Function(DeleteAssistantMemoryResp)? ok,
+  ReplaceAssistantMemoryReq request, {
+  Function(ReplaceAssistantMemoryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPatch(
+    "/api/v2/assistant/memory/${id}",
+    request,
+    ok: (data) {
+      if (ok != null) ok(ReplaceAssistantMemoryResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/memory/:id--
+///
+/// request: RemoveAssistantMemoryReq
+/// response: RemoveAssistantMemoryResp
+Future removeAssistantMemory(
+  Object id,
+  RemoveAssistantMemoryReq request, {
+  Function(RemoveAssistantMemoryResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
@@ -158,7 +198,90 @@ Future deleteAssistantMemory(
     "/api/v2/assistant/memory/${id}",
     request,
     ok: (data) {
-      if (ok != null) ok(DeleteAssistantMemoryResp.fromJson(data));
+      if (ok != null) ok(RemoveAssistantMemoryResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/memory/batch--
+///
+/// request: BatchAssistantMemoryReq
+/// response: BatchAssistantMemoryResp
+Future batchAssistantMemory(
+  BatchAssistantMemoryReq request, {
+  Function(BatchAssistantMemoryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/assistant/memory/batch",
+    request,
+    ok: (data) {
+      if (ok != null) ok(BatchAssistantMemoryResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/memory/changes/:id/undo--
+///
+/// request: UndoAssistantMemoryChangeReq
+/// response: UndoAssistantMemoryChangeResp
+Future undoAssistantMemoryChange(
+  Object id,
+  UndoAssistantMemoryChangeReq request, {
+  Function(UndoAssistantMemoryChangeResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/assistant/memory/changes/${id}/undo",
+    request,
+    ok: (data) {
+      if (ok != null) ok(UndoAssistantMemoryChangeResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/messages--
+///
+/// request: ListAssistantMessagesReq
+/// response: ListAssistantMessagesResp
+Future listAssistantMessages({
+  Function(ListAssistantMessagesResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/assistant/messages",
+    ok: (data) {
+      if (ok != null) ok(ListAssistantMessagesResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/messages--
+///
+/// request: PostAssistantMessageReq
+/// response: PostAssistantMessageResp
+Future postAssistantMessage(
+  PostAssistantMessageReq request, {
+  Function(PostAssistantMessageResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/assistant/messages",
+    request,
+    ok: (data) {
+      if (ok != null) ok(PostAssistantMessageResp.fromJson(data));
     },
     fail: fail,
     eventually: eventually,
@@ -186,21 +309,103 @@ Future submitAssistantRecommendFeedback(
   );
 }
 
-/// --/api/v2/assistant/tool/confirm--
+/// --/api/v2/assistant/runs/:id/cancel--
 ///
-/// request: AssistantToolConfirmReq
-/// response: AssistantToolConfirmResp
-Future confirmAssistantTool(
-  AssistantToolConfirmReq request, {
-  Function(AssistantToolConfirmResp)? ok,
+/// request: CancelAssistantRunReq
+/// response: CancelAssistantRunResp
+Future cancelAssistantRun(
+  Object id,
+  CancelAssistantRunReq request, {
+  Function(CancelAssistantRunResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
   await apiPost(
-    "/api/v2/assistant/tool/confirm",
+    "/api/v2/assistant/runs/${id}/cancel",
     request,
     ok: (data) {
-      if (ok != null) ok(AssistantToolConfirmResp.fromJson(data));
+      if (ok != null) ok(CancelAssistantRunResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/runs/:id/confirm--
+///
+/// request: ConfirmAssistantRunReq
+/// response: ConfirmAssistantRunResp
+Future confirmAssistantRun(
+  Object id,
+  ConfirmAssistantRunReq request, {
+  Function(ConfirmAssistantRunResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/assistant/runs/${id}/confirm",
+    request,
+    ok: (data) {
+      if (ok != null) ok(ConfirmAssistantRunResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/sessions--
+///
+/// request:
+/// response: CreateAssistantSessionResp
+Future createAssistantSession({
+  Function(CreateAssistantSessionResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/assistant/sessions",
+    const {},
+    ok: (data) {
+      if (ok != null) ok(CreateAssistantSessionResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/thread--
+///
+/// request:
+/// response: GetAssistantThreadResp
+Future getAssistantThread({
+  Function(GetAssistantThreadResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiGet(
+    "/api/v2/assistant/thread",
+    ok: (data) {
+      if (ok != null) ok(GetAssistantThreadResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v2/assistant/thread/read--
+///
+/// request:
+/// response: MarkAssistantThreadReadResp
+Future markAssistantThreadRead({
+  Function(MarkAssistantThreadReadResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/assistant/thread/read",
+    const {},
+    ok: (data) {
+      if (ok != null) ok(MarkAssistantThreadReadResp.fromJson(data));
     },
     fail: fail,
     eventually: eventually,
@@ -285,46 +490,6 @@ Future deleteAssistantWatch(
     request,
     ok: (data) {
       if (ok != null) ok(DeleteAssistantWatchResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/watch/hits--
-///
-/// request: ListAssistantWatchHitsReq
-/// response: ListAssistantWatchHitsResp
-Future listAssistantWatchHits({
-  Function(ListAssistantWatchHitsResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v2/assistant/watch/hits",
-    ok: (data) {
-      if (ok != null) ok(ListAssistantWatchHitsResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/watch/hits/read--
-///
-/// request: MarkAssistantWatchHitsReadReq
-/// response: MarkAssistantWatchHitsReadResp
-Future markAssistantWatchHitsRead(
-  MarkAssistantWatchHitsReadReq request, {
-  Function(MarkAssistantWatchHitsReadResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/watch/hits/read",
-    request,
-    ok: (data) {
-      if (ok != null) ok(MarkAssistantWatchHitsReadResp.fromJson(data));
     },
     fail: fail,
     eventually: eventually,

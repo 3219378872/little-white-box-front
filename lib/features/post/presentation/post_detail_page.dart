@@ -128,7 +128,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     if (!mounted) return;
     final status = ref.read(agentConsentNotifierProvider);
     if (!status.granted || status.needsUpgrade) {
-      context.push('/assistant');
+      context.push('/messages/assistant');
       return;
     }
     try {

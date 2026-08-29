@@ -9,11 +9,15 @@ class MemoryListState {
   final bool loading;
   final String? error;
   final List<MemoryRecord> items;
+  final List<MemoryCapacity> capacities;
+  final Object? lastChangeId;
 
   const MemoryListState({
     this.loading = false,
     this.error,
     this.items = const [],
+    this.capacities = const [],
+    this.lastChangeId,
   });
 
   MemoryListState copyWith({
@@ -21,11 +25,15 @@ class MemoryListState {
     String? error,
     bool clearError = false,
     List<MemoryRecord>? items,
+    List<MemoryCapacity>? capacities,
+    Object? lastChangeId,
   }) {
     return MemoryListState(
       loading: loading ?? this.loading,
       error: clearError ? null : (error ?? this.error),
       items: items ?? this.items,
+      capacities: capacities ?? this.capacities,
+      lastChangeId: lastChangeId ?? this.lastChangeId,
     );
   }
 }
@@ -40,46 +48,87 @@ class MemoryListNotifier extends StateNotifier<MemoryListState> {
   Future<void> load() async {
     state = state.copyWith(loading: true, clearError: true);
     try {
-      final items = await _repository.listMemory();
+      final result = await _repository.listMemory();
       if (!mounted) return;
-      state = MemoryListState(items: items);
+      state = MemoryListState(items: result.$1, capacities: result.$2);
     } catch (error) {
       if (!mounted) return;
       state = MemoryListState(
         items: state.items,
+        capacities: state.capacities,
         error: friendlyErrorMessage(error),
       );
     }
   }
 
-  Future<void> updateRecord({
-    required MemoryRecord record,
-    String? value,
-    double? score,
-    bool? suppressed,
+  Future<void> addRecord({
+    required String target,
+    required String content,
   }) async {
     try {
-      await _repository.updateMemory(
-        id: record.id,
-        value: value ?? record.value,
-        score: score ?? record.score,
-        suppressed: suppressed ?? record.suppressed,
+      final result = await _repository.addMemory(
+        target: target,
+        content: content,
       );
+      if (!mounted) return;
+      state = state.copyWith(lastChangeId: result.changeId);
       await load();
     } catch (error) {
+      if (mounted) {
+        state = state.copyWith(error: friendlyErrorMessage(error));
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> updateRecord({
+    required MemoryRecord record,
+    required String content,
+  }) async {
+    try {
+      final result = await _repository.replaceMemory(
+        id: record.id,
+        content: content,
+        version: record.version,
+      );
       if (!mounted) return;
-      state = state.copyWith(error: friendlyErrorMessage(error));
+      state = state.copyWith(lastChangeId: result.changeId);
+      await load();
+    } catch (error) {
+      if (mounted) {
+        state = state.copyWith(error: friendlyErrorMessage(error));
+      }
       rethrow;
     }
   }
 
   Future<void> deleteRecord(MemoryRecord record) async {
     try {
-      await _repository.deleteMemory(record.id);
+      final result = await _repository.removeMemory(
+        id: record.id,
+        version: record.version,
+      );
+      if (!mounted) return;
+      state = state.copyWith(lastChangeId: result.changeId);
       await load();
     } catch (error) {
-      if (!mounted) return;
-      state = state.copyWith(error: friendlyErrorMessage(error));
+      if (mounted) {
+        state = state.copyWith(error: friendlyErrorMessage(error));
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> undoLastChange() async {
+    final changeId = state.lastChangeId;
+    if (changeId == null) return;
+    try {
+      await _repository.undoMemoryChange(changeId);
+      await load();
+    } catch (error) {
+      if (mounted) {
+        state = state.copyWith(error: friendlyErrorMessage(error));
+      }
       rethrow;
     }
   }

@@ -81,6 +81,7 @@ make knowledge-check
 ## 跨仓协调边界
 
 后端仓库的 `INT-content-community-backend`、`SPEC-community-core`、`SPEC-content-discovery`、
-`SPEC-grounded-assistant` 和 `SPEC-feedback-reliability` 是前端接口语义的重要来源。本仓库不复制它们
-作为自身已批准知识；每次涉及契约的变更都要在后端仓库重新核对当前版本，并在证据层记录所观察的
-提交。
+`SPEC-assistant-agent`、`SPEC-agent-memory`、`SPEC-agent-watch` 和 `SPEC-feedback-reliability`
+是前端接口语义的重要来源。`SPEC-grounded-assistant` 与 `SPEC-assistant-agent-mode` 已由后端
+retired/deprecated，不再作为当前契约。本仓库不复制它们作为自身已批准知识；每次涉及契约的变更
+都要在后端仓库重新核对当前版本，并在证据层记录所观察的提交。
