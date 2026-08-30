@@ -328,6 +328,25 @@ void main() {
       expect(find.text('account B private history'), findsOneWidget);
     },
   );
+
+  testWidgets('has clear history and no new session action', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          assistantUserKeyProvider.overrideWithValue('test-user'),
+          assistantRepositoryProvider.overrideWithValue(FakeAssistantSource()),
+        ],
+        child: const MaterialApp(
+          builder: foruiTestBuilder,
+          home: AssistantPage(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('assistant-clear-history')), findsOneWidget);
+    expect(find.byKey(const Key('assistant-new-session')), findsNothing);
+  });
 }
 
 class _PageAssistantSource extends FakeAssistantSource {

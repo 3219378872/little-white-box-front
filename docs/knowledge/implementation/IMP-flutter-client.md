@@ -55,6 +55,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-assistant-single-session-2026-08-30
   - EVD-assistant-isolation-2026-08-30
   - EVD-assistant-hermes-2026-08-29
   - EVD-audit-fixes-2026-08-28
@@ -198,7 +199,7 @@ observed_commit: a0bc7abef22417cc5f3583420b7ffbda0d1ffdf6
   MEMORY/USER、容量 used/limit，支持 content+version 写入与 undo。Watch 仅任务 CRUD，无命中
   收件箱。帖子详情盯梢未授权引导 `/messages/assistant`（FX-081/082/086）。
 - `POST /assistant/messages` 接受 started/redirected/steered/queued；忙碌时仍可发送；显式 Stop
-  才 `POST /assistant/runs/:id/cancel`。新会话与清历史不删除 MEMORY/USER/Watch（FX-058/089～093）。
+  才 `POST /assistant/runs/:id/cancel`。无新会话入口；清历史不删除 MEMORY/USER/Watch（FX-058/089～093）。
 - Assistant、consent、thread、Memory 与 Watch provider 以认证 `userId` 为依赖键；换号或登出会销毁
   旧状态并取消旧 SSE，新身份在页面未卸载时也重新加载。失败发送保留完整命令（稳定 requestId、附件、
   contextPostId），重试不新增气泡；confirm、Stop、memory undo 与授权撤销仅在服务端成功后呈现成功态。
@@ -240,4 +241,5 @@ observed_commit: a0bc7abef22417cc5f3583420b7ffbda0d1ffdf6
 与
 [EVD-client-ui-align-2026-08-20](../evidence/EVD-client-ui-align-2026-08-20.md)、
 [EVD-assistant-hermes-2026-08-29](../evidence/EVD-assistant-hermes-2026-08-29.md)、
-[EVD-assistant-isolation-2026-08-30](../evidence/EVD-assistant-isolation-2026-08-30.md)。
+[EVD-assistant-isolation-2026-08-30](../evidence/EVD-assistant-isolation-2026-08-30.md)、
+[EVD-assistant-single-session-2026-08-30](../evidence/EVD-assistant-single-session-2026-08-30.md)。

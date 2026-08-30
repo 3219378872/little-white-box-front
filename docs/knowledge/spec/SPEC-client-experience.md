@@ -6,13 +6,14 @@ status: approved
 owner: human
 upstream:
   - INT-content-community-client
-updated_at: 2026-08-29
+updated_at: 2026-08-30
 approved_at: 2026-08-13
 ---
 
 # 客户端体验与接口规格
 
-本规格已于 2026-08-13 获得人类明确批准。2026-08-29 按当前对话明确授权，重写 Assistant 条款
+本规格已于 2026-08-13 获得人类明确批准。2026-08-30 按当前对话明确授权，删除新会话入口（FX-092）。
+2026-08-29 按当前对话明确授权，重写 Assistant 条款
 （保留 FX-050～059、FX-080～093 编号，替换语义），删除模式开关和 Watch 命中收件箱要求。接口
 语义以同级后端仓库 `SPEC-assistant-agent`、`SPEC-agent-memory`、`SPEC-agent-watch` 与当前
 `gateway.api` 为准。条款定义目标行为；当前代码是否满足条款，以实现层和证据层为准。
@@ -106,8 +107,9 @@ approved_at: 2026-08-13
 - `FX-090`：`GET /assistant/runs/:id/events` 以 SSE 消费事件；重连携带 `Last-Event-ID` 与
   `afterSeq`。断流保留已收到文本并显示失败/恢复状态，不伪造 done。
 - `FX-091`：显式 Stop 调用 `POST /assistant/runs/:id/cancel`；取消后忽略该 run 的后续事件。
-- `FX-092`：新会话 `POST /assistant/sessions` 滚动 session，但不删除历史、MEMORY/USER 或 Watch。
-  清除历史 `DELETE /assistant/history` 不影响后三者。
+- `FX-092`：没有新会话入口；`POST /assistant/sessions` 硬删除。永久前台 session 由服务端维护，
+  30 分钟无可见消息后的冷拼接不清空客户端历史。清除历史 `DELETE /assistant/history` 不删除
+  MEMORY/USER 或 Watch。
 - `FX-093`：进入助手线程后 `POST /assistant/thread/read` 标记已读；已读失败可独立重试。Watch 主动
   消息计入未读，`memory_changed` 不计未读。
 

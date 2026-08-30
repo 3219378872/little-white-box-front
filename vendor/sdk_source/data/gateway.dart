@@ -825,17 +825,6 @@ class ConversationItem {
   }
 }
 
-class CreateAssistantSessionResp {
-  final Object sessionId;
-  CreateAssistantSessionResp({required this.sessionId});
-  factory CreateAssistantSessionResp.fromJson(Map<String, dynamic> m) {
-    return CreateAssistantSessionResp(sessionId: m['sessionId'] ?? 0);
-  }
-  Map<String, dynamic> toJson() {
-    return {'sessionId': sessionId};
-  }
-}
-
 class CreateAssistantWatchReq {
   final String conditionType;
 

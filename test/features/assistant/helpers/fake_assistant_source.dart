@@ -44,7 +44,6 @@ class FakeAssistantSource implements AssistantDataSource {
   String? lastPostedMessage;
   Object lastEventsAfterSeq = 0;
   Object lastEventsRunId = 0;
-  int sessionCreates = 0;
   int historyDeletes = 0;
   int threadReads = 0;
   Object? lastUndoChangeId;
@@ -144,16 +143,6 @@ class FakeAssistantSource implements AssistantDataSource {
     eventCalls.add(_asInt(afterSeq));
     return eventsHandler?.call(runId: runId, afterSeq: afterSeq) ??
         const Stream.empty();
-  }
-
-  @override
-  Future<Object> createSession() async {
-    sessionCreates++;
-    thread = AssistantThreadSummary(
-      sessionId: sessionCreates + 1,
-      unreadCount: thread.unreadCount,
-    );
-    return thread.sessionId;
   }
 
   @override

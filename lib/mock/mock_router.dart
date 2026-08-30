@@ -74,7 +74,7 @@ int _mockJwtNonce = 0;
 int _nextWatchId = 1;
 int _nextAssistantMessageId = 1;
 int _nextAssistantRunId = 1;
-int _nextAssistantSessionId = 1;
+
 int _nextMemoryId = 1;
 int _nextChangeId = 1;
 
@@ -223,7 +223,7 @@ void resetMockState() {
   _nextWatchId = 2;
   _nextAssistantMessageId = 1;
   _nextAssistantRunId = 1;
-  _nextAssistantSessionId = 2;
+
   _nextMemoryId = 3;
   _nextChangeId = 1;
   final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -547,10 +547,6 @@ MockRouterResponse _routeV2(
       }
       _requireMethod(method, 'POST');
       return _jsonResponse(_postAssistantMessage(auth.userId, body ?? const {}));
-    case 'api/v2/assistant/sessions':
-      _requireMethod(method, 'POST');
-      _requireAuth(auth);
-      return _jsonResponse(_createAssistantSession(auth.userId));
     case 'api/v2/assistant/history':
       _requireMethod(method, 'DELETE');
       _requireAuth(auth);
@@ -1849,16 +1845,6 @@ void _completeRun(int runId) {
     thread['activeRunStatus'] = '';
     thread['activeRunPhase'] = '';
   }
-}
-
-Map<String, dynamic> _createAssistantSession(int userId) {
-  final sessionId = _nextAssistantSessionId++;
-  final thread = _assistantThreads.putIfAbsent(userId, _emptyThread);
-  thread['sessionId'] = sessionId;
-  thread['activeRunId'] = 0;
-  thread['activeRunStatus'] = '';
-  thread['activeRunPhase'] = '';
-  return {'sessionId': sessionId};
 }
 
 void _deleteAssistantHistory(int userId) {

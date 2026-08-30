@@ -353,26 +353,6 @@ Future confirmAssistantRun(
   );
 }
 
-/// --/api/v2/assistant/sessions--
-///
-/// request:
-/// response: CreateAssistantSessionResp
-Future createAssistantSession({
-  Function(CreateAssistantSessionResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/sessions",
-    const {},
-    ok: (data) {
-      if (ok != null) ok(CreateAssistantSessionResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
 /// --/api/v2/assistant/thread--
 ///
 /// request:

@@ -55,7 +55,7 @@ tracks:
   - FQ-006
   - FQ-007
   - FQ-008
-updated_at: 2026-08-29
+updated_at: 2026-08-30
 ---
 
 # Flutter 内容社区客户端设计
@@ -182,8 +182,8 @@ adapter。生成来源与应用副本保持清晰，契约新增 revision 或幂
   `messageId/sessionId/runId/disposition`。客户端立即接受异步 run，不把 POST 当成模型完成
   （FX-089）。忙碌时输入仍可发送：`model_request` redirect、`tool_executing` steer、
   compact/附件 FIFO（服务端 32）。只有显式 Stop 调用 `POST /assistant/runs/:id/cancel`
-  （FX-058/091）。新会话 `POST /assistant/sessions`，清历史 `DELETE /assistant/history`，
-  二者都不删除 MEMORY/USER/Watch（FX-092）。
+  （FX-058/091）。没有新会话按钮。清历史 `DELETE /assistant/history` 不删除
+  MEMORY/USER/Watch（FX-092）。
 - 图片附件始终可用：选图、MIME/大小校验、multipart 上传、发送前可移除（FX-055）。
 
 SSE：
@@ -273,7 +273,7 @@ Feed 使用双列卡片、私信使用左列表右线程，Feed/私信内容宽�
 | `FX-050`～`FX-051` | 虚拟私信入口、输入边界、仅 `source_card` 来源 |
 | `FX-052`～`FX-058` | 消息页固定线程、授权、附件、工具进度、确认卡片、忙碌 redirect/steer/FIFO |
 | `FX-059`、`FX-080`～`FX-087` | 未知 SSE 忽略、consent 版本、MEMORY/USER、Watch CRUD、来源卡、memory_changed、盯梢、推荐反馈 |
-| `FX-088`～`FX-093` | 并行拉取与 30s 轮询、异步 POST disposition、SSE 续流、Stop、新会话/清历史、线程已读 |
+| `FX-088`～`FX-093` | 并行拉取与 30s 轮询、异步 POST disposition、SSE 续流、Stop、清历史、线程已读 |
 | `FX-060`～`FX-062` | 可见性测量、事件所有权、持久队列 |
 | `FX-070` | 共享 transport 与 Mock router |
 | `FQ-001`～`FQ-008` | 分层、适配、UI 系统、异步状态、测试和知识治理 |

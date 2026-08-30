@@ -81,8 +81,6 @@ abstract interface class AssistantDataSource {
     Object afterSeq = 0,
   });
 
-  Future<Object> createSession();
-
   Future<int> markThreadRead();
 
   Future<void> deleteHistory();
@@ -324,12 +322,6 @@ class AssistantRepository implements AssistantDataSource {
     if (!terminal) {
       throw const AssistantStreamException('Assistant 连接意外中断');
     }
-  }
-
-  @override
-  Future<Object> createSession() async {
-    final response = await _api.post('/api/v2/assistant/sessions', {});
-    return response['sessionId'] ?? 0;
   }
 
   @override

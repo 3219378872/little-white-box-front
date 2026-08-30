@@ -209,7 +209,7 @@ void main() {
     expect(notifier.state.isStreaming, isFalse);
   });
 
-  test('new session and clear history keep memory and watches', () async {
+  test('clear history keeps memory and watches', () async {
     final source = FakeAssistantSource()
       ..memories = const [
         MemoryRecord(id: 1, target: 'memory', content: '喜欢美食'),
@@ -223,8 +223,6 @@ void main() {
         ),
       ];
     final notifier = AssistantNotifier(repository: source);
-    await notifier.startNewSession();
-    expect(source.sessionCreates, 1);
     await notifier.clearHistory();
     expect(source.historyDeletes, 1);
     expect(source.memories, isNotEmpty);

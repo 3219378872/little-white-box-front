@@ -555,26 +555,6 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     return true;
   }
 
-  Future<void> startNewSession() async {
-    if (!await stop()) return;
-    _loadGeneration++;
-    _refreshGeneration++;
-    _olderGeneration++;
-    try {
-      final sessionId = await _repository.createSession();
-      if (!mounted) return;
-      state = AssistantState(
-        sessionId: sessionId,
-        pendingAttachments: state.pendingAttachments,
-        isLoaded: true,
-      );
-      _lastMessageId = 0;
-    } catch (error) {
-      if (!mounted) return;
-      state = state.copyWith(connectionError: friendlyErrorMessage(error));
-    }
-  }
-
   Future<void> clearHistory() async {
     if (!await stop()) return;
     _loadGeneration++;

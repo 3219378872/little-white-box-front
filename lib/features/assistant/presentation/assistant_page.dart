@@ -351,13 +351,6 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
             onPress: () => context.push('/messages/assistant/watch'),
           ),
           FHeaderAction(
-            key: const Key('assistant-new-session'),
-            icon: const Icon(FLucideIcons.plus),
-            semanticsLabel: '新会话',
-            onPress: () =>
-                ref.read(assistantNotifierProvider.notifier).startNewSession(),
-          ),
-          FHeaderAction(
             key: const Key('assistant-clear-history'),
             icon: const Icon(FLucideIcons.trash2),
             semanticsLabel: '清除历史',
