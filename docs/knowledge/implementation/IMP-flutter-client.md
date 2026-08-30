@@ -56,6 +56,7 @@ tracks:
   - FQ-008
 evidence:
   - EVD-assistant-single-session-2026-08-30
+  - EVD-assistant-stream-reset-2026-08-30
   - EVD-assistant-isolation-2026-08-30
   - EVD-assistant-hermes-2026-08-29
   - EVD-audit-fixes-2026-08-28
@@ -84,7 +85,7 @@ evidence:
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
 updated_at: 2026-08-30
-observed_commit: a0bc7abef22417cc5f3583420b7ffbda0d1ffdf6
+observed_commit: 8d4f6dd4da31f10fade15776042641e282531187
 ---
 
 # Flutter 客户端实现映射
@@ -97,7 +98,7 @@ observed_commit: a0bc7abef22417cc5f3583420b7ffbda0d1ffdf6
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是本轮 task 提交 `291097f`。
+本页观察基准是 `8d4f6dd4da31f10fade15776042641e282531187`。
 
 ## 代码入口
 
@@ -142,7 +143,8 @@ observed_commit: a0bc7abef22417cc5f3583420b7ffbda0d1ffdf6
 - Message notifier 为发送命令生成随机幂等键，失败时保存命令，显式重试复用原键；已读失败独立重试。
 - Assistant repository 校验 1～2,000 字符、`POST /assistant/messages` 的 disposition，以及
   `GET /assistant/runs/:id/events` 的 SSE 帧、`Last-Event-ID`/`afterSeq` 续流和终止事件；
-  notifier 通过 run cursor + connection generation 隔离陈旧流和重复 seq；redirect/steer/queued
+  notifier 通过 run cursor + connection generation 隔离陈旧流和重复 seq，并以 `streamId`/
+  `response_reset` 归属和清理 model attempt；redirect/steer/queued
   继续消费同一 run，不从 seq=0 重放。显式 Stop 只有 cancel 成功才落本地取消态，断流不会标记正常完成。
 - Assistant 气泡在展示层剥离回答文本中的引用残留（仅 assistant 消息，用户消息原样显示）：半角
   `[type:id]` 与全角 `［post:id］` 标记，以及后端为 ASST-010 追加的 `Community sources` /
@@ -226,7 +228,7 @@ observed_commit: a0bc7abef22417cc5f3583420b7ffbda0d1ffdf6
 | 搜索 | aligned | 已建模并展示部分降级；搜索帖子带作者身份并在结果中展示 |
 | 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐；评论楼中楼按需展开加载（内嵌预览 + replies 分页接口）见 [EVD-comment-replies-2026-08-22](../evidence/EVD-comment-replies-2026-08-22.md)，接口语义缺口登记于后端仓 PROP-20260822-comment-reply-thread（open） |
 | 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |
-| Assistant | aligned | 客户端自有边界已补齐账号隔离、SSE cursor/generation、稳定重试、真实失败态、最新消息分页、memory undo、授权撤销与 Watch 增量刷新；真实网关、浏览器换号/断流与真机图片上传证据待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
+| Assistant | partial | 客户端自有边界已补齐账号隔离、SSE cursor/generation、稳定重试、`streamId`/`response_reset` attempt fencing、真实失败态、最新消息分页、memory undo、授权撤销与 Watch 增量刷新；`EVD-assistant-stream-reset-2026-08-30` 仅覆盖 repository/notifier 单测，真实网关、浏览器换号/断流与真机图片上传证据待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
 | 行为反馈 | aligned | 客户端不再上报 like/unlike |
 | UI/工程分层 | aligned | 详见 [Forui 实现指南](IMP-forui-ui.md) |
 | Mock/真实同路径 | aligned | transport 注入；Mock HTTP 契约对齐 `gateway.api`；真实网关仍需独立证据 |
