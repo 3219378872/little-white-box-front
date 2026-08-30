@@ -138,9 +138,10 @@ final memoryListProvider =
     StateNotifierProvider.autoDispose<MemoryListNotifier, MemoryListState>((
       ref,
     ) {
+      final identityKey = ref.watch(assistantUserKeyProvider);
       final notifier = MemoryListNotifier(
         repository: ref.read(assistantRepositoryProvider),
       );
-      notifier.load();
+      if (identityKey.isNotEmpty) notifier.load();
       return notifier;
     });

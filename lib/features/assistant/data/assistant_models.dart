@@ -112,6 +112,18 @@ class AssistantHistoryMessage {
   }
 }
 
+class AssistantMessagePage {
+  final List<AssistantHistoryMessage> messages;
+  final bool hasMore;
+  final Object nextBeforeId;
+
+  const AssistantMessagePage({
+    this.messages = const [],
+    this.hasMore = false,
+    this.nextBeforeId = 0,
+  });
+}
+
 class AssistantPostResult {
   final Object messageId;
   final Object sessionId;
@@ -183,8 +195,7 @@ class AssistantSourceCard {
     this.payloadJson = '',
   });
 
-  bool get isVerifiedPost =>
-      kind == 'post' && jsonInt64IsPositive(authorityId);
+  bool get isVerifiedPost => kind == 'post' && jsonInt64IsPositive(authorityId);
 
   bool get isRecommend => kind == 'recommend' || kind == 'post';
 

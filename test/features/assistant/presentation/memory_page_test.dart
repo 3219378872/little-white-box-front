@@ -21,7 +21,10 @@ Future<void> _pumpMemory(
 ) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [assistantRepositoryProvider.overrideWithValue(source)],
+      overrides: [
+        assistantUserKeyProvider.overrideWithValue('test-user'),
+        assistantRepositoryProvider.overrideWithValue(source),
+      ],
       child: const MaterialApp(builder: foruiTestBuilder, home: MemoryPage()),
     ),
   );
@@ -51,12 +54,7 @@ void main() {
   testWidgets('lists dual memory targets and capacity', (tester) async {
     final source = _grantedSource()
       ..memories = const [
-        MemoryRecord(
-          id: 1,
-          target: 'memory',
-          content: '喜欢美食',
-          version: 1,
-        ),
+        MemoryRecord(id: 1, target: 'memory', content: '喜欢美食', version: 1),
         MemoryRecord(id: 2, target: 'user', content: '用中文', version: 1),
       ]
       ..capacities = const [

@@ -140,6 +140,76 @@ void main() {
     expect(events.single.errorCode, 'QUOTA_EXCEEDED');
   });
 
+  test('post sends contextPostId with requestId and attachments', () async {
+    late Map<String, dynamic> body;
+    final apiClient = _JsonApiClient((request) async {
+      body = Map<String, dynamic>.from(
+        jsonDecode(request.body) as Map<String, dynamic>,
+      );
+      return http.Response(
+        jsonEncode({
+          'messageId': 11,
+          'sessionId': 12,
+          'runId': 13,
+          'disposition': 'started',
+        }),
+        200,
+      );
+    });
+    setApiClient(apiClient);
+    final repository = AssistantRepository();
+
+    await repository.postMessage(
+      message: 'explain this post',
+      requestId: 'request-1',
+      contextPostId: '9007199254740993',
+      attachments: const [
+        AssistantAttachment(mediaId: 7, url: 'https://media/7'),
+      ],
+    );
+
+    expect(body['requestId'], 'request-1');
+    expect(body['contextPostId'].toString(), '9007199254740993');
+    expect(body['attachments'], hasLength(1));
+  });
+
+  test('message cursors use beforeId and afterId exclusively', () async {
+    final requests = <Uri>[];
+    final apiClient = _JsonApiClient((request) async {
+      requests.add(request.url);
+      return http.Response(
+        jsonEncode({
+          'messages': [
+            {'id': 9, 'sessionId': 2, 'role': 'assistant', 'content': 'hi'},
+          ],
+          'hasMore': true,
+          'nextBeforeId': 9,
+        }),
+        200,
+      );
+    });
+    setApiClient(apiClient);
+    final repository = AssistantRepository();
+
+    final initial = await repository.listMessages(sessionId: 2);
+    final older = await repository.listMessages(sessionId: 2, beforeId: 9);
+    final newer = await repository.listMessages(sessionId: 2, afterId: 9);
+
+    expect(initial.hasMore, isTrue);
+    expect(initial.nextBeforeId, 9);
+    expect(requests[0].queryParameters, isNot(contains('beforeId')));
+    expect(requests[1].queryParameters['beforeId'], '9');
+    expect(requests[1].queryParameters, isNot(contains('afterId')));
+    expect(requests[2].queryParameters['afterId'], '9');
+    expect(requests[2].queryParameters, isNot(contains('beforeId')));
+    await expectLater(
+      repository.listMessages(beforeId: 9, afterId: 10),
+      throwsA(isA<ApiException>()),
+    );
+    expect(older.messages.single.id, 9);
+    expect(newer.messages.single.id, 9);
+  });
+
   test(
     'canceling the event subscription cancels the HTTP body stream',
     () async {
@@ -236,4 +306,22 @@ class _RoutingClient extends http.BaseClient {
 
   @override
   void close() {}
+}
+
+class _JsonApiClient extends http.BaseClient {
+  final Future<http.Response> Function(http.Request) handler;
+
+  _JsonApiClient(this.handler);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final copied = request as http.Request;
+    final response = await handler(copied);
+    return http.StreamedResponse(
+      Stream.value(response.bodyBytes),
+      response.statusCode,
+      headers: response.headers,
+      request: request,
+    );
+  }
 }

@@ -5,6 +5,7 @@
 
 当前页面：
 
+- [EVD-assistant-isolation-2026-08-30](EVD-assistant-isolation-2026-08-30.md)
 - [EVD-assistant-hermes-2026-08-29](EVD-assistant-hermes-2026-08-29.md)
 - [EVD-audit-fixes-2026-08-28](EVD-audit-fixes-2026-08-28.md)
 - [EVD-non-agent-bugs-2026-08-27](EVD-non-agent-bugs-2026-08-27.md)

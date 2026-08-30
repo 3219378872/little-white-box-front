@@ -11,10 +11,13 @@ class FakeAssistantSource implements AssistantDataSource {
   })?
   eventsHandler;
 
+  Future<AssistantThreadSummary> Function()? threadHandler;
+
   Future<AssistantPostResult> Function({
     required String message,
     required String requestId,
     required List<AssistantAttachment> attachments,
+    required Object contextPostId,
   })?
   postHandler;
 
@@ -27,6 +30,10 @@ class FakeAssistantSource implements AssistantDataSource {
   List<MemoryCapacity> capacities = const [];
   List<WatchTask> watches = const [];
   Object? lastError;
+  Object? cancelError;
+  Object? confirmError;
+  Object? undoError;
+  Object? consentError;
   int confirmCalls = 0;
   bool? lastApproved;
   Object? lastCancelRunId;
@@ -42,6 +49,9 @@ class FakeAssistantSource implements AssistantDataSource {
   int threadReads = 0;
   Object? lastUndoChangeId;
   List<int> eventCalls = [];
+  int listMessageCalls = 0;
+  List<String> postedRequestIds = [];
+  List<Object> postedContextPostIds = [];
 
   @override
   Future<AgentConsentStatus> loadAgentConsent() async => AgentConsentStatus(
@@ -52,6 +62,7 @@ class FakeAssistantSource implements AssistantDataSource {
 
   @override
   Future<void> setAgentConsent({required bool granted}) async {
+    if (consentError != null) throw consentError!;
     this.granted = granted;
     consentVersion = granted ? currentVersion : 0;
   }
@@ -59,17 +70,41 @@ class FakeAssistantSource implements AssistantDataSource {
   @override
   Future<AssistantThreadSummary> getThread() async {
     if (lastError != null) throw lastError!;
+    if (threadHandler != null) return threadHandler!();
     return thread;
   }
 
   @override
-  Future<List<AssistantHistoryMessage>> listMessages({
+  Future<AssistantMessagePage> listMessages({
     Object sessionId = 0,
     Object afterId = 0,
+    Object beforeId = 0,
     int limit = 50,
   }) async {
+    listMessageCalls++;
     if (lastError != null) throw lastError!;
-    return messages;
+    var filtered = [
+      for (final item in messages)
+        if ((!jsonInt64IsPositive(sessionId) ||
+                jsonInt64Id(item.sessionId) == jsonInt64Id(sessionId)) &&
+            (!jsonInt64IsPositive(afterId) || _isAfter(item.id, afterId)) &&
+            (!jsonInt64IsPositive(beforeId) || _isAfter(beforeId, item.id)))
+          item,
+    ];
+    filtered.sort((left, right) => _compareIds(left.id, right.id));
+    final hasMore = filtered.length > limit;
+    if (hasMore) {
+      filtered = jsonInt64IsPositive(afterId)
+          ? filtered.take(limit).toList()
+          : filtered.sublist(filtered.length - limit);
+    }
+    return AssistantMessagePage(
+      messages: filtered,
+      hasMore: hasMore,
+      nextBeforeId: jsonInt64IsPositive(afterId) || filtered.isEmpty
+          ? 0
+          : filtered.first.id,
+    );
   }
 
   @override
@@ -77,14 +112,18 @@ class FakeAssistantSource implements AssistantDataSource {
     required String message,
     required String requestId,
     List<AssistantAttachment> attachments = const [],
+    Object contextPostId = 0,
   }) async {
     lastPostedMessage = message;
     lastAttachments = attachments;
+    postedRequestIds.add(requestId);
+    postedContextPostIds.add(contextPostId);
     if (postHandler != null) {
       return postHandler!(
         message: message,
         requestId: requestId,
         attachments: attachments,
+        contextPostId: contextPostId,
       );
     }
     return const AssistantPostResult(
@@ -140,6 +179,7 @@ class FakeAssistantSource implements AssistantDataSource {
 
   @override
   Future<void> cancelRun(Object runId) async {
+    if (cancelError != null) throw cancelError!;
     lastCancelRunId = runId;
   }
 
@@ -150,6 +190,7 @@ class FakeAssistantSource implements AssistantDataSource {
     required bool approved,
   }) async {
     confirmCalls++;
+    if (confirmError != null) throw confirmError!;
     lastApproved = approved;
   }
 
@@ -224,6 +265,7 @@ class FakeAssistantSource implements AssistantDataSource {
   @override
   Future<MemoryRecord> undoMemoryChange(Object changeId) async {
     lastUndoChangeId = changeId;
+    if (undoError != null) throw undoError!;
     if (lastError != null) throw lastError!;
     return memories.isEmpty
         ? const MemoryRecord(id: 0, target: 'memory', content: '')
@@ -303,5 +345,15 @@ class FakeAssistantSource implements AssistantDataSource {
   static int _asInt(Object? value) {
     if (value is num) return value.toInt();
     return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static int _compareIds(Object left, Object right) {
+    final leftId = BigInt.tryParse(jsonInt64Id(left)) ?? BigInt.zero;
+    final rightId = BigInt.tryParse(jsonInt64Id(right)) ?? BigInt.zero;
+    return leftId.compareTo(rightId);
+  }
+
+  static bool _isAfter(Object candidate, Object cursor) {
+    return _compareIds(candidate, cursor) > 0;
   }
 }

@@ -100,9 +100,10 @@ class WatchListNotifier extends StateNotifier<WatchListState> {
 
 final watchListProvider =
     StateNotifierProvider.autoDispose<WatchListNotifier, WatchListState>((ref) {
+      final identityKey = ref.watch(assistantUserKeyProvider);
       final notifier = WatchListNotifier(
         repository: ref.read(assistantRepositoryProvider),
       );
-      notifier.load();
+      if (identityKey.isNotEmpty) notifier.load();
       return notifier;
     });

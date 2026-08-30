@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
+import '../../auth/application/auth_notifier.dart';
 import '../data/assistant_models.dart';
 import '../data/assistant_repository.dart';
 
@@ -13,6 +14,7 @@ enum AssistantMessageRole { user, assistant, system }
 enum AssistantToolStatus {
   running,
   awaitingConfirmation,
+  confirming,
   completed,
   confirmed,
   declined,
@@ -55,6 +57,25 @@ class PendingChatImage {
   });
 }
 
+class PendingAssistantCommand {
+  final String message;
+  final String requestId;
+  final List<PendingChatImage> attachments;
+  final Object contextPostId;
+
+  const PendingAssistantCommand({
+    required this.message,
+    required this.requestId,
+    this.attachments = const [],
+    this.contextPostId = 0,
+  });
+
+  bool matches(String message, Object contextPostId) {
+    return this.message == message &&
+        jsonInt64Id(this.contextPostId) == jsonInt64Id(contextPostId);
+  }
+}
+
 class AssistantMessage {
   final String id;
   final AssistantMessageRole role;
@@ -68,6 +89,8 @@ class AssistantMessage {
   final bool isCanceled;
   final bool degraded;
   final String errorCode;
+  final bool memoryUndoing;
+  final bool memoryUndone;
 
   const AssistantMessage({
     required this.id,
@@ -82,6 +105,8 @@ class AssistantMessage {
     this.isCanceled = false,
     this.degraded = false,
     this.errorCode = '',
+    this.memoryUndoing = false,
+    this.memoryUndone = false,
   });
 
   bool get hasPendingConfirmation => toolSteps.any(
@@ -100,6 +125,8 @@ class AssistantMessage {
     bool? isCanceled,
     bool? degraded,
     String? errorCode,
+    bool? memoryUndoing,
+    bool? memoryUndone,
   }) {
     return AssistantMessage(
       id: id,
@@ -114,6 +141,8 @@ class AssistantMessage {
       isCanceled: isCanceled ?? this.isCanceled,
       degraded: degraded ?? this.degraded,
       errorCode: errorCode ?? this.errorCode,
+      memoryUndoing: memoryUndoing ?? this.memoryUndoing,
+      memoryUndone: memoryUndone ?? this.memoryUndone,
     );
   }
 }
@@ -130,7 +159,12 @@ class AssistantState {
   final String? connectionError;
   final List<PendingChatImage> pendingAttachments;
   final bool agentAuthorizationRequired;
-  final String pendingRetryMessage;
+  final PendingAssistantCommand? pendingRetryCommand;
+  final bool isLoaded;
+  final bool hasMoreHistory;
+  final Object nextBeforeId;
+  final bool isLoadingOlder;
+  final String? historyError;
 
   const AssistantState({
     this.sessionId = 0,
@@ -144,12 +178,19 @@ class AssistantState {
     this.connectionError,
     this.pendingAttachments = const [],
     this.agentAuthorizationRequired = false,
-    this.pendingRetryMessage = '',
+    this.pendingRetryCommand,
+    this.isLoaded = false,
+    this.hasMoreHistory = false,
+    this.nextBeforeId = 0,
+    this.isLoadingOlder = false,
+    this.historyError,
   });
 
   bool get hasActiveRun => jsonInt64IsPositive(activeRunId);
 
   bool get canSend => !isSending;
+
+  String get pendingRetryMessage => pendingRetryCommand?.message ?? '';
 
   AssistantState copyWith({
     Object? sessionId,
@@ -167,8 +208,14 @@ class AssistantState {
     bool clearPendingAttachments = false,
     bool? agentAuthorizationRequired,
     bool clearAgentAuthorizationRequired = false,
-    String? pendingRetryMessage,
-    bool clearPendingRetryMessage = false,
+    PendingAssistantCommand? pendingRetryCommand,
+    bool clearPendingRetryCommand = false,
+    bool? isLoaded,
+    bool? hasMoreHistory,
+    Object? nextBeforeId,
+    bool? isLoadingOlder,
+    String? historyError,
+    bool clearHistoryError = false,
   }) {
     return AssistantState(
       sessionId: sessionId ?? this.sessionId,
@@ -190,9 +237,16 @@ class AssistantState {
       agentAuthorizationRequired: clearAgentAuthorizationRequired
           ? false
           : (agentAuthorizationRequired ?? this.agentAuthorizationRequired),
-      pendingRetryMessage: clearPendingRetryMessage
-          ? ''
-          : (pendingRetryMessage ?? this.pendingRetryMessage),
+      pendingRetryCommand: clearPendingRetryCommand
+          ? null
+          : (pendingRetryCommand ?? this.pendingRetryCommand),
+      isLoaded: isLoaded ?? this.isLoaded,
+      hasMoreHistory: hasMoreHistory ?? this.hasMoreHistory,
+      nextBeforeId: nextBeforeId ?? this.nextBeforeId,
+      isLoadingOlder: isLoadingOlder ?? this.isLoadingOlder,
+      historyError: clearHistoryError
+          ? null
+          : (historyError ?? this.historyError),
     );
   }
 }
@@ -200,16 +254,26 @@ class AssistantState {
 class AssistantNotifier extends StateNotifier<AssistantState> {
   final AssistantDataSource _repository;
   final String Function() _createRequestId;
+  final String _identityKey;
   StreamSubscription<AssistantRunEvent>? _subscription;
   int _generation = 0;
+  int _connectionGeneration = 0;
+  int _loadGeneration = 0;
+  int _refreshGeneration = 0;
+  int _olderGeneration = 0;
   int _lastSeq = 0;
   int _reconnects = 0;
+  Object _subscribedRunId = 0;
+  Object _lastMessageId = 0;
+  PendingAssistantCommand? _activeCommand;
 
   AssistantNotifier({
     required AssistantDataSource repository,
     String Function()? createRequestId,
+    String identityKey = 'direct',
   }) : _repository = repository,
        _createRequestId = createRequestId ?? _defaultRequestId,
+       _identityKey = identityKey,
        super(const AssistantState());
 
   void addPendingAttachment(PendingChatImage image) {
@@ -228,12 +292,21 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   }
 
   Future<void> load() async {
+    if (_identityKey.isEmpty) return;
+    final generation = ++_loadGeneration;
+    ++_refreshGeneration;
+    ++_olderGeneration;
     try {
       final thread = await _repository.getThread();
-      final history = await _repository.listMessages(
-        sessionId: thread.sessionId,
-      );
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
+      if (state.isLoaded && !_sameRun(thread.sessionId, state.sessionId)) {
+        await _cancelSubscription();
+        if (!mounted || generation != _loadGeneration) return;
+      }
+      final page = await _repository.listMessages(sessionId: thread.sessionId);
+      if (!mounted || generation != _loadGeneration) return;
+      final history = page.messages;
+      _lastMessageId = history.isEmpty ? 0 : history.last.id;
       state = state.copyWith(
         sessionId: thread.sessionId,
         activeRunId: thread.activeRunId,
@@ -242,55 +315,92 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         isStreaming: thread.hasActiveRun,
         isQueued: thread.activeRunPhase == 'queued',
         clearConnectionError: true,
+        isLoaded: true,
+        hasMoreHistory: page.hasMore,
+        nextBeforeId: page.nextBeforeId,
+        isLoadingOlder: false,
+        clearHistoryError: true,
       );
       if (thread.hasActiveRun) {
         _subscribe(thread.activeRunId, afterSeq: 0);
       }
       unawaited(_markRead());
     } catch (error) {
-      if (!mounted) return;
-      state = state.copyWith(connectionError: friendlyErrorMessage(error));
+      if (!mounted || generation != _loadGeneration) return;
+      state = state.copyWith(
+        connectionError: friendlyErrorMessage(error),
+        isLoaded: true,
+      );
     }
   }
 
-  Future<bool> send(String message) async {
+  Future<bool> send(String message, {Object contextPostId = 0}) async {
     final normalized = message.trim();
-    if (normalized.isEmpty || normalized.length > 2000 || state.isSending) {
+    if (_identityKey.isEmpty ||
+        normalized.isEmpty ||
+        normalized.length > 2000 ||
+        state.isSending) {
       return false;
     }
 
-    final requestId = _createRequestId();
-    final attachments = [...state.pendingAttachments];
+    final pending = state.pendingRetryCommand;
+    if (pending != null &&
+        pending.matches(normalized, contextPostId) &&
+        state.pendingAttachments.isEmpty) {
+      return _submit(pending, addOptimisticMessage: false);
+    }
+    final command = PendingAssistantCommand(
+      message: normalized,
+      requestId: _createRequestId(),
+      attachments: [...state.pendingAttachments],
+      contextPostId: contextPostId,
+    );
+    return _submit(command, addOptimisticMessage: true);
+  }
+
+  Future<bool> _submit(
+    PendingAssistantCommand command, {
+    required bool addOptimisticMessage,
+  }) async {
+    if (_identityKey.isEmpty || state.isSending) return false;
+    final optimisticId = 'user-${command.requestId}';
+    final messages =
+        addOptimisticMessage &&
+            !state.messages.any((item) => item.id == optimisticId)
+        ? [
+            ...state.messages,
+            AssistantMessage(
+              id: optimisticId,
+              role: AssistantMessageRole.user,
+              text: command.message,
+              attachments: command.attachments,
+            ),
+          ]
+        : state.messages;
     state = state.copyWith(
-      messages: [
-        ...state.messages,
-        AssistantMessage(
-          id: 'user-$requestId',
-          role: AssistantMessageRole.user,
-          text: normalized,
-          attachments: attachments,
-        ),
-      ],
+      messages: messages,
       isSending: true,
-      pendingRetryMessage: normalized,
+      pendingRetryCommand: command,
       clearConnectionError: true,
-      clearPendingAttachments: true,
+      clearPendingAttachments: addOptimisticMessage,
       clearAgentAuthorizationRequired: true,
     );
 
     try {
       final accepted = await _repository.postMessage(
-        message: normalized,
-        requestId: requestId,
+        message: command.message,
+        requestId: command.requestId,
         attachments: [
-          for (final item in attachments)
+          for (final item in command.attachments)
             AssistantAttachment(mediaId: item.mediaId, url: item.url),
         ],
+        contextPostId: command.contextPostId,
       );
       if (!mounted) return false;
       final userMessages = [
         for (final item in state.messages)
-          if (item.id == 'user-$requestId')
+          if (item.id == optimisticId &&
+              jsonInt64IsPositive(accepted.messageId))
             AssistantMessage(
               id: jsonInt64Id(accepted.messageId),
               role: item.role,
@@ -300,28 +410,22 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
           else
             item,
       ];
+      _advanceMessageCursor(accepted.messageId);
       final queued = accepted.disposition == AssistantDisposition.queued;
       final shouldStream =
           accepted.disposition == AssistantDisposition.started ||
           accepted.disposition == AssistantDisposition.redirected ||
           accepted.disposition == AssistantDisposition.steered ||
           queued;
+      final responseId = 'run-${jsonInt64Id(accepted.runId)}';
+      final nextMessages = queued
+          ? userMessages
+          : _ensureAssistantIn(userMessages, responseId);
       state = state.copyWith(
         sessionId: accepted.sessionId,
         activeRunId: accepted.runId,
         lastDisposition: accepted.disposition,
-        messages: queued
-            ? userMessages
-            : [
-                ...userMessages,
-                if (!_hasStreamingAssistant)
-                  AssistantMessage(
-                    id: 'run-${jsonInt64Id(accepted.runId)}',
-                    role: AssistantMessageRole.assistant,
-                    text: '',
-                    isStreaming: true,
-                  ),
-              ],
+        messages: nextMessages,
         isSending: false,
         isStreaming: shouldStream,
         isQueued: queued,
@@ -332,18 +436,11 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
           AssistantDisposition.started => 'model_request',
           _ => state.activeRunPhase,
         },
-        clearPendingRetryMessage: true,
+        clearPendingRetryCommand: true,
       );
+      _activeCommand = command;
       if (shouldStream && jsonInt64IsPositive(accepted.runId)) {
-        if (accepted.disposition == AssistantDisposition.redirected) {
-          _lastSeq = 0;
-        }
-        _subscribe(
-          accepted.runId,
-          afterSeq: accepted.disposition == AssistantDisposition.steered
-              ? _lastSeq
-              : 0,
-        );
+        _ensureSubscribed(accepted.runId);
       }
       return true;
     } on ApiException catch (error) {
@@ -353,7 +450,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         isSending: false,
         agentAuthorizationRequired: unauthorized,
         connectionError: friendlyErrorMessage(error),
-        pendingRetryMessage: normalized,
+        pendingRetryCommand: command,
       );
       return false;
     } catch (error) {
@@ -361,21 +458,22 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
       state = state.copyWith(
         isSending: false,
         connectionError: friendlyErrorMessage(error),
-        pendingRetryMessage: normalized,
+        pendingRetryCommand: command,
       );
       return false;
     }
   }
 
   Future<bool> retryPending() async {
-    final pending = state.pendingRetryMessage;
-    if (pending.isEmpty) return false;
-    return send(pending);
+    final pending = state.pendingRetryCommand;
+    if (pending == null) return false;
+    return _submit(pending, addOptimisticMessage: false);
   }
 
-  Future<void> respondToConfirmation(String callId, bool approved) async {
+  Future<bool> respondToConfirmation(String callId, bool approved) async {
     final runId = state.activeRunId;
-    if (!jsonInt64IsPositive(runId)) return;
+    if (!jsonInt64IsPositive(runId)) return false;
+    var changed = false;
     state = state.copyWith(
       messages: _updateLastAssistant((message) {
         return message.copyWith(
@@ -383,43 +481,64 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
             for (final step in message.toolSteps)
               if (step.callId == callId &&
                   step.status == AssistantToolStatus.awaitingConfirmation)
-                step.copyWith(
-                  status: approved
-                      ? AssistantToolStatus.confirmed
-                      : AssistantToolStatus.declined,
-                )
+                (() {
+                  changed = true;
+                  return step.copyWith(status: AssistantToolStatus.confirming);
+                })()
               else
                 step,
           ],
         );
       }),
     );
+    if (!changed) return false;
     try {
       await _repository.confirmRun(
         runId: runId,
         callId: callId,
         approved: approved,
       );
-    } on ApiException {
-      // Card is already non-interactive; later error/timeout events present the outcome.
+      if (!mounted || !_sameRun(state.activeRunId, runId)) return false;
+      state = state.copyWith(
+        messages: _setToolStatus(
+          callId,
+          from: const {AssistantToolStatus.confirming},
+          to: approved
+              ? AssistantToolStatus.confirmed
+              : AssistantToolStatus.declined,
+        ),
+        clearConnectionError: true,
+      );
+      return true;
+    } catch (error) {
+      if (!mounted || !_sameRun(state.activeRunId, runId)) return false;
+      state = state.copyWith(
+        messages: _setToolStatus(
+          callId,
+          from: const {AssistantToolStatus.confirming},
+          to: AssistantToolStatus.awaitingConfirmation,
+        ),
+        connectionError: friendlyErrorMessage(error),
+      );
+      return false;
     }
   }
 
-  Future<void> stop() async {
-    if (!state.hasActiveRun && !state.isStreaming) return;
+  Future<bool> stop() async {
+    if (!state.hasActiveRun && !state.isStreaming) return true;
     final runId = state.activeRunId;
-    _generation++;
-    final subscription = _subscription;
-    _subscription = null;
-    await subscription?.cancel();
-    if (jsonInt64IsPositive(runId)) {
-      try {
-        await _repository.cancelRun(runId);
-      } on ApiException {
-        // Local stop still applies even if the cancel request fails.
-      }
+    if (!jsonInt64IsPositive(runId)) return false;
+    try {
+      await _repository.cancelRun(runId);
+    } catch (error) {
+      if (!mounted || !_sameRun(state.activeRunId, runId)) return false;
+      state = state.copyWith(connectionError: friendlyErrorMessage(error));
+      return false;
     }
-    if (!mounted) return;
+    if (!mounted || !_sameRun(state.activeRunId, runId)) return true;
+    await _cancelSubscription();
+    if (!mounted || !_sameRun(state.activeRunId, runId)) return true;
+    _activeCommand = null;
     state = state.copyWith(
       messages: _updateLastAssistant(
         (message) => message.copyWith(
@@ -433,17 +552,23 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
       clearActiveRun: true,
       clearConnectionError: true,
     );
+    return true;
   }
 
   Future<void> startNewSession() async {
-    await stop();
+    if (!await stop()) return;
+    _loadGeneration++;
+    _refreshGeneration++;
+    _olderGeneration++;
     try {
       final sessionId = await _repository.createSession();
       if (!mounted) return;
       state = AssistantState(
         sessionId: sessionId,
         pendingAttachments: state.pendingAttachments,
+        isLoaded: true,
       );
+      _lastMessageId = 0;
     } catch (error) {
       if (!mounted) return;
       state = state.copyWith(connectionError: friendlyErrorMessage(error));
@@ -451,65 +576,136 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   }
 
   Future<void> clearHistory() async {
-    await stop();
+    if (!await stop()) return;
+    _loadGeneration++;
+    _refreshGeneration++;
+    _olderGeneration++;
     try {
       await _repository.deleteHistory();
       if (!mounted) return;
-      state = AssistantState(pendingAttachments: state.pendingAttachments);
+      state = AssistantState(
+        pendingAttachments: state.pendingAttachments,
+        isLoaded: true,
+      );
+      _lastMessageId = 0;
     } catch (error) {
       if (!mounted) return;
       state = state.copyWith(connectionError: friendlyErrorMessage(error));
     }
   }
 
-  Future<void> undoMemoryChange(Object changeId) async {
+  Future<bool> undoMemoryChange(Object changeId) async {
+    if (!jsonInt64IsPositive(changeId)) return false;
+    state = state.copyWith(
+      messages: _updateMemoryChange(
+        changeId,
+        (message) => message.copyWith(memoryUndoing: true),
+      ),
+      clearConnectionError: true,
+    );
     try {
       await _repository.undoMemoryChange(changeId);
+      if (!mounted) return false;
+      state = state.copyWith(
+        messages: _updateMemoryChange(
+          changeId,
+          (message) =>
+              message.copyWith(memoryUndoing: false, memoryUndone: true),
+        ),
+      );
+      return true;
     } catch (error) {
-      if (!mounted) return;
-      state = state.copyWith(connectionError: friendlyErrorMessage(error));
+      if (!mounted) return false;
+      state = state.copyWith(
+        messages: _updateMemoryChange(
+          changeId,
+          (message) => message.copyWith(memoryUndoing: false),
+        ),
+        connectionError: friendlyErrorMessage(error),
+      );
+      return false;
     }
+  }
+
+  void _ensureSubscribed(Object runId) {
+    if (_sameRun(_subscribedRunId, runId) && _subscription != null) return;
+    _subscribe(
+      runId,
+      afterSeq: _sameRun(_subscribedRunId, runId) ? _lastSeq : 0,
+    );
   }
 
   void _subscribe(Object runId, {required Object afterSeq}) {
     _generation++;
     final generation = _generation;
+    _connectionGeneration++;
     _lastSeq = _asInt(afterSeq);
     _reconnects = 0;
-    unawaited(_subscription?.cancel());
+    final previous = _subscription;
+    _subscription = null;
+    _subscribedRunId = runId;
+    unawaited(previous?.cancel());
     _listen(runId, generation);
   }
 
   void _listen(Object runId, int generation) {
+    final connectionGeneration = ++_connectionGeneration;
     final stream = _repository.runEvents(runId: runId, afterSeq: _lastSeq);
     _subscription = stream.listen(
       (event) {
-        if (generation != _generation) return;
+        if (!_isCurrentConnection(generation, connectionGeneration)) return;
+        if (event.seq > 0 && event.seq <= _lastSeq) return;
         if (event.seq > _lastSeq) _lastSeq = event.seq;
         _applyEvent(runId, event);
+        if (event.isTerminal &&
+            _isCurrentConnection(generation, connectionGeneration)) {
+          _subscription = null;
+          _subscribedRunId = 0;
+          _connectionGeneration++;
+        }
       },
       onError: (Object error, StackTrace stackTrace) {
-        if (generation != _generation) return;
+        if (!_isCurrentConnection(generation, connectionGeneration)) return;
         if (error is AssistantStreamException &&
             state.hasActiveRun &&
             _reconnects < 1) {
           _reconnects++;
+          final previous = _subscription;
+          _subscription = null;
           _listen(runId, generation);
+          unawaited(previous?.cancel());
           return;
         }
-        _finishWithTransportError(friendlyErrorMessage(error));
+        _finishWithTransportError(
+          friendlyErrorMessage(error),
+          generation,
+          connectionGeneration,
+        );
       },
       onDone: () {
-        if (generation != _generation || !state.isStreaming) return;
+        if (!_isCurrentConnection(generation, connectionGeneration) ||
+            !state.isStreaming) {
+          return;
+        }
         if (state.hasActiveRun && _reconnects < 1) {
           _reconnects++;
           _listen(runId, generation);
           return;
         }
-        _finishWithTransportError('Assistant 连接意外中断');
+        _finishWithTransportError(
+          'Assistant 连接意外中断',
+          generation,
+          connectionGeneration,
+        );
       },
       cancelOnError: false,
     );
+  }
+
+  bool _isCurrentConnection(int generation, int connectionGeneration) {
+    return mounted &&
+        generation == _generation &&
+        connectionGeneration == _connectionGeneration;
   }
 
   void _applyEvent(Object runId, AssistantRunEvent event) {
@@ -594,6 +790,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
       case AssistantEventType.unknown:
         return;
       case AssistantEventType.done:
+        _activeCommand = null;
         state = state.copyWith(
           sessionId: sessionId,
           messages: _updateMessage(
@@ -614,6 +811,8 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         );
       case AssistantEventType.error:
         final needsAuthorization = event.errorCode == 'AGENT_NOT_AUTHORIZED';
+        final retryCommand = needsAuthorization ? _activeCommand : null;
+        _activeCommand = null;
         state = state.copyWith(
           sessionId: sessionId,
           agentAuthorizationRequired: needsAuthorization,
@@ -634,15 +833,11 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
           isStreaming: false,
           isQueued: false,
           connectionError: event.text,
+          pendingRetryCommand: retryCommand,
           clearActiveRun: true,
         );
     }
   }
-
-  bool get _hasStreamingAssistant => state.messages.any(
-    (message) =>
-        message.role == AssistantMessageRole.assistant && message.isStreaming,
-  );
 
   List<AssistantMessage> _ensureAssistant(String id) {
     if (state.messages.any((message) => message.id == id)) {
@@ -650,6 +845,22 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     }
     return [
       ...state.messages,
+      AssistantMessage(
+        id: id,
+        role: AssistantMessageRole.assistant,
+        text: '',
+        isStreaming: true,
+      ),
+    ];
+  }
+
+  static List<AssistantMessage> _ensureAssistantIn(
+    List<AssistantMessage> messages,
+    String id,
+  ) {
+    if (messages.any((message) => message.id == id)) return messages;
+    return [
+      ...messages,
       AssistantMessage(
         id: id,
         role: AssistantMessageRole.assistant,
@@ -702,12 +913,24 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
           AssistantToolStatus.awaitingConfirmation => step.copyWith(
             status: AssistantToolStatus.expired,
           ),
+          AssistantToolStatus.confirming => step.copyWith(
+            status: AssistantToolStatus.expired,
+          ),
           _ => step,
         },
     ];
   }
 
-  void _finishWithTransportError(String error) {
+  void _finishWithTransportError(
+    String error,
+    int generation,
+    int connectionGeneration,
+  ) {
+    if (!_isCurrentConnection(generation, connectionGeneration)) return;
+    final subscription = _subscription;
+    _subscription = null;
+    _connectionGeneration++;
+    unawaited(subscription?.cancel());
     state = state.copyWith(
       messages: _updateLastAssistant(
         (message) => message.copyWith(
@@ -715,13 +938,48 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
           isStreaming: false,
           degraded: true,
           errorCode: 'STREAM_DISCONNECTED',
-          toolSteps: _settleSteps(message.toolSteps, AssistantToolStatus.failed),
+          toolSteps: _settleSteps(
+            message.toolSteps,
+            AssistantToolStatus.failed,
+          ),
         ),
       ),
       isStreaming: false,
       isQueued: false,
       connectionError: error,
     );
+  }
+
+  List<AssistantMessage> _setToolStatus(
+    String callId, {
+    required Set<AssistantToolStatus> from,
+    required AssistantToolStatus to,
+  }) {
+    return _updateLastAssistant((message) {
+      return message.copyWith(
+        toolSteps: [
+          for (final step in message.toolSteps)
+            if (step.callId == callId && from.contains(step.status))
+              step.copyWith(status: to)
+            else
+              step,
+        ],
+      );
+    });
+  }
+
+  List<AssistantMessage> _updateMemoryChange(
+    Object changeId,
+    AssistantMessage Function(AssistantMessage) update,
+  ) {
+    return [
+      for (final message in state.messages)
+        if (message.isMemoryChanged &&
+            jsonInt64Id(message.changeId) == jsonInt64Id(changeId))
+          update(message)
+        else
+          message,
+    ];
   }
 
   List<AssistantMessage> _updateMessage(
@@ -731,15 +989,19 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   }) {
     final exists = state.messages.any((message) => message.id == id);
     if (!exists && createIfMissing) {
-      return updateAll([
-        ...state.messages,
-        AssistantMessage(
-          id: id,
-          role: AssistantMessageRole.assistant,
-          text: '',
-          isStreaming: true,
-        ),
-      ], id, update);
+      return updateAll(
+        [
+          ...state.messages,
+          AssistantMessage(
+            id: id,
+            role: AssistantMessageRole.assistant,
+            text: '',
+            isStreaming: true,
+          ),
+        ],
+        id,
+        update,
+      );
     }
     return updateAll(state.messages, id, update);
   }
@@ -764,6 +1026,137 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     );
     if (index >= 0) messages[index] = update(messages[index]);
     return messages;
+  }
+
+  Future<bool> refreshForThread(AssistantThreadSummary thread) async {
+    if (_identityKey.isEmpty || !state.isLoaded) return false;
+    if (jsonInt64IsPositive(thread.sessionId) &&
+        !_sameRun(thread.sessionId, state.sessionId)) {
+      await load();
+      return mounted && state.connectionError == null;
+    }
+    if (!jsonInt64IsPositive(thread.lastMessageId) ||
+        !_idIsAfter(thread.lastMessageId, _lastMessageId)) {
+      return false;
+    }
+    return refreshMessages();
+  }
+
+  Future<bool> loadOlderMessages() async {
+    if (_identityKey.isEmpty ||
+        state.isLoadingOlder ||
+        !state.hasMoreHistory ||
+        !jsonInt64IsPositive(state.nextBeforeId) ||
+        !jsonInt64IsPositive(state.sessionId)) {
+      return false;
+    }
+    final generation = ++_olderGeneration;
+    state = state.copyWith(isLoadingOlder: true, clearHistoryError: true);
+    try {
+      final page = await _repository.listMessages(
+        sessionId: state.sessionId,
+        beforeId: state.nextBeforeId,
+      );
+      if (!mounted || generation != _olderGeneration) return false;
+      final existingIds = {for (final item in state.messages) item.id};
+      final older = [
+        for (final item in page.messages)
+          if (!existingIds.contains(jsonInt64Id(item.id))) _fromHistory(item),
+      ];
+      state = state.copyWith(
+        messages: [...older, ...state.messages],
+        hasMoreHistory: page.hasMore,
+        nextBeforeId: page.nextBeforeId,
+        isLoadingOlder: false,
+        clearHistoryError: true,
+      );
+      return true;
+    } catch (error) {
+      if (!mounted || generation != _olderGeneration) return false;
+      state = state.copyWith(
+        isLoadingOlder: false,
+        historyError: friendlyErrorMessage(error),
+      );
+      return false;
+    }
+  }
+
+  Future<bool> refreshMessages() async {
+    if (_identityKey.isEmpty || !jsonInt64IsPositive(state.sessionId)) {
+      return false;
+    }
+    final generation = ++_refreshGeneration;
+    try {
+      final history = <AssistantHistoryMessage>[];
+      var cursor = _lastMessageId;
+      while (true) {
+        final page = await _repository.listMessages(
+          sessionId: state.sessionId,
+          afterId: cursor,
+        );
+        if (!mounted || generation != _refreshGeneration) return false;
+        history.addAll(page.messages);
+        if (!page.hasMore || page.messages.isEmpty) break;
+        final nextCursor = page.messages.last.id;
+        if (!_idIsAfter(nextCursor, cursor)) break;
+        cursor = nextCursor;
+      }
+      if (history.isNotEmpty) {
+        for (final item in history) {
+          _advanceMessageCursor(item.id);
+        }
+        state = state.copyWith(messages: _mergeHistory(history));
+      }
+      unawaited(_markRead());
+      return true;
+    } catch (error) {
+      if (!mounted || generation != _refreshGeneration) return false;
+      state = state.copyWith(connectionError: friendlyErrorMessage(error));
+      return false;
+    }
+  }
+
+  List<AssistantMessage> _mergeHistory(List<AssistantHistoryMessage> history) {
+    final messages = [...state.messages];
+    for (final item in history) {
+      final id = jsonInt64Id(item.id);
+      if (messages.any((message) => message.id == id)) continue;
+      if (jsonInt64IsPositive(item.runId) &&
+          item.role != 'user' &&
+          messages.any(
+            (message) => message.id == 'run-${jsonInt64Id(item.runId)}',
+          )) {
+        continue;
+      }
+      messages.add(_fromHistory(item));
+    }
+    return messages;
+  }
+
+  void _advanceMessageCursor(Object id) {
+    if (jsonInt64IsPositive(id) && _idIsAfter(id, _lastMessageId)) {
+      _lastMessageId = id;
+    }
+  }
+
+  static bool _idIsAfter(Object candidate, Object current) {
+    final next = BigInt.tryParse(jsonInt64Id(candidate));
+    final previous = BigInt.tryParse(jsonInt64Id(current));
+    if (next == null) return false;
+    return previous == null || next > previous;
+  }
+
+  static bool _sameRun(Object left, Object right) {
+    return jsonInt64Id(left) == jsonInt64Id(right);
+  }
+
+  Future<void> _cancelSubscription() async {
+    _generation++;
+    _connectionGeneration++;
+    _subscribedRunId = 0;
+    final subscription = _subscription;
+    _subscription = null;
+    await subscription?.cancel();
   }
 
   Future<void> _markRead() async {
@@ -805,7 +1198,15 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
 
   @override
   void dispose() {
-    unawaited(_subscription?.cancel());
+    _generation++;
+    _connectionGeneration++;
+    _loadGeneration++;
+    _refreshGeneration++;
+    _olderGeneration++;
+    final subscription = _subscription;
+    _subscription = null;
+    _subscribedRunId = 0;
+    unawaited(subscription?.cancel());
     super.dispose();
   }
 }
@@ -854,20 +1255,29 @@ class AgentConsentState {
 
 class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
   final AssistantDataSource _repository;
+  final String _identityKey;
+  int _generation = 0;
 
-  AgentConsentNotifier({required AssistantDataSource repository})
-    : _repository = repository,
-      super(const AgentConsentState());
+  AgentConsentNotifier({
+    required AssistantDataSource repository,
+    String identityKey = 'direct',
+  }) : _repository = repository,
+       _identityKey = identityKey,
+       super(const AgentConsentState());
 
   Future<void> ensureLoaded() async {
+    if (_identityKey.isEmpty) return;
     if (state.loaded || state.loading) return;
     await reload();
   }
 
   Future<void> reload() async {
+    if (_identityKey.isEmpty || !mounted) return;
+    final generation = ++_generation;
     state = state.copyWith(loading: true);
     try {
       final status = await _repository.loadAgentConsent();
+      if (!mounted || generation != _generation) return;
       state = AgentConsentState(
         loaded: true,
         granted: status.granted,
@@ -875,14 +1285,17 @@ class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
         currentVersion: status.currentVersion,
       );
     } on ApiException {
+      if (!mounted || generation != _generation) return;
       state = const AgentConsentState(loaded: true, granted: false);
     }
   }
 
   Future<void> grant() async {
+    if (_identityKey.isEmpty || !mounted) return;
     await _repository.setAgentConsent(granted: true);
+    if (!mounted) return;
     await reload();
-    if (!state.granted) {
+    if (mounted && !state.granted) {
       state = state.copyWith(
         granted: true,
         consentVersion: state.currentVersion == 0 ? 2 : state.currentVersion,
@@ -891,11 +1304,19 @@ class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
   }
 
   Future<void> revoke() async {
+    if (_identityKey.isEmpty || !mounted) return;
     await _repository.setAgentConsent(granted: false);
+    if (!mounted) return;
     await reload();
-    if (state.granted) {
+    if (mounted && state.granted) {
       state = const AgentConsentState(loaded: true);
     }
+  }
+
+  @override
+  void dispose() {
+    _generation++;
+    super.dispose();
   }
 }
 
@@ -903,16 +1324,33 @@ final assistantRepositoryProvider = Provider<AssistantDataSource>((ref) {
   return AssistantRepository();
 });
 
+final assistantUserKeyProvider = Provider<String>((ref) {
+  return ref.watch(
+    authNotifierProvider.select((state) {
+      if (!state.isAuthenticated || !jsonInt64IsPositive(state.userId ?? 0)) {
+        return '';
+      }
+      return jsonInt64Id(state.userId!);
+    }),
+  );
+});
+
 final assistantNotifierProvider =
     StateNotifierProvider<AssistantNotifier, AssistantState>((ref) {
+      final identityKey = ref.watch(assistantUserKeyProvider);
       return AssistantNotifier(
         repository: ref.read(assistantRepositoryProvider),
+        identityKey: identityKey,
       );
     });
 
 final agentConsentNotifierProvider =
     StateNotifierProvider<AgentConsentNotifier, AgentConsentState>((ref) {
-      return AgentConsentNotifier(
+      final identityKey = ref.watch(assistantUserKeyProvider);
+      final notifier = AgentConsentNotifier(
         repository: ref.read(assistantRepositoryProvider),
+        identityKey: identityKey,
       );
+      if (identityKey.isNotEmpty) unawaited(notifier.ensureLoaded());
+      return notifier;
     });

@@ -32,7 +32,12 @@ void main() {
   test('redirected and queued dispositions update busy UX', () async {
     final source = FakeAssistantSource()
       ..postHandler =
-          ({required message, required requestId, required attachments}) async {
+          ({
+            required message,
+            required requestId,
+            required attachments,
+            required contextPostId,
+          }) async {
             if (message.contains('queue')) {
               return const AssistantPostResult(
                 messageId: 12,
@@ -163,10 +168,7 @@ void main() {
       (item) => item.role == AssistantMessageRole.assistant,
     );
     expect(assistant.sources.single.authorityId, '7');
-    expect(
-      notifier.state.messages.any((item) => item.isMemoryChanged),
-      isTrue,
-    );
+    expect(notifier.state.messages.any((item) => item.isMemoryChanged), isTrue);
     expect(notifier.state.connectionError, isNull);
   });
 
@@ -284,14 +286,191 @@ void main() {
     expect(source.watches, isEmpty);
   });
 
-  test('thread notifier merges unread independently of message unread', () async {
+  test(
+    'thread notifier merges unread independently of message unread',
+    () async {
+      final source = FakeAssistantSource()
+        ..thread = const AssistantThreadSummary(sessionId: 1, unreadCount: 3);
+      final notifier = AssistantThreadNotifier(
+        repository: source,
+        loadImmediately: false,
+      );
+      await notifier.refresh();
+      expect(notifier.state.thread.unreadCount, 3);
+    },
+  );
+
+  test(
+    'failed send retry reuses request id attachments and context without a duplicate bubble',
+    () async {
+      var attempts = 0;
+      final source = FakeAssistantSource()
+        ..postHandler =
+            ({
+              required message,
+              required requestId,
+              required attachments,
+              required contextPostId,
+            }) async {
+              attempts++;
+              if (attempts == 1) throw const ApiException('network down');
+              return const AssistantPostResult(
+                messageId: 11,
+                sessionId: 1,
+                runId: 21,
+                disposition: AssistantDisposition.started,
+              );
+            }
+        ..eventsHandler = ({required runId, required afterSeq}) =>
+            const Stream.empty();
+      final notifier =
+          AssistantNotifier(
+            repository: source,
+            createRequestId: () => 'stable-request',
+          )..addPendingAttachment(
+            const PendingChatImage(mediaId: 7, url: 'https://media/7'),
+          );
+
+      expect(await notifier.send('retry me', contextPostId: '99'), isFalse);
+      expect(await notifier.retryPending(), isTrue);
+
+      expect(source.postedRequestIds, ['stable-request', 'stable-request']);
+      expect(source.postedContextPostIds, ['99', '99']);
+      expect(source.lastAttachments.single.mediaId, 7);
+      expect(
+        notifier.state.messages.where(
+          (item) => item.role == AssistantMessageRole.user,
+        ),
+        hasLength(1),
+      );
+      expect(notifier.state.messages.first.attachments.single.mediaId, 7);
+    },
+  );
+
+  test('cancel and confirm failures keep truthful retryable state', () async {
+    final controller = StreamController<AssistantRunEvent>.broadcast();
+    addTearDown(controller.close);
     final source = FakeAssistantSource()
-      ..thread = const AssistantThreadSummary(sessionId: 1, unreadCount: 3);
-    final notifier = AssistantThreadNotifier(
-      repository: source,
-      loadImmediately: false,
+      ..eventsHandler = ({required runId, required afterSeq}) =>
+          controller.stream;
+    final notifier = AssistantNotifier(repository: source);
+    await notifier.send('delete post');
+    controller.add(
+      const AssistantRunEvent(
+        type: AssistantEventType.confirmRequired,
+        toolCall: AssistantToolCall(
+          callId: 'delete-1',
+          tool: 'delete_post',
+          summary: 'delete post 9',
+        ),
+        seq: 1,
+      ),
     );
-    await notifier.refresh();
-    expect(notifier.state.thread.unreadCount, 3);
+    await pumpEventQueue();
+
+    source.confirmError = const ApiException('confirm failed');
+    expect(await notifier.respondToConfirmation('delete-1', true), isFalse);
+    expect(
+      notifier.state.messages.last.toolSteps.single.status,
+      AssistantToolStatus.awaitingConfirmation,
+    );
+    source.confirmError = null;
+    expect(await notifier.respondToConfirmation('delete-1', true), isTrue);
+    expect(
+      notifier.state.messages.last.toolSteps.single.status,
+      AssistantToolStatus.confirmed,
+    );
+
+    source.cancelError = const ApiException('cancel failed');
+    expect(await notifier.stop(), isFalse);
+    expect(notifier.state.hasActiveRun, isTrue);
+    expect(notifier.state.messages.last.isCanceled, isFalse);
+    source.cancelError = null;
+    expect(await notifier.stop(), isTrue);
+    expect(notifier.state.hasActiveRun, isFalse);
+    expect(notifier.state.messages.last.isCanceled, isTrue);
   });
+
+  test(
+    'memory_changed undo is retryable and settles only after success',
+    () async {
+      final controller = StreamController<AssistantRunEvent>.broadcast();
+      addTearDown(controller.close);
+      final source = FakeAssistantSource()
+        ..eventsHandler = ({required runId, required afterSeq}) =>
+            controller.stream;
+      final notifier = AssistantNotifier(repository: source);
+      await notifier.send('remember this');
+      controller.add(
+        const AssistantRunEvent(
+          type: AssistantEventType.memoryChanged,
+          text: 'memory updated',
+          changeId: 12,
+          seq: 1,
+        ),
+      );
+      await pumpEventQueue();
+
+      source.undoError = const ApiException('undo failed');
+      expect(await notifier.undoMemoryChange(12), isFalse);
+      var change = notifier.state.messages.firstWhere(
+        (item) => item.isMemoryChanged,
+      );
+      expect(change.memoryUndone, isFalse);
+      expect(change.memoryUndoing, isFalse);
+
+      source.undoError = null;
+      expect(await notifier.undoMemoryChange(12), isTrue);
+      change = notifier.state.messages.firstWhere(
+        (item) => item.isMemoryChanged,
+      );
+      expect(change.memoryUndone, isTrue);
+    },
+  );
+
+  test(
+    'latest history, older paging, and Watch push refresh stay ordered',
+    () async {
+      final history = [
+        for (var id = 1; id <= 52; id++)
+          AssistantHistoryMessage(
+            id: id,
+            sessionId: 1,
+            role: id.isOdd ? 'user' : 'assistant',
+            content: 'message $id',
+          ),
+      ];
+      final source = FakeAssistantSource()
+        ..thread = const AssistantThreadSummary(sessionId: 1, lastMessageId: 52)
+        ..messages = history;
+      final notifier = AssistantNotifier(repository: source);
+
+      await notifier.load();
+      expect(notifier.state.messages, hasLength(50));
+      expect(notifier.state.messages.first.text, 'message 3');
+      expect(notifier.state.hasMoreHistory, isTrue);
+      expect(await notifier.loadOlderMessages(), isTrue);
+      expect(notifier.state.messages, hasLength(52));
+      expect(notifier.state.messages.first.text, 'message 1');
+
+      source.messages = [
+        ...history,
+        const AssistantHistoryMessage(
+          id: 53,
+          sessionId: 1,
+          role: 'assistant',
+          kind: 'watch',
+          content: 'Watch found a new post',
+          unread: true,
+        ),
+      ];
+      expect(
+        await notifier.refreshForThread(
+          const AssistantThreadSummary(sessionId: 1, lastMessageId: 53),
+        ),
+        isTrue,
+      );
+      expect(notifier.state.messages.last.text, 'Watch found a new post');
+    },
+  );
 }

@@ -13,6 +13,7 @@ import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../post/data/post_repository.dart';
 import '../application/assistant_notifier.dart';
+import '../application/assistant_thread_notifier.dart';
 import '../data/assistant_models.dart';
 import 'assistant_runtime_widgets.dart';
 
@@ -55,8 +56,9 @@ String stripCitationMarkers(String text) {
 
 class AssistantPage extends ConsumerStatefulWidget {
   final ValueChanged<AssistantSourceCard>? onOpenSource;
+  final Object contextPostId;
 
-  const AssistantPage({super.key, this.onOpenSource});
+  const AssistantPage({super.key, this.onOpenSource, this.contextPostId = 0});
 
   @override
   ConsumerState<AssistantPage> createState() => _AssistantPageState();
@@ -65,21 +67,24 @@ class AssistantPage extends ConsumerStatefulWidget {
 class _AssistantPageState extends ConsumerState<AssistantPage> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
-  var _loaded = false;
+  var _loadedIdentity = '';
 
-  @override
-  void initState() {
-    super.initState();
+  void _scheduleLoad(String identity) {
+    if (identity.isEmpty) {
+      _loadedIdentity = '';
+      return;
+    }
+    if (identity == _loadedIdentity) return;
+    _loadedIdentity = identity;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _loaded) return;
-      _loaded = true;
-      unawaitedLoad();
+      if (!mounted ||
+          _loadedIdentity != identity ||
+          ref.read(assistantUserKeyProvider) != identity) {
+        return;
+      }
+      ref.read(agentConsentNotifierProvider.notifier).ensureLoaded();
+      ref.read(assistantNotifierProvider.notifier).load();
     });
-  }
-
-  void unawaitedLoad() {
-    ref.read(agentConsentNotifierProvider.notifier).ensureLoaded();
-    ref.read(assistantNotifierProvider.notifier).load();
   }
 
   @override
@@ -109,7 +114,9 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     if (!mounted) return;
     final status = ref.read(agentConsentNotifierProvider);
     if (!status.canStartRun) {
-      final agreed = await _showAgentConsentDialog(upgrade: status.needsUpgrade);
+      final agreed = await _showAgentConsentDialog(
+        upgrade: status.needsUpgrade,
+      );
       if (!mounted || !agreed) return;
       try {
         await consent.grant();
@@ -118,8 +125,61 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
         return;
       }
     }
-    final accepted = await notifier.send(text);
+    final accepted = await notifier.send(
+      text,
+      contextPostId: widget.contextPostId,
+    );
     if (accepted) _controller.clear();
+  }
+
+  Future<void> _revokeAuthorization() async {
+    var confirmed = false;
+    await showFDialog<void>(
+      context: context,
+      builder: (dialogContext, dialogStyle, animation) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('撤销 Agent 授权', style: dialogStyle.titleTextStyle),
+            const SizedBox(height: 8),
+            Text(
+              '撤销后不能发送新请求，也不能使用记忆和追踪；历史消息仍会保留。',
+              style: dialogStyle.bodyTextStyle,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                FButton(
+                  variant: .outline,
+                  onPress: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('保留授权'),
+                ),
+                const SizedBox(width: 8),
+                FButton(
+                  key: const Key('assistant-confirm-revoke-consent'),
+                  variant: .destructive,
+                  onPress: () {
+                    confirmed = true;
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('撤销授权'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await ref.read(agentConsentNotifierProvider.notifier).revoke();
+      if (mounted) showAppSuccess(context, 'Agent 授权已撤销');
+    } catch (error) {
+      if (mounted) showAppError(context, friendlyErrorMessage(error));
+    }
   }
 
   Future<bool> _showAgentConsentDialog({bool upgrade = false}) async {
@@ -241,15 +301,31 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
 
   @override
   Widget build(BuildContext context) {
+    final identity = ref.watch(assistantUserKeyProvider);
     final state = ref.watch(assistantNotifierProvider);
     final consent = ref.watch(agentConsentNotifierProvider);
+    _scheduleLoad(identity);
     ref.listen<AssistantState>(assistantNotifierProvider, (previous, next) {
       if (previous != null &&
           !previous.agentAuthorizationRequired &&
           next.agentAuthorizationRequired) {
         unawaited(_recoverAuthorization());
       }
-      if (next.messages.isNotEmpty) _scheduleScroll();
+      if (next.messages.isNotEmpty &&
+          (previous == null ||
+              previous.messages.isEmpty ||
+              previous.messages.last.id != next.messages.last.id ||
+              !identical(previous.messages.last, next.messages.last))) {
+        _scheduleScroll();
+      }
+    });
+    ref.listen<AssistantThreadState>(assistantThreadProvider, (previous, next) {
+      if (previous?.thread.lastMessageId == next.thread.lastMessageId) return;
+      unawaited(
+        ref
+            .read(assistantNotifierProvider.notifier)
+            .refreshForThread(next.thread),
+      );
     });
 
     return FScaffold(
@@ -257,6 +333,13 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
       header: FHeader(
         title: const Text('小白盒 Agent'),
         suffixes: [
+          if (consent.loaded && consent.granted)
+            FHeaderAction(
+              key: const Key('assistant-revoke-consent'),
+              icon: const Icon(FLucideIcons.shieldOff),
+              semanticsLabel: '撤销 Agent 授权',
+              onPress: _revokeAuthorization,
+            ),
           FHeaderAction(
             icon: const Icon(FLucideIcons.brain),
             semanticsLabel: '记忆',
@@ -285,6 +368,34 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
       ),
       child: Column(
         children: [
+          if (state.hasMoreHistory ||
+              state.isLoadingOlder ||
+              state.historyError != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Column(
+                children: [
+                  FButton(
+                    key: const Key('assistant-load-older'),
+                    variant: .ghost,
+                    size: .sm,
+                    onPress: state.isLoadingOlder
+                        ? null
+                        : ref
+                              .read(assistantNotifierProvider.notifier)
+                              .loadOlderMessages,
+                    child: Text(state.isLoadingOlder ? '正在加载…' : '加载更早消息'),
+                  ),
+                  if (state.historyError != null)
+                    Text(
+                      state.historyError!,
+                      style: context.theme.typography.body.xs.copyWith(
+                        color: context.theme.colors.destructive,
+                      ),
+                    ),
+                ],
+              ),
+            ),
           Expanded(
             child: state.messages.isEmpty
                 ? const EmptyView(
@@ -417,16 +528,14 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
 }
 
 String _busyLabel(AssistantState state) {
-  if (state.isQueued ||
-      state.lastDisposition == AssistantDisposition.queued) {
+  if (state.isQueued || state.lastDisposition == AssistantDisposition.queued) {
     return '已排队，等待当前任务可注入';
   }
   return switch (state.lastDisposition) {
     AssistantDisposition.redirected => '已转向新的回答',
     AssistantDisposition.steered => '已注入当前任务',
-    AssistantDisposition.started => state.activeRunPhase == 'tool_executing'
-        ? '正在使用工具'
-        : '正在思考',
+    AssistantDisposition.started =>
+      state.activeRunPhase == 'tool_executing' ? '正在使用工具' : '正在思考',
     _ => state.activeRunPhase == 'tool_executing' ? '正在使用工具' : '处理中',
   };
 }
@@ -495,6 +604,7 @@ String _toolStatusLabel(AssistantToolStatus status) {
   return switch (status) {
     AssistantToolStatus.running => '执行中…',
     AssistantToolStatus.awaitingConfirmation => '等待确认',
+    AssistantToolStatus.confirming => '提交中…',
     AssistantToolStatus.completed => '完成',
     AssistantToolStatus.confirmed => '已确认',
     AssistantToolStatus.declined => '已拒绝',
@@ -607,10 +717,19 @@ class _AssistantMessageBubble extends StatelessWidget {
                     FButton(
                       variant: .ghost,
                       size: .sm,
-                      onPress: onUndo == null
+                      onPress:
+                          onUndo == null ||
+                              message.memoryUndoing ||
+                              message.memoryUndone
                           ? null
                           : () => onUndo!(message.changeId),
-                      child: const Text('撤销这次记忆变更'),
+                      child: Text(
+                        message.memoryUndone
+                            ? '记忆变更已撤销'
+                            : message.memoryUndoing
+                            ? '正在撤销…'
+                            : '撤销这次记忆变更',
+                      ),
                     ),
                   ],
                   if (message.degraded || message.isCanceled) ...[

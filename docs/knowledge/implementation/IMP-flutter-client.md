@@ -55,6 +55,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-assistant-isolation-2026-08-30
   - EVD-assistant-hermes-2026-08-29
   - EVD-audit-fixes-2026-08-28
   - EVD-non-agent-bugs-2026-08-27
@@ -81,8 +82,8 @@ evidence:
   - EVD-client-relative-api-2026-08-18
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
-updated_at: 2026-08-29
-observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
+updated_at: 2026-08-30
+observed_commit: a0bc7abef22417cc5f3583420b7ffbda0d1ffdf6
 ---
 
 # Flutter 客户端实现映射
@@ -140,7 +141,8 @@ observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
 - Message notifier 为发送命令生成随机幂等键，失败时保存命令，显式重试复用原键；已读失败独立重试。
 - Assistant repository 校验 1～2,000 字符、`POST /assistant/messages` 的 disposition，以及
   `GET /assistant/runs/:id/events` 的 SSE 帧、`Last-Event-ID`/`afterSeq` 续流和终止事件；
-  notifier 通过 generation 隔离陈旧流，显式 Stop 才请求 cancel，断流不会标记正常完成。
+  notifier 通过 run cursor + connection generation 隔离陈旧流和重复 seq；redirect/steer/queued
+  继续消费同一 run，不从 seq=0 重放。显式 Stop 只有 cancel 成功才落本地取消态，断流不会标记正常完成。
 - Assistant 气泡在展示层剥离回答文本中的引用残留（仅 assistant 消息，用户消息原样显示）：半角
   `[type:id]` 与全角 `［post:id］` 标记，以及后端为 ASST-010 追加的 `Community sources` /
   `SOURCE` / `COMMUNITY_CONTENT_JSON` 证据行。可跳转来源按钮由结构化 source 事件渲染，同时显示
@@ -197,6 +199,12 @@ observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
   收件箱。帖子详情盯梢未授权引导 `/messages/assistant`（FX-081/082/086）。
 - `POST /assistant/messages` 接受 started/redirected/steered/queued；忙碌时仍可发送；显式 Stop
   才 `POST /assistant/runs/:id/cancel`。新会话与清历史不删除 MEMORY/USER/Watch（FX-058/089～093）。
+- Assistant、consent、thread、Memory 与 Watch provider 以认证 `userId` 为依赖键；换号或登出会销毁
+  旧状态并取消旧 SSE，新身份在页面未卸载时也重新加载。失败发送保留完整命令（稳定 requestId、附件、
+  contextPostId），重试不新增气泡；confirm、Stop、memory undo 与授权撤销仅在服务端成功后呈现成功态。
+- Assistant 消息首屏读取最新 50 条，以 `beforeId` 加载更早消息、`afterId` 增量接收新消息，两种 cursor
+  互斥。线程轮询观察到更大的 `lastMessageId` 时，已打开页面增量拉取 Watch 主动消息；POST 透传已有
+  `contextPostId`，GET 不推测附件或上下文字段（FX-050/055/057/083/085/088～093）。
 
 ## 偏离登记
 
@@ -217,7 +225,7 @@ observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
 | 搜索 | aligned | 已建模并展示部分降级；搜索帖子带作者身份并在结果中展示 |
 | 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐；评论楼中楼按需展开加载（内嵌预览 + replies 分页接口）见 [EVD-comment-replies-2026-08-22](../evidence/EVD-comment-replies-2026-08-22.md)，接口语义缺口登记于后端仓 PROP-20260822-comment-reply-thread（open） |
 | 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |
-| Assistant | aligned | Hermes 虚拟线程、异步 run SSE、consent、MEMORY/USER、Watch CRUD 已按当前规格落地并经自动化验证；真实网关与真机图片上传证据待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
+| Assistant | aligned | 客户端自有边界已补齐账号隔离、SSE cursor/generation、稳定重试、真实失败态、最新消息分页、memory undo、授权撤销与 Watch 增量刷新；真实网关、浏览器换号/断流与真机图片上传证据待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
 | 行为反馈 | aligned | 客户端不再上报 like/unlike |
 | UI/工程分层 | aligned | 详见 [Forui 实现指南](IMP-forui-ui.md) |
 | Mock/真实同路径 | aligned | transport 注入；Mock HTTP 契约对齐 `gateway.api`；真实网关仍需独立证据 |
@@ -231,4 +239,5 @@ observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
 [EVD-favorites-reload-2026-08-20](../evidence/EVD-favorites-reload-2026-08-20.md)
 与
 [EVD-client-ui-align-2026-08-20](../evidence/EVD-client-ui-align-2026-08-20.md)、
-[EVD-assistant-hermes-2026-08-29](../evidence/EVD-assistant-hermes-2026-08-29.md)。
+[EVD-assistant-hermes-2026-08-29](../evidence/EVD-assistant-hermes-2026-08-29.md)、
+[EVD-assistant-isolation-2026-08-30](../evidence/EVD-assistant-isolation-2026-08-30.md)。

@@ -62,9 +62,10 @@ abstract interface class AssistantDataSource {
 
   Future<AssistantThreadSummary> getThread();
 
-  Future<List<AssistantHistoryMessage>> listMessages({
+  Future<AssistantMessagePage> listMessages({
     Object sessionId = 0,
     Object afterId = 0,
+    Object beforeId = 0,
     int limit = 50,
   });
 
@@ -72,6 +73,7 @@ abstract interface class AssistantDataSource {
     required String message,
     required String requestId,
     List<AssistantAttachment> attachments = const [],
+    Object contextPostId = 0,
   });
 
   Stream<AssistantRunEvent> runEvents({
@@ -188,26 +190,39 @@ class AssistantRepository implements AssistantDataSource {
   }
 
   @override
-  Future<List<AssistantHistoryMessage>> listMessages({
+  Future<AssistantMessagePage> listMessages({
     Object sessionId = 0,
     Object afterId = 0,
+    Object beforeId = 0,
     int limit = 50,
   }) async {
+    if (jsonInt64IsPositive(afterId) && jsonInt64IsPositive(beforeId)) {
+      throw const ApiException('Assistant 消息游标不能同时向前和向后');
+    }
     final response = await _api.get(
       '/api/v2/assistant/messages',
       query: {
         if (jsonInt64IsPositive(sessionId)) 'sessionId': jsonInt64Id(sessionId),
         if (jsonInt64IsPositive(afterId)) 'afterId': jsonInt64Id(afterId),
+        if (jsonInt64IsPositive(beforeId)) 'beforeId': jsonInt64Id(beforeId),
         'limit': limit,
       },
     );
     final raw = response['messages'];
-    if (raw is! List) return const [];
-    return [
-      for (final item in raw)
-        if (item is Map)
-          AssistantHistoryMessage.fromJson(Map<String, dynamic>.from(item)),
-    ];
+    final messages = raw is! List
+        ? const <AssistantHistoryMessage>[]
+        : [
+            for (final item in raw)
+              if (item is Map)
+                AssistantHistoryMessage.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+          ];
+    return AssistantMessagePage(
+      messages: messages,
+      hasMore: response['hasMore'] == true,
+      nextBeforeId: response['nextBeforeId'] ?? 0,
+    );
   }
 
   @override
@@ -215,6 +230,7 @@ class AssistantRepository implements AssistantDataSource {
     required String message,
     required String requestId,
     List<AssistantAttachment> attachments = const [],
+    Object contextPostId = 0,
   }) async {
     final normalized = message.trim();
     final normalizedRequestId = requestId.trim();
@@ -229,6 +245,8 @@ class AssistantRepository implements AssistantDataSource {
       'requestId': normalizedRequestId,
       if (attachments.isNotEmpty)
         'attachments': [for (final item in attachments) item.toJson()],
+      if (jsonInt64IsPositive(contextPostId))
+        'contextPostId': jsonInt64Id(contextPostId),
     });
     return AssistantPostResult.fromJson(response);
   }
@@ -243,7 +261,10 @@ class AssistantRepository implements AssistantDataSource {
     }
     late http.StreamedResponse response;
     for (var attempt = 1; ; attempt++) {
-      final request = await _buildEventsRequest(runId: runId, afterSeq: afterSeq);
+      final request = await _buildEventsRequest(
+        runId: runId,
+        afterSeq: afterSeq,
+      );
       try {
         response = await _httpClient.send(request);
       } catch (error) {
@@ -415,14 +436,12 @@ class AssistantRepository implements AssistantDataSource {
     required int version,
     String requestId = '',
   }) async {
-    final response = await _api.patch(
-      '/api/v2/assistant/memory/${jsonInt64Id(id)}',
-      {
-        'content': content,
-        'version': version,
-        if (requestId.isNotEmpty) 'requestId': requestId,
-      },
-    );
+    final response = await _api
+        .patch('/api/v2/assistant/memory/${jsonInt64Id(id)}', {
+          'content': content,
+          'version': version,
+          if (requestId.isNotEmpty) 'requestId': requestId,
+        });
     return _memoryWrite(response);
   }
 
@@ -481,7 +500,12 @@ class AssistantRepository implements AssistantDataSource {
     Object targetId = 0,
     String targetText = '',
   }) async {
-    _requireKnownWatchCondition(conditionType, targetType, targetId, targetText);
+    _requireKnownWatchCondition(
+      conditionType,
+      targetType,
+      targetId,
+      targetText,
+    );
     final response = await _api.post('/api/v2/assistant/watch', {
       'conditionType': conditionType,
       'targetType': targetType,
@@ -584,10 +608,7 @@ class AssistantRepository implements AssistantDataSource {
         updatedAtMs: _asInt(map['updatedAtMs']),
       );
     }
-    return MemoryWriteResult(
-      entry: entry,
-      changeId: response['changeId'] ?? 0,
-    );
+    return MemoryWriteResult(entry: entry, changeId: response['changeId'] ?? 0);
   }
 
   Future<http.Request> _buildEventsRequest({
@@ -596,10 +617,7 @@ class AssistantRepository implements AssistantDataSource {
   }) async {
     final seq = _asInt(afterSeq);
     final path = '/api/v2/assistant/runs/${jsonInt64Id(runId)}/events';
-    final uri = apiUri(
-      seq > 0 ? '$path?afterSeq=$seq' : path,
-      host: _baseUrl,
-    );
+    final uri = apiUri(seq > 0 ? '$path?afterSeq=$seq' : path, host: _baseUrl);
     final request = http.Request('GET', uri);
     request.headers.addAll({
       'Accept': 'text/event-stream',
@@ -639,7 +657,9 @@ class AssistantRepository implements AssistantDataSource {
       if (value.startsWith(' ')) value = value.substring(1);
       dataLines.add(value);
     }
-    if (dataLines.isNotEmpty) yield _SseFrame(id: id, data: dataLines.join('\n'));
+    if (dataLines.isNotEmpty) {
+      yield _SseFrame(id: id, data: dataLines.join('\n'));
+    }
   }
 
   static ApiException _httpError(int statusCode, String body) {

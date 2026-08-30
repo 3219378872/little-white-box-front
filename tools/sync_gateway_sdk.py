@@ -58,6 +58,8 @@ ENTITY_ID_FIELDS = (
     "lastMessageId",
     "activeRunId",
     "afterId",
+    "beforeId",
+    "nextBeforeId",
 )
 PATH_ID_PARAMS = ("postId", "userId", "commentId", "id")
 

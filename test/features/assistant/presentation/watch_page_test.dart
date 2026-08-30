@@ -18,7 +18,10 @@ FakeAssistantSource _grantedSource() => FakeAssistantSource()
 Future<void> _pumpWatch(WidgetTester tester, FakeAssistantSource source) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [assistantRepositoryProvider.overrideWithValue(source)],
+      overrides: [
+        assistantUserKeyProvider.overrideWithValue('test-user'),
+        assistantRepositoryProvider.overrideWithValue(source),
+      ],
       child: const MaterialApp(builder: foruiTestBuilder, home: WatchPage()),
     ),
   );

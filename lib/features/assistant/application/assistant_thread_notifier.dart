@@ -85,12 +85,10 @@ final assistantThreadProvider =
       AssistantThreadNotifier,
       AssistantThreadState
     >((ref) {
-      final authenticated = ref.watch(
-        authNotifierProvider.select((state) => state.isAuthenticated),
-      );
+      final identityKey = ref.watch(assistantUserKeyProvider);
       return AssistantThreadNotifier(
         repository: ref.read(assistantRepositoryProvider),
-        loadImmediately: authenticated,
+        loadImmediately: identityKey.isNotEmpty,
       );
     });
 

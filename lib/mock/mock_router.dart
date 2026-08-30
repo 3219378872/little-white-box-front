@@ -1593,16 +1593,35 @@ Map<String, dynamic> _listAssistantMessages(
 ) {
   final sessionId = query['sessionId'];
   final afterId = int.tryParse(query['afterId'] ?? '') ?? 0;
-  final items = [
+  final beforeId = int.tryParse(query['beforeId'] ?? '') ?? 0;
+  if (afterId > 0 && beforeId > 0) {
+    throw const _MockBiz(400, 2, '消息游标不能同时向前和向后');
+  }
+  final requestedLimit = int.tryParse(query['limit'] ?? '') ?? 50;
+  final limit = requestedLimit <= 0 || requestedLimit > 100
+      ? 50
+      : requestedLimit;
+  final filtered = [
     for (final item
         in _assistantMessages[userId] ?? const <Map<String, dynamic>>[])
       if (sessionId == null ||
           sessionId.isEmpty ||
           '${item['sessionId']}' == sessionId)
         if (afterId <= 0 || ((item['id'] as num).toInt() > afterId))
-          _copyMap(item),
+          if (beforeId <= 0 || ((item['id'] as num).toInt() < beforeId))
+            _copyMap(item),
   ];
-  return {'messages': items};
+  final hasMore = filtered.length > limit;
+  final items = afterId > 0
+      ? filtered.take(limit).toList()
+      : filtered
+            .skip((filtered.length - limit).clamp(0, filtered.length))
+            .toList();
+  return {
+    'messages': items,
+    'hasMore': hasMore,
+    'nextBeforeId': afterId > 0 || items.isEmpty ? 0 : items.first['id'],
+  };
 }
 
 Map<String, dynamic> _postAssistantMessage(

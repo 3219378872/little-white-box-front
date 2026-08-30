@@ -110,9 +110,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/messages/assistant',
-            builder: (context, state) => const MessagesShell(
+            builder: (context, state) => MessagesShell(
               assistantSelected: true,
-              thread: AssistantPage(),
+              thread: AssistantPage(
+                contextPostId: state.uri.queryParameters['contextPostId'] ?? 0,
+              ),
             ),
           ),
           GoRoute(

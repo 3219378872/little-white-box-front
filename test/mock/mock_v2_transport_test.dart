@@ -338,10 +338,7 @@ void main() {
       mock_router.dispatchResponse(
         'POST',
         '/api/v2/assistant/messages',
-        jsonEncode({
-          'message': '推荐一篇探店帖子',
-          'requestId': 'assistant-mock-test',
-        }),
+        jsonEncode({'message': '推荐一篇探店帖子', 'requestId': 'assistant-mock-test'}),
         headers: {...authHeaders(), 'content-type': 'application/json'},
       ),
     );
@@ -382,6 +379,48 @@ void main() {
     );
     expect(response.body, isNot(contains('"seq":1')));
     expect(response.body, contains('"type":"token"'));
+  });
+
+  test('assistant messages return latest page then page backward', () {
+    final headers = {...authHeaders(), 'content-type': 'application/json'};
+    for (var index = 1; index <= 5; index++) {
+      mock_router.dispatchResponse(
+        'POST',
+        '/api/v2/assistant/messages',
+        jsonEncode({'message': 'message $index', 'requestId': 'page-$index'}),
+        headers: headers,
+      );
+    }
+
+    final latest = decodeBody(
+      mock_router.dispatchResponse(
+        'GET',
+        '/api/v2/assistant/messages?limit=2',
+        '',
+        headers: authHeaders(),
+      ),
+    );
+    final latestItems = latest['messages'] as List<dynamic>;
+    expect(latestItems.map((item) => item['content']), [
+      'message 4',
+      'message 5',
+    ]);
+    expect(latest['hasMore'], isTrue);
+
+    final beforeId = latest['nextBeforeId'];
+    final older = decodeBody(
+      mock_router.dispatchResponse(
+        'GET',
+        '/api/v2/assistant/messages?limit=2&beforeId=$beforeId',
+        '',
+        headers: authHeaders(),
+      ),
+    );
+    expect(
+      (older['messages'] as List<dynamic>).map((item) => item['content']),
+      ['message 2', 'message 3'],
+    );
+    expect(older['hasMore'], isTrue);
   });
 
   test('v2 post writes require revision and stay idempotent', () {

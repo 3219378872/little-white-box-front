@@ -32,6 +32,8 @@ final num sessionId;
 final num changeId;
 final num lastMessageId;
 final num activeRunId;
+final num beforeId;
+final num nextBeforeId;
 final List<int> changeIds;
 changeIds: m['changeIds']?.cast<int>() ?? [],
 """
@@ -41,6 +43,8 @@ changeIds: m['changeIds']?.cast<int>() ?? [],
         self.assertIn("final Object changeId;", patched)
         self.assertIn("final Object lastMessageId;", patched)
         self.assertIn("final Object activeRunId;", patched)
+        self.assertIn("final Object beforeId;", patched)
+        self.assertIn("final Object nextBeforeId;", patched)
         self.assertIn("final List<Object> changeIds;", patched)
         self.assertIn("List<Object>.from(m['changeIds'] as List)", patched)
 

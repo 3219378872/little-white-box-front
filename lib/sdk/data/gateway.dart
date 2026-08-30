@@ -2041,36 +2041,59 @@ class ListAssistantMessagesReq {
 
   final Object afterId;
 
+  final Object beforeId;
+
   final num limit;
   ListAssistantMessagesReq({
     required this.sessionId,
     required this.afterId,
+    required this.beforeId,
     required this.limit,
   });
   factory ListAssistantMessagesReq.fromJson(Map<String, dynamic> m) {
     return ListAssistantMessagesReq(
       sessionId: m['sessionId'] ?? 0,
       afterId: m['afterId'] ?? 0,
+      beforeId: m['beforeId'] ?? 0,
       limit: m['limit'] ?? 0,
     );
   }
   Map<String, dynamic> toJson() {
-    return {'sessionId': sessionId, 'afterId': afterId, 'limit': limit};
+    return {
+      'sessionId': sessionId,
+      'afterId': afterId,
+      'beforeId': beforeId,
+      'limit': limit,
+    };
   }
 }
 
 class ListAssistantMessagesResp {
   final List<AssistantMessage> messages;
-  ListAssistantMessagesResp({required this.messages});
+
+  final bool hasMore;
+
+  final Object nextBeforeId;
+  ListAssistantMessagesResp({
+    required this.messages,
+    required this.hasMore,
+    required this.nextBeforeId,
+  });
   factory ListAssistantMessagesResp.fromJson(Map<String, dynamic> m) {
     return ListAssistantMessagesResp(
       messages: ((m['messages'] ?? []) as List<dynamic>)
           .map((i) => AssistantMessage.fromJson(i))
           .toList(),
+      hasMore: m['hasMore'] ?? false,
+      nextBeforeId: m['nextBeforeId'] ?? 0,
     );
   }
   Map<String, dynamic> toJson() {
-    return {'messages': messages.map((i) => i.toJson())};
+    return {
+      'messages': messages.map((i) => i.toJson()),
+      'hasMore': hasMore,
+      'nextBeforeId': nextBeforeId,
+    };
   }
 }
 
