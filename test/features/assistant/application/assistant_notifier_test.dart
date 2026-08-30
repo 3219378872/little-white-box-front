@@ -63,6 +63,150 @@ void main() {
     expect(repository.lastPostedMessage, 'hello');
   });
 
+  test(
+    'response reset replaces partial text and retires the old stream',
+    () async {
+      final controller = StreamController<AssistantRunEvent>.broadcast();
+      addTearDown(controller.close);
+      final repository = FakeAssistantSource()
+        ..eventsHandler = ({required runId, required afterSeq}) =>
+            controller.stream;
+      final notifier = AssistantNotifier(
+        repository: repository,
+        createRequestId: () => 'request-1',
+      );
+
+      expect(await notifier.send('hello'), isTrue);
+      controller.add(
+        const AssistantRunEvent(
+          type: AssistantEventType.token,
+          text: 'discard me',
+          streamId: 'attempt-1',
+          seq: 1,
+        ),
+      );
+      controller.add(
+        const AssistantRunEvent(
+          type: AssistantEventType.sourceCard,
+          sourceCard: AssistantSourceCard(
+            handle: 'src-7',
+            kind: 'post',
+            authorityId: '7',
+            title: 'Source',
+          ),
+          seq: 2,
+        ),
+      );
+      controller.add(
+        const AssistantRunEvent(
+          type: AssistantEventType.responseReset,
+          streamId: 'attempt-1',
+          seq: 3,
+        ),
+      );
+      controller.add(
+        const AssistantRunEvent(
+          type: AssistantEventType.token,
+          text: 'late old text',
+          streamId: 'attempt-1',
+          seq: 4,
+        ),
+      );
+      controller.add(
+        const AssistantRunEvent(
+          type: AssistantEventType.token,
+          text: 'final answer',
+          streamId: 'attempt-2',
+          seq: 5,
+        ),
+      );
+      controller.add(
+        const AssistantRunEvent(type: AssistantEventType.done, seq: 6),
+      );
+      await pumpEventQueue();
+
+      final answer = notifier.state.messages.last;
+      expect(answer.text, 'final answer');
+      expect(answer.sources.single.authorityId, '7');
+      expect(answer.isStreaming, isFalse);
+    },
+  );
+
+  test(
+    'a different stream is ignored until the active stream is reset',
+    () async {
+      final controller = StreamController<AssistantRunEvent>.broadcast();
+      addTearDown(controller.close);
+      final repository = FakeAssistantSource()
+        ..eventsHandler = ({required runId, required afterSeq}) =>
+            controller.stream;
+      final notifier = AssistantNotifier(repository: repository);
+
+      expect(await notifier.send('hello'), isTrue);
+      controller.add(
+        const AssistantRunEvent(
+          type: AssistantEventType.token,
+          text: 'A',
+          streamId: 'attempt-1',
+          seq: 1,
+        ),
+      );
+      controller.add(
+        const AssistantRunEvent(
+          type: AssistantEventType.token,
+          text: 'wrong',
+          streamId: 'attempt-2',
+          seq: 2,
+        ),
+      );
+      controller.add(
+        const AssistantRunEvent(
+          type: AssistantEventType.token,
+          text: 'B',
+          streamId: 'attempt-1',
+          seq: 3,
+        ),
+      );
+      controller.add(
+        const AssistantRunEvent(type: AssistantEventType.done, seq: 4),
+      );
+      await pumpEventQueue();
+
+      expect(notifier.state.messages.last.text, 'AB');
+    },
+  );
+
+  test('legacy tokens without stream ids remain compatible', () async {
+    final controller = StreamController<AssistantRunEvent>.broadcast();
+    addTearDown(controller.close);
+    final repository = FakeAssistantSource()
+      ..eventsHandler = ({required runId, required afterSeq}) =>
+          controller.stream;
+    final notifier = AssistantNotifier(repository: repository);
+
+    expect(await notifier.send('hello'), isTrue);
+    controller.add(
+      const AssistantRunEvent(
+        type: AssistantEventType.token,
+        text: 'legacy ',
+        seq: 1,
+      ),
+    );
+    controller.add(
+      const AssistantRunEvent(
+        type: AssistantEventType.token,
+        text: 'answer',
+        seq: 2,
+      ),
+    );
+    controller.add(
+      const AssistantRunEvent(type: AssistantEventType.done, seq: 3),
+    );
+    await pumpEventQueue();
+
+    expect(notifier.state.messages.last.text, 'legacy answer');
+  });
+
   test('stop marks the response and cancels the run', () async {
     final canceled = Completer<void>();
     final controller = StreamController<AssistantRunEvent>(

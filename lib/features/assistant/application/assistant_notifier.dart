@@ -264,6 +264,9 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   int _lastSeq = 0;
   int _reconnects = 0;
   Object _subscribedRunId = 0;
+  String _activeStreamId = '';
+  final Set<String> _retiredStreamIds = <String>{};
+  bool _usesStreamIds = false;
   Object _lastMessageId = 0;
   PendingAssistantCommand? _activeCommand;
 
@@ -616,6 +619,9 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   }
 
   void _subscribe(Object runId, {required Object afterSeq}) {
+    if (!_sameRun(_subscribedRunId, runId)) {
+      _resetStreamTracking();
+    }
     _generation++;
     final generation = _generation;
     _connectionGeneration++;
@@ -704,11 +710,24 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
           messages: _ensureAssistant(responseId),
         );
       case AssistantEventType.token:
+        if (!_acceptToken(event)) return;
         state = state.copyWith(
           sessionId: sessionId,
           messages: _updateMessage(
             responseId,
             (message) => message.copyWith(text: '${message.text}${event.text}'),
+            createIfMissing: true,
+          ),
+          isStreaming: true,
+          isQueued: false,
+        );
+      case AssistantEventType.responseReset:
+        if (!_acceptReset(event)) return;
+        state = state.copyWith(
+          sessionId: sessionId,
+          messages: _updateMessage(
+            responseId,
+            (message) => message.copyWith(text: ''),
             createIfMissing: true,
           ),
           isStreaming: true,
@@ -770,6 +789,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
       case AssistantEventType.unknown:
         return;
       case AssistantEventType.done:
+        _resetStreamTracking();
         _activeCommand = null;
         state = state.copyWith(
           sessionId: sessionId,
@@ -790,6 +810,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
           clearActiveRun: true,
         );
       case AssistantEventType.error:
+        _resetStreamTracking();
         final needsAuthorization = event.errorCode == 'AGENT_NOT_AUTHORIZED';
         final retryCommand = needsAuthorization ? _activeCommand : null;
         _activeCommand = null;
@@ -817,6 +838,35 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
           clearActiveRun: true,
         );
     }
+  }
+
+  bool _acceptToken(AssistantRunEvent event) {
+    final streamId = event.streamId.trim();
+    if (streamId.isEmpty) {
+      return !_usesStreamIds;
+    }
+    _usesStreamIds = true;
+    if (_retiredStreamIds.contains(streamId)) return false;
+    if (_activeStreamId.isEmpty) {
+      _activeStreamId = streamId;
+      return true;
+    }
+    return _activeStreamId == streamId;
+  }
+
+  bool _acceptReset(AssistantRunEvent event) {
+    final streamId = event.streamId.trim();
+    if (streamId.isEmpty || _activeStreamId != streamId) return false;
+    _retiredStreamIds.add(streamId);
+    _activeStreamId = '';
+    _usesStreamIds = true;
+    return true;
+  }
+
+  void _resetStreamTracking() {
+    _activeStreamId = '';
+    _retiredStreamIds.clear();
+    _usesStreamIds = false;
   }
 
   List<AssistantMessage> _ensureAssistant(String id) {
@@ -1134,6 +1184,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     _generation++;
     _connectionGeneration++;
     _subscribedRunId = 0;
+    _resetStreamTracking();
     final subscription = _subscription;
     _subscription = null;
     await subscription?.cancel();
@@ -1186,6 +1237,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     final subscription = _subscription;
     _subscription = null;
     _subscribedRunId = 0;
+    _resetStreamTracking();
     unawaited(subscription?.cancel());
     super.dispose();
   }

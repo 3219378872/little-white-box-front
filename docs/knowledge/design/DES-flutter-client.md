@@ -191,7 +191,11 @@ SSE：
 - `GET /api/v2/assistant/runs/:id/events` 使用独立 SSE transport。重连携带 `Last-Event-ID`
   与 `afterSeq`。repository 校验帧、忽略未知 `type`，只把 `done`/`error` 当终止；断流保留
   已收到文本，不伪造 done（FX-059/090）。
-- 解析 `run_started|token|tool_call|tool_result|confirm_required|source_card|memory_changed|done|error`。
+- 解析 `run_started|token|response_reset|tool_call|tool_result|confirm_required|source_card|memory_changed|done|error`。
+  notifier 为当前 run 保存 active streamId：首个带归属的 token 选中 stream，只有同 stream 后续 token
+  可追加；匹配的 response_reset 清空该 run 临时正文并释放 active stream，下一 attempt 的首 token
+  再选中。旧连接、旧 stream、重复 seq 与 reset 后迟到 token 均不得改变正文；历史无 streamId token
+  仅在尚未建立新式 stream 时按兼容路径消费。
   工具行与确认卡片按 callId 更新；确认调用 `POST /assistant/runs/:id/confirm`
   `{callId, approved}` 后立即不可交互（FX-056/057）。
 - 来源只渲染 `source_card`。`kind=post` 且 `authorityId` 为正才可打开帖子；网页等以类型标识

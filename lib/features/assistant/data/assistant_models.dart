@@ -3,6 +3,7 @@ import '../../../core/api/json_int64.dart';
 enum AssistantEventType {
   runStarted,
   token,
+  responseReset,
   toolCall,
   toolResult,
   confirmRequired,
@@ -241,6 +242,7 @@ class AssistantRunEvent {
   final AssistantToolCall? toolCall;
   final AssistantSourceCard? sourceCard;
   final Object changeId;
+  final String streamId;
 
   const AssistantRunEvent({
     required this.type,
@@ -253,6 +255,7 @@ class AssistantRunEvent {
     this.toolCall,
     this.sourceCard,
     this.changeId = 0,
+    this.streamId = '',
   });
 
   bool get isTerminal =>
@@ -263,6 +266,7 @@ class AssistantRunEvent {
     final type = switch (rawType) {
       'run_started' => AssistantEventType.runStarted,
       'token' => AssistantEventType.token,
+      'response_reset' => AssistantEventType.responseReset,
       'tool_call' => AssistantEventType.toolCall,
       'tool_result' => AssistantEventType.toolResult,
       'confirm_required' => AssistantEventType.confirmRequired,
@@ -290,8 +294,12 @@ class AssistantRunEvent {
         ? AssistantSourceCard.fromJson(Map<String, dynamic>.from(rawSourceCard))
         : null;
     final errorCode = _string(json['errorCode']);
+    final streamId = _string(json['streamId']).trim();
     if (type == AssistantEventType.token && text.isEmpty) {
       throw const FormatException('empty assistant token');
+    }
+    if (type == AssistantEventType.responseReset && streamId.isEmpty) {
+      throw const FormatException('missing assistant stream id');
     }
     if ((type == AssistantEventType.toolCall ||
             type == AssistantEventType.toolResult ||
@@ -317,6 +325,7 @@ class AssistantRunEvent {
       toolCall: toolCall,
       sourceCard: sourceCard,
       changeId: json['changeId'] ?? 0,
+      streamId: streamId,
     );
   }
 }

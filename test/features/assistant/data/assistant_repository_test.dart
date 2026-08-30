@@ -61,6 +61,68 @@ void main() {
     expect(client.request?.headers['Last-Event-ID'], '4');
   });
 
+  test('parses response reset and replacement stream ids', () async {
+    final client = _CapturingClient(
+      (_) => http.StreamedResponse(
+        Stream.value(
+          utf8.encode(
+            [
+              'data: {"type":"token","text":"partial","streamId":"attempt-1","seq":1}\n\n',
+              'data: {"type":"response_reset","streamId":"attempt-1","seq":2}\n\n',
+              'data: {"type":"token","text":"final","streamId":"attempt-2","seq":3}\n\n',
+              'data: {"type":"done","seq":4}\n\n',
+            ].join(),
+          ),
+        ),
+        200,
+      ),
+    );
+    final repository = AssistantRepository(
+      client: client,
+      baseUrl: 'http://gateway.test',
+      loadAccessToken: () async => null,
+    );
+
+    final events = await repository.runEvents(runId: 21).toList();
+
+    expect(events.map((event) => event.type), [
+      AssistantEventType.token,
+      AssistantEventType.responseReset,
+      AssistantEventType.token,
+      AssistantEventType.done,
+    ]);
+    expect(events[0].streamId, 'attempt-1');
+    expect(events[1].streamId, 'attempt-1');
+    expect(events[2].streamId, 'attempt-2');
+  });
+
+  test('rejects response reset without a stream id', () async {
+    final client = _CapturingClient(
+      (_) => http.StreamedResponse(
+        Stream.value(
+          utf8.encode('data: {"type":"response_reset","seq":1}\n\n'),
+        ),
+        200,
+      ),
+    );
+    final repository = AssistantRepository(
+      client: client,
+      baseUrl: 'http://gateway.test',
+      loadAccessToken: () async => null,
+    );
+
+    await expectLater(
+      repository.runEvents(runId: 21).toList(),
+      throwsA(
+        isA<AssistantStreamException>().having(
+          (error) => error.message,
+          'message',
+          contains('无效事件'),
+        ),
+      ),
+    );
+  });
+
   test('reports a closed stream without a terminal event', () async {
     final client = _CapturingClient(
       (_) => http.StreamedResponse(

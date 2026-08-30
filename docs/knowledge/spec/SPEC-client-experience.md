@@ -80,7 +80,7 @@ approved_at: 2026-08-13
   steer；compact/附件等不能安全注入的阶段 FIFO 排队（服务端上限 32）。输入在忙碌时仍可发送。只有
   显式 Stop 调用 `POST /assistant/runs/:id/cancel` 硬取消；断线不取消 run。
 - `FX-059`：客户端必须忽略无法识别的 SSE `type`，不得把未知事件当成错误终止。持久事件类型为
-  `run_started|token|tool_call|tool_result|confirm_required|source_card|memory_changed|done|error`。
+  `run_started|token|response_reset|tool_call|tool_result|confirm_required|source_card|memory_changed|done|error`。
 
 - `FX-080`：`GET /assistant/consent` 同时展示 `consentVersion` 与 `currentVersion`。已授权但版本
   低于当前披露版本时，再次展示完整工具分组清单并确认后才能 `POST` 升级；未升级不得发起用户 run，
@@ -105,7 +105,10 @@ approved_at: 2026-08-13
 - `FX-089`：`POST /assistant/messages` 返回 `messageId`、`sessionId`、`runId` 和
   `disposition=started|redirected|steered|queued`；客户端不等待模型完成即接受异步 run。
 - `FX-090`：`GET /assistant/runs/:id/events` 以 SSE 消费事件；重连携带 `Last-Event-ID` 与
-  `afterSeq`。断流保留已收到文本并显示失败/恢复状态，不伪造 done。
+  `afterSeq`。`token` 与 `response_reset` 以 `streamId` 归属 model attempt：客户端只追加当前 stream，
+  reset 清空该 run 的临时回答并等待下一 stream；旧 stream 的迟到 token 不得串入。按 seq 重放
+  token/reset 后最终正文只能包含获胜 attempt。断流保留仍有效的已收到文本并显示失败/恢复状态，
+  不伪造 done。
 - `FX-091`：显式 Stop 调用 `POST /assistant/runs/:id/cancel`；取消后忽略该 run 的后续事件。
 - `FX-092`：没有新会话入口；`POST /assistant/sessions` 硬删除。永久前台 session 由服务端维护，
   30 分钟无可见消息后的冷拼接不清空客户端历史。清除历史 `DELETE /assistant/history` 不删除
