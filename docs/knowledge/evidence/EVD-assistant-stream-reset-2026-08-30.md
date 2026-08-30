@@ -48,6 +48,16 @@ make test-coverage
 
 make knowledge-check
 # 35 formal docs; 47 requirements; 78 local links; passed
+
+# 三仓 fast-forward 后在根编排仓执行
+just e2e-agent-reset
+# 1 passed；fixture 截断后的 response_reset、新 streamId、SSE replay 与 provider 恢复通过
+
+just e2e deploy/dev/e2e/test_assistant.py
+# 14 passed, 1 skipped
+
+just e2e
+# 116 passed, 1 skipped
 ```
 
 ## 条款证据
@@ -60,6 +70,6 @@ make knowledge-check
 
 ## 未证明范围
 
-本证据没有启动真实网关、外部 provider、浏览器或真机；因此仍为 `partial`，不证明 nginx/SSE 代理、后端
-lease fencing、provider retry/fallback 或生产环境的真实流重放。根仓专用
-`just e2e-agent-reset` gate 在三仓整合后再执行。
+根仓确定性 gate 已在合并后的真实 nginx/Gateway/Assistant 栈证明 provider 首流截断后的 retry/reset/replay，
+但其消费端是 pytest SSE 客户端，并未用浏览器或真机驱动 Flutter notifier；也未调用外部 live provider、
+执行 production profile/迁移或观察生产流量。因此本证据仍为 `partial`。
