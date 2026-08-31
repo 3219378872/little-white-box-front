@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:xiaobaihe_app/mock/mock_http.dart';
 import 'package:xiaobaihe_app/mock/mock_router.dart' as mock_router;
 
@@ -507,6 +508,50 @@ void main() {
       );
       expect(behavior.statusCode, 202);
       expect(behavior.headers['content-type'], contains('application/json'));
+    },
+  );
+
+  test(
+    'MockHttpClient streams assistant SSE frames then concatenates',
+    () async {
+      final client = MockHttpClient();
+      addTearDown(client.close);
+      final token = mock_router.mockAccessTokenForUser(1);
+      final posted =
+          jsonDecode(
+                (await client.post(
+                  Uri.parse('http://mock/api/v2/assistant/messages'),
+                  headers: {
+                    'Authorization': 'Bearer $token',
+                    'content-type': 'application/json',
+                  },
+                  body: jsonEncode({
+                    'message': '推荐一篇探店帖子',
+                    'requestId': 'assistant-sse-chunks',
+                  }),
+                )).body,
+              )
+              as Map<String, dynamic>;
+
+      final streamed = await client.send(
+        http.Request(
+          'GET',
+          Uri.parse(
+            'http://mock/api/v2/assistant/runs/${posted['runId']}/events',
+          ),
+        )..headers['Authorization'] = 'Bearer $token',
+      );
+      expect(streamed.headers['content-type'], 'text/event-stream');
+      final chunks = <List<int>>[];
+      await for (final chunk in streamed.stream) {
+        chunks.add(chunk);
+      }
+      expect(chunks.length, greaterThan(1));
+      final body = utf8.decode(chunks.expand((c) => c).toList());
+      expect(body, contains('"type":"token"'));
+      expect(body, contains('"streamId":"mock-stream"'));
+      expect(body, contains('"type":"source_card"'));
+      expect(body, contains('"type":"done"'));
     },
   );
 }

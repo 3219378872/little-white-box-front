@@ -41,19 +41,38 @@ class MockHttpClient extends http.BaseClient {
     );
     debugPrint('[Mock] response: ${_sanitize(response.body)}\n');
 
+    final contentType = response.headers['content-type'] ?? '';
+    final bodyBytes = utf8.encode(response.body);
+    final stream = contentType.contains('text/event-stream')
+        ? _sseFrameStream(response.body)
+        : Stream<List<int>>.value(bodyBytes);
     return http.StreamedResponse(
-      Stream<List<int>>.value(utf8.encode(response.body)),
+      stream,
       response.statusCode,
       headers: response.headers,
     );
   }
 
+  static Stream<List<int>> _sseFrameStream(String body) async* {
+    final frames = body.split('\n\n');
+    var emitted = false;
+    for (final frame in frames) {
+      if (frame.isEmpty) continue;
+      if (emitted) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      emitted = true;
+      yield utf8.encode('$frame\n\n');
+    }
+  }
+
   String _sanitize(String raw) {
     var text = raw.replaceAllMapped(
-        _sensitiveFields, (m) => '${m.group(1)}"***"');
+      _sensitiveFields,
+      (m) => '${m.group(1)}"***"',
+    );
     if (text.length > _maxLoggedBodyLength) {
-      text =
-          '${text.substring(0, _maxLoggedBodyLength)}…<${raw.length} bytes>';
+      text = '${text.substring(0, _maxLoggedBodyLength)}…<${raw.length} bytes>';
     }
     return text;
   }

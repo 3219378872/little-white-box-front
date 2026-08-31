@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:characters/characters.dart';
+
 import '../core/api/json_int64.dart';
 import 'mock_data.dart';
 
@@ -546,7 +548,9 @@ MockRouterResponse _routeV2(
         return _jsonResponse(_listAssistantMessages(auth.userId, query));
       }
       _requireMethod(method, 'POST');
-      return _jsonResponse(_postAssistantMessage(auth.userId, body ?? const {}));
+      return _jsonResponse(
+        _postAssistantMessage(auth.userId, body ?? const {}),
+      );
     case 'api/v2/assistant/history':
       _requireMethod(method, 'DELETE');
       _requireAuth(auth);
@@ -1704,37 +1708,50 @@ void _startRun(int userId, int runId, int sessionId, String message) {
       ? <String, dynamic>{'id': 1, 'title': '示例帖', 'revision': 1, 'authorId': 2}
       : _publishedPosts().first;
   final events = <Map<String, dynamic>>[
-    {
-      'seq': 1,
-      'type': 'run_started',
-      'runId': runId,
-      'sessionId': sessionId,
-    },
-    {
-      'seq': 2,
-      'type': 'token',
-      'text': '我根据社区内容找到了与“$message”相关的信息。',
-      'runId': runId,
-      'sessionId': sessionId,
-    },
-    {
-      'seq': 3,
-      'type': 'source_card',
-      'runId': runId,
-      'sessionId': sessionId,
-      'sourceCard': {
-        'handle': 'src-${sourcePost['id']}',
-        'kind': 'post',
-        'authorityId': '${sourcePost['id']}',
-        'title': sourcePost['title'] ?? '',
-        'revision': sourcePost['revision'] ?? 1,
-      },
-    },
+    {'seq': 1, 'type': 'run_started', 'runId': runId, 'sessionId': sessionId},
   ];
+  const chunkSize = 6;
+  const streamId = 'mock-stream';
+  final answer = '我根据社区内容找到了与“$message”相关的信息。';
+  final pending = StringBuffer();
+  var pendingCount = 0;
+  void flushToken() {
+    if (pending.isEmpty) return;
+    events.add({
+      'seq': events.length + 1,
+      'type': 'token',
+      'text': pending.toString(),
+      'streamId': streamId,
+      'runId': runId,
+      'sessionId': sessionId,
+    });
+    pending.clear();
+    pendingCount = 0;
+  }
+
+  for (final grapheme in answer.characters) {
+    pending.write(grapheme);
+    pendingCount++;
+    if (pendingCount >= chunkSize) flushToken();
+  }
+  flushToken();
+  events.add({
+    'seq': events.length + 1,
+    'type': 'source_card',
+    'runId': runId,
+    'sessionId': sessionId,
+    'sourceCard': {
+      'handle': 'src-${sourcePost['id']}',
+      'kind': 'post',
+      'authorityId': '${sourcePost['id']}',
+      'title': sourcePost['title'] ?? '',
+      'revision': sourcePost['revision'] ?? 1,
+    },
+  });
   if (message.contains('删除') || message.contains('delete')) {
     events.addAll([
       {
-        'seq': 4,
+        'seq': events.length + 1,
         'type': 'tool_call',
         'runId': runId,
         'sessionId': sessionId,
@@ -1745,7 +1762,7 @@ void _startRun(int userId, int runId, int sessionId, String message) {
         },
       },
       {
-        'seq': 5,
+        'seq': events.length + 1,
         'type': 'confirm_required',
         'runId': runId,
         'sessionId': sessionId,
@@ -1758,7 +1775,7 @@ void _startRun(int userId, int runId, int sessionId, String message) {
     ]);
   } else if (message.contains('memory')) {
     events.add({
-      'seq': 4,
+      'seq': events.length + 1,
       'type': 'memory_changed',
       'runId': runId,
       'sessionId': sessionId,
@@ -1796,15 +1813,14 @@ MockRouterResponse _streamAssistantRunEvents(
   final lastHeader = headers['last-event-id'] ?? headers['Last-Event-ID'] ?? '';
   final afterSeq = int.tryParse(query['afterSeq'] ?? lastHeader) ?? 0;
   final events = [
-    for (final event in _assistantRunEvents[runId] ?? const <Map<String, dynamic>>[])
+    for (final event
+        in _assistantRunEvents[runId] ?? const <Map<String, dynamic>>[])
       if (((event['seq'] as num?)?.toInt() ?? 0) > afterSeq) event,
   ];
-  final body = events
-      .map((event) {
-        final seq = event['seq'];
-        return 'id: $seq\ndata: ${jsonEncode(event)}\n\n';
-      })
-      .join();
+  final body = events.map((event) {
+    final seq = event['seq'];
+    return 'id: $seq\ndata: ${jsonEncode(event)}\n\n';
+  }).join();
   return MockRouterResponse(
     body: body,
     statusCode: 200,
@@ -2338,7 +2354,8 @@ Map<String, dynamic> _removeMemory(
   final index = items.indexWhere((item) => (item['id'] as num).toInt() == id);
   if (index < 0) throw const _MockBiz(404, 4, '资源不存在');
   final expected =
-      int.tryParse(query['version'] ?? '') ?? (body['version'] as num?)?.toInt();
+      int.tryParse(query['version'] ?? '') ??
+      (body['version'] as num?)?.toInt();
   final current = items[index];
   if (expected != null && expected != (current['version'] as num).toInt()) {
     throw const _MockBiz(409, 2008, '版本冲突');
@@ -2362,11 +2379,7 @@ Map<String, dynamic> _batchMemory(int userId, Map<String, dynamic> body) {
         entries.add(result['entry'] as Map<String, dynamic>);
         changeIds.add(result['changeId'] as int);
       case 'replace':
-        final result = _replaceMemory(
-          userId,
-          (op['id'] as num).toInt(),
-          op,
-        );
+        final result = _replaceMemory(userId, (op['id'] as num).toInt(), op);
         entries.add(result['entry'] as Map<String, dynamic>);
         changeIds.add(result['changeId'] as int);
       case 'remove':
