@@ -9,7 +9,7 @@ upstream:
 covers:
   - FX-090
 updated_at: 2026-08-31
-observed_commit: 366e287cb9b3ebde1b4aaa9936379dade28cbb6a
+observed_commit: b2bcf977bf681dc44c9ad2648a1c23628ba99186
 ---
 
 # Assistant reset 拆出已提交正文 2026-08-31
