@@ -249,10 +249,10 @@ f21b68795233b34ee07ffa5c574bb8f06add9ac6），帖子写入走 `/api/v2/post*`，
 | 搜索 | aligned | 已建模并展示部分降级；搜索帖子带作者身份并在结果中展示 |
 | 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐；评论楼中楼按需展开加载（内嵌预览 + replies 分页接口）见 [EVD-comment-replies-2026-08-22](../evidence/EVD-comment-replies-2026-08-22.md)，接口语义缺口登记于后端仓 PROP-20260822-comment-reply-thread（open） |
 | 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |
-| Assistant | partial | 客户端自有边界已补齐 session revision/凭据快照、账号缓存隔离、SSE cursor/generation、稳定重试、`streamId`/`response_reset` attempt fencing、展示层字素揭示（FX-094）、Memory 写入幂等、Watch version CAS、真实失败态、最新消息分页、memory undo、授权撤销与 Watch 增量刷新；`EVD-assistant-stream-reset-2026-08-30` 覆盖 repository/notifier 单测，`EVD-assistant-stream-render-2026-08-31` 覆盖揭示 widget/Dart 测试，真实网关、浏览器换号/断流与真机图片上传证据待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
+| Assistant | partial | 客户端自有边界已补齐 session revision/凭据快照、账号缓存隔离、SSE cursor/generation、稳定重试、`streamId`/`response_reset` attempt fencing、展示层字素揭示（FX-094）、Memory 写入幂等、Watch version CAS、真实失败态、最新消息分页、memory undo、授权撤销与 Watch 增量刷新；`EVD-assistant-stream-reset-2026-08-30` 覆盖 repository/notifier 单测，`EVD-assistant-stream-render-2026-08-31` 覆盖揭示 widget/Dart 测试，`EVD-audit-remediation-client-2026-08-31` 已在真实同源 release 浏览器覆盖桌面换号、Memory 503 稳定重试/undo 与 Watch `409/2007` 收敛；浏览器 SSE 断流/重连与真机图片上传仍待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
 | 行为反馈 | aligned | 客户端不再上报 like/unlike |
 | UI/工程分层 | aligned | 详见 [Forui 实现指南](IMP-forui-ui.md) |
-| Mock/真实同路径 | aligned | transport 注入；Mock HTTP 契约对齐 `gateway.api`；真实网关仍需独立证据 |
+| Mock/真实同路径 | aligned | transport 注入；Mock HTTP 契约对齐 `gateway.api`；账号切换、Memory 与 Watch 关键写路径已有独立真实同源浏览器证据，其余契约仍按各证据页边界解释 |
 
 验证范围和命令见
 [EVD-web-json-int64-2026-08-20](../evidence/EVD-web-json-int64-2026-08-20.md)、
