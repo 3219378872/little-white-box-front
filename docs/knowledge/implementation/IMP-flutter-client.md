@@ -56,6 +56,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-audit-remediation-client-2026-08-31
   - EVD-assistant-reset-snapshot-2026-08-31
   - EVD-assistant-stream-render-2026-08-31
   - EVD-assistant-single-session-2026-08-30
@@ -88,7 +89,7 @@ evidence:
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
 updated_at: 2026-08-31
-observed_commit: 27197709a11eccdfe016ffa7e9d0c825ed363617
+observed_commit: fd31aa39ce428e2dbc5bc4af395897c5cf6b04f8
 ---
 
 # Flutter 客户端实现映射
@@ -96,12 +97,12 @@ observed_commit: 27197709a11eccdfe016ffa7e9d0c825ed363617
 ## 结论
 
 当前实现已用 `goctl api dart` 同步后端 `gateway.api`（观察后端提交
-249f766b6ffa1ba2669e1bfa7400739ad8a85076），帖子写入走 `/api/v2/post*`，PUT/DELETE
+f21b68795233b34ee07ffa5c574bb8f06add9ac6），帖子写入走 `/api/v2/post*`，PUT/DELETE
 由同步脚本修补，搜索降级、Assistant 帖子来源、行为事件所有权和输入边界已跟进。桌面 Feed
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是 `8d4f6dd4da31f10fade15776042641e282531187`。
+本页观察基准是 `fd31aa39ce428e2dbc5bc4af395897c5cf6b04f8`。
 
 ## 代码入口
 
@@ -188,6 +189,11 @@ observed_commit: 27197709a11eccdfe016ffa7e9d0c825ed363617
   `AuthNotifier.onSessionExpired`：无 refreshToken 的过期会话、multipart 与 SSE 直连路径同样
   重置内存态（见 [EVD-auth-session-reset-2026-08-25](../evidence/EVD-auth-session-reset-2026-08-25.md)、
   [EVD-non-agent-bugs-2026-08-27](../evidence/EVD-non-agent-bugs-2026-08-27.md)）。
+- 令牌持久层为每次登录/登出维护 `sessionRevision`，刷新只在 revision 与 refreshToken 仍匹配时替换，
+  401 只在完整 access/refresh 凭据仍匹配时删除。刷新 single-flight 按 revision + refreshToken 隔离；
+  旧账号 refresh、迟到 401、multipart 或 SSE 都不能覆盖或清除新账号。`AuthNotifier` 串行恢复、登录、
+  登出与失效发布。公开与认证 provider 分别观察 session identity，Feed、Comment、Interaction、Post、
+  Profile、User posts、Message 与 Assistant 在换号时重建，迟到响应由 generation/mounted 丢弃。
 - 编辑资料页 build watch 身份状态：冷启动深链进入时等待身份恢复后自动触发资料加载；资料读取失败
   渲染可重试 ErrorView，不再永久停在进度圈或只弹 toast。
 - 推荐/关注流在一页可见项为空且 `hasMore` 时继续翻页，不以合法空态短接；刷新失败与加载更多
@@ -210,6 +216,9 @@ observed_commit: 27197709a11eccdfe016ffa7e9d0c825ed363617
 - 认证用户可打开 `/messages/assistant/memory` 与 `/messages/assistant/watch`。记忆列出
   MEMORY/USER、容量 used/limit，支持 content+version 写入与 undo。Watch 仅任务 CRUD，无命中
   收件箱。帖子详情盯梢未授权引导 `/messages/assistant`（FX-081/082/086）。
+- Memory add/replace/remove 以完整命令指纹复用稳定 requestId；成功后才清理待重试命令。列表刷新保留
+  `lastChangeId`，undo 失败保留入口，成功才清除。Watch update/delete 发送 task `expectedVersion`，
+  update 直接采用响应 task/version；`409/2007` 冲突先刷新任务列表并保留冲突错误。
 - `POST /assistant/messages` 接受 started/redirected/steered/queued；忙碌时仍可发送；显式 Stop
   才 `POST /assistant/runs/:id/cancel`。无新会话入口；清历史不删除 MEMORY/USER/Watch（FX-058/089～093）。
 - Assistant、consent、thread、Memory 与 Watch provider 以认证 `userId` 为依赖键；换号或登出会销毁
@@ -238,7 +247,7 @@ observed_commit: 27197709a11eccdfe016ffa7e9d0c825ed363617
 | 搜索 | aligned | 已建模并展示部分降级；搜索帖子带作者身份并在结果中展示 |
 | 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐；评论楼中楼按需展开加载（内嵌预览 + replies 分页接口）见 [EVD-comment-replies-2026-08-22](../evidence/EVD-comment-replies-2026-08-22.md)，接口语义缺口登记于后端仓 PROP-20260822-comment-reply-thread（open） |
 | 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |
-| Assistant | partial | 客户端自有边界已补齐账号隔离、SSE cursor/generation、稳定重试、`streamId`/`response_reset` attempt fencing、展示层字素揭示（FX-094）、真实失败态、最新消息分页、memory undo、授权撤销与 Watch 增量刷新；`EVD-assistant-stream-reset-2026-08-30` 覆盖 repository/notifier 单测，`EVD-assistant-stream-render-2026-08-31` 覆盖揭示 widget/Dart 测试，真实网关、浏览器换号/断流与真机图片上传证据待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
+| Assistant | partial | 客户端自有边界已补齐 session revision/凭据快照、账号缓存隔离、SSE cursor/generation、稳定重试、`streamId`/`response_reset` attempt fencing、展示层字素揭示（FX-094）、Memory 写入幂等、Watch version CAS、真实失败态、最新消息分页、memory undo、授权撤销与 Watch 增量刷新；`EVD-assistant-stream-reset-2026-08-30` 覆盖 repository/notifier 单测，`EVD-assistant-stream-render-2026-08-31` 覆盖揭示 widget/Dart 测试，真实网关、浏览器换号/断流与真机图片上传证据待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
 | 行为反馈 | aligned | 客户端不再上报 like/unlike |
 | UI/工程分层 | aligned | 详见 [Forui 实现指南](IMP-forui-ui.md) |
 | Mock/真实同路径 | aligned | transport 注入；Mock HTTP 契约对齐 `gateway.api`；真实网关仍需独立证据 |

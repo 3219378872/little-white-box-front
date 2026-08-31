@@ -137,13 +137,23 @@ JSON 字符串，编码时再还原成 JSON number，让 Go 的 `int64` 仍能�
 - 共享 transport 在请求收到认证错误（HTTP 401 或业务码 `1004/1005/1006`）时，若本地存有
   refreshToken，则调用刷新接口并恰好重试原请求一次；带非认证业务码的 401（如密码错误 `1003`）
   不触发刷新。
-- 刷新调用 single-flight 合并并发请求；服务端拒绝（非 2xx 或响应缺令牌）视为会话不可恢复，
-  清空持久化令牌并触发 `onSessionInvalid`，宿主用它同步 `AuthNotifier` 内存态，
-  由既有 `refreshListenable` 把受保护页面重定向到登录页。网络异常不清理会话。
-- multipart 上传与 Assistant SSE 直连各自手动附加 Bearer，复用同一刷新入口并遵循
-  "重试恰好一次"。
+- 持久化令牌与单调 `sessionRevision` 组成不可变请求快照。登录、登出和条件清除开启新 revision；
+  同一会话内的 access/refresh token 轮换保持原 revision。刷新 single-flight 以
+  `(revision, refreshToken)` 分组，响应只在 revision 与 refresh 凭据仍匹配时条件替换；认证失败也只
+  能条件删除请求发起时的完整凭据。旧账号的迟到 refresh 或 401 不得覆盖、清除后来登录的账号。
+- 服务端明确拒绝 refreshToken 视为该请求快照不可恢复，条件清除成功后把快照交给
+  `onSessionInvalid`；宿主串行更新 `AuthNotifier`，并再次核对 revision。网络异常、5xx、非法成功体或
+  已过期快照进入可恢复/陈旧失败态，不清理当前会话。
+- multipart 上传与 Assistant SSE 直连在每次请求发起时捕获同一凭据快照，复用上述刷新入口并遵循
+  "重试恰好一次"。注入自定义 access-token loader 的 SSE transport 不绑定或修改持久会话。
 - 令牌对由 `buildStoredTokens` 统一落盘：有效期取各自 JWT 的 `exp`（不验签），仅作元数据；
   刷新决策只依赖 refreshToken 是否存在。Mock router 以唯一 `jti` 模拟一次性轮换并拒绝重放。
+
+认证态公开为两个缓存边界：公开读取使用 `user:<id>:<revision>` 或 `anonymous:<revision>`，受保护能力
+仅在认证恢复完成后使用用户身份键。Feed、Comment、Interaction、Post detail、Profile、User posts、
+Message 与 Assistant 的 provider 均观察对应边界；账号切换会销毁旧状态，generation/mounted 守卫再
+拒绝已发出请求的迟到结果。`AuthNotifier` 把恢复、登录、登出和 transport 失效按调用顺序串行，避免
+持久层与内存态以不同顺序发布。
 
 ### v1 社区核心
 
@@ -212,10 +222,13 @@ SSE：
 记忆与 Watch：
 
 - 记忆页列出 MEMORY/USER 自然语言条目、容量 used/limit，支持 add/replace/remove 与 change
-  undo，不展示 layer/score/suppressed（FX-081）。
+  undo，不展示 layer/score/suppressed（FX-081）。每个写命令以操作类型、规范化目标/内容、精确实体
+  ID 和当前 version 构成指纹；同一失败命令重试复用稳定 requestId，命令变化才换新 requestId。
+  刷新列表保留最近 changeId；undo 失败保留可重试入口，成功才清除 changeId 并刷新。
 - Watch 页只做任务 CRUD，四种条件类型，无命中收件箱。命中以助手主动消息进入虚拟线程
-  （FX-082/083）。帖子详情「盯作者」「盯本帖修订」未授权时引导 `/messages/assistant`
-  （FX-086）。
+  （FX-082/083）。更新和删除携带当前 task `expectedVersion`；更新采用响应中的权威 task/version。
+  版本冲突（`409/2007`）先刷新任务列表，再保留冲突错误供用户决定。帖子详情「盯作者」「盯本帖修订」
+  未授权时引导 `/messages/assistant`（FX-086）。
 
 ## 关键数据流
 
@@ -267,6 +280,7 @@ Feed 使用双列卡片、私信使用左列表右线程，Feed/私信内容宽�
 | 首次读取失败 | 展示 ErrorView 和显式重试，不伪装空态 |
 | 加载更多失败 | 保留已加载项目，允许再次加载 |
 | 新请求先返回 | generation/cancel 使旧结果失效 |
+| 账号切换后旧请求迟到 | session identity 使旧 provider 失效，凭据快照阻止旧 401/refresh 修改新会话 |
 | 乐观互动失败 | 回滚计数与状态，展示业务错误 |
 | token 明确认定失效 | 清理会话并让路由重新判断 |
 | 行为上报失败/离线 | 保留持久队列并退避；不阻塞主要交互 |
