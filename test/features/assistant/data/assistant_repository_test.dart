@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:xiaobaihe_app/core/api/api_adapter.dart';
 import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
 import 'package:xiaobaihe_app/core/auth/session_tokens.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_models.dart';
@@ -15,7 +14,7 @@ import 'package:xiaobaihe_app/sdk/vars/kv.dart';
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   tearDown(() {
-    onAuthError = null;
+    onSessionInvalid = null;
     setApiClient(http.Client());
   });
 
@@ -235,6 +234,52 @@ void main() {
     expect(body['attachments'], hasLength(1));
   });
 
+  test(
+    'watch writes send expectedVersion and parse the updated task',
+    () async {
+      final requests = <http.Request>[];
+      final apiClient = _JsonApiClient((request) async {
+        requests.add(request);
+        if (request.method == 'PATCH') {
+          return http.Response(
+            jsonEncode({
+              'task': {
+                'id': 7,
+                'conditionType': 'author_new_post',
+                'targetType': 'author',
+                'targetId': 2,
+                'targetText': '',
+                'enabled': false,
+                'version': 4,
+                'createdAt': 1700000000000,
+              },
+            }),
+            200,
+          );
+        }
+        return http.Response('{}', 200);
+      });
+      setApiClient(apiClient);
+      final repository = AssistantRepository();
+
+      final updated = await repository.updateWatch(
+        id: 7,
+        enabled: false,
+        expectedVersion: 3,
+      );
+      await repository.deleteWatch(7, expectedVersion: updated.version);
+
+      expect(updated.enabled, isFalse);
+      expect(updated.version, 4);
+      expect(requests.map((request) => request.method), ['PATCH', 'DELETE']);
+      expect(jsonDecode(requests[0].body), {
+        'enabled': false,
+        'expectedVersion': 3,
+      });
+      expect(jsonDecode(requests[1].body), {'expectedVersion': 4});
+    },
+  );
+
   test('message cursors use beforeId and afterId exclusively', () async {
     final requests = <Uri>[];
     final apiClient = _JsonApiClient((request) async {
@@ -306,11 +351,45 @@ void main() {
     },
   );
 
+  test('injected SSE tokens do not refresh or clear stored sessions', () async {
+    var refreshCalls = 0;
+    setApiClient(
+      _JsonApiClient((request) async {
+        if (request.url.path == '/api/v1/auth/refresh') refreshCalls++;
+        return http.Response('{}', 500);
+      }),
+    );
+    await setTokens(
+      buildStoredTokens(
+        accessToken: 'stored-access',
+        refreshToken: 'stored-refresh',
+      ),
+    );
+    final repository = AssistantRepository(
+      client: _RoutingClient(
+        (_) async => http.StreamedResponse(
+          Stream.value(
+            utf8.encode(jsonEncode({'code': 1004, 'message': 'expired'})),
+          ),
+          401,
+        ),
+      ),
+      baseUrl: 'http://gateway.test',
+      loadAccessToken: () async => 'injected-access',
+    );
+
+    await expectLater(
+      repository.runEvents(runId: 21).toList(),
+      throwsA(isA<ApiException>()),
+    );
+
+    expect(refreshCalls, 0);
+    expect((await getTokens())?.refreshToken, 'stored-refresh');
+  });
+
   test('refresh network failure keeps Assistant session', () async {
-    var authError = false;
-    onAuthError = () async {
-      authError = true;
-    };
+    var sessionInvalidated = false;
+    onSessionInvalid = (_) async => sessionInvalidated = true;
     final client = _RoutingClient((request) async {
       if (request.url.path == '/api/v1/auth/refresh') {
         throw http.ClientException('network down', request.url);
@@ -339,7 +418,7 @@ void main() {
       ),
     );
 
-    expect(authError, isFalse);
+    expect(sessionInvalidated, isFalse);
     expect((await getTokens())?.refreshToken, 'refresh-1');
   });
 }

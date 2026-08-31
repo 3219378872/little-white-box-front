@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/idempotency.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../sdk/data/gateway.dart';
+import '../../auth/application/auth_notifier.dart';
 import '../data/comment_repository.dart';
 
 /// 帖子详情页评论区状态：顶级评论分页、楼中楼按需展开、回复目标。
@@ -295,6 +296,7 @@ final commentRepositoryProvider = Provider<CommentRepository>((ref) {
 
 final commentNotifierProvider = StateNotifierProvider.autoDispose
     .family<CommentNotifier, CommentState, String>((ref, postId) {
+      ref.watch(authSessionIdentityProvider);
       return CommentNotifier(
         repository: ref.read(commentRepositoryProvider),
         postId: postId,

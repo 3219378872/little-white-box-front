@@ -6,23 +6,19 @@ import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
 void main() {
   group('apiCall', () {
     test('ok 回调正常返回数据', () async {
-      final result = await apiCall<String>(
-        (ok, fail, eventually) {
-          ok('hello');
-          eventually();
-        },
-      );
+      final result = await apiCall<String>((ok, fail, eventually) {
+        ok('hello');
+        eventually();
+      });
       expect(result, 'hello');
     });
 
     test('fail 回调带 JSON 字符串时解析出 code 和 message', () async {
       try {
-        await apiCall<String>(
-          (ok, fail, eventually) {
-            fail(jsonEncode({'code': 1003, 'message': '密码错误'}));
-            eventually();
-          },
-        );
+        await apiCall<String>((ok, fail, eventually) {
+          fail(jsonEncode({'code': 1003, 'message': '密码错误'}));
+          eventually();
+        });
         fail('should have thrown');
       } on ApiException catch (e) {
         expect(e.code, 1003);
@@ -32,12 +28,10 @@ void main() {
 
     test('fail 回调带普通字符串时 code 为 null', () async {
       try {
-        await apiCall<String>(
-          (ok, fail, eventually) {
-            fail('plain error');
-            eventually();
-          },
-        );
+        await apiCall<String>((ok, fail, eventually) {
+          fail('plain error');
+          eventually();
+        });
         fail('should have thrown');
       } on ApiException catch (e) {
         expect(e.code, isNull);
@@ -47,11 +41,9 @@ void main() {
 
     test('eventually 在未完成时抛出默认错误', () async {
       try {
-        await apiCall<String>(
-          (ok, fail, eventually) {
-            eventually();
-          },
-        );
+        await apiCall<String>((ok, fail, eventually) {
+          eventually();
+        });
         fail('should have thrown');
       } on ApiException catch (e) {
         expect(e.message, '请求未返回结果');
@@ -59,57 +51,26 @@ void main() {
     });
   });
 
-  group('auth error interception', () {
-    tearDown(() {
-      onAuthError = null;
-    });
-
-    test('fail 携带认证错误码时触发 onAuthError 回调', () async {
-      bool called = false;
-      onAuthError = () async {
-        called = true;
-      };
-
+  group('auth error parsing', () {
+    test('fail 携带认证错误码时只解析错误，由请求 transport 条件失效会话', () async {
       try {
-        await apiCall<String>(
-          (ok, fail, eventually) {
-            fail(jsonEncode({'code': 1004, 'message': 'token 已过期'}));
-            eventually();
-          },
-        );
-      } on ApiException catch (_) {}
-
-      expect(called, isTrue);
-    });
-
-    test('非认证错误不触发 onAuthError', () async {
-      bool called = false;
-      onAuthError = () async {
-        called = true;
-      };
-
-      try {
-        await apiCall<String>(
-          (ok, fail, eventually) {
-            fail(jsonEncode({'code': 1003, 'message': '密码错误'}));
-            eventually();
-          },
-        );
-      } on ApiException catch (_) {}
-
-      expect(called, isFalse);
+        await apiCall<String>((ok, fail, eventually) {
+          fail(jsonEncode({'code': 1004, 'message': 'token 已过期'}));
+          eventually();
+        });
+        fail('should have thrown');
+      } on ApiException catch (error) {
+        expect(error.isAuthError, isTrue);
+      }
     });
   });
 
   group('apiCallWithTimeout', () {
     test('超时抛出 ApiException', () async {
       try {
-        await apiCallWithTimeout<String>(
-          (ok, fail, eventually) {
-            // 不调用任何回调，模拟挂起
-          },
-          timeout: const Duration(milliseconds: 100),
-        );
+        await apiCallWithTimeout<String>((ok, fail, eventually) {
+          // 不调用任何回调，模拟挂起
+        }, timeout: const Duration(milliseconds: 100));
         fail('should have thrown');
       } on ApiException catch (e) {
         expect(e.message, '请求超时');

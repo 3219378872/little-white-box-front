@@ -702,11 +702,12 @@ MockRouterResponse _routeV2(
     }
     final id = _pathId(segments[4]);
     if (method == 'PATCH') {
-      _updateWatch(auth.userId, id, body ?? const {});
-      return _jsonResponse(const {});
+      return _jsonResponse({
+        'task': _updateWatch(auth.userId, id, body ?? const {}),
+      });
     }
     if (method == 'DELETE') {
-      _deleteWatch(auth.userId, id);
+      _deleteWatch(auth.userId, id, body ?? const {});
       return _jsonResponse(const {});
     }
     throw const _MockBiz(405, 1, '未知错误');
@@ -2480,20 +2481,39 @@ Map<String, dynamic> _createWatch(int userId, Map<String, dynamic> body) {
   return task;
 }
 
-void _updateWatch(int userId, int id, Map<String, dynamic> body) {
+Map<String, dynamic> _updateWatch(
+  int userId,
+  int id,
+  Map<String, dynamic> body,
+) {
   final tasks = _assistantWatches[userId];
   if (tasks == null) throw const _MockBiz(404, 4, '资源不存在');
   final index = tasks.indexWhere((item) => (item['id'] as num).toInt() == id);
   if (index < 0) throw const _MockBiz(404, 4, '资源不存在');
-  tasks[index] = {...tasks[index], 'enabled': body['enabled'] == true};
+  final expectedVersion = (body['expectedVersion'] as num?)?.toInt() ?? 0;
+  final currentVersion = (tasks[index]['version'] as num?)?.toInt() ?? 0;
+  if (expectedVersion <= 0 || expectedVersion != currentVersion) {
+    throw const _MockBiz(409, 2007, '内容版本冲突');
+  }
+  tasks[index] = {
+    ...tasks[index],
+    'enabled': body['enabled'] == true,
+    'version': currentVersion + 1,
+  };
+  return tasks[index];
 }
 
-void _deleteWatch(int userId, int id) {
+void _deleteWatch(int userId, int id, Map<String, dynamic> body) {
   final tasks = _assistantWatches[userId];
   if (tasks == null) throw const _MockBiz(404, 4, '资源不存在');
-  final before = tasks.length;
-  tasks.removeWhere((item) => (item['id'] as num).toInt() == id);
-  if (tasks.length == before) throw const _MockBiz(404, 4, '资源不存在');
+  final index = tasks.indexWhere((item) => (item['id'] as num).toInt() == id);
+  if (index < 0) throw const _MockBiz(404, 4, '资源不存在');
+  final expectedVersion = (body['expectedVersion'] as num?)?.toInt() ?? 0;
+  final currentVersion = (tasks[index]['version'] as num?)?.toInt() ?? 0;
+  if (expectedVersion <= 0 || expectedVersion != currentVersion) {
+    throw const _MockBiz(409, 2007, '内容版本冲突');
+  }
+  tasks.removeAt(index);
 }
 
 bool _isPositiveId(Object? value) => jsonInt64IsPositive(value);

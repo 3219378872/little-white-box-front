@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/core/router/app_route_observer.dart';
+import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/profile/application/user_posts_notifier.dart';
 import 'package:xiaobaihe_app/features/profile/presentation/profile_page.dart';
 import 'package:xiaobaihe_app/mock/mock_http.dart';
@@ -13,6 +17,7 @@ import 'package:xiaobaihe_app/sdk/api/api.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
 
 import '../../../helpers/forui_test_builder.dart';
+import '../../../helpers/gateway_fake.dart';
 
 void main() {
   setUp(() {
@@ -283,6 +288,109 @@ void main() {
     await tester.pump();
     expect(repo.postCalls, greaterThan(afterEnter));
   });
+
+  testWidgets(
+    'account switch replaces profile data and drops the old response',
+    (tester) async {
+      final harness = _AccountSwitchProfileHarness();
+      setApiClient(harness.client);
+      final container = ProviderContainer(
+        overrides: [
+          userPostsRepositoryProvider.overrideWithValue(
+            _TestUserPostsRepository(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final router = GoRouter(
+        initialLocation: '/user/2',
+        routes: [
+          GoRoute(
+            path: '/user/:userId',
+            builder: (_, state) =>
+                ProfilePage(userId: int.parse(state.pathParameters['userId']!)),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            routerConfig: router,
+            builder: foruiTestBuilder,
+          ),
+        ),
+      );
+      for (var i = 0; i < 30 && find.text('匿名资料').evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.text('匿名资料'), findsOneWidget);
+
+      final auth = container.read(authNotifierProvider.notifier);
+      await auth.onLoginSuccess(1, 'access-a', refreshToken: 'refresh-a');
+      for (var i = 0; i < 20 && !harness.oldStarted.isCompleted; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      expect(harness.oldStarted.isCompleted, isTrue);
+
+      await auth.onLoginSuccess(3, 'access-b', refreshToken: 'refresh-b');
+      for (var i = 0; i < 30 && find.text('账号 B 资料').evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.text('账号 B 资料'), findsOneWidget);
+
+      harness.oldResponse.complete(
+        jsonResponse(okEnvelope(_profileJson('账号 A 资料'))),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('账号 B 资料'), findsOneWidget);
+      expect(find.text('账号 A 资料'), findsNothing);
+    },
+  );
+}
+
+Map<String, dynamic> _profileJson(String nickname) => {
+  'id': 2,
+  'username': 'profile-user',
+  'nickname': nickname,
+  'avatarUrl': '',
+  'bio': '',
+  'level': 1,
+  'followerCount': 0,
+  'followingCount': 0,
+  'postCount': 12,
+  'favoritesVisible': true,
+};
+
+class _AccountSwitchProfileHarness {
+  late final ScriptedGatewayClient client;
+  final oldResponse = Completer<http.Response>();
+  final oldStarted = Completer<void>();
+  int profileCalls = 0;
+
+  _AccountSwitchProfileHarness() {
+    client = ScriptedGatewayClient(route);
+  }
+
+  Future<http.Response> route(http.BaseRequest request) async {
+    if (request.url.path != '/api/v1/user/2') {
+      fail('unexpected request: ${request.method} ${request.url.path}');
+    }
+    profileCalls++;
+    if (profileCalls == 1) {
+      return jsonResponse(okEnvelope(_profileJson('匿名资料')));
+    }
+    if (profileCalls == 2) {
+      oldStarted.complete();
+      return oldResponse.future;
+    }
+    if (profileCalls == 3) {
+      return jsonResponse(okEnvelope(_profileJson('账号 B 资料')));
+    }
+    fail('unexpected profile request $profileCalls');
+  }
 }
 
 class _CountingUserPostsRepository extends _TestUserPostsRepository {

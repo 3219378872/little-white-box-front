@@ -2,10 +2,16 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/core/api/json_int64.dart';
 import 'package:xiaobaihe_app/sdk/api/api.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+  tearDown(() => setApiClient(http.Client()));
+
   const snowflake = '348206251022356480';
   const jsRounded = '348206251022356500';
 
@@ -54,22 +60,25 @@ void main() {
 
   test('keeps long digit strings in free-text fields quoted', () {
     final encoded = unquoteLargeJsonIntStrings(
-        '{"content":"123456789012345678","orderNo":"123456789012345678"}');
+      '{"content":"123456789012345678","orderNo":"123456789012345678"}',
+    );
     expect(encoded, contains('"content":"123456789012345678"'));
     expect(encoded, contains('"orderNo":"123456789012345678"'));
   });
 
   test('array elements inherit their governing Ids key', () {
     final encoded = unquoteLargeJsonIntStrings(
-        '{"postIds":["$snowflake","348206251022356481"],'
-        '"titles":["$snowflake"]}');
+      '{"postIds":["$snowflake","348206251022356481"],'
+      '"titles":["$snowflake"]}',
+    );
     expect(encoded, contains('"postIds":[$snowflake,348206251022356481]'));
     expect(encoded, contains('"titles":["$snowflake"]'));
   });
 
   test('nested objects reset the governing key', () {
     final encoded = unquoteLargeJsonIntStrings(
-        '{"meta":{"note":"$snowflake"},"postId":"$snowflake"}');
+      '{"meta":{"note":"$snowflake"},"postId":"$snowflake"}',
+    );
     expect(encoded, contains('"note":"$snowflake"'));
     expect(encoded, contains('"postId":$snowflake'));
   });
@@ -97,18 +106,21 @@ void main() {
     expect(jsonInt64Id(reparsed['postId']), snowflake);
   });
 
-  test('apiGet keeps snowflake postId digits from a JSON number body', () async {
-    const id = '348206251022356480';
-    setApiClient(_RawJsonClient('{"id":$id,"title":"继续联调帖"}'));
-    Map<String, dynamic>? data;
-    await apiGet(
-      '/api/v1/post/$id',
-      ok: (decoded) => data = decoded,
-      fail: (error) => fail(error),
-    );
-    expect(jsonInt64Id(data?['id']), id);
-    expect(data?['title'], '继续联调帖');
-  });
+  test(
+    'apiGet keeps snowflake postId digits from a JSON number body',
+    () async {
+      const id = '348206251022356480';
+      setApiClient(_RawJsonClient('{"id":$id,"title":"继续联调帖"}'));
+      Map<String, dynamic>? data;
+      await apiGet(
+        '/api/v1/post/$id',
+        ok: (decoded) => data = decoded,
+        fail: (error) => fail(error),
+      );
+      expect(jsonInt64Id(data?['id']), id);
+      expect(data?['title'], '继续联调帖');
+    },
+  );
 }
 
 class _RawJsonClient extends http.BaseClient {

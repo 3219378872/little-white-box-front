@@ -307,7 +307,7 @@ void main() {
       await auth.onLoginSuccess(1, 'account-a-token');
       await tester.pumpAndSettle();
       expect(container.read(authNotifierProvider).isAuthenticated, isTrue);
-      expect(container.read(assistantUserKeyProvider), '1');
+      expect(container.read(assistantUserKeyProvider), startsWith('user:1:'));
       expect(container.read(assistantNotifierProvider).isLoaded, isTrue);
       expect(find.text('account A private history'), findsOneWidget);
 

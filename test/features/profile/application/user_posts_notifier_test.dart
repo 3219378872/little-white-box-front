@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/profile/application/user_posts_notifier.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
 
@@ -117,6 +120,8 @@ PostItem _post(num id) {
 }
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   group('UserPostsNotifier', () {
     late _FakeUserPostsRepo repo;
 
@@ -246,6 +251,40 @@ void main() {
       expect(n.state.isLoading, isFalse);
       expect(n.state.isRefreshing, isFalse);
     });
+
+    test(
+      'account switch replaces profile posts and ignores the old response',
+      () async {
+        final queued = _QueuedUserPostsRepo();
+        final container = ProviderContainer(
+          overrides: [userPostsRepositoryProvider.overrideWithValue(queued)],
+        );
+        addTearDown(container.dispose);
+        final auth = container.read(authNotifierProvider.notifier);
+        await auth.onLoginSuccess(1, 'access-a', refreshToken: 'refresh-a');
+        const key = UserPostsKey(userId: 42, type: UserPostsListType.posts);
+        final subscription = container.listen(
+          userPostsProvider(key),
+          (_, _) {},
+          fireImmediately: true,
+        );
+        addTearDown(subscription.close);
+        await pumpEventQueue();
+        expect(queued.pending, hasLength(1));
+
+        await auth.onLoginSuccess(2, 'access-b', refreshToken: 'refresh-b');
+        await pumpEventQueue();
+        expect(queued.pending, hasLength(2));
+
+        queued.completeLast([_post(2)]);
+        await pumpEventQueue();
+        expect(container.read(userPostsProvider(key)).items.single.id, 2);
+
+        queued.completeNext([_post(1)]);
+        await pumpEventQueue();
+        expect(container.read(userPostsProvider(key)).items.single.id, 2);
+      },
+    );
   });
 
   group('UserPostsKey', () {
@@ -260,6 +299,13 @@ void main() {
       const k1 = UserPostsKey(userId: 1, type: UserPostsListType.posts);
       const k2 = UserPostsKey(userId: 1, type: UserPostsListType.favorites);
       expect(k1, isNot(equals(k2)));
+    });
+
+    test('JSON int64 的数字和字符串表示映射到同一个 key', () {
+      const numeric = UserPostsKey(userId: 1, type: UserPostsListType.posts);
+      const encoded = UserPostsKey(userId: '1', type: UserPostsListType.posts);
+      expect(numeric, encoded);
+      expect(numeric.hashCode, encoded.hashCode);
     });
   });
 }

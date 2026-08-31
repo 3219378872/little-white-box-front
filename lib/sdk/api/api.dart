@@ -10,11 +10,13 @@ http.Client _apiClient = http.Client();
 
 const String _refreshPath = '/api/v1/auth/refresh';
 
-/// 会话彻底失效（刷新令牌缺失或被网关拒绝）后由传输层触发，
-/// 宿主用它同步内存中的认证状态（如 AuthNotifier），驱动路由跳登录页。
-void Function()? onSessionInvalid;
+/// 传输层仅携带发生失败时的会话快照通知宿主。宿主必须按 revision
+/// 条件更新内存态，不能让迟到的旧请求清除后来登录的账号。
+Future<void> Function(SessionTokenSnapshot expired)? onSessionInvalid;
 
-Future<bool>? _pendingRefresh;
+enum SessionRefreshResult { refreshed, unavailable, rejected, stale }
+
+final Map<_RefreshKey, Future<SessionRefreshResult>> _pendingRefreshes = {};
 
 /// Overrides the shared client, primarily for local mock mode and tests.
 void setApiClient(http.Client client) {
@@ -31,20 +33,38 @@ Map<String, dynamic> apiResponseData(dynamic decoded) {
   return nested is Map<String, dynamic> ? nested : decoded;
 }
 
-/// 用存储的 refreshToken 换取全新令牌对（single-flight）。
-///
-/// 并发调用共享同一次请求；服务端拒绝（非 2xx）视为会话不可恢复，
-/// 清空本地令牌并触发 [onSessionInvalid]。网络异常不清会话，仅返回 false。
-Future<bool> refreshSessionTokens() {
-  return _pendingRefresh ??= _doRefreshTokens().whenComplete(() {
-    _pendingRefresh = null;
-  });
+/// Compatibility wrapper for callers that only need success/failure.
+Future<bool> refreshSessionTokens([SessionTokenSnapshot? expected]) async {
+  final snapshot = expected ?? await getTokenSnapshot();
+  if (snapshot == null) return false;
+  return await refreshSessionTokensFor(snapshot) ==
+      SessionRefreshResult.refreshed;
 }
 
-Future<bool> _doRefreshTokens() async {
-  final tokens = await getTokens();
-  final refreshToken = tokens?.refreshToken.trim() ?? '';
-  if (refreshToken.isEmpty) return false;
+/// Refresh single-flight is scoped to one session revision and refresh token.
+/// A different login never joins or waits for an older account's refresh.
+Future<SessionRefreshResult> refreshSessionTokensFor(
+  SessionTokenSnapshot expected,
+) async {
+  final refreshToken = expected.tokens.refreshToken.trim();
+  if (refreshToken.isEmpty) return SessionRefreshResult.unavailable;
+  final current = await getTokenSnapshot();
+  if (current == null || !current.hasSameRefreshCredential(expected)) {
+    return SessionRefreshResult.stale;
+  }
+  final key = _RefreshKey(expected.revision, refreshToken);
+  return _pendingRefreshes.putIfAbsent(
+    key,
+    () => _doRefreshTokens(expected).whenComplete(() {
+      _pendingRefreshes.remove(key);
+    }),
+  );
+}
+
+Future<SessionRefreshResult> _doRefreshTokens(
+  SessionTokenSnapshot expected,
+) async {
+  final refreshToken = expected.tokens.refreshToken.trim();
   try {
     final rp = await _apiClient.post(
       apiUri(_refreshPath),
@@ -60,32 +80,42 @@ Future<bool> _doRefreshTokens() async {
     }
     if (rp.statusCode < 200 || rp.statusCode >= 300) {
       if (_isAuthFailure(rp.statusCode, decoded)) {
-        await _expireSession();
+        final removed = await removeTokensIfRefreshCredentialMatches(expected);
+        if (removed) await onSessionInvalid?.call(expected);
+        return removed
+            ? SessionRefreshResult.rejected
+            : SessionRefreshResult.stale;
       }
-      return false;
+      return SessionRefreshResult.unavailable;
     }
     final data = apiResponseData(decoded);
     final accessToken = data['token']?.toString() ?? '';
     final nextRefreshToken = data['refreshToken']?.toString() ?? '';
     if (accessToken.isEmpty || nextRefreshToken.isEmpty) {
-      return false;
+      return SessionRefreshResult.unavailable;
     }
-    await setTokens(
+    final replaced = await replaceTokensIfRefreshCredentialMatches(
+      expected,
       buildStoredTokens(
         accessToken: accessToken,
         refreshToken: nextRefreshToken,
       ),
     );
-    return true;
+    return replaced == null
+        ? SessionRefreshResult.stale
+        : SessionRefreshResult.refreshed;
   } catch (_) {
     // 网络/解码失败不代表会话被拒，保留令牌让下一次请求再试。
-    return false;
+    return SessionRefreshResult.unavailable;
   }
 }
 
-Future<void> _expireSession() async {
-  await removeTokens();
-  onSessionInvalid?.call();
+Future<bool> invalidateSessionIfCredentialsMatch(
+  SessionTokenSnapshot expected,
+) async {
+  final removed = await removeTokensIfCredentialsMatch(expected);
+  if (removed) await onSessionInvalid?.call(expected);
+  return removed;
 }
 
 bool _isAuthFailure(int statusCode, dynamic decoded) {
@@ -217,7 +247,8 @@ Future _apiRequest(
 }) async {
   try {
     for (var attempt = 1; ; attempt++) {
-      final tokens = await getTokens();
+      final session = await getTokenSnapshot();
+      final tokens = session?.tokens;
       var strData = '';
       if (data != null) {
         strData = encodeApiJson(data);
@@ -261,17 +292,26 @@ Future _apiRequest(
           (tokens?.refreshToken.trim().isNotEmpty ?? false) &&
           _isAuthFailure(rp.statusCode, decoded);
       if (canRetry) {
-        if (await refreshSessionTokens()) {
+        final refreshResult = await refreshSessionTokensFor(session!);
+        if (refreshResult == SessionRefreshResult.refreshed) {
           continue;
         }
-        // 换发网络失败会保留 refreshToken；不要把原始 401 交给 onAuthError。
-        final leftover = await getTokens();
-        if (leftover?.refreshToken.trim().isNotEmpty ?? false) {
+        if (refreshResult == SessionRefreshResult.unavailable) {
           if (fail != null) {
             fail(jsonEncode({'message': '会话刷新失败，请重试'}));
           }
           break;
         }
+        if (refreshResult == SessionRefreshResult.stale) {
+          if (fail != null) {
+            fail(jsonEncode({'message': '请求会话已变化，请重试'}));
+          }
+          break;
+        }
+      }
+
+      if (session != null && _isAuthFailure(rp.statusCode, decoded)) {
+        await invalidateSessionIfCredentialsMatch(session);
       }
 
       if (rp.statusCode == 404) {
@@ -294,6 +334,23 @@ Future _apiRequest(
     if (fail != null) fail(e.toString());
   }
   if (eventually != null) eventually();
+}
+
+class _RefreshKey {
+  final int revision;
+  final String refreshToken;
+
+  const _RefreshKey(this.revision, this.refreshToken);
+
+  @override
+  bool operator ==(Object other) {
+    return other is _RefreshKey &&
+        other.revision == revision &&
+        other.refreshToken == refreshToken;
+  }
+
+  @override
+  int get hashCode => Object.hash(revision, refreshToken);
 }
 
 String _bearerAuthorization(String token) {

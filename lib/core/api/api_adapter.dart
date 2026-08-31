@@ -6,11 +6,7 @@ import '../../sdk/vars/kv.dart';
 import '../../sdk/vars/vars.dart';
 import '../../sdk/api/api.dart' as sdk_api;
 import 'api_exceptions.dart';
-import 'error_codes.dart';
 import 'json_int64.dart';
-
-typedef AuthErrorCallback = Future<void> Function();
-AuthErrorCallback? onAuthError;
 
 /// 将 SDK 的 ok/fail/eventually 回调模式转换为 `Future<T>`
 ///
@@ -22,11 +18,8 @@ AuthErrorCallback? onAuthError;
 ///     ),
 ///   );
 Future<T> apiCall<T>(
-  void Function(
-    Function(T) ok,
-    Function(String) fail,
-    Function eventually,
-  ) caller,
+  void Function(Function(T) ok, Function(String) fail, Function eventually)
+  caller,
 ) {
   final completer = Completer<T>();
   caller(
@@ -36,9 +29,6 @@ Future<T> apiCall<T>(
     (error) {
       if (!completer.isCompleted) {
         final exception = ApiException.parse(error);
-        if (exception.isAuthError) {
-          onAuthError?.call();
-        }
         completer.completeError(exception);
       }
     },
@@ -53,17 +43,13 @@ Future<T> apiCall<T>(
 
 /// 带超时的 API 调用
 Future<T> apiCallWithTimeout<T>(
-  void Function(
-    Function(T) ok,
-    Function(String) fail,
-    Function eventually,
-  ) caller, {
+  void Function(Function(T) ok, Function(String) fail, Function eventually)
+  caller, {
   Duration timeout = const Duration(seconds: 15),
 }) {
-  return apiCall<T>(caller).timeout(
-    timeout,
-    onTimeout: () => throw const ApiException('请求超时'),
-  );
+  return apiCall<T>(
+    caller,
+  ).timeout(timeout, onTimeout: () => throw const ApiException('请求超时'));
 }
 
 /// Multipart POST 上传，用于文件上传场景。
@@ -80,22 +66,27 @@ Future<T> apiPostMultipart<T>({
   Duration timeout = const Duration(seconds: 60),
 }) async {
   try {
-    for (var attempt = 1;; attempt++) {
-      final tokens = await getTokens();
+    for (var attempt = 1; ; attempt++) {
+      final session = await getTokenSnapshot();
+      final tokens = session?.tokens;
       final req = http.MultipartRequest('POST', apiUri(path));
       if (tokens != null) {
         final token = tokens.accessToken.trim();
         if (token.isNotEmpty) {
           req.headers['Authorization'] =
-              token.toLowerCase().startsWith('bearer ') ? token : 'Bearer $token';
+              token.toLowerCase().startsWith('bearer ')
+              ? token
+              : 'Bearer $token';
         }
       }
-      req.files.add(http.MultipartFile.fromBytes(
-        fieldName,
-        bytes,
-        filename: filename,
-        contentType: MediaType.parse(contentType),
-      ));
+      req.files.add(
+        http.MultipartFile.fromBytes(
+          fieldName,
+          bytes,
+          filename: filename,
+          contentType: MediaType.parse(contentType),
+        ),
+      );
 
       final streamed = await sdk_api.apiClient.send(req).timeout(timeout);
       final rp = await http.Response.fromStream(streamed);
@@ -113,29 +104,38 @@ Future<T> apiPostMultipart<T>({
         String msg = 'http ${rp.statusCode}';
         if (decoded is Map<String, dynamic>) {
           code = decoded['code'] as int?;
-          final errMsg = decoded['message'] ??
+          final errMsg =
+              decoded['message'] ??
               decoded['msg'] ??
               decoded['desc'] ??
               decoded['error'];
           if (errMsg != null) msg = errMsg.toString();
         }
 
-        final canRetry = attempt == 1 &&
+        final canRetry =
+            attempt == 1 &&
+            session != null &&
             (tokens?.refreshToken.trim().isNotEmpty ?? false) &&
-            (ErrorCodes.isAuthError(code) ||
+            (ApiException(msg, code: code).isAuthError ||
                 (code == null && rp.statusCode == 401));
         if (canRetry) {
-          if (await sdk_api.refreshSessionTokens()) {
+          final refreshResult = await sdk_api.refreshSessionTokensFor(session);
+          if (refreshResult == sdk_api.SessionRefreshResult.refreshed) {
             continue;
           }
-          final leftover = await getTokens();
-          if (leftover?.refreshToken.trim().isNotEmpty ?? false) {
+          if (refreshResult == sdk_api.SessionRefreshResult.unavailable) {
             throw const ApiException('会话刷新失败，请重试');
+          }
+          if (refreshResult == sdk_api.SessionRefreshResult.stale) {
+            throw const ApiException('请求会话已变化，请重试');
           }
         }
 
         final ex = ApiException(msg, code: code);
-        if (ex.isAuthError) onAuthError?.call();
+        if (session != null &&
+            (ex.isAuthError || (code == null && rp.statusCode == 401))) {
+          await sdk_api.invalidateSessionIfCredentialsMatch(session);
+        }
         throw ex;
       }
       final data = sdk_api.apiResponseData(decoded);

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
 import 'package:xiaobaihe_app/core/api/json_int64.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_models.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_repository.dart';
@@ -33,6 +34,9 @@ class FakeAssistantSource implements AssistantDataSource {
   Object? cancelError;
   Object? confirmError;
   Object? undoError;
+  Object? addMemoryError;
+  Object? replaceMemoryError;
+  Object? removeMemoryError;
   Object? consentError;
   int confirmCalls = 0;
   bool? lastApproved;
@@ -41,6 +45,11 @@ class FakeAssistantSource implements AssistantDataSource {
   String? lastFeedbackReason;
   Object? lastFeedbackPostId;
   String? lastCreateCondition;
+  int lastUpdateExpectedVersion = 0;
+  int lastDeleteExpectedVersion = 0;
+  int listWatchCalls = 0;
+  Object? updateWatchError;
+  Object? deleteWatchError;
   String? lastPostedMessage;
   Object lastEventsAfterSeq = 0;
   Object lastEventsRunId = 0;
@@ -51,6 +60,9 @@ class FakeAssistantSource implements AssistantDataSource {
   int listMessageCalls = 0;
   List<String> postedRequestIds = [];
   List<Object> postedContextPostIds = [];
+  List<String> addMemoryRequestIds = [];
+  List<String> replaceMemoryRequestIds = [];
+  List<String> removeMemoryRequestIds = [];
 
   @override
   Future<AgentConsentStatus> loadAgentConsent() async => AgentConsentStatus(
@@ -202,6 +214,12 @@ class FakeAssistantSource implements AssistantDataSource {
     String requestId = '',
   }) async {
     if (lastError != null) throw lastError!;
+    addMemoryRequestIds.add(requestId);
+    if (addMemoryError != null) {
+      final error = addMemoryError!;
+      addMemoryError = null;
+      throw error;
+    }
     final record = MemoryRecord(
       id: memories.length + 1,
       target: target,
@@ -220,6 +238,12 @@ class FakeAssistantSource implements AssistantDataSource {
     String requestId = '',
   }) async {
     if (lastError != null) throw lastError!;
+    replaceMemoryRequestIds.add(requestId);
+    if (replaceMemoryError != null) {
+      final error = replaceMemoryError!;
+      replaceMemoryError = null;
+      throw error;
+    }
     memories = [
       for (final item in memories)
         if (jsonInt64Id(item.id) == jsonInt64Id(id))
@@ -244,6 +268,12 @@ class FakeAssistantSource implements AssistantDataSource {
     String requestId = '',
   }) async {
     if (lastError != null) throw lastError!;
+    removeMemoryRequestIds.add(requestId);
+    if (removeMemoryError != null) {
+      final error = removeMemoryError!;
+      removeMemoryError = null;
+      throw error;
+    }
     memories = [
       for (final item in memories)
         if (jsonInt64Id(item.id) != jsonInt64Id(id)) item,
@@ -263,6 +293,7 @@ class FakeAssistantSource implements AssistantDataSource {
 
   @override
   Future<List<WatchTask>> listWatches() async {
+    listWatchCalls++;
     if (lastError != null) throw lastError!;
     return watches;
   }
@@ -285,35 +316,58 @@ class FakeAssistantSource implements AssistantDataSource {
       targetType: targetType,
       targetId: targetId,
       targetText: targetText,
+      version: 1,
     );
     watches = [...watches, task];
     return task;
   }
 
   @override
-  Future<void> updateWatch({required Object id, required bool enabled}) async {
+  Future<WatchTask> updateWatch({
+    required Object id,
+    required bool enabled,
+    required int expectedVersion,
+  }) async {
     if (lastError != null) throw lastError!;
-    watches = [
-      for (final task in watches)
-        if (jsonInt64Id(task.id) == jsonInt64Id(id))
-          WatchTask(
-            id: task.id,
-            conditionType: task.conditionType,
-            targetType: task.targetType,
-            targetId: task.targetId,
-            targetText: task.targetText,
-            enabled: enabled,
-            version: task.version,
-            createdAt: task.createdAt,
-          )
-        else
-          task,
-    ];
+    lastUpdateExpectedVersion = expectedVersion;
+    if (updateWatchError != null) {
+      final error = updateWatchError!;
+      updateWatchError = null;
+      throw error;
+    }
+    WatchTask? updated;
+    final next = <WatchTask>[];
+    for (final task in watches) {
+      if (jsonInt64Id(task.id) != jsonInt64Id(id)) {
+        next.add(task);
+        continue;
+      }
+      updated = WatchTask(
+        id: task.id,
+        conditionType: task.conditionType,
+        targetType: task.targetType,
+        targetId: task.targetId,
+        targetText: task.targetText,
+        enabled: enabled,
+        version: task.version + 1,
+        createdAt: task.createdAt,
+      );
+      next.add(updated);
+    }
+    if (updated == null) throw const ApiException('资源不存在');
+    watches = next;
+    return updated;
   }
 
   @override
-  Future<void> deleteWatch(Object id) async {
+  Future<void> deleteWatch(Object id, {required int expectedVersion}) async {
     if (lastError != null) throw lastError!;
+    lastDeleteExpectedVersion = expectedVersion;
+    if (deleteWatchError != null) {
+      final error = deleteWatchError!;
+      deleteWatchError = null;
+      throw error;
+    }
     watches = [
       for (final task in watches)
         if (jsonInt64Id(task.id) != jsonInt64Id(id)) task,

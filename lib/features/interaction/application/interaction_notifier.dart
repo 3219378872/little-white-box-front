@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../sdk/data/gateway.dart';
+import '../../auth/application/auth_notifier.dart';
 import '../data/interaction_repository.dart';
 
 /// 单帖点赞/收藏的乐观更新状态：覆盖值 + 计数偏移量。
@@ -27,8 +28,9 @@ class InteractionState {
     int? favoriteCountDelta,
   }) {
     return InteractionState(
-      optimisticIsLiked:
-          clearOptimisticIsLiked ? null : (optimisticIsLiked ?? this.optimisticIsLiked),
+      optimisticIsLiked: clearOptimisticIsLiked
+          ? null
+          : (optimisticIsLiked ?? this.optimisticIsLiked),
       optimisticIsFavorited: clearOptimisticIsFavorited
           ? null
           : (optimisticIsFavorited ?? this.optimisticIsFavorited),
@@ -44,8 +46,8 @@ class InteractionNotifier extends StateNotifier<InteractionState> {
   bool _favoriteInFlight = false;
 
   InteractionNotifier({required InteractionRepository repository})
-      : _repository = repository,
-        super(const InteractionState());
+    : _repository = repository,
+      super(const InteractionState());
 
   Future<void> toggleLike(GetPostResp post) async {
     if (_likeInFlight) return;
@@ -104,12 +106,9 @@ final interactionRepositoryProvider = Provider<InteractionRepository>((ref) {
   return InteractionRepository();
 });
 
-final interactionNotifierProvider =
-    StateNotifierProvider.autoDispose.family<InteractionNotifier,
-        InteractionState, String>((
-      ref,
-      postId,
-    ) {
+final interactionNotifierProvider = StateNotifierProvider.autoDispose
+    .family<InteractionNotifier, InteractionState, String>((ref, postId) {
+      ref.watch(authSessionIdentityProvider);
       return InteractionNotifier(
         repository: ref.read(interactionRepositoryProvider),
       );

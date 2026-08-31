@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/error_codes.dart';
+import '../../../core/api/json_int64.dart';
 import '../data/assistant_models.dart';
 import '../data/assistant_repository.dart';
 import 'assistant_notifier.dart';
@@ -77,24 +79,53 @@ class WatchListNotifier extends StateNotifier<WatchListState> {
 
   Future<void> setEnabled(WatchTask task, bool enabled) async {
     try {
-      await _repository.updateWatch(id: task.id, enabled: enabled);
-      await load();
-    } catch (error) {
+      final updated = await _repository.updateWatch(
+        id: task.id,
+        enabled: enabled,
+        expectedVersion: task.version,
+      );
       if (!mounted) return;
-      state = state.copyWith(error: friendlyErrorMessage(error));
+      state = state.copyWith(
+        clearError: true,
+        items: [
+          for (final item in state.items)
+            if (jsonInt64Id(item.id) == jsonInt64Id(updated.id))
+              updated
+            else
+              item,
+        ],
+      );
+    } catch (error) {
+      await _handleWriteError(error);
       rethrow;
     }
   }
 
   Future<void> deleteTask(WatchTask task) async {
     try {
-      await _repository.deleteWatch(task.id);
-      await load();
-    } catch (error) {
+      await _repository.deleteWatch(task.id, expectedVersion: task.version);
       if (!mounted) return;
-      state = state.copyWith(error: friendlyErrorMessage(error));
+      state = state.copyWith(
+        clearError: true,
+        items: [
+          for (final item in state.items)
+            if (jsonInt64Id(item.id) != jsonInt64Id(task.id)) item,
+        ],
+      );
+    } catch (error) {
+      await _handleWriteError(error);
       rethrow;
     }
+  }
+
+  Future<void> _handleWriteError(Object error) async {
+    final message = friendlyErrorMessage(error);
+    if (error is ApiException &&
+        error.code == ErrorCodes.contentVersionConflict) {
+      await load();
+    }
+    if (!mounted) return;
+    state = state.copyWith(error: message);
   }
 }
 

@@ -1388,14 +1388,7 @@ final assistantRepositoryProvider = Provider<AssistantDataSource>((ref) {
 });
 
 final assistantUserKeyProvider = Provider<String>((ref) {
-  return ref.watch(
-    authNotifierProvider.select((state) {
-      if (!state.isAuthenticated || !jsonInt64IsPositive(state.userId ?? 0)) {
-        return '';
-      }
-      return jsonInt64Id(state.userId!);
-    }),
-  );
+  return ref.watch(authenticatedSessionIdentityProvider) ?? '';
 });
 
 final assistantNotifierProvider =

@@ -127,9 +127,13 @@ abstract interface class AssistantDataSource {
     String targetText = '',
   });
 
-  Future<void> updateWatch({required Object id, required bool enabled});
+  Future<WatchTask> updateWatch({
+    required Object id,
+    required bool enabled,
+    required int expectedVersion,
+  });
 
-  Future<void> deleteWatch(Object id);
+  Future<void> deleteWatch(Object id, {required int expectedVersion});
 
   Future<void> submitRecommendFeedback({
     required Object postId,
@@ -142,6 +146,7 @@ class AssistantRepository implements AssistantDataSource {
   final http.Client? _client;
   final String _baseUrl;
   final Future<String?> Function() _loadAccessToken;
+  final bool _usesStoredAccessToken;
   final V2ApiClient _api;
 
   AssistantRepository({
@@ -152,6 +157,7 @@ class AssistantRepository implements AssistantDataSource {
   }) : _client = client,
        _baseUrl = baseUrl,
        _loadAccessToken = loadAccessToken ?? _defaultAccessToken,
+       _usesStoredAccessToken = loadAccessToken == null,
        _api = api;
 
   http.Client get _httpClient => _client ?? sdk_api.apiClient;
@@ -259,10 +265,12 @@ class AssistantRepository implements AssistantDataSource {
     }
     late http.StreamedResponse response;
     for (var attempt = 1; ; attempt++) {
-      final request = await _buildEventsRequest(
+      final requestContext = await _buildEventsRequest(
         runId: runId,
         afterSeq: afterSeq,
       );
+      final request = requestContext.$1;
+      final session = requestContext.$2;
       try {
         response = await _httpClient.send(request);
       } catch (error) {
@@ -274,17 +282,22 @@ class AssistantRepository implements AssistantDataSource {
       final exception = _httpError(response.statusCode, body);
       final canRetry =
           attempt == 1 &&
-          exception.isAuthError &&
-          ((await getTokens())?.refreshToken.trim().isNotEmpty ?? false);
-      if (canRetry && await sdk_api.refreshSessionTokens()) {
-        continue;
-      }
-      if (exception.isAuthError) {
-        final leftover = await getTokens();
-        if (leftover?.refreshToken.trim().isNotEmpty ?? false) {
+          session != null &&
+          (exception.isAuthError || response.statusCode == 401) &&
+          session.tokens.refreshToken.trim().isNotEmpty;
+      if (canRetry) {
+        final refreshResult = await sdk_api.refreshSessionTokensFor(session);
+        if (refreshResult == sdk_api.SessionRefreshResult.refreshed) continue;
+        if (refreshResult == sdk_api.SessionRefreshResult.unavailable) {
           throw const ApiException('会话刷新失败，请重试');
         }
-        await onAuthError?.call();
+        if (refreshResult == sdk_api.SessionRefreshResult.stale) {
+          throw const ApiException('请求会话已变化，请重试');
+        }
+      }
+      if (session != null &&
+          (exception.isAuthError || response.statusCode == 401)) {
+        await sdk_api.invalidateSessionIfCredentialsMatch(session);
       }
       throw exception;
     }
@@ -512,15 +525,28 @@ class AssistantRepository implements AssistantDataSource {
   }
 
   @override
-  Future<void> updateWatch({required Object id, required bool enabled}) async {
-    await _api.patch('/api/v2/assistant/watch/${jsonInt64Id(id)}', {
-      'enabled': enabled,
-    });
+  Future<WatchTask> updateWatch({
+    required Object id,
+    required bool enabled,
+    required int expectedVersion,
+  }) async {
+    final response = await _api.patch(
+      '/api/v2/assistant/watch/${jsonInt64Id(id)}',
+      {'enabled': enabled, 'expectedVersion': expectedVersion},
+    );
+    final raw = response['task'];
+    if (raw is! Map) {
+      throw const ApiException('更新追踪响应格式无效');
+    }
+    return _watchFromJson(Map<String, dynamic>.from(raw));
   }
 
   @override
-  Future<void> deleteWatch(Object id) async {
-    await _api.delete('/api/v2/assistant/watch/${jsonInt64Id(id)}');
+  Future<void> deleteWatch(Object id, {required int expectedVersion}) async {
+    await _api.delete(
+      '/api/v2/assistant/watch/${jsonInt64Id(id)}',
+      body: {'expectedVersion': expectedVersion},
+    );
   }
 
   @override
@@ -603,7 +629,7 @@ class AssistantRepository implements AssistantDataSource {
     return MemoryWriteResult(entry: entry, changeId: response['changeId'] ?? 0);
   }
 
-  Future<http.Request> _buildEventsRequest({
+  Future<(http.Request, SessionTokenSnapshot?)> _buildEventsRequest({
     required Object runId,
     required Object afterSeq,
   }) async {
@@ -618,12 +644,18 @@ class AssistantRepository implements AssistantDataSource {
     if (seq > 0) {
       request.headers['Last-Event-ID'] = '$seq';
     }
-    final token = (await _loadAccessToken())?.trim() ?? '';
+    final session = _usesStoredAccessToken ? await getTokenSnapshot() : null;
+    final token =
+        (_usesStoredAccessToken
+                ? session?.tokens.accessToken
+                : await _loadAccessToken())
+            ?.trim() ??
+        '';
     if (token.isNotEmpty) {
       request.headers['Authorization'] =
           token.toLowerCase().startsWith('bearer ') ? token : 'Bearer $token';
     }
-    return request;
+    return (request, session);
   }
 
   static Stream<_SseFrame> _sseFrames(Stream<List<int>> bytes) async* {

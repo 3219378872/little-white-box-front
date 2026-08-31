@@ -20,6 +20,7 @@ final _personalizationRepoProvider = Provider(
 
 final _userProfileProvider = FutureProvider.autoDispose
     .family<GetUserResp, String>((ref, userId) {
+      ref.watch(authSessionIdentityProvider);
       return ref.read(_userRepoProvider).getUserProfile(userId);
     });
 
@@ -55,6 +56,7 @@ class ProfilePage extends ConsumerWidget {
         userId == null || jsonInt64Id(userId) == jsonInt64Id(auth.userId);
 
     return _ProfileContent(
+      key: ValueKey('${auth.sessionRevision}:${jsonInt64Id(targetUserId)}'),
       userId: jsonInt64Id(targetUserId),
       isOwnProfile: isOwnProfile,
     );
@@ -65,7 +67,11 @@ class _ProfileContent extends ConsumerStatefulWidget {
   final String userId;
   final bool isOwnProfile;
 
-  const _ProfileContent({required this.userId, required this.isOwnProfile});
+  const _ProfileContent({
+    super.key,
+    required this.userId,
+    required this.isOwnProfile,
+  });
 
   @override
   ConsumerState<_ProfileContent> createState() => _ProfileContentState();

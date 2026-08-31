@@ -1,4 +1,4 @@
-// --/home/dev/projects/little/little-white-box-content-community/.worktree/task-hermes-agent/app/gateway/gateway--
+// --/home/dev/projects/little/little-white-box-content-community/.worktree/task-audit-remediation/app/gateway/gateway--
 
 class AddAssistantMemoryReq {
   final String target;
@@ -264,6 +264,8 @@ class AssistantRunEvent {
   final AssistantSourceCard? sourceCard;
 
   final Object changeId;
+
+  final String streamId;
   AssistantRunEvent({
     required this.runId,
     required this.seq,
@@ -275,6 +277,7 @@ class AssistantRunEvent {
     required this.toolCall,
     required this.sourceCard,
     required this.changeId,
+    required this.streamId,
   });
   factory AssistantRunEvent.fromJson(Map<String, dynamic> m) {
     return AssistantRunEvent(
@@ -292,6 +295,7 @@ class AssistantRunEvent {
           ? null
           : AssistantSourceCard?.fromJson(m['sourceCard']),
       changeId: m['changeId'] ?? 0,
+      streamId: m['streamId'] ?? "",
     );
   }
   Map<String, dynamic> toJson() {
@@ -306,6 +310,7 @@ class AssistantRunEvent {
       'toolCall': toolCall?.toJson(),
       'sourceCard': sourceCard?.toJson(),
       'changeId': changeId,
+      'streamId': streamId,
     };
   }
 }
@@ -589,10 +594,16 @@ class BehaviorEvent {
       targetType: m['targetType'] ?? "",
       scene: m['scene'] ?? "",
       requestId: m['requestId'] ?? "",
-      position: m['position'] == null ? null : (m['position'] is num) ? (m['position'] as num).toInt() : null,
+      position: m['position'] == null
+          ? null
+          : (m['position'] is num)
+          ? (m['position'] as num).toInt()
+          : null,
       durationMs: m['durationMs'] == null
           ? null
-          : (m['durationMs'] is num) ? (m['durationMs'] as num).toInt() : null,
+          : (m['durationMs'] is num)
+          ? (m['durationMs'] as num).toInt()
+          : null,
       recallSource: m['recallSource'] ?? "",
       modelVersion: m['modelVersion'] ?? "",
       experimentId: m['experimentId'] ?? "",
@@ -1003,12 +1014,17 @@ class DeleteAssistantHistoryResp {
 
 class DeleteAssistantWatchReq {
   final Object id;
-  DeleteAssistantWatchReq({required this.id});
+
+  final num expectedVersion;
+  DeleteAssistantWatchReq({required this.id, required this.expectedVersion});
   factory DeleteAssistantWatchReq.fromJson(Map<String, dynamic> m) {
-    return DeleteAssistantWatchReq(id: m['id'] ?? 0);
+    return DeleteAssistantWatchReq(
+      id: m['id'] ?? 0,
+      expectedVersion: m['expectedVersion'] ?? 0,
+    );
   }
   Map<String, dynamic> toJson() {
-    return {'id': id};
+    return {'id': id, 'expectedVersion': expectedVersion};
   }
 }
 
@@ -3215,25 +3231,35 @@ class UpdateAssistantWatchReq {
   final Object id;
 
   final bool enabled;
-  UpdateAssistantWatchReq({required this.id, required this.enabled});
+
+  final num expectedVersion;
+  UpdateAssistantWatchReq({
+    required this.id,
+    required this.enabled,
+    required this.expectedVersion,
+  });
   factory UpdateAssistantWatchReq.fromJson(Map<String, dynamic> m) {
     return UpdateAssistantWatchReq(
       id: m['id'] ?? 0,
       enabled: m['enabled'] ?? false,
+      expectedVersion: m['expectedVersion'] ?? 0,
     );
   }
   Map<String, dynamic> toJson() {
-    return {'id': id, 'enabled': enabled};
+    return {'id': id, 'enabled': enabled, 'expectedVersion': expectedVersion};
   }
 }
 
 class UpdateAssistantWatchResp {
-  UpdateAssistantWatchResp();
+  final AssistantWatchTask task;
+  UpdateAssistantWatchResp({required this.task});
   factory UpdateAssistantWatchResp.fromJson(Map<String, dynamic> m) {
-    return UpdateAssistantWatchResp();
+    return UpdateAssistantWatchResp(
+      task: AssistantWatchTask.fromJson(m['task']),
+    );
   }
   Map<String, dynamic> toJson() {
-    return {};
+    return {'task': task.toJson()};
   }
 }
 
@@ -3287,7 +3313,11 @@ class UpdatePostV2Req {
       content: m['content'] ?? "",
       images: m['images']?.cast<String>() ?? [],
       tags: m['tags']?.cast<String>() ?? [],
-      status: m['status'] == null ? null : (m['status'] is num) ? (m['status'] as num).toInt() : null,
+      status: m['status'] == null
+          ? null
+          : (m['status'] is num)
+          ? (m['status'] as num).toInt()
+          : null,
       expectedRevision: m['expectedRevision'] ?? 0,
       mediaIds: m['mediaIds'] is List
           ? List<Object>.from(m['mediaIds'] as List)

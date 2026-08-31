@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:xiaobaihe_app/core/api/api_adapter.dart' as api_adapter;
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/sdk/api/api.dart' as sdk_api;
 import 'package:xiaobaihe_app/sdk/vars/kv.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  tearDown(() => sdk_api.onSessionInvalid = null);
 
   test('onLoginSuccess 持久化双令牌并解出有效期', () async {
     final container = ProviderContainer();
@@ -68,7 +68,9 @@ void main() {
     );
     expect(notifications, 1);
 
-    await notifier.onSessionExpired();
+    final snapshot = await getTokenSnapshot();
+    expect(snapshot, isNotNull);
+    await notifier.onSessionExpired(snapshot!);
 
     final state = container.read(authNotifierProvider);
     expect(state.isAuthenticated, isFalse);
@@ -77,25 +79,26 @@ void main() {
     expect(notifications, 2);
   });
 
-  test('传输层 onAuthError 绑定会话重置（无 refreshToken 死区路径）', () async {
+  test('传输层按请求快照绑定会话重置（无 refreshToken 路径）', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(authNotifierProvider.notifier);
     container.read(authTransportBindingProvider);
     await pumpEventQueue();
 
-    // 无 refreshToken：请求失败只走 adapter 的 onAuthError，不经过 SDK 刷新。
+    // 无 refreshToken：最终认证失败由 SDK 按发起请求的凭据条件删除。
     await notifier.onLoginSuccess(7, _jwt(userId: 7, exp: 0));
     expect(container.read(authNotifierProvider).isAuthenticated, isTrue);
 
-    await api_adapter.onAuthError?.call();
+    final snapshot = await getTokenSnapshot();
+    await sdk_api.invalidateSessionIfCredentialsMatch(snapshot!);
     await pumpEventQueue();
 
     expect(container.read(authNotifierProvider).isAuthenticated, isFalse);
     expect(await getTokens(), isNull);
   });
 
-  test('SDK 刷新被拒的 onSessionInvalid 同样重置会话', () async {
+  test('迟到的旧会话失效通知不能清除后来登录的账号', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(authNotifierProvider.notifier);
@@ -105,14 +108,70 @@ void main() {
     await notifier.onLoginSuccess(
       7,
       _jwt(userId: 7, exp: 0),
-      refreshToken: 'refresh-token',
+      refreshToken: 'refresh-token-a',
     );
-    expect(container.read(authNotifierProvider).isAuthenticated, isTrue);
+    final oldSnapshot = await getTokenSnapshot();
+    await notifier.onLoginSuccess(
+      8,
+      _jwt(userId: 8, exp: 0),
+      refreshToken: 'refresh-token-b',
+    );
 
-    sdk_api.onSessionInvalid?.call();
+    await sdk_api.onSessionInvalid?.call(oldSnapshot!);
     await pumpEventQueue();
 
-    expect(container.read(authNotifierProvider).isAuthenticated, isFalse);
+    final state = container.read(authNotifierProvider);
+    expect(state.isAuthenticated, isTrue);
+    expect(state.userId, 8);
+    expect((await getTokens())?.refreshToken, 'refresh-token-b');
+  });
+
+  test('初始化恢复排在立即登录之前，旧会话不能覆盖新登录', () async {
+    SharedPreferences.setMockInitialValues({
+      'tokens': jsonEncode({
+        'access_token': _jwt(userId: 7, exp: 0),
+        'access_expire': 0,
+        'refresh_token': 'refresh-token-old',
+        'refresh_expire': 0,
+        'refresh_after': 0,
+        'session_revision': 4,
+      }),
+      'tokens.session_revision': 4,
+    });
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(authNotifierProvider.notifier);
+
+    await notifier.onLoginSuccess(
+      8,
+      _jwt(userId: 8, exp: 0),
+      refreshToken: 'refresh-token-new',
+    );
+
+    final state = container.read(authNotifierProvider);
+    expect(state.isAuthenticated, isTrue);
+    expect(state.userId, 8);
+    expect(state.sessionRevision, 5);
+    expect((await getTokens())?.refreshToken, 'refresh-token-new');
+  });
+
+  test('未等待登录完成就登出时，调用顺序决定最终为匿名会话', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(authNotifierProvider.notifier);
+
+    final login = notifier.onLoginSuccess(
+      7,
+      _jwt(userId: 7, exp: 0),
+      refreshToken: 'refresh-token',
+    );
+    final logout = notifier.logout();
+    await Future.wait([login, logout]);
+
+    final state = container.read(authNotifierProvider);
+    expect(state.isAuthenticated, isFalse);
+    expect(state.userId, isNull);
+    expect(state.sessionRevision, 2);
     expect(await getTokens(), isNull);
   });
 }
@@ -121,9 +180,8 @@ String _jwt({required int userId, required int exp}) {
   String segment(Object json) =>
       base64Url.encode(utf8.encode(jsonEncode(json))).replaceAll('=', '');
   final header = segment({'alg': 'none', 'typ': 'JWT'});
-  final payload =
-      exp > 0 ? segment({'userId': userId, 'exp': exp}) : segment({
-        'userId': userId,
-      });
+  final payload = exp > 0
+      ? segment({'userId': userId, 'exp': exp})
+      : segment({'userId': userId});
   return '$header.$payload.sig';
 }

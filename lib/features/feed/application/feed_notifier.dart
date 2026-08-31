@@ -122,7 +122,9 @@ class FeedNotifier extends StateNotifier<FeedState> {
         positionOffset: state.entries.length,
       );
       if (!mounted || generation != _generation) return;
-      final seen = state.entries.map((entry) => jsonInt64Id(entry.post.id)).toSet();
+      final seen = state.entries
+          .map((entry) => jsonInt64Id(entry.post.id))
+          .toSet();
       final additions = result.items
           .where((entry) => seen.add(jsonInt64Id(entry.post.id)))
           .toList();
@@ -217,17 +219,15 @@ final feedRepositoryProvider = Provider<FeedPageRepository>((ref) {
   return FeedRepository(identityStore: ref.read(clientIdentityStoreProvider));
 });
 
-final feedNotifierProvider =
-    StateNotifierProvider.autoDispose.family<FeedNotifier, FeedState,
-        FeedKind>((
-      ref,
-      kind,
-    ) {
-      final canLoad = kind == FeedKind.recommend
-          ? true
-          : ref.watch(
-              authNotifierProvider.select((state) => state.isAuthenticated),
-            );
+final feedNotifierProvider = StateNotifierProvider.autoDispose
+    .family<FeedNotifier, FeedState, FeedKind>((ref, kind) {
+      final identity = ref.watch(authSessionIdentityProvider);
+      final authenticatedIdentity = ref.watch(
+        authenticatedSessionIdentityProvider,
+      );
+      final canLoad =
+          identity != null &&
+          (kind == FeedKind.recommend || authenticatedIdentity != null);
       return FeedNotifier(
         repository: ref.read(feedRepositoryProvider),
         kind: kind,

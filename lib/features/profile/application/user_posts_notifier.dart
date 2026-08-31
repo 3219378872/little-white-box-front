@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/api/json_int64.dart';
 import '../../../sdk/data/gateway.dart';
+import '../../auth/application/auth_notifier.dart';
 import '../data/user_repository.dart';
 
 enum UserPostsListType { posts, favorites }
@@ -12,10 +14,12 @@ class UserPostsKey {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is UserPostsKey && other.userId == userId && other.type == type);
+      (other is UserPostsKey &&
+          jsonInt64Id(other.userId) == jsonInt64Id(userId) &&
+          other.type == type);
 
   @override
-  int get hashCode => Object.hash(userId, type);
+  int get hashCode => Object.hash(jsonInt64Id(userId), type);
 }
 
 abstract class UserPostsRepository {
@@ -78,11 +82,8 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
   final int pageSize;
   int _generation = 0;
 
-  UserPostsNotifier({
-    required this.repo,
-    required this.key,
-    this.pageSize = 20,
-  }) : super(const UserPostsState());
+  UserPostsNotifier({required this.repo, required this.key, this.pageSize = 20})
+    : super(const UserPostsState());
 
   Future<GetPostListResp> _fetch(String cursor) {
     if (key.type == UserPostsListType.posts) {
@@ -105,12 +106,16 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
 
   Future<void> loadFirstPage() async {
     final generation = ++_generation;
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(
+      isLoading: true,
+      isRefreshing: false,
+      clearError: true,
+    );
     try {
       final resp = await _fetch('');
       if (!mounted || generation != _generation) return;
       state = state.copyWith(
-        items: resp.list,
+        items: _deduplicate(resp.list),
         cursor: resp.nextCursor,
         hasMore: _hasMoreFrom(resp),
         isLoading: false,
@@ -130,7 +135,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
       final resp = await _fetch(state.cursor);
       if (!mounted || generation != _generation) return;
       state = state.copyWith(
-        items: [...state.items, ...resp.list],
+        items: _deduplicate([...state.items, ...resp.list]),
         cursor: resp.nextCursor,
         hasMore: _hasMoreFrom(resp),
         isLoading: false,
@@ -143,38 +148,41 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
 
   Future<void> refresh() async {
     final generation = ++_generation;
-    state = state.copyWith(isRefreshing: true);
+    state = state.copyWith(isRefreshing: true, clearError: true);
     try {
       final resp = await _fetch('');
       if (!mounted || generation != _generation) return;
       state = state.copyWith(
-        items: resp.list,
+        items: _deduplicate(resp.list),
         cursor: resp.nextCursor,
         hasMore: _hasMoreFrom(resp),
         isRefreshing: false,
         isLoading: false,
         clearError: true,
       );
-    } catch (_) {
+    } catch (error) {
       if (!mounted || generation != _generation) return;
-      state = state.copyWith(isRefreshing: false);
+      state = state.copyWith(isRefreshing: false, error: error);
     }
+  }
+
+  static List<PostItem> _deduplicate(List<PostItem> items) {
+    final seen = <String>{};
+    return items.where((item) => seen.add(jsonInt64Id(item.id))).toList();
   }
 }
 
 /// Provider.family
-final userPostsProvider =
-    StateNotifierProvider.autoDispose.family<
-        UserPostsNotifier, UserPostsState, UserPostsKey>(
-  (ref, key) {
-    final notifier = UserPostsNotifier(
-      repo: ref.read(userPostsRepositoryProvider),
-      key: key,
-    );
-    notifier.loadFirstPage();
-    return notifier;
-  },
-);
+final userPostsProvider = StateNotifierProvider.autoDispose
+    .family<UserPostsNotifier, UserPostsState, UserPostsKey>((ref, key) {
+      ref.watch(authSessionIdentityProvider);
+      final notifier = UserPostsNotifier(
+        repo: ref.read(userPostsRepositoryProvider),
+        key: key,
+      );
+      notifier.loadFirstPage();
+      return notifier;
+    });
 
 final userPostsRepositoryProvider = Provider<UserPostsRepository>((ref) {
   return UserRepository();

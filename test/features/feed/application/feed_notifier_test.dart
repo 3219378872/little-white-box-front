@@ -1,12 +1,17 @@
 import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/feed/application/feed_notifier.dart';
 import 'package:xiaobaihe_app/features/feed/data/feed_models.dart';
 import 'package:xiaobaihe_app/features/feed/data/feed_repository.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   test('loads, paginates by cursor, and deduplicates posts', () async {
     final repository = _FakeFeedRepository([
       page([entry(1), entry(2)], requestId: 'request-1', cursor: 'cursor-1'),
@@ -120,23 +125,79 @@ void main() {
     expect(repository.calls[1].recommendCursor, 'cursor-1');
   });
 
-  test('refresh failure with items is not treated as load-more failure', () async {
-    final notifier = FeedNotifier(
-      repository: _SequenceFeedRepository([
-        page([entry(1)], requestId: 'request-1'),
-        Exception('refresh failed'),
-      ]),
-      kind: FeedKind.recommend,
-      loadImmediately: false,
-    );
+  test(
+    'refresh failure with items is not treated as load-more failure',
+    () async {
+      final notifier = FeedNotifier(
+        repository: _SequenceFeedRepository([
+          page([entry(1)], requestId: 'request-1'),
+          Exception('refresh failed'),
+        ]),
+        kind: FeedKind.recommend,
+        loadImmediately: false,
+      );
 
-    await notifier.loadInitial();
-    await notifier.refresh();
+      await notifier.loadInitial();
+      await notifier.refresh();
 
-    expect(notifier.state.entries.single.post.id, 1);
-    expect(notifier.state.error, 'refresh failed');
-    expect(notifier.state.loadMoreFailed, isFalse);
-  });
+      expect(notifier.state.entries.single.post.id, 1);
+      expect(notifier.state.error, 'refresh failed');
+      expect(notifier.state.loadMoreFailed, isFalse);
+    },
+  );
+
+  test(
+    'account switch disposes the old feed before its response arrives',
+    () async {
+      final first = Completer<FeedPageResult>();
+      final second = Completer<FeedPageResult>();
+      final repository = _CompleterFeedRepository([first, second]);
+      final container = ProviderContainer(
+        overrides: [feedRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      final subscription = container.listen(
+        feedNotifierProvider(FeedKind.follow),
+        (_, _) {},
+        fireImmediately: true,
+      );
+      addTearDown(subscription.close);
+      final auth = container.read(authNotifierProvider.notifier);
+      await pumpEventQueue();
+
+      await auth.onLoginSuccess(1, 'access-a', refreshToken: 'refresh-a');
+      await pumpEventQueue();
+      expect(repository.calls, 1);
+
+      await auth.onLoginSuccess(2, 'access-b', refreshToken: 'refresh-b');
+      await pumpEventQueue();
+      expect(repository.calls, 2);
+
+      second.complete(page([entry(2)], requestId: 'request-b', hasMore: false));
+      await pumpEventQueue();
+      expect(
+        container
+            .read(feedNotifierProvider(FeedKind.follow))
+            .entries
+            .single
+            .post
+            .id,
+        2,
+      );
+
+      first.complete(page([entry(1)], requestId: 'request-a', hasMore: false));
+      await pumpEventQueue();
+      expect(
+        container
+            .read(feedNotifierProvider(FeedKind.follow))
+            .entries
+            .single
+            .post
+            .id,
+        2,
+      );
+    },
+  );
 }
 
 FeedPageResult page(
@@ -221,6 +282,7 @@ class _FakeFeedRepository implements FeedPageRepository {
 
 class _CompleterFeedRepository implements FeedPageRepository {
   final List<Completer<FeedPageResult>> responses;
+  int calls = 0;
 
   _CompleterFeedRepository(this.responses);
 
@@ -233,6 +295,7 @@ class _CompleterFeedRepository implements FeedPageRepository {
     FollowFeedCursor followCursor = const FollowFeedCursor(),
     int positionOffset = 0,
   }) {
+    calls++;
     return responses.removeAt(0).future;
   }
 }

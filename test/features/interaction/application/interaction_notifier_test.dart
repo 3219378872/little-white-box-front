@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/interaction/application/interaction_notifier.dart';
 import 'package:xiaobaihe_app/features/interaction/data/interaction_repository.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
@@ -56,6 +59,8 @@ class _FakeInteractionRepository implements InteractionRepository {
 }
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   test('toggleLike 乐观翻转并累计计数，成功后保持', () async {
     final repo = _FakeInteractionRepository();
     final notifier = InteractionNotifier(repository: repo);
@@ -117,6 +122,36 @@ void main() {
     expect(repo.calls, ['like:9']);
     expect(notifier.state.optimisticIsLiked, isTrue);
     expect(notifier.state.likeCountDelta, 1);
+  });
+
+  test('account switch clears optimistic interaction state', () async {
+    final repo = _FakeInteractionRepository();
+    final container = ProviderContainer(
+      overrides: [interactionRepositoryProvider.overrideWithValue(repo)],
+    );
+    addTearDown(container.dispose);
+    final auth = container.read(authNotifierProvider.notifier);
+    await auth.onLoginSuccess(1, 'access-a', refreshToken: 'refresh-a');
+    final subscription = container.listen(
+      interactionNotifierProvider('9'),
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(subscription.close);
+
+    await container
+        .read(interactionNotifierProvider('9').notifier)
+        .toggleLike(_post());
+    expect(
+      container.read(interactionNotifierProvider('9')).optimisticIsLiked,
+      isTrue,
+    );
+
+    await auth.onLoginSuccess(2, 'access-b', refreshToken: 'refresh-b');
+    await pumpEventQueue();
+    final switched = container.read(interactionNotifierProvider('9'));
+    expect(switched.optimisticIsLiked, isNull);
+    expect(switched.likeCountDelta, 0);
   });
 }
 

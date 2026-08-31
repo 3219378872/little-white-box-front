@@ -1,4 +1,9 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/comment/application/comment_notifier.dart';
 import 'package:xiaobaihe_app/features/comment/data/comment_repository.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
@@ -96,6 +101,8 @@ class _FakeCommentRepository implements CommentRepository {
 }
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   test('首屏加载、触底翻页与去重', () async {
     final repo = _FakeCommentRepository(
       pages: [
@@ -296,6 +303,71 @@ void main() {
     expect(repo.idempotencyKeys[0], isNot(repo.idempotencyKeys[1]));
     expect(repo.createCommands.map((command) => command.parentId), [1, 2]);
   });
+
+  test(
+    'account switch disposes the old comment state and late response',
+    () async {
+      final first = Completer<GetCommentListResp>();
+      final second = Completer<GetCommentListResp>();
+      final repo = _DelayedListRepository([first, second]);
+      final container = ProviderContainer(
+        overrides: [commentRepositoryProvider.overrideWithValue(repo)],
+      );
+      addTearDown(container.dispose);
+      final auth = container.read(authNotifierProvider.notifier);
+      await auth.onLoginSuccess(1, 'access-a', refreshToken: 'refresh-a');
+      final subscription = container.listen(
+        commentNotifierProvider('9'),
+        (_, _) {},
+        fireImmediately: true,
+      );
+      addTearDown(subscription.close);
+      await pumpEventQueue();
+      expect(repo.calls, hasLength(1));
+
+      await auth.onLoginSuccess(2, 'access-b', refreshToken: 'refresh-b');
+      await pumpEventQueue();
+      expect(repo.calls, hasLength(2));
+
+      second.complete(_commentPage(2));
+      await pumpEventQueue();
+      expect(
+        container.read(commentNotifierProvider('9')).comments.single.id,
+        2,
+      );
+
+      first.complete(_commentPage(1));
+      await pumpEventQueue();
+      expect(
+        container.read(commentNotifierProvider('9')).comments.single.id,
+        2,
+      );
+    },
+  );
+}
+
+GetCommentListResp _commentPage(int id) => GetCommentListResp.fromJson({
+  'list': [_commentJson(id)],
+  'total': 1,
+  'page': 1,
+  'pageSize': 20,
+});
+
+class _DelayedListRepository extends _FakeCommentRepository {
+  final List<Completer<GetCommentListResp>> responses;
+
+  _DelayedListRepository(this.responses) : super(pages: const []);
+
+  @override
+  Future<GetCommentListResp> fetchComments({
+    required Object postId,
+    required int page,
+    required int pageSize,
+    required int sortBy,
+  }) {
+    calls.add('list:$page:$sortBy');
+    return responses.removeAt(0).future;
+  }
 }
 
 class _PagingThenFailRepository extends _FakeCommentRepository {

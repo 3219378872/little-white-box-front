@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/core/widgets/error_view.dart';
 import 'package:xiaobaihe_app/features/assistant/application/assistant_notifier.dart';
+import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/post/presentation/post_detail_page.dart';
 import 'package:xiaobaihe_app/sdk/api/api.dart';
 
@@ -16,13 +18,16 @@ import '../../../helpers/forui_test_builder.dart';
 import '../../../helpers/gateway_fake.dart';
 import '../../assistant/helpers/fake_assistant_source.dart';
 
-Map<String, dynamic> _postJson() => {
+Map<String, dynamic> _postJson({
+  String title = '联调标题',
+  String content = '联调正文',
+}) => {
   'id': 9,
   'authorId': 2,
   'authorName': '作者甲',
   'authorAvatar': '',
-  'title': '联调标题',
-  'content': '联调正文',
+  'title': title,
+  'content': content,
   'images': <String>[],
   'tags': <String>['go'],
   'status': 1,
@@ -128,6 +133,48 @@ class _Harness {
       return jsonResponse(okEnvelope(<String, dynamic>{}));
     }
     fail('unexpected request: ${request.method} $path');
+  }
+}
+
+class _AccountSwitchHarness {
+  late final ScriptedGatewayClient client;
+  final oldResponse = Completer<http.Response>();
+  final oldStarted = Completer<void>();
+  int postCalls = 0;
+
+  _AccountSwitchHarness() {
+    client = ScriptedGatewayClient(route);
+  }
+
+  Future<http.Response> route(http.BaseRequest request) async {
+    if (request.url.path == '/api/v1/post/9') {
+      postCalls++;
+      if (postCalls == 1) {
+        return jsonResponse(
+          okEnvelope(_postJson(title: '匿名帖子', content: '匿名正文')),
+        );
+      }
+      if (postCalls == 2) {
+        oldStarted.complete();
+        return oldResponse.future;
+      }
+      if (postCalls == 3) {
+        return jsonResponse(
+          okEnvelope(_postJson(title: '账号 B 帖子', content: '账号 B 正文')),
+        );
+      }
+    }
+    if (request.url.path == '/api/v1/comments/9') {
+      return jsonResponse(
+        okEnvelope({
+          'list': <Map<String, dynamic>>[],
+          'total': 0,
+          'page': 1,
+          'pageSize': 20,
+        }),
+      );
+    }
+    fail('unexpected request: ${request.method} ${request.url.path}');
   }
 }
 
@@ -390,6 +437,48 @@ void main() {
     await tester.pumpAndSettle();
     expect(source.lastCreateCondition, 'post_revised');
   });
+
+  testWidgets(
+    'account switch replaces post detail and drops the old response',
+    (tester) async {
+      final harness = _AccountSwitchHarness();
+      setApiClient(harness.client);
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            builder: foruiTestBuilder,
+            home: const PostDetailPage(postId: '9'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('匿名帖子'), findsOneWidget);
+
+      final auth = container.read(authNotifierProvider.notifier);
+      await auth.onLoginSuccess(1, 'access-a', refreshToken: 'refresh-a');
+      for (var i = 0; i < 20 && !harness.oldStarted.isCompleted; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      expect(harness.oldStarted.isCompleted, isTrue);
+
+      await auth.onLoginSuccess(2, 'access-b', refreshToken: 'refresh-b');
+      await tester.pumpAndSettle();
+      expect(find.text('账号 B 帖子'), findsOneWidget);
+
+      harness.oldResponse.complete(
+        jsonResponse(
+          okEnvelope(_postJson(title: '账号 A 帖子', content: '账号 A 正文')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('账号 B 帖子'), findsOneWidget);
+      expect(find.text('账号 A 帖子'), findsNothing);
+    },
+  );
 }
 
 String _testJwt({required int userId}) {

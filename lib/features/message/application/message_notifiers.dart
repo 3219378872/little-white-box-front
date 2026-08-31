@@ -73,14 +73,14 @@ class ConversationListNotifier extends StateNotifier<ConversationListState> {
     );
     try {
       final result = await _repository.getConversations(pageSize: pageSize);
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = ConversationListState(
         conversations: _deduplicate(result.conversations),
         page: 1,
         total: result.total,
       );
     } catch (error) {
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         isLoading: false,
         error: friendlyErrorMessage(error),
@@ -98,7 +98,7 @@ class ConversationListNotifier extends StateNotifier<ConversationListState> {
         page: nextPage,
         pageSize: pageSize,
       );
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         conversations: _deduplicate([
           ...state.conversations,
@@ -109,7 +109,7 @@ class ConversationListNotifier extends StateNotifier<ConversationListState> {
         total: result.total,
       );
     } catch (error) {
-      if (generation != _generation) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         isLoadingMore: false,
         error: friendlyErrorMessage(error),
@@ -213,7 +213,8 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
   final int pageSize;
   final IdempotencyKeyFactory _createKey;
   final void Function()? _onMarkedRead;
-  int _generation = 0;
+  int _loadGeneration = 0;
+  int _readGeneration = 0;
 
   MessageThreadNotifier({
     required MessageDataSource repository,
@@ -232,7 +233,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
   }
 
   Future<void> refresh() async {
-    final generation = ++_generation;
+    final generation = ++_loadGeneration;
     state = state.copyWith(
       isLoading: true,
       isLoadingOlder: false,
@@ -243,16 +244,16 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
         conversationId: conversationId,
         pageSize: pageSize,
       );
-      if (!mounted || generation != _generation) return;
+      if (!mounted || generation != _loadGeneration) return;
       state = state.copyWith(
         messages: _ordered(result.messages),
         hasMore: result.hasMore,
         isLoading: false,
         clearError: true,
       );
-      await _markRead(generation);
+      await _markRead();
     } catch (error) {
-      if (!mounted || generation != _generation) return;
+      if (!mounted || generation != _loadGeneration) return;
       state = state.copyWith(
         isLoading: false,
         error: friendlyErrorMessage(error),
@@ -260,17 +261,18 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     }
   }
 
-  Future<void> retryMarkRead() => _markRead(_generation);
+  Future<void> retryMarkRead() => _markRead();
 
-  Future<void> _markRead(int generation) async {
+  Future<void> _markRead() async {
+    final generation = ++_readGeneration;
     state = state.copyWith(isMarkingRead: true, clearReadError: true);
     try {
       await _repository.markConversationRead(conversationId);
-      if (!mounted || generation != _generation) return;
+      if (!mounted || generation != _readGeneration) return;
       state = state.copyWith(isMarkingRead: false, clearReadError: true);
       _onMarkedRead?.call();
     } catch (error) {
-      if (!mounted || generation != _generation) return;
+      if (!mounted || generation != _readGeneration) return;
       state = state.copyWith(
         isMarkingRead: false,
         readError: friendlyErrorMessage(error),
@@ -285,7 +287,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
         state.isLoadingOlder) {
       return;
     }
-    final generation = _generation;
+    final generation = _loadGeneration;
     state = state.copyWith(isLoadingOlder: true, clearError: true);
     try {
       final result = await _repository.getMessages(
@@ -293,14 +295,14 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
         lastId: state.messages.first.id,
         pageSize: pageSize,
       );
-      if (!mounted || generation != _generation) return;
+      if (!mounted || generation != _loadGeneration) return;
       state = state.copyWith(
         messages: _ordered([...result.messages, ...state.messages]),
         hasMore: result.hasMore,
         isLoadingOlder: false,
       );
     } catch (error) {
-      if (!mounted || generation != _generation) return;
+      if (!mounted || generation != _loadGeneration) return;
       state = state.copyWith(
         isLoadingOlder: false,
         error: friendlyErrorMessage(error),
@@ -354,6 +356,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     );
     try {
       final id = await _repository.sendMessage(command);
+      if (!mounted) return true;
       final sent = DirectMessage(
         id: id,
         conversationId: conversationId,
@@ -362,16 +365,20 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
         content: command.content,
         msgType: command.msgType,
         status: 0,
-        createdAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
       );
+      _loadGeneration++;
       state = state.copyWith(
         messages: _ordered([...state.messages, sent]),
+        isLoading: false,
+        isLoadingOlder: false,
         isSending: false,
         clearSendError: true,
         clearFailedCommand: true,
       );
       return true;
     } catch (error) {
+      if (!mounted) return false;
       state = state.copyWith(
         isSending: false,
         sendError: friendlyErrorMessage(error),
@@ -484,37 +491,39 @@ final conversationListProvider =
     StateNotifierProvider<ConversationListNotifier, ConversationListState>((
       ref,
     ) {
-      final authenticated = ref.watch(
-        authNotifierProvider.select((state) => state.isAuthenticated),
-      );
+      final identity = ref.watch(authenticatedSessionIdentityProvider);
       return ConversationListNotifier(
         repository: ref.read(messageRepositoryProvider),
-        loadImmediately: authenticated,
+        loadImmediately: identity != null,
       );
     });
 
 final unreadSummaryProvider =
     StateNotifierProvider<UnreadSummaryNotifier, UnreadSummaryState>((ref) {
-      final authenticated = ref.watch(
-        authNotifierProvider.select((state) => state.isAuthenticated),
-      );
+      final identity = ref.watch(authenticatedSessionIdentityProvider);
       return UnreadSummaryNotifier(
         repository: ref.read(messageRepositoryProvider),
-        loadImmediately: authenticated,
+        loadImmediately: identity != null,
       );
     });
 
-final messageThreadProvider =
-    StateNotifierProvider.autoDispose.family<
-      MessageThreadNotifier,
-      MessageThreadState,
-      MessageThreadKey
-    >((ref, key) {
+final messageThreadProvider = StateNotifierProvider.autoDispose
+    .family<MessageThreadNotifier, MessageThreadState, MessageThreadKey>((
+      ref,
+      key,
+    ) {
+      final identity = ref.watch(authenticatedSessionIdentityProvider);
+      final auth = ref.read(authNotifierProvider);
+      final ownsThread =
+          identity != null &&
+          jsonInt64IsPositive(auth.userId ?? 0) &&
+          jsonInt64Id(auth.userId!) == key.currentUserId;
       return MessageThreadNotifier(
         repository: ref.read(messageRepositoryProvider),
         conversationId: key.conversationId,
         targetUserId: key.targetUserId,
         currentUserId: key.currentUserId,
+        loadImmediately: ownsThread,
         onMarkedRead: () {
           ref
               .read(conversationListProvider.notifier)

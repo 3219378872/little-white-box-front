@@ -18,7 +18,6 @@ void main() {
 
   tearDown(() {
     onSessionInvalid = null;
-    onAuthError = null;
   });
 
   test('认证失败时换发令牌并恰好重试一次', () async {
@@ -105,7 +104,7 @@ void main() {
 
   test('换发被网关拒绝时清空会话并触发 onSessionInvalid', () async {
     var sessionInvalidated = false;
-    onSessionInvalid = () async {
+    onSessionInvalid = (_) async {
       sessionInvalidated = true;
     };
     var refreshCalls = 0;
@@ -134,8 +133,10 @@ void main() {
     expect(await getTokens(), isNull);
   });
 
-  test('没有 refreshToken 时直接失败，不发起换发', () async {
+  test('没有 refreshToken 时直接失败并条件清除当前会话', () async {
     var refreshCalls = 0;
+    var sessionInvalidated = false;
+    onSessionInvalid = (_) async => sessionInvalidated = true;
     final client = _ScriptedClient((request) async {
       if (request.url.path.endsWith('/api/v1/auth/refresh')) {
         refreshCalls++;
@@ -157,8 +158,8 @@ void main() {
 
     expect(failure, isNotNull);
     expect(refreshCalls, 0);
-    final stored = await getTokens();
-    expect(stored?.accessToken, 'access-1');
+    expect(sessionInvalidated, isTrue);
+    expect(await getTokens(), isNull);
   });
 
   test('非认证错误不触发换发', () async {
@@ -189,7 +190,7 @@ void main() {
 
   test('网络异常不换发成功也不清空会话', () async {
     var sessionInvalidated = false;
-    onSessionInvalid = () async {
+    onSessionInvalid = (_) async {
       sessionInvalidated = true;
     };
     final client = _ScriptedClient((request) async {
@@ -246,14 +247,10 @@ void main() {
     expect(authHeaders, ['Bearer access-1', 'Bearer access-2']);
   });
 
-  test('换发网络失败时保留会话，且 apiCall 不触发 onAuthError', () async {
+  test('换发网络失败时保留会话', () async {
     var sessionInvalidated = false;
-    var authError = false;
-    onSessionInvalid = () async {
+    onSessionInvalid = (_) async {
       sessionInvalidated = true;
-    };
-    onAuthError = () async {
-      authError = true;
     };
     final client = _ScriptedClient((request) async {
       if (request.url.path.endsWith('/api/v1/auth/refresh')) {
@@ -278,14 +275,13 @@ void main() {
     }
 
     expect(sessionInvalidated, isFalse);
-    expect(authError, isFalse);
     final stored = await getTokens();
     expect(stored?.refreshToken, 'refresh-1');
   });
 
   test('换发服务暂时不可用时保留会话', () async {
     var sessionInvalidated = false;
-    onSessionInvalid = () async {
+    onSessionInvalid = (_) async {
       sessionInvalidated = true;
     };
     final client = _ScriptedClient((request) async {
@@ -305,6 +301,87 @@ void main() {
     expect(failure, contains('会话刷新失败'));
     expect(sessionInvalidated, isFalse);
     expect((await getTokens())?.refreshToken, 'refresh-1');
+  });
+
+  test('账号切换后旧刷新不与新账号共享 single-flight 且不能覆盖新令牌', () async {
+    final oldRefreshStarted = Completer<void>();
+    final releaseOldRefresh = Completer<void>();
+    var refreshCalls = 0;
+    final client = _ScriptedClient((request) async {
+      final body =
+          jsonDecode((request as http.Request).body) as Map<String, dynamic>;
+      refreshCalls++;
+      if (body['refreshToken'] == 'refresh-a') {
+        oldRefreshStarted.complete();
+        await releaseOldRefresh.future;
+        return _jsonResponse({
+          'token': 'access-a2',
+          'refreshToken': 'refresh-a2',
+        }, 200);
+      }
+      expect(body['refreshToken'], 'refresh-b');
+      return _jsonResponse({
+        'token': 'access-b2',
+        'refreshToken': 'refresh-b2',
+      }, 200);
+    });
+    setApiClient(client);
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-a', refreshToken: 'refresh-a'),
+    );
+    final oldSession = await getTokenSnapshot();
+
+    final oldRefresh = refreshSessionTokensFor(oldSession!);
+    await oldRefreshStarted.future;
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-b', refreshToken: 'refresh-b'),
+    );
+    final newSession = await getTokenSnapshot();
+
+    expect(
+      await refreshSessionTokensFor(newSession!),
+      SessionRefreshResult.refreshed,
+    );
+    releaseOldRefresh.complete();
+    expect(await oldRefresh, SessionRefreshResult.stale);
+
+    expect(refreshCalls, 2);
+    final stored = await getTokens();
+    expect(stored?.accessToken, 'access-b2');
+    expect(stored?.refreshToken, 'refresh-b2');
+  });
+
+  test('账号切换后旧请求的迟到 401 不能清除新会话', () async {
+    final requestStarted = Completer<void>();
+    final releaseResponse = Completer<void>();
+    final client = _ScriptedClient((request) async {
+      requestStarted.complete();
+      await releaseResponse.future;
+      return _jsonResponse({'code': 1004, 'message': 'token expired'}, 401);
+    });
+    setApiClient(client);
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-a', refreshToken: ''),
+    );
+
+    String? failure;
+    final oldRequest = apiGet(
+      '/api/v1/protected',
+      fail: (error) {
+        failure = error;
+      },
+    );
+    await requestStarted.future;
+    await setTokens(
+      buildStoredTokens(accessToken: 'access-b', refreshToken: 'refresh-b'),
+    );
+    releaseResponse.complete();
+    await oldRequest;
+
+    expect(failure, isNotNull);
+    final stored = await getTokens();
+    expect(stored?.accessToken, 'access-b');
+    expect(stored?.refreshToken, 'refresh-b');
   });
 }
 

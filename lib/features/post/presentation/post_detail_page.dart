@@ -22,6 +22,7 @@ final _postRepoProvider = Provider((ref) => PostRepository());
 
 final _postDetailProvider = FutureProvider.autoDispose
     .family<GetPostResp, String>((ref, postId) {
+      ref.watch(authSessionIdentityProvider);
       return ref.read(_postRepoProvider).getPostDetail(postId);
     });
 
