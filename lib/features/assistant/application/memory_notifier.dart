@@ -193,9 +193,7 @@ class MemoryListNotifier extends StateNotifier<MemoryListState> {
 }
 
 final memoryListProvider =
-    StateNotifierProvider.autoDispose<MemoryListNotifier, MemoryListState>((
-      ref,
-    ) {
+    StateNotifierProvider<MemoryListNotifier, MemoryListState>((ref) {
       final identityKey = ref.watch(assistantUserKeyProvider);
       final notifier = MemoryListNotifier(
         repository: ref.read(assistantRepositoryProvider),

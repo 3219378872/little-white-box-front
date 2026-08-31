@@ -1,10 +1,90 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xiaobaihe_app/features/assistant/application/assistant_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/application/memory_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_models.dart';
 
 import '../helpers/fake_assistant_source.dart';
 
 void main() {
+  test(
+    'provider keeps a failed command while temporarily unobserved',
+    () async {
+      final source = FakeAssistantSource()
+        ..addMemoryError = Exception('offline');
+      final container = ProviderContainer(
+        overrides: [
+          assistantRepositoryProvider.overrideWithValue(source),
+          assistantUserKeyProvider.overrideWithValue('user:7:1'),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final firstSubscription = container.listen<MemoryListState>(
+        memoryListProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      await expectLater(
+        container
+            .read(memoryListProvider.notifier)
+            .addRecord(target: 'memory', content: '喜欢美食'),
+        throwsException,
+      );
+      firstSubscription.close();
+      await Future<void>.delayed(Duration.zero);
+
+      final secondSubscription = container.listen<MemoryListState>(
+        memoryListProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      addTearDown(secondSubscription.close);
+      await container
+          .read(memoryListProvider.notifier)
+          .addRecord(target: 'memory', content: '喜欢美食');
+
+      expect(source.addMemoryRequestIds, hasLength(2));
+      expect(source.addMemoryRequestIds[1], source.addMemoryRequestIds[0]);
+    },
+  );
+
+  test('provider drops a failed command after an account switch', () async {
+    final source = FakeAssistantSource()..addMemoryError = Exception('offline');
+    final identityProvider = StateProvider<String>((_) => 'user:7:1');
+    final container = ProviderContainer(
+      overrides: [
+        assistantRepositoryProvider.overrideWithValue(source),
+        assistantUserKeyProvider.overrideWith(
+          (ref) => ref.watch(identityProvider),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final subscription = container.listen<MemoryListState>(
+      memoryListProvider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(subscription.close);
+
+    await expectLater(
+      container
+          .read(memoryListProvider.notifier)
+          .addRecord(target: 'memory', content: '喜欢美食'),
+      throwsException,
+    );
+    final firstNotifier = container.read(memoryListProvider.notifier);
+    container.read(identityProvider.notifier).state = 'user:8:2';
+    await Future<void>.delayed(Duration.zero);
+    final secondNotifier = container.read(memoryListProvider.notifier);
+    await secondNotifier.addRecord(target: 'memory', content: '喜欢美食');
+
+    expect(secondNotifier, isNot(same(firstNotifier)));
+    expect(source.addMemoryRequestIds, hasLength(2));
+    expect(source.addMemoryRequestIds[1], isNot(source.addMemoryRequestIds[0]));
+  });
+
   test(
     'add retry reuses requestId and preserves changeId after reload',
     () async {

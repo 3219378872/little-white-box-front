@@ -217,8 +217,10 @@ f21b68795233b34ee07ffa5c574bb8f06add9ac6），帖子写入走 `/api/v2/post*`，
   MEMORY/USER、容量 used/limit，支持 content+version 写入与 undo。Watch 仅任务 CRUD，无命中
   收件箱。帖子详情盯梢未授权引导 `/messages/assistant`（FX-081/082/086）。
 - Memory add/replace/remove 以完整命令指纹复用稳定 requestId；成功后才清理待重试命令。列表刷新保留
-  `lastChangeId`，undo 失败保留入口，成功才清除。Watch update/delete 发送 task `expectedVersion`，
-  update 直接采用响应 task/version；`409/2007` 冲突先刷新任务列表并保留冲突错误。
+  `lastChangeId`，undo 失败保留入口，成功才清除。Memory provider 在当前认证 session 内常驻，避免
+  对话框和错误提示造成的短暂无监听窗口丢失待重试 requestId；它仍依赖 session identity，换号或登出
+  会重建并清空旧命令。Watch update/delete 发送 task `expectedVersion`，update 直接采用响应
+  task/version；`409/2007` 冲突先刷新任务列表并保留冲突错误。
 - `POST /assistant/messages` 接受 started/redirected/steered/queued；忙碌时仍可发送；显式 Stop
   才 `POST /assistant/runs/:id/cancel`。无新会话入口；清历史不删除 MEMORY/USER/Watch（FX-058/089～093）。
 - Assistant、consent、thread、Memory 与 Watch provider 以认证 `userId` 为依赖键；换号或登出会销毁
