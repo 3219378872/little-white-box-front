@@ -16,6 +16,7 @@ import '../application/assistant_notifier.dart';
 import '../application/assistant_thread_notifier.dart';
 import '../data/assistant_models.dart';
 import 'assistant_runtime_widgets.dart';
+import 'streaming_markdown.dart';
 
 final RegExp _citationMarkerPattern = RegExp(r'\[[A-Za-z][A-Za-z0-9_-]*:\d+\]');
 final RegExp _fullWidthMarkerPattern = RegExp('［post:[^］\\n]*］');
@@ -68,6 +69,8 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   var _loadedIdentity = '';
+  var _pinnedToBottom = true;
+  var _scrollScheduled = false;
 
   void _scheduleLoad(String identity) {
     if (identity.isEmpty) {
@@ -288,14 +291,32 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     return widget.onOpenSource != null || source.isVerifiedPost;
   }
 
-  void _scheduleScroll() {
+  void _onRevealed() {
+    _schedulePinScroll(jump: true);
+  }
+
+  void _onStructuralMessageChange() {
+    _schedulePinScroll(jump: false);
+  }
+
+  void _schedulePinScroll({required bool jump}) {
+    if (!_pinnedToBottom || _scrollScheduled) return;
+    _scrollScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-      );
+      _scrollScheduled = false;
+      if (!mounted || !_pinnedToBottom || !_scrollController.hasClients) {
+        return;
+      }
+      final max = _scrollController.position.maxScrollExtent;
+      if (jump) {
+        _scrollController.jumpTo(max);
+      } else {
+        _scrollController.animateTo(
+          max,
+          duration: const Duration(milliseconds: 80),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
@@ -316,7 +337,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
               previous.messages.isEmpty ||
               previous.messages.last.id != next.messages.last.id ||
               !identical(previous.messages.last, next.messages.last))) {
-        _scheduleScroll();
+        _onStructuralMessageChange();
       }
     });
     ref.listen<AssistantThreadState>(assistantThreadProvider, (previous, next) {
@@ -395,21 +416,40 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                     message: '开始新的对话',
                     icon: FLucideIcons.sparkles,
                   )
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
-                    itemCount: state.messages.length,
-                    itemBuilder: (context, index) => _AssistantMessageBubble(
-                      message: state.messages[index],
-                      canOpenSource: _canOpen,
-                      onOpenSource: _openSource,
-                      onConfirm: (callId, approved) => ref
-                          .read(assistantNotifierProvider.notifier)
-                          .respondToConfirmation(callId, approved),
-                      onDislikeCard: _dislikeCard,
-                      onUndo: (changeId) => ref
-                          .read(assistantNotifierProvider.notifier)
-                          .undoMemoryChange(changeId),
+                : NotificationListener<UserScrollNotification>(
+                    onNotification: (notification) {
+                      if (!_scrollController.hasClients) return false;
+                      final pos = _scrollController.position;
+                      _pinnedToBottom =
+                          (pos.maxScrollExtent - pos.pixels) <= 48;
+                      return false;
+                    },
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
+                      itemCount: state.messages.length,
+                      itemBuilder: (context, index) {
+                        final message = state.messages[index];
+                        final runKey = 'run-${jsonInt64Id(state.activeRunId)}';
+                        final isStreaming =
+                            message.isStreaming ||
+                            (state.isStreaming && message.id == runKey);
+                        return _AssistantMessageBubble(
+                          key: ValueKey(message.id),
+                          message: message,
+                          isStreaming: isStreaming,
+                          onRevealed: _onRevealed,
+                          canOpenSource: _canOpen,
+                          onOpenSource: _openSource,
+                          onConfirm: (callId, approved) => ref
+                              .read(assistantNotifierProvider.notifier)
+                              .respondToConfirmation(callId, approved),
+                          onDislikeCard: _dislikeCard,
+                          onUndo: (changeId) => ref
+                              .read(assistantNotifierProvider.notifier)
+                              .undoMemoryChange(changeId),
+                        );
+                      },
                     ),
                   ),
           ),
@@ -608,6 +648,8 @@ String _toolStatusLabel(AssistantToolStatus status) {
 
 class _AssistantMessageBubble extends StatelessWidget {
   final AssistantMessage message;
+  final bool isStreaming;
+  final VoidCallback? onRevealed;
   final bool Function(AssistantSourceCard) canOpenSource;
   final ValueChanged<AssistantSourceCard> onOpenSource;
   final void Function(String callId, bool approved)? onConfirm;
@@ -615,7 +657,10 @@ class _AssistantMessageBubble extends StatelessWidget {
   final ValueChanged<Object>? onUndo;
 
   const _AssistantMessageBubble({
+    super.key,
     required this.message,
+    required this.isStreaming,
+    this.onRevealed,
     required this.canOpenSource,
     required this.onOpenSource,
     this.onConfirm,
@@ -677,24 +722,35 @@ class _AssistantMessageBubble extends StatelessWidget {
                   if (message.toolSteps.isNotEmpty) ...[
                     for (final step in message.toolSteps)
                       _ToolStepEntry(step: step, onConfirm: onConfirm),
-                    if (bodyText.isNotEmpty || message.isStreaming)
+                    if (bodyText.isNotEmpty || isStreaming)
                       const SizedBox(height: 8),
                   ],
-                  if (bodyText.isNotEmpty)
-                    own
-                        ? Text(
-                            bodyText,
-                            style: theme.typography.body.md.copyWith(
-                              color: foreground,
-                            ),
-                          )
-                        : GptMarkdown(
-                            bodyText,
-                            style: theme.typography.body.md.copyWith(
-                              color: foreground,
-                            ),
-                          ),
-                  if (message.isStreaming) ...[
+                  if (own && bodyText.isNotEmpty)
+                    Text(
+                      bodyText,
+                      style: theme.typography.body.md.copyWith(
+                        color: foreground,
+                      ),
+                    )
+                  else if (!own && isStreaming)
+                    StreamingMarkdownBody(
+                      key: ValueKey(message.id),
+                      committedText: bodyText,
+                      isStreaming: true,
+                      style: theme.typography.body.md.copyWith(
+                        color: foreground,
+                      ),
+                      foreground: foreground,
+                      onRevealed: onRevealed,
+                    )
+                  else if (!own && bodyText.isNotEmpty)
+                    GptMarkdown(
+                      bodyText,
+                      style: theme.typography.body.md.copyWith(
+                        color: foreground,
+                      ),
+                    ),
+                  if (isStreaming) ...[
                     if (bodyText.isNotEmpty) const SizedBox(height: 8),
                     const FCircularProgress(size: .sm),
                   ],

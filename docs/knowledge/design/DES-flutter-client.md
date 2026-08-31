@@ -47,6 +47,7 @@ tracks:
   - FX-091
   - FX-092
   - FX-093
+  - FX-094
   - FQ-001
   - FQ-002
   - FQ-003
@@ -55,7 +56,7 @@ tracks:
   - FQ-006
   - FQ-007
   - FQ-008
-updated_at: 2026-08-30
+updated_at: 2026-08-31
 ---
 
 # Flutter 内容社区客户端设计
@@ -201,6 +202,11 @@ SSE：
 - 来源只渲染 `source_card`。`kind=post` 且 `authorityId` 为正才可打开帖子；网页等以类型标识
   展示。禁止从 Markdown 解析来源。推荐类来源卡可提交 `POST /assistant/recommend/feedback`
   （FX-051/084/087）。`memory_changed` 不计未读，提供 undo（FX-085）。
+- 展示层揭示游标（FX-094）：`StreamingMarkdownBody` 只在 presentation 持有 display buffer，
+  `AssistantMessage.text` 仍是协议 committed。基础 28 字素/秒；committed 增长时锁定
+  `max(28, backlog/0.3s)` 线性追赶到清零。`replaySnap` 仅 `initState` 且初始 committed ≥ 80。
+  `response_reset` 仅 committed 被清空时 120ms 淡出。双层 `GptMarkdown`（未闭合代码围栏走 Text）。
+  钉住底部只听用户手势；字素揭示同帧 `jumpTo`。`disableAnimations` 时瞬间对齐 committed。
 
 记忆与 Watch：
 
@@ -278,6 +284,7 @@ Feed 使用双列卡片、私信使用左列表右线程，Feed/私信内容宽�
 | `FX-052`～`FX-058` | 消息页固定线程、授权、附件、工具进度、确认卡片、忙碌 redirect/steer/FIFO |
 | `FX-059`、`FX-080`～`FX-087` | 未知 SSE 忽略、consent 版本、MEMORY/USER、Watch CRUD、来源卡、memory_changed、盯梢、推荐反馈 |
 | `FX-088`～`FX-093` | 并行拉取与 30s 轮询、异步 POST disposition、SSE 续流、Stop、清历史、线程已读 |
+| `FX-094` | 展示层揭示游标：延迟揭示已接收 token，终态对齐协议正文 |
 | `FX-060`～`FX-062` | 可见性测量、事件所有权、持久队列 |
 | `FX-070` | 共享 transport 与 Mock router |
 | `FQ-001`～`FQ-008` | 分层、适配、UI 系统、异步状态、测试和知识治理 |

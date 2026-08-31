@@ -6,13 +6,13 @@ status: approved
 owner: human
 upstream:
   - INT-content-community-client
-updated_at: 2026-08-30
+updated_at: 2026-08-31
 approved_at: 2026-08-13
 ---
 
 # 客户端体验与接口规格
 
-本规格已于 2026-08-13 获得人类明确批准。2026-08-30 按当前对话明确授权，删除新会话入口（FX-092）。
+本规格已于 2026-08-13 获得人类明确批准。2026-08-31 按当前对话明确批准 FX-094（流式揭示）。2026-08-30 按当前对话明确授权，删除新会话入口（FX-092）。
 2026-08-29 按当前对话明确授权，重写 Assistant 条款
 （保留 FX-050～059、FX-080～093 编号，替换语义），删除模式开关和 Watch 命中收件箱要求。接口
 语义以同级后端仓库 `SPEC-assistant-agent`、`SPEC-agent-memory`、`SPEC-agent-watch` 与当前
@@ -115,6 +115,10 @@ approved_at: 2026-08-13
   MEMORY/USER 或 Watch。
 - `FX-093`：进入助手线程后 `POST /assistant/thread/read` 标记已读；已读失败可独立重试。Watch 主动
   消息计入未读，`memory_changed` 不计未读。
+- `FX-094`：进行中的助手回答可以把已接收 token 做延迟揭示；`done` / `error` / 显式取消 /
+  `response_reset` 之后，屏幕正文必须等于该 run 的协议提交正文。打开中途 run 或按 seq 重放不得把
+  仍有效的已提交前缀重新打字。揭示缓冲不得持久化，也不得改变 Stop、历史加载或 `done` 快照。当
+  `MediaQuery.disableAnimations` 为 true 时，揭示关闭。
 
 ## 行为反馈
 

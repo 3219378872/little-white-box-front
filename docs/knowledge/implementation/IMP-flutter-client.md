@@ -46,6 +46,7 @@ tracks:
   - FX-091
   - FX-092
   - FX-093
+  - FX-094
   - FQ-001
   - FQ-002
   - FQ-003
@@ -55,6 +56,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-assistant-stream-render-2026-08-31
   - EVD-assistant-single-session-2026-08-30
   - EVD-assistant-stream-reset-2026-08-30
   - EVD-assistant-isolation-2026-08-30
@@ -84,8 +86,8 @@ evidence:
   - EVD-client-relative-api-2026-08-18
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
-updated_at: 2026-08-30
-observed_commit: 8d4f6dd4da31f10fade15776042641e282531187
+updated_at: 2026-08-31
+observed_commit: 27197709a11eccdfe016ffa7e9d0c825ed363617
 ---
 
 # Flutter 客户端实现映射
@@ -153,6 +155,11 @@ observed_commit: 8d4f6dd4da31f10fade15776042641e282531187
 - Assistant 回答正文经剥离后用 `gpt_markdown 1.1.8` 渲染（标题、列表、加粗、代码块、表格等），
   沿用 Forui 排版与前景色；用户消息保持纯 Text。Forui 无 Markdown 组件故新增该依赖；链接暂不
   外跳（未接 `onLinkTap`）。
+- 流式回答由 `StreamingMarkdownBody` 按字素揭示 committed 前缀（FX-094）；`AssistantMessage.text`
+  仍是协议正文，揭示缓冲不进 notifier。稳定前缀与尾巴双层 `GptMarkdown`，仅未闭合代码围栏走等宽
+  Text。`!isStreaming` 不挂 Ticker，直接 `GptMarkdown`。
+- 助手列表钉住底部只听 `UserScrollNotification`；字素揭示经 `onRevealed` 同帧 `jumpTo`。内容变高
+  不 unpin。已删除按 last-message identity 重启 180ms `animateTo` 的 `_scheduleScroll`。
 - 帖子图片通过 multipart 并行上传，任一失败时阻止帖子写入；图片选择上限为 9。
 - 页面与数据层在真实/Mock 模式共用。Mock router 按当前 `gateway.api` 分发：成功体为类型 payload，
   错误为 `{code, message}` 加 `errx` HTTP 状态，JWT 路由要求 `Bearer`，可选鉴权写 `x-auth-state`，
@@ -228,7 +235,7 @@ observed_commit: 8d4f6dd4da31f10fade15776042641e282531187
 | 搜索 | aligned | 已建模并展示部分降级；搜索帖子带作者身份并在结果中展示 |
 | 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐；评论楼中楼按需展开加载（内嵌预览 + replies 分页接口）见 [EVD-comment-replies-2026-08-22](../evidence/EVD-comment-replies-2026-08-22.md)，接口语义缺口登记于后端仓 PROP-20260822-comment-reply-thread（open） |
 | 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |
-| Assistant | partial | 客户端自有边界已补齐账号隔离、SSE cursor/generation、稳定重试、`streamId`/`response_reset` attempt fencing、真实失败态、最新消息分页、memory undo、授权撤销与 Watch 增量刷新；`EVD-assistant-stream-reset-2026-08-30` 仅覆盖 repository/notifier 单测，真实网关、浏览器换号/断流与真机图片上传证据待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
+| Assistant | partial | 客户端自有边界已补齐账号隔离、SSE cursor/generation、稳定重试、`streamId`/`response_reset` attempt fencing、展示层字素揭示（FX-094）、真实失败态、最新消息分页、memory undo、授权撤销与 Watch 增量刷新；`EVD-assistant-stream-reset-2026-08-30` 覆盖 repository/notifier 单测，`EVD-assistant-stream-render-2026-08-31` 覆盖揭示 widget/Dart 测试，真实网关、浏览器换号/断流与真机图片上传证据待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
 | 行为反馈 | aligned | 客户端不再上报 like/unlike |
 | UI/工程分层 | aligned | 详见 [Forui 实现指南](IMP-forui-ui.md) |
 | Mock/真实同路径 | aligned | transport 注入；Mock HTTP 契约对齐 `gateway.api`；真实网关仍需独立证据 |
