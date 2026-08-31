@@ -43,16 +43,20 @@ changeId 在刷新与 undo 失败后的可恢复性；Watch 更新/删除采用 
 
 在前端 `task/audit-remediation` 工作树实际执行：
 
+实现提交 `fd31aa39ce428e2dbc5bc4af395897c5cf6b04f8` 已 rebase 到前端 `main`
+`63966e26b9a97980abe4a63c7f55dd77423432b3`，冲突解决保留主线的 grapheme 分块、`streamId` 与
+reset 状态机，并叠加本次 session fencing、Watch CAS 与 Memory 幂等改动。rebase 后重新执行：
+
 ```text
 make analyze
 # No issues found
 
 make test
-# 357 tests passed
+# 396 tests passed
 
 make test-coverage
-# 356 Flutter tests + 4 Python tests passed
-# handwritten coverage: 6053/7654 lines (79.1%), threshold 70%
+# 396 Flutter tests + 4 Python tests passed
+# total line coverage: 6355/7995 lines (79.5%), threshold 70%
 
 flutter test test/features/assistant/data/assistant_repository_test.dart
 # 12 tests passed（含补充的自定义 SSE token 与持久会话隔离）
@@ -61,7 +65,7 @@ python3 tools/test_sync_gateway_sdk.py
 # 3 tests passed
 
 make knowledge-check
-# OK (36 formal documents, 47 requirements, 78 local links)
+# OK (38 formal documents, 48 requirements, 80 local links)
 ```
 
 `vendor/sdk_source/data/gateway.dart` 与 `lib/sdk/data/gateway.dart` 经逐字比较一致，`git diff --check`
