@@ -56,6 +56,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-assistant-reset-snapshot-2026-08-31
   - EVD-assistant-stream-render-2026-08-31
   - EVD-assistant-single-session-2026-08-30
   - EVD-assistant-stream-reset-2026-08-30
@@ -146,7 +147,9 @@ observed_commit: 27197709a11eccdfe016ffa7e9d0c825ed363617
 - Assistant repository 校验 1～2,000 字符、`POST /assistant/messages` 的 disposition，以及
   `GET /assistant/runs/:id/events` 的 SSE 帧、`Last-Event-ID`/`afterSeq` 续流和终止事件；
   notifier 通过 run cursor + connection generation 隔离陈旧流和重复 seq，并以 `streamId`/
-  `response_reset` 归属和清理 model attempt；redirect/steer/queued
+  `response_reset` 归属和清理 model attempt。匹配 reset 时若临时正文非空，先拆成
+  `run-{id}-{streamId}` 已提交气泡再清空 run 临时正文，避免 `present_sources` 等误 reset
+  吞掉已展示回答；同 stream 重放不重复拆分。redirect/steer/queued
   继续消费同一 run，不从 seq=0 重放。显式 Stop 只有 cancel 成功才落本地取消态，断流不会标记正常完成。
 - Assistant 气泡在展示层剥离回答文本中的引用残留（仅 assistant 消息，用户消息原样显示）：半角
   `[type:id]` 与全角 `［post:id］` 标记，以及后端为 ASST-010 追加的 `Community sources` /

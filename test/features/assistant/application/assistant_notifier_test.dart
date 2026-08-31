@@ -125,12 +125,67 @@ void main() {
       );
       await pumpEventQueue();
 
-      final answer = notifier.state.messages.last;
+      final assistants = notifier.state.messages
+          .where((message) => message.role == AssistantMessageRole.assistant)
+          .toList();
+      expect(assistants, hasLength(2));
+      expect(assistants.first.id, 'run-21-attempt-1');
+      expect(assistants.first.text, 'discard me');
+      expect(assistants.first.isStreaming, isFalse);
+      expect(assistants.first.sources, isEmpty);
+      final answer = assistants.last;
+      expect(answer.id, 'run-21');
       expect(answer.text, 'final answer');
       expect(answer.sources.single.authorityId, '7');
       expect(answer.isStreaming, isFalse);
     },
   );
+
+  test('response reset snapshot is idempotent for the same stream', () async {
+    final controller = StreamController<AssistantRunEvent>.broadcast();
+    addTearDown(controller.close);
+    final repository = FakeAssistantSource()
+      ..eventsHandler = ({required runId, required afterSeq}) =>
+          controller.stream;
+    final notifier = AssistantNotifier(
+      repository: repository,
+      createRequestId: () => 'request-1',
+    );
+
+    expect(await notifier.send('hello'), isTrue);
+    controller.add(
+      const AssistantRunEvent(
+        type: AssistantEventType.token,
+        text: 'kept answer',
+        streamId: 'attempt-1',
+        seq: 1,
+      ),
+    );
+    controller.add(
+      const AssistantRunEvent(
+        type: AssistantEventType.responseReset,
+        streamId: 'attempt-1',
+        seq: 2,
+      ),
+    );
+    controller.add(
+      const AssistantRunEvent(
+        type: AssistantEventType.responseReset,
+        streamId: 'attempt-1',
+        seq: 3,
+      ),
+    );
+    await pumpEventQueue();
+
+    final assistants = notifier.state.messages
+        .where((message) => message.role == AssistantMessageRole.assistant)
+        .toList();
+    expect(assistants, hasLength(2));
+    expect(assistants.first.id, 'run-21-attempt-1');
+    expect(assistants.first.text, 'kept answer');
+    expect(assistants.last.id, 'run-21');
+    expect(assistants.last.text, isEmpty);
+  });
 
   test(
     'a different stream is ignored until the active stream is reset',

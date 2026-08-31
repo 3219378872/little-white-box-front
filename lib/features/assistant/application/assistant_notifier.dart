@@ -116,6 +116,7 @@ class AssistantMessage {
   bool get isMemoryChanged => kind == 'memory_changed';
 
   AssistantMessage copyWith({
+    String? id,
     String? text,
     List<AssistantSourceCard>? sources,
     List<AssistantToolStep>? toolSteps,
@@ -129,7 +130,7 @@ class AssistantMessage {
     bool? memoryUndone,
   }) {
     return AssistantMessage(
-      id: id,
+      id: id ?? this.id,
       role: role,
       kind: kind,
       text: text ?? this.text,
@@ -725,11 +726,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         if (!_acceptReset(event)) return;
         state = state.copyWith(
           sessionId: sessionId,
-          messages: _updateMessage(
-            responseId,
-            (message) => message.copyWith(text: ''),
-            createIfMissing: true,
-          ),
+          messages: _commitResetSnapshot(responseId, event.streamId),
           isStreaming: true,
           isQueued: false,
         );
@@ -1010,6 +1007,40 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         else
           message,
     ];
+  }
+
+  List<AssistantMessage> _commitResetSnapshot(
+    String responseId,
+    String streamId,
+  ) {
+    final snapshotId = '$responseId-${streamId.trim()}';
+    final messages = _ensureAssistant(responseId);
+    if (messages.any((message) => message.id == snapshotId)) {
+      return updateAll(
+        messages,
+        responseId,
+        (message) => message.copyWith(text: ''),
+      );
+    }
+    final next = <AssistantMessage>[];
+    for (final message in messages) {
+      if (message.id != responseId) {
+        next.add(message);
+        continue;
+      }
+      if (message.text.isNotEmpty) {
+        next.add(
+          message.copyWith(
+            id: snapshotId,
+            isStreaming: false,
+            toolSteps: const [],
+            sources: const [],
+          ),
+        );
+      }
+      next.add(message.copyWith(text: ''));
+    }
+    return next;
   }
 
   List<AssistantMessage> _updateMessage(

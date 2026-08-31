@@ -5,6 +5,7 @@
 
 当前页面：
 
+- [EVD-assistant-reset-snapshot-2026-08-31](EVD-assistant-reset-snapshot-2026-08-31.md)
 - [EVD-assistant-stream-render-2026-08-31](EVD-assistant-stream-render-2026-08-31.md)
 - [EVD-assistant-single-session-2026-08-30](EVD-assistant-single-session-2026-08-30.md)
 - [EVD-assistant-stream-reset-2026-08-30](EVD-assistant-stream-reset-2026-08-30.md)
