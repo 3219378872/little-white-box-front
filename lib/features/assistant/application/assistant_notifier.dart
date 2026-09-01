@@ -726,7 +726,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         if (!_acceptReset(event)) return;
         state = state.copyWith(
           sessionId: sessionId,
-          messages: _commitResetSnapshot(responseId, event.streamId),
+          messages: _clearResetResponse(responseId),
           isStreaming: true,
           isQueued: false,
         );
@@ -1009,38 +1009,12 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     ];
   }
 
-  List<AssistantMessage> _commitResetSnapshot(
-    String responseId,
-    String streamId,
-  ) {
-    final snapshotId = '$responseId-${streamId.trim()}';
-    final messages = _ensureAssistant(responseId);
-    if (messages.any((message) => message.id == snapshotId)) {
-      return updateAll(
-        messages,
-        responseId,
-        (message) => message.copyWith(text: ''),
-      );
-    }
-    final next = <AssistantMessage>[];
-    for (final message in messages) {
-      if (message.id != responseId) {
-        next.add(message);
-        continue;
-      }
-      if (message.text.isNotEmpty) {
-        next.add(
-          message.copyWith(
-            id: snapshotId,
-            isStreaming: false,
-            toolSteps: const [],
-            sources: const [],
-          ),
-        );
-      }
-      next.add(message.copyWith(text: ''));
-    }
-    return next;
+  List<AssistantMessage> _clearResetResponse(String responseId) {
+    return updateAll(
+      _ensureAssistant(responseId),
+      responseId,
+      (message) => message.copyWith(text: ''),
+    );
   }
 
   List<AssistantMessage> _updateMessage(
