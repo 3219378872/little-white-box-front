@@ -56,7 +56,7 @@ tracks:
   - FQ-006
   - FQ-007
   - FQ-008
-updated_at: 2026-08-31
+updated_at: 2026-09-01
 ---
 
 # Flutter 内容社区客户端设计
@@ -205,9 +205,9 @@ SSE：
 - 解析 `run_started|token|response_reset|tool_call|tool_result|confirm_required|source_card|memory_changed|done|error`。
   notifier 为当前 run 保存 active streamId：首个带归属的 token 选中 stream，只有同 stream 后续 token
   可追加；匹配的 response_reset 清空该 run 临时正文并释放 active stream，下一 attempt 的首 token
-  再选中。若 reset 时临时正文非空，先按 `run-{id}-{streamId}` 拆成独立已提交气泡（同 stream 重放
-  不重复），工具行与来源卡留在 run 气泡。旧连接、旧 stream、重复 seq 与 reset 后迟到 token
-  均不得改变正文；历史无 streamId token 仅在尚未建立新式 stream 时按兼容路径消费。
+  再选中。被 reset 的 attempt 正文不生成独立气泡或历史快照；工具行与来源卡留在 run 气泡，最终
+  只展示获胜 attempt。旧连接、旧 stream、重复 seq 与 reset 后迟到 token 均不得改变正文；历史
+  无 streamId token 仅在尚未建立新式 stream 时按兼容路径消费。
   工具行与确认卡片按 callId 更新；确认调用 `POST /assistant/runs/:id/confirm`
   `{callId, approved}` 后立即不可交互（FX-056/057）。
 - 来源只渲染 `source_card`。`kind=post` 且 `authorityId` 为正才可打开帖子；网页等以类型标识

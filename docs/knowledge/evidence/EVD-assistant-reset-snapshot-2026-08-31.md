@@ -2,17 +2,21 @@
 id: EVD-assistant-reset-snapshot-2026-08-31
 layer: evidence
 title: Assistant reset 拆出已提交正文 2026-08-31
-status: partial
+status: superseded
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-090
-updated_at: 2026-08-31
+updated_at: 2026-09-01
 observed_commit: b2bcf977bf681dc44c9ad2648a1c23628ba99186
 ---
 
 # Assistant reset 拆出已提交正文 2026-08-31
+
+> 此观察已由 [EVD-assistant-strict-reset-2026-09-01](EVD-assistant-strict-reset-2026-09-01.md)
+> 取代。当前产品决策是严格丢弃被 reset attempt 的正文，不再生成独立快照气泡；下文保留当时结果
+> 供历史追溯。
 
 ## 范围与环境
 

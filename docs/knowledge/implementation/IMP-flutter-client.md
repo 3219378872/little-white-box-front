@@ -56,6 +56,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-assistant-strict-reset-2026-09-01
   - EVD-audit-remediation-client-2026-08-31
   - EVD-assistant-reset-snapshot-2026-08-31
   - EVD-assistant-stream-render-2026-08-31
@@ -88,8 +89,8 @@ evidence:
   - EVD-client-relative-api-2026-08-18
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
-updated_at: 2026-08-31
-observed_commit: fd31aa39ce428e2dbc5bc4af395897c5cf6b04f8
+updated_at: 2026-09-01
+observed_commit: 47062ba91e1f07ed6923320389d5877be53e1578
 ---
 
 # Flutter 客户端实现映射
@@ -102,7 +103,7 @@ f21b68795233b34ee07ffa5c574bb8f06add9ac6），帖子写入走 `/api/v2/post*`，
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是 `fd31aa39ce428e2dbc5bc4af395897c5cf6b04f8`。
+本页观察基准是 `47062ba91e1f07ed6923320389d5877be53e1578`。
 
 ## 代码入口
 
@@ -148,10 +149,10 @@ f21b68795233b34ee07ffa5c574bb8f06add9ac6），帖子写入走 `/api/v2/post*`，
 - Assistant repository 校验 1～2,000 字符、`POST /assistant/messages` 的 disposition，以及
   `GET /assistant/runs/:id/events` 的 SSE 帧、`Last-Event-ID`/`afterSeq` 续流和终止事件；
   notifier 通过 run cursor + connection generation 隔离陈旧流和重复 seq，并以 `streamId`/
-  `response_reset` 归属和清理 model attempt。匹配 reset 时若临时正文非空，先拆成
-  `run-{id}-{streamId}` 已提交气泡再清空 run 临时正文，避免 `present_sources` 等误 reset
-  吞掉已展示回答；同 stream 重放不重复拆分。redirect/steer/queued
-  继续消费同一 run，不从 seq=0 重放。显式 Stop 只有 cancel 成功才落本地取消态，断流不会标记正常完成。
+  `response_reset` 归属和清理 model attempt。匹配 reset 只清空 run 临时正文并 retire 旧 stream，
+  不为失败 attempt 创建气泡或快照；工具行与来源卡保留在 run 气泡，下一 stream 只写入获胜正文。
+  redirect/steer/queued 继续消费同一 run，不从 seq=0 重放。显式 Stop 只有 cancel 成功才落本地取消态，
+  断流不会标记正常完成。
 - Assistant 气泡在展示层剥离回答文本中的引用残留（仅 assistant 消息，用户消息原样显示）：半角
   `[type:id]` 与全角 `［post:id］` 标记，以及后端为 ASST-010 追加的 `Community sources` /
   `SOURCE` / `COMMUNITY_CONTENT_JSON` 证据行。可跳转来源按钮由结构化 source 事件渲染，同时显示
@@ -249,7 +250,7 @@ f21b68795233b34ee07ffa5c574bb8f06add9ac6），帖子写入走 `/api/v2/post*`，
 | 搜索 | aligned | 已建模并展示部分降级；搜索帖子带作者身份并在结果中展示 |
 | 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐；评论楼中楼按需展开加载（内嵌预览 + replies 分页接口）见 [EVD-comment-replies-2026-08-22](../evidence/EVD-comment-replies-2026-08-22.md)，接口语义缺口登记于后端仓 PROP-20260822-comment-reply-thread（open） |
 | 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |
-| Assistant | partial | 客户端自有边界已补齐 session revision/凭据快照、账号缓存隔离、SSE cursor/generation、稳定重试、`streamId`/`response_reset` attempt fencing、展示层字素揭示（FX-094）、Memory 写入幂等、Watch version CAS、真实失败态、最新消息分页、memory undo、授权撤销与 Watch 增量刷新；`EVD-assistant-stream-reset-2026-08-30` 覆盖 repository/notifier 单测，`EVD-assistant-stream-render-2026-08-31` 覆盖揭示 widget/Dart 测试，`EVD-audit-remediation-client-2026-08-31` 已在真实同源 release 浏览器覆盖桌面换号、Memory 503 稳定重试/undo 与 Watch `409/2007` 收敛；浏览器 SSE 断流/重连与真机图片上传仍待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
+| Assistant | partial | 客户端自有边界已补齐 session revision/凭据快照、账号缓存隔离、SSE cursor/generation、稳定重试、严格 `streamId`/`response_reset` attempt fencing、展示层字素揭示（FX-094）、Memory 写入幂等、Watch version CAS、真实失败态、最新消息分页、memory undo、授权撤销与 Watch 增量刷新；`EVD-assistant-strict-reset-2026-09-01` 证明 reset 后只有一个 run 气泡且最终正文只含获胜 attempt，`EVD-assistant-stream-render-2026-08-31` 覆盖揭示 widget/Dart 测试，`EVD-audit-remediation-client-2026-08-31` 已在真实同源 release 浏览器覆盖桌面换号、Memory 503 稳定重试/undo 与 Watch `409/2007` 收敛；浏览器 SSE 断流/重连与真机图片上传仍待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
 | 行为反馈 | aligned | 客户端不再上报 like/unlike |
 | UI/工程分层 | aligned | 详见 [Forui 实现指南](IMP-forui-ui.md) |
 | Mock/真实同路径 | aligned | transport 注入；Mock HTTP 契约对齐 `gateway.api`；账号切换、Memory 与 Watch 关键写路径已有独立真实同源浏览器证据，其余契约仍按各证据页边界解释 |
@@ -264,5 +265,6 @@ f21b68795233b34ee07ffa5c574bb8f06add9ac6），帖子写入走 `/api/v2/post*`，
 与
 [EVD-client-ui-align-2026-08-20](../evidence/EVD-client-ui-align-2026-08-20.md)、
 [EVD-assistant-hermes-2026-08-29](../evidence/EVD-assistant-hermes-2026-08-29.md)、
+[EVD-assistant-strict-reset-2026-09-01](../evidence/EVD-assistant-strict-reset-2026-09-01.md)、
 [EVD-assistant-isolation-2026-08-30](../evidence/EVD-assistant-isolation-2026-08-30.md)、
 [EVD-assistant-single-session-2026-08-30](../evidence/EVD-assistant-single-session-2026-08-30.md)。
