@@ -29,6 +29,7 @@ class _VerifyCodeButtonState extends State<VerifyCodeButton> {
     setState(() => _isSending = true);
     try {
       await widget.onSend();
+      if (!mounted) return;
       _startCountdown();
     } catch (e) {
       if (mounted) {
@@ -55,7 +56,7 @@ class _VerifyCodeButtonState extends State<VerifyCodeButton> {
   Widget build(BuildContext context) {
     final enabled = _countdown == 0 && !_isSending;
     return SizedBox(
-      width: 112,
+      width: 128,
       child: FButton(
         variant: .outline,
         onPress: enabled ? _handleSend : null,

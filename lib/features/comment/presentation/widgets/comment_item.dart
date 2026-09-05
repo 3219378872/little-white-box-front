@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+
+import '../../../../core/formatters/time_formatter.dart';
 import '../../../../core/widgets/cached_avatar.dart';
 import '../../../../sdk/data/gateway.dart';
 
@@ -53,7 +55,9 @@ class CommentItemWidget extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      expanded ? FLucideIcons.chevronUp : FLucideIcons.chevronDown,
+                      expanded
+                          ? FLucideIcons.chevronUp
+                          : FLucideIcons.chevronDown,
                       size: 14,
                       color: colors.mutedForeground,
                     ),
@@ -146,7 +150,7 @@ class CommentItemWidget extends StatelessWidget {
                     ),
                     const Spacer(),
                     Text(
-                      _formatTime(item.createdAt),
+                      formatRelativeTime(item.createdAt),
                       style: theme.typography.body.xs.copyWith(color: muted),
                     ),
                   ],
@@ -195,15 +199,5 @@ class CommentItemWidget extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatTime(num timestamp) {
-    final date = DateTime.fromMillisecondsSinceEpoch(timestamp.toInt() * 1000);
-    final diff = DateTime.now().difference(date);
-    if (diff.inMinutes < 1) return '刚刚';
-    if (diff.inHours < 1) return '${diff.inMinutes}分钟前';
-    if (diff.inDays < 1) return '${diff.inHours}小时前';
-    if (diff.inDays < 30) return '${diff.inDays}天前';
-    return '${date.month}-${date.day}';
   }
 }

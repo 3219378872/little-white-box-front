@@ -221,6 +221,7 @@ FeedEntry entry(int id) => FeedEntry(
     title: 'Post $id',
     content: '',
     images: const [],
+    mediaIds: const [],
     tags: const [],
     status: 1,
     viewCount: 0,

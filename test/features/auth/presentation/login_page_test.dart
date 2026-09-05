@@ -1,13 +1,24 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
+import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/auth/presentation/login_page.dart';
 import 'package:xiaobaihe_app/features/auth/presentation/widgets/verify_code_button.dart';
+import 'package:xiaobaihe_app/sdk/api/api.dart';
 
 import '../../../helpers/forui_test_builder.dart';
+import '../../../helpers/gateway_fake.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+  tearDown(() => setApiClient(http.Client()));
+
   testWidgets('LoginPage uses Forui tabs and switches login modes', (
     tester,
   ) async {
@@ -59,4 +70,108 @@ void main() {
     expect(button.bottom, closeTo(field.bottom, 1));
     expect(button.top, greaterThan(field.top + 8));
   });
+
+  testWidgets('ignores a failed login response after page disposal', (
+    tester,
+  ) async {
+    final response = Completer<http.Response>();
+    final client = ScriptedGatewayClient((_) => response.future);
+    setApiClient(client);
+    final router = GoRouter(
+      initialLocation: '/auth/login',
+      routes: [
+        GoRoute(path: '/auth/login', builder: (_, _) => const LoginPage()),
+        GoRoute(
+          path: '/away',
+          builder: (_, _) => const Scaffold(body: Text('其他页面')),
+        ),
+        GoRoute(
+          path: '/feed',
+          builder: (_, _) => const Scaffold(body: Text('信息流占位')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: foruiTestBuilder,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText).at(0), 'neo');
+    await tester.enterText(find.byType(EditableText).at(1), 'secret');
+    await tester.tap(find.widgetWithText(FButton, '登录').first);
+    await tester.pump();
+    expect(client.requests, hasLength(1));
+
+    router.go('/away');
+    await tester.pumpAndSettle();
+    response.complete(
+      jsonResponse({'code': 6, 'message': 'late failure'}, 503),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('其他页面'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'does not authenticate from a successful response after leaving',
+    (tester) async {
+      final response = Completer<http.Response>();
+      final client = ScriptedGatewayClient((_) => response.future);
+      setApiClient(client);
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final router = GoRouter(
+        initialLocation: '/auth/login',
+        routes: [
+          GoRoute(path: '/auth/login', builder: (_, _) => const LoginPage()),
+          GoRoute(
+            path: '/away',
+            builder: (_, _) => const Scaffold(body: Text('其他页面')),
+          ),
+          GoRoute(
+            path: '/feed',
+            builder: (_, _) => const Scaffold(body: Text('信息流占位')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            routerConfig: router,
+            builder: foruiTestBuilder,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(EditableText).at(0), 'neo');
+      await tester.enterText(find.byType(EditableText).at(1), 'secret');
+      await tester.tap(find.widgetWithText(FButton, '登录').first);
+      await tester.pump();
+      expect(client.requests, hasLength(1));
+
+      router.go('/away');
+      await tester.pumpAndSettle();
+      response.complete(
+        jsonResponse({
+          'userId': 9,
+          'token': 'late-access-token',
+          'refreshToken': 'late-refresh-token',
+        }),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('其他页面'), findsOneWidget);
+      expect(container.read(authNotifierProvider).isAuthenticated, isFalse);
+      expect(container.read(authNotifierProvider).token, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

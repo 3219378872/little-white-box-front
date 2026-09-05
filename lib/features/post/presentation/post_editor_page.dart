@@ -39,7 +39,6 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   final List<String> _tags = [];
   final _tagCtrl = TextEditingController();
   final List<String> _networkImages = [];
-  final List<Object> _networkMediaIds = [];
   final List<XFile> _localImages = [];
   int _revision = 0;
   bool _isLoading = false;
@@ -74,6 +73,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
       final post = await ref
           .read(_postRepoProvider)
           .getPostDetail(widget.postId!);
+      if (!mounted) return;
       setState(() {
         _titleCtrl.text = post.title;
         _contentCtrl.text = post.content;
@@ -102,15 +102,17 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
     _tagCtrl.clear();
   }
 
-  Future<List<UploadedImage>> _uploadLocalImages() async {
-    if (_localImages.isEmpty) {
+  Future<List<UploadedImage>> _uploadLocalImages(
+    List<XFile> localImages,
+  ) async {
+    if (localImages.isEmpty) {
       _uploadedSelectionFingerprint = null;
       _uploadedLocalImages = null;
       return const [];
     }
 
     final selectionFingerprint = jsonEncode([
-      for (final file in _localImages)
+      for (final file in localImages)
         {'path': file.path, 'name': file.name, 'length': await file.length()},
     ]);
     if (_uploadedSelectionFingerprint == selectionFingerprint &&
@@ -121,9 +123,9 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
     final repo = ref.read(_postRepoProvider);
 
     final futures = <Future<(int, UploadedImage?, String?)>>[];
-    for (var i = 0; i < _localImages.length; i++) {
+    for (var i = 0; i < localImages.length; i++) {
       final idx = i;
-      final file = _localImages[i];
+      final file = localImages[i];
       futures.add(() async {
         try {
           final bytes = await file.readAsBytes();
@@ -162,8 +164,12 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   }
 
   Future<void> _publish({int status = 1}) async {
+    if (_isLoading) return;
     final title = _titleCtrl.text.trim();
     final content = _contentCtrl.text.trim();
+    final tags = List<String>.of(_tags);
+    final networkImages = List<String>.of(_networkImages);
+    final localImages = List<XFile>.of(_localImages);
     if (title.isEmpty || title.length > _maxTitleLength) {
       showAppError(context, '标题需为 1～$_maxTitleLength 个字符');
       return;
@@ -174,13 +180,9 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
     }
     setState(() => _isLoading = true);
     try {
-      final uploaded = await _uploadLocalImages();
-      final allImages = [
-        ..._networkImages,
-        ...uploaded.map((item) => item.url),
-      ];
+      final uploaded = await _uploadLocalImages(localImages);
+      final allImages = [...networkImages, ...uploaded.map((item) => item.url)];
       final mediaIds = [
-        ..._networkMediaIds.where(jsonInt64IsPositive),
         ...uploaded.map((item) => item.mediaId).where(jsonInt64IsPositive),
       ];
 
@@ -197,7 +199,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                 title: title,
                 content: content,
                 images: allImages,
-                tags: _tags,
+                tags: tags,
                 status: status,
                 expectedRevision: _revision,
                 mediaIds: mediaIds,
@@ -209,7 +211,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
           'title': title,
           'content': content,
           'images': allImages,
-          'tags': _tags,
+          'tags': tags,
           'status': status,
           'mediaIds': mediaIds.map(jsonInt64Id).toList(growable: false),
         });
@@ -225,7 +227,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                 title: title,
                 content: content,
                 images: allImages,
-                tags: _tags,
+                tags: tags,
                 status: status,
                 idempotencyKey: _createIdempotencyKey!,
                 mediaIds: mediaIds,

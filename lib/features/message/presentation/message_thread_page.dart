@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
+import '../../../core/formatters/time_formatter.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../auth/application/auth_notifier.dart';
@@ -205,7 +206,8 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
                   ),
                   const SizedBox(width: 8),
                   FButton.icon(
-                    onPress: state.isSending || !jsonInt64IsPositive(currentUserId)
+                    onPress:
+                        state.isSending || !jsonInt64IsPositive(currentUserId)
                         ? null
                         : () => _sendImage(key),
                     child: const Icon(
@@ -229,7 +231,8 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
                   ),
                   const SizedBox(width: 8),
                   FButton.icon(
-                    onPress: state.isSending || !jsonInt64IsPositive(currentUserId)
+                    onPress:
+                        state.isSending || !jsonInt64IsPositive(currentUserId)
                         ? null
                         : () => _send(key),
                     child: state.isSending
@@ -320,7 +323,7 @@ class _MessageBubble extends StatelessWidget {
                   _MessageBody(message: message, own: own),
                   const SizedBox(height: 3),
                   Text(
-                    _messageTime(message.createdAt),
+                    formatClockTime(message.createdAt),
                     style: theme.typography.body.xs.copyWith(
                       color:
                           (own
@@ -383,10 +386,4 @@ class _MessageBody extends StatelessWidget {
       style: theme.typography.body.md.copyWith(color: foreground),
     );
   }
-}
-
-String _messageTime(int seconds) {
-  if (seconds <= 0) return '';
-  final value = DateTime.fromMillisecondsSinceEpoch(seconds * 1000).toLocal();
-  return '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
 }

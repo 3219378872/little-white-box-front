@@ -1,9 +1,65 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from sync_gateway_sdk import patch_bodyless_request_args, patch_generated_types
+from sync_gateway_sdk import (
+    default_backend_api_path,
+    normalize_generated_header,
+    patch_bodyless_request_args,
+    patch_generated_types,
+)
 
 
 class NullablePrimitivePatchTest(unittest.TestCase):
+    def test_finds_backend_api_from_main_checkout(self):
+        with TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "little"
+            frontend = workspace / "little-white-box-front"
+            api = (
+                workspace
+                / "little-white-box-content-community"
+                / "app"
+                / "gateway"
+                / "gateway.api"
+            )
+            frontend.mkdir(parents=True)
+            api.parent.mkdir(parents=True)
+            api.touch()
+
+            self.assertEqual(default_backend_api_path(frontend), api)
+
+    def test_finds_backend_api_from_nested_task_worktree(self):
+        with TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "little"
+            frontend = (
+                workspace
+                / "little-white-box-front"
+                / ".worktree"
+                / "task-sdk"
+            )
+            api = (
+                workspace
+                / "little-white-box-content-community"
+                / "app"
+                / "gateway"
+                / "gateway.api"
+            )
+            frontend.mkdir(parents=True)
+            api.parent.mkdir(parents=True)
+            api.touch()
+
+            self.assertEqual(default_backend_api_path(frontend), api)
+
+    def test_normalizes_checkout_specific_source_header(self):
+        generated = "// --/tmp/worktree/app/gateway/gateway--\n\nclass Req {}\n"
+
+        patched = normalize_generated_header(generated)
+
+        self.assertEqual(
+            "// --app/gateway/gateway--\n\nclass Req {}\n",
+            patched,
+        )
+
     def test_patches_nullable_primitive_serialization(self):
         generated = """
 final String? value;
@@ -25,7 +81,7 @@ suppressed: m['suppressed'] == null ? null : bool?.fromJson(m['suppressed']),
         self.assertIn("(m['score'] as num).toDouble()", patched)
         self.assertIn("m['suppressed'] as bool", patched)
 
-    def test_widens_assistant_entity_ids(self):
+    def test_widens_generated_entity_ids(self):
         generated = """
 final num runId;
 final num sessionId;
@@ -34,7 +90,10 @@ final num lastMessageId;
 final num activeRunId;
 final num beforeId;
 final num nextBeforeId;
+final num mediaId;
+final List<int> mediaIds;
 final List<int> changeIds;
+mediaIds: m['mediaIds']?.cast<int>() ?? [],
 changeIds: m['changeIds']?.cast<int>() ?? [],
 """
         patched = patch_generated_types(generated)
@@ -45,6 +104,9 @@ changeIds: m['changeIds']?.cast<int>() ?? [],
         self.assertIn("final Object activeRunId;", patched)
         self.assertIn("final Object beforeId;", patched)
         self.assertIn("final Object nextBeforeId;", patched)
+        self.assertIn("final Object mediaId;", patched)
+        self.assertIn("final List<Object> mediaIds;", patched)
+        self.assertIn("List<Object>.from(m['mediaIds'] as List)", patched)
         self.assertIn("final List<Object> changeIds;", patched)
         self.assertIn("List<Object>.from(m['changeIds'] as List)", patched)
 

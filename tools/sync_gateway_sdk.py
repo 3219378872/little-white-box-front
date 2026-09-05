@@ -5,7 +5,8 @@ goctl api dart only emits GET/POST helpers. This script:
 1. runs goctl into a temp directory
 2. patches PUT/DELETE verbs from gateway.api
 3. fixes known goctl Dart type bugs
-4. copies generated types and API methods into vendor/sdk_source and lib/sdk
+4. normalizes and formats generated output
+5. copies generated types and API methods into vendor/sdk_source and lib/sdk
 
 Application-owned transport files are not overwritten:
   api/api.dart, data/tokens.dart, vars/*
@@ -26,6 +27,7 @@ ROUTE_RE = re.compile(
     r"^\s*(get|post|put|delete|patch)\s+(\S+)", re.IGNORECASE
 )
 FUNC_RE = re.compile(r"^Future (\w+)\(")
+GENERATED_SOURCE_HEADER_RE = re.compile(r"\A// --[^\r\n]*--")
 OPTIONAL_NUM_TO_JSON_RE = re.compile(
     r"\b(position|durationMs|status)\?\.toJson\(\)"
 )
@@ -69,6 +71,20 @@ VERB_TO_HELPER = {
     "patch": "apiPatch",
 }
 
+GENERATED_SOURCE_HEADER = "// --app/gateway/gateway--"
+BACKEND_API_RELATIVE_PATH = Path(
+    "little-white-box-content-community/app/gateway/gateway.api"
+)
+
+
+def default_backend_api_path(repo: Path) -> Path:
+    """Locate the sibling backend from a main checkout or nested task worktree."""
+    for parent in repo.parents:
+        candidate = parent / BACKEND_API_RELATIVE_PATH
+        if candidate.is_file():
+            return candidate
+    return repo.parent / BACKEND_API_RELATIVE_PATH
+
 
 def parse_handler_verbs(api_path: Path) -> dict[str, str]:
     verbs: dict[str, str] = {}
@@ -102,6 +118,11 @@ def patch_gateway_methods(source: str, verbs: dict[str, str]) -> str:
             line = line.replace("await apiPost(", f"await {helper}(")
         out.append(line)
     return "".join(out)
+
+
+def normalize_generated_header(source: str) -> str:
+    """Remove the checkout-specific absolute path emitted by goctl."""
+    return GENERATED_SOURCE_HEADER_RE.sub(GENERATED_SOURCE_HEADER, source, count=1)
 
 
 def patch_generated_types(source: str) -> str:
@@ -189,13 +210,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--api",
-        default=str(
-            repo.parent.parent
-            / "little-white-box-content-community"
-            / "app"
-            / "gateway"
-            / "gateway.api"
-        ),
+        default=str(default_backend_api_path(repo)),
         help="Path to backend gateway.api",
     )
     args = parser.parse_args()
@@ -219,21 +234,33 @@ def main() -> int:
         subprocess.run(cmd, check=True)
 
         verbs = parse_handler_verbs(api_path)
-        gateway_api = patch_generated_api(
-            patch_gateway_methods(
-                (generated / "api" / "gateway.dart").read_text(encoding="utf-8"),
-                verbs,
+        gateway_api = normalize_generated_header(
+            patch_generated_api(
+                patch_gateway_methods(
+                    (generated / "api" / "gateway.dart").read_text(
+                        encoding="utf-8"
+                    ),
+                    verbs,
+                )
             )
         )
         (generated / "api" / "gateway.dart").write_text(
             gateway_api, encoding="utf-8"
         )
-        types = patch_generated_types(
-            (generated / "data" / "gateway.dart").read_text(encoding="utf-8")
+        types = normalize_generated_header(
+            patch_generated_types(
+                (generated / "data" / "gateway.dart").read_text(
+                    encoding="utf-8"
+                )
+            )
         )
         (generated / "data" / "gateway.dart").write_text(types, encoding="utf-8")
 
         generated_files = ["api/gateway.dart", "data/gateway.dart"]
+        subprocess.run(
+            ["dart", "format", *(str(generated / rel) for rel in generated_files)],
+            check=True,
+        )
         copy_generated(generated, repo / "vendor" / "sdk_source", generated_files)
         copy_generated(generated, repo / "lib" / "sdk", generated_files)
 

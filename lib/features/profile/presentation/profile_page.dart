@@ -79,6 +79,7 @@ class _ProfileContent extends ConsumerStatefulWidget {
 
 class _ProfileContentState extends ConsumerState<_ProfileContent> {
   bool _isFollowing = false;
+  bool _followBusy = false;
   bool? _personalizationEnabled;
   bool _personalizationBusy = false;
   int _tabIndex = 0;
@@ -151,13 +152,17 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
   }
 
   Future<void> _toggleFollow() async {
+    if (_followBusy) return;
     if (!ref.read(authNotifierProvider).isAuthenticated) {
       context.push('/auth/login');
       return;
     }
     final repo = ref.read(_userRepoProvider);
     final wasFollowing = _isFollowing;
-    setState(() => _isFollowing = !_isFollowing);
+    setState(() {
+      _isFollowing = !_isFollowing;
+      _followBusy = true;
+    });
     try {
       if (wasFollowing) {
         await repo.unfollowUser(widget.userId);
@@ -165,10 +170,11 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
         await repo.followUser(widget.userId);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isFollowing = wasFollowing);
-      if (mounted) {
-        showAppError(context, '操作失败: $e');
-      }
+      showAppError(context, '操作失败: $e');
+    } finally {
+      if (mounted) setState(() => _followBusy = false);
     }
   }
 
@@ -288,11 +294,12 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                         ],
                       ] else
                         FButton(
+                          key: const Key('profile-follow-toggle'),
                           variant: _isFollowing
                               ? FButtonVariant.secondary
                               : FButtonVariant.primary,
                           mainAxisSize: MainAxisSize.min,
-                          onPress: _toggleFollow,
+                          onPress: _followBusy ? null : _toggleFollow,
                           child: Text(_isFollowing ? '已关注' : '关注'),
                         ),
                     ],

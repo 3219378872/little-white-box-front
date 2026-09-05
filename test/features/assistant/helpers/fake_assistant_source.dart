@@ -14,6 +14,30 @@ class FakeAssistantSource implements AssistantDataSource {
 
   Future<AssistantThreadSummary> Function()? threadHandler;
 
+  Future<AgentConsentStatus> Function()? loadConsentHandler;
+
+  Future<void> Function()? deleteHistoryHandler;
+
+  Future<AssistantMessagePage> Function({
+    required Object sessionId,
+    required Object afterId,
+    required Object beforeId,
+    required int limit,
+  })?
+  listMessagesHandler;
+
+  Future<(List<MemoryRecord>, List<MemoryCapacity>)> Function()?
+  listMemoryHandler;
+
+  Future<MemoryWriteResult> Function({
+    required String target,
+    required String content,
+    required String requestId,
+  })?
+  addMemoryHandler;
+
+  Future<List<WatchTask>> Function()? listWatchesHandler;
+
   Future<AssistantPostResult> Function({
     required String message,
     required String requestId,
@@ -54,10 +78,12 @@ class FakeAssistantSource implements AssistantDataSource {
   Object lastEventsAfterSeq = 0;
   Object lastEventsRunId = 0;
   int historyDeletes = 0;
+  int consentReads = 0;
   int threadReads = 0;
   Object? lastUndoChangeId;
   List<int> eventCalls = [];
   int listMessageCalls = 0;
+  List<Object> listMessageAfterIds = [];
   List<String> postedRequestIds = [];
   List<Object> postedContextPostIds = [];
   List<String> addMemoryRequestIds = [];
@@ -65,11 +91,15 @@ class FakeAssistantSource implements AssistantDataSource {
   List<String> removeMemoryRequestIds = [];
 
   @override
-  Future<AgentConsentStatus> loadAgentConsent() async => AgentConsentStatus(
-    granted: granted,
-    consentVersion: granted ? consentVersion : 0,
-    currentVersion: currentVersion,
-  );
+  Future<AgentConsentStatus> loadAgentConsent() async {
+    consentReads++;
+    if (loadConsentHandler != null) return loadConsentHandler!();
+    return AgentConsentStatus(
+      granted: granted,
+      consentVersion: granted ? consentVersion : 0,
+      currentVersion: currentVersion,
+    );
+  }
 
   @override
   Future<void> setAgentConsent({required bool granted}) async {
@@ -93,7 +123,16 @@ class FakeAssistantSource implements AssistantDataSource {
     int limit = 50,
   }) async {
     listMessageCalls++;
+    listMessageAfterIds.add(afterId);
     if (lastError != null) throw lastError!;
+    if (listMessagesHandler != null) {
+      return listMessagesHandler!(
+        sessionId: sessionId,
+        afterId: afterId,
+        beforeId: beforeId,
+        limit: limit,
+      );
+    }
     var filtered = [
       for (final item in messages)
         if ((!jsonInt64IsPositive(sessionId) ||
@@ -175,6 +214,7 @@ class FakeAssistantSource implements AssistantDataSource {
   @override
   Future<void> deleteHistory() async {
     historyDeletes++;
+    if (deleteHistoryHandler != null) return deleteHistoryHandler!();
     messages = const [];
   }
 
@@ -200,6 +240,7 @@ class FakeAssistantSource implements AssistantDataSource {
     String target = '',
   }) async {
     if (lastError != null) throw lastError!;
+    if (listMemoryHandler != null) return listMemoryHandler!();
     final items = [
       for (final item in memories)
         if (target.isEmpty || item.target == target) item,
@@ -215,6 +256,13 @@ class FakeAssistantSource implements AssistantDataSource {
   }) async {
     if (lastError != null) throw lastError!;
     addMemoryRequestIds.add(requestId);
+    if (addMemoryHandler != null) {
+      return addMemoryHandler!(
+        target: target,
+        content: content,
+        requestId: requestId,
+      );
+    }
     if (addMemoryError != null) {
       final error = addMemoryError!;
       addMemoryError = null;
@@ -295,6 +343,7 @@ class FakeAssistantSource implements AssistantDataSource {
   Future<List<WatchTask>> listWatches() async {
     listWatchCalls++;
     if (lastError != null) throw lastError!;
+    if (listWatchesHandler != null) return listWatchesHandler!();
     return watches;
   }
 

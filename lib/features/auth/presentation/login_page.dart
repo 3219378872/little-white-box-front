@@ -27,8 +27,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _codeCtrl = TextEditingController();
 
   bool _isLoading = false;
+  int _loginAttempt = 0;
+
   @override
   void dispose() {
+    _loginAttempt++;
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
     _phoneCtrl.dispose();
@@ -61,20 +64,36 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _doLogin(Future<dynamic> Function() loginFn) async {
+    final attempt = ++_loginAttempt;
     setState(() => _isLoading = true);
     try {
       final resp = await loginFn();
+      if (!_ownsLoginMutation(attempt)) return;
       await ref
           .read(authNotifierProvider.notifier)
-          .onLoginSuccess(resp.userId, resp.token,
-              refreshToken: resp.refreshToken);
+          .onLoginSuccess(
+            resp.userId,
+            resp.token,
+            refreshToken: resp.refreshToken,
+          );
       // Pushed login keeps the public URL; redirect will not pop this page.
-      if (mounted) context.go('/feed');
+      if (!mounted || !_ownsLoginMutation(attempt)) return;
+      context.go('/feed');
     } catch (e) {
-      _showError(friendlyErrorMessage(e));
+      if (mounted && attempt == _loginAttempt) {
+        _showError(friendlyErrorMessage(e));
+      }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && attempt == _loginAttempt) {
+        setState(() => _isLoading = false);
+      }
     }
+  }
+
+  bool _ownsLoginMutation(int attempt) {
+    return mounted &&
+        attempt == _loginAttempt &&
+        (ModalRoute.of(context)?.isCurrent ?? false);
   }
 
   void _showError(String msg) {
@@ -156,7 +175,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         const SizedBox(height: 16),
         FButton(
           variant: .ghost,
-          onPress: () => context.go('/auth/register'),
+          onPress: _isLoading ? null : () => context.go('/auth/register'),
           child: const Text('没有账号？去注册'),
         ),
       ],
@@ -195,7 +214,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         const SizedBox(height: 16),
         FButton(
           variant: .ghost,
-          onPress: () => context.go('/auth/register'),
+          onPress: _isLoading ? null : () => context.go('/auth/register'),
           child: const Text('没有账号？去注册'),
         ),
       ],

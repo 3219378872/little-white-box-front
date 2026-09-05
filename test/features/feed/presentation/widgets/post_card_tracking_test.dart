@@ -129,10 +129,7 @@ void main() {
         child: MaterialApp(
           builder: foruiTestBuilder,
           home: Scaffold(
-            body: PostCard(
-              post: post,
-              recommendationContext: trackingContext,
-            ),
+            body: PostCard(post: post, recommendationContext: trackingContext),
           ),
         ),
       ),
@@ -266,6 +263,7 @@ final post = PostItem(
   title: 'Tracked post',
   content: 'Content',
   images: [],
+  mediaIds: const [],
   tags: [],
   status: 1,
   viewCount: 10,

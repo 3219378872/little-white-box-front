@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/formatters/time_formatter.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/paginated_list.dart';
@@ -15,11 +16,7 @@ class MessagesShell extends StatelessWidget {
   final Widget? thread;
   final bool assistantSelected;
 
-  const MessagesShell({
-    super.key,
-    this.thread,
-    this.assistantSelected = false,
-  });
+  const MessagesShell({super.key, this.thread, this.assistantSelected = false});
 
   @override
   Widget build(BuildContext context) {
@@ -217,7 +214,7 @@ class _ConversationDetails extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(_shortTime(conversation.lastMessageTime)),
+        Text(formatConversationTime(conversation.lastMessageTime)),
         if (conversation.unreadCount > 0) ...[
           const SizedBox(height: 4),
           FBadge(child: Text('${conversation.unreadCount}')),
@@ -225,16 +222,4 @@ class _ConversationDetails extends StatelessWidget {
       ],
     );
   }
-}
-
-String _shortTime(int seconds) {
-  if (seconds <= 0) return '';
-  final value = DateTime.fromMillisecondsSinceEpoch(seconds * 1000).toLocal();
-  final now = DateTime.now();
-  if (value.year == now.year &&
-      value.month == now.month &&
-      value.day == now.day) {
-    return '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
-  }
-  return '${value.month}/${value.day}';
 }

@@ -78,6 +78,7 @@ class PendingAssistantCommand {
 
 class AssistantMessage {
   final String id;
+  final Object runId;
   final AssistantMessageRole role;
   final String kind;
   final String text;
@@ -89,6 +90,7 @@ class AssistantMessage {
   final bool isCanceled;
   final bool degraded;
   final String errorCode;
+  final bool terminalEventReceived;
   final bool memoryUndoing;
   final bool memoryUndone;
 
@@ -96,6 +98,7 @@ class AssistantMessage {
     required this.id,
     required this.role,
     required this.text,
+    this.runId = 0,
     this.kind = '',
     this.sources = const [],
     this.toolSteps = const [],
@@ -105,6 +108,7 @@ class AssistantMessage {
     this.isCanceled = false,
     this.degraded = false,
     this.errorCode = '',
+    this.terminalEventReceived = false,
     this.memoryUndoing = false,
     this.memoryUndone = false,
   });
@@ -117,6 +121,7 @@ class AssistantMessage {
 
   AssistantMessage copyWith({
     String? id,
+    Object? runId,
     String? text,
     List<AssistantSourceCard>? sources,
     List<AssistantToolStep>? toolSteps,
@@ -126,11 +131,13 @@ class AssistantMessage {
     bool? isCanceled,
     bool? degraded,
     String? errorCode,
+    bool? terminalEventReceived,
     bool? memoryUndoing,
     bool? memoryUndone,
   }) {
     return AssistantMessage(
       id: id ?? this.id,
+      runId: runId ?? this.runId,
       role: role,
       kind: kind,
       text: text ?? this.text,
@@ -142,6 +149,8 @@ class AssistantMessage {
       isCanceled: isCanceled ?? this.isCanceled,
       degraded: degraded ?? this.degraded,
       errorCode: errorCode ?? this.errorCode,
+      terminalEventReceived:
+          terminalEventReceived ?? this.terminalEventReceived,
       memoryUndoing: memoryUndoing ?? this.memoryUndoing,
       memoryUndone: memoryUndone ?? this.memoryUndone,
     );
@@ -162,6 +171,7 @@ class AssistantState {
   final bool agentAuthorizationRequired;
   final PendingAssistantCommand? pendingRetryCommand;
   final bool isLoaded;
+  final bool isLoadingHistory;
   final bool hasMoreHistory;
   final Object nextBeforeId;
   final bool isLoadingOlder;
@@ -181,6 +191,7 @@ class AssistantState {
     this.agentAuthorizationRequired = false,
     this.pendingRetryCommand,
     this.isLoaded = false,
+    this.isLoadingHistory = false,
     this.hasMoreHistory = false,
     this.nextBeforeId = 0,
     this.isLoadingOlder = false,
@@ -199,6 +210,7 @@ class AssistantState {
     bool clearActiveRun = false,
     String? activeRunPhase,
     AssistantDisposition? lastDisposition,
+    bool clearLastDisposition = false,
     List<AssistantMessage>? messages,
     bool? isStreaming,
     bool? isSending,
@@ -212,6 +224,7 @@ class AssistantState {
     PendingAssistantCommand? pendingRetryCommand,
     bool clearPendingRetryCommand = false,
     bool? isLoaded,
+    bool? isLoadingHistory,
     bool? hasMoreHistory,
     Object? nextBeforeId,
     bool? isLoadingOlder,
@@ -224,7 +237,9 @@ class AssistantState {
       activeRunPhase: clearActiveRun
           ? ''
           : (activeRunPhase ?? this.activeRunPhase),
-      lastDisposition: lastDisposition ?? this.lastDisposition,
+      lastDisposition: clearLastDisposition
+          ? null
+          : (lastDisposition ?? this.lastDisposition),
       messages: messages ?? this.messages,
       isStreaming: isStreaming ?? this.isStreaming,
       isSending: isSending ?? this.isSending,
@@ -242,6 +257,7 @@ class AssistantState {
           ? null
           : (pendingRetryCommand ?? this.pendingRetryCommand),
       isLoaded: isLoaded ?? this.isLoaded,
+      isLoadingHistory: isLoadingHistory ?? this.isLoadingHistory,
       hasMoreHistory: hasMoreHistory ?? this.hasMoreHistory,
       nextBeforeId: nextBeforeId ?? this.nextBeforeId,
       isLoadingOlder: isLoadingOlder ?? this.isLoadingOlder,
@@ -269,7 +285,10 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   final Set<String> _retiredStreamIds = <String>{};
   bool _usesStreamIds = false;
   Object _lastMessageId = 0;
+  Object _activeRunFloorMessageId = 0;
   PendingAssistantCommand? _activeCommand;
+  Future<bool>? _refreshFuture;
+  bool _refreshRequested = false;
 
   AssistantNotifier({
     required AssistantDataSource repository,
@@ -296,10 +315,17 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   }
 
   Future<void> load() async {
-    if (_identityKey.isEmpty) return;
+    if (_identityKey.isEmpty || state.isSending || state.isLoadingHistory) {
+      return;
+    }
     final generation = ++_loadGeneration;
     ++_refreshGeneration;
     ++_olderGeneration;
+    state = state.copyWith(
+      isLoadingHistory: true,
+      isLoadingOlder: false,
+      clearConnectionError: state.messages.isEmpty,
+    );
     try {
       final thread = await _repository.getThread();
       if (!mounted || generation != _loadGeneration) return;
@@ -311,21 +337,47 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
       if (!mounted || generation != _loadGeneration) return;
       final history = page.messages;
       _lastMessageId = history.isEmpty ? 0 : history.last.id;
+      final loadedMessages = [for (final item in history) _fromHistory(item)];
+      final resumeRun =
+          thread.hasActiveRun &&
+          !_hasPersistedTerminalResponseForRun(
+            loadedMessages,
+            thread.activeRunId,
+          );
+      if (!resumeRun || !_sameRun(thread.activeRunId, state.activeRunId)) {
+        _activeCommand = null;
+      }
+      _activeRunFloorMessageId = resumeRun ? thread.lastMessageId : 0;
+      if (resumeRun && history.isNotEmpty) {
+        _advanceActiveRunFloor(history.last.id);
+      }
+      if (!resumeRun) {
+        await _cancelSubscription();
+        if (!mounted || generation != _loadGeneration) return;
+      }
       state = state.copyWith(
         sessionId: thread.sessionId,
-        activeRunId: thread.activeRunId,
-        activeRunPhase: thread.activeRunPhase,
-        messages: [for (final item in history) _fromHistory(item)],
-        isStreaming: thread.hasActiveRun,
-        isQueued: thread.activeRunPhase == 'queued',
+        activeRunId: resumeRun ? thread.activeRunId : 0,
+        activeRunPhase: resumeRun ? thread.activeRunPhase : '',
+        clearLastDisposition: true,
+        messages: resumeRun
+            ? _ensureAssistantIn(
+                loadedMessages,
+                'run-${jsonInt64Id(thread.activeRunId)}',
+                thread.activeRunId,
+              )
+            : loadedMessages,
+        isStreaming: resumeRun,
+        isQueued: resumeRun && thread.activeRunPhase == 'queued',
         clearConnectionError: true,
         isLoaded: true,
+        isLoadingHistory: false,
         hasMoreHistory: page.hasMore,
         nextBeforeId: page.nextBeforeId,
         isLoadingOlder: false,
         clearHistoryError: true,
       );
-      if (thread.hasActiveRun) {
+      if (resumeRun) {
         _subscribe(thread.activeRunId, afterSeq: 0);
       }
       unawaited(_markRead());
@@ -334,6 +386,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
       state = state.copyWith(
         connectionError: friendlyErrorMessage(error),
         isLoaded: true,
+        isLoadingHistory: false,
       );
     }
   }
@@ -343,7 +396,8 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     if (_identityKey.isEmpty ||
         normalized.isEmpty ||
         normalized.length > 2000 ||
-        state.isSending) {
+        state.isSending ||
+        state.isLoadingHistory) {
       return false;
     }
 
@@ -366,7 +420,9 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     PendingAssistantCommand command, {
     required bool addOptimisticMessage,
   }) async {
-    if (_identityKey.isEmpty || state.isSending) return false;
+    if (_identityKey.isEmpty || state.isSending || state.isLoadingHistory) {
+      return false;
+    }
     final optimisticId = 'user-${command.requestId}';
     final messages =
         addOptimisticMessage &&
@@ -401,48 +457,77 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         contextPostId: command.contextPostId,
       );
       if (!mounted) return false;
-      final userMessages = [
-        for (final item in state.messages)
-          if (item.id == optimisticId &&
-              jsonInt64IsPositive(accepted.messageId))
-            AssistantMessage(
-              id: jsonInt64Id(accepted.messageId),
-              role: item.role,
-              text: item.text,
-              attachments: item.attachments,
+      final acceptedMessageId = jsonInt64Id(accepted.messageId);
+      final hasAcceptedMessageId = jsonInt64IsPositive(accepted.messageId);
+      final sessionChanged = !_sameRun(accepted.sessionId, state.sessionId);
+      if (sessionChanged) {
+        ++_refreshGeneration;
+        ++_olderGeneration;
+        _lastMessageId = 0;
+      }
+      if (sessionChanged || !_sameRun(accepted.runId, state.activeRunId)) {
+        _activeRunFloorMessageId = 0;
+      }
+      _advanceActiveRunFloor(accepted.messageId);
+      final userMessages = hasAcceptedMessageId
+          ? _reconcileAcceptedUserMessage(
+              state.messages,
+              optimisticId: optimisticId,
+              acceptedMessageId: acceptedMessageId,
+              acceptedRunId: accepted.runId,
             )
-          else
-            item,
-      ];
-      _advanceMessageCursor(accepted.messageId);
+          : [...state.messages];
       final queued = accepted.disposition == AssistantDisposition.queued;
+      final persistedResponse = _hasPersistedTerminalResponseForRun(
+        userMessages,
+        accepted.runId,
+      );
+      final terminalResponse =
+          persistedResponse ||
+          _hasTerminalEventResponseForRun(userMessages, accepted.runId);
       final shouldStream =
-          accepted.disposition == AssistantDisposition.started ||
-          accepted.disposition == AssistantDisposition.redirected ||
-          accepted.disposition == AssistantDisposition.steered ||
-          queued;
+          !terminalResponse &&
+          (accepted.disposition == AssistantDisposition.started ||
+              accepted.disposition == AssistantDisposition.redirected ||
+              accepted.disposition == AssistantDisposition.steered ||
+              queued);
       final responseId = 'run-${jsonInt64Id(accepted.runId)}';
-      final nextMessages = queued
+      final nextMessages = queued || terminalResponse
           ? userMessages
-          : _ensureAssistantIn(userMessages, responseId);
+          : _ensureAssistantIn(userMessages, responseId, accepted.runId);
       state = state.copyWith(
         sessionId: accepted.sessionId,
         activeRunId: accepted.runId,
+        clearActiveRun: terminalResponse,
         lastDisposition: accepted.disposition,
+        clearLastDisposition: terminalResponse,
         messages: nextMessages,
         isSending: false,
         isStreaming: shouldStream,
-        isQueued: queued,
-        activeRunPhase: switch (accepted.disposition) {
-          AssistantDisposition.queued => 'queued',
-          AssistantDisposition.steered => 'tool_executing',
-          AssistantDisposition.redirected ||
-          AssistantDisposition.started => 'model_request',
-          _ => state.activeRunPhase,
-        },
+        isQueued: queued && !terminalResponse,
+        hasMoreHistory: sessionChanged ? false : state.hasMoreHistory,
+        nextBeforeId: sessionChanged ? 0 : state.nextBeforeId,
+        isLoadingOlder: sessionChanged ? false : state.isLoadingOlder,
+        activeRunPhase: terminalResponse
+            ? ''
+            : switch (accepted.disposition) {
+                AssistantDisposition.queued => 'queued',
+                AssistantDisposition.steered => 'tool_executing',
+                AssistantDisposition.redirected ||
+                AssistantDisposition.started => 'model_request',
+                _ => state.activeRunPhase,
+              },
         clearPendingRetryCommand: true,
+        clearHistoryError: sessionChanged,
       );
-      _activeCommand = command;
+      _activeCommand = terminalResponse ? null : command;
+      if (terminalResponse) _activeRunFloorMessageId = 0;
+      if (!shouldStream &&
+          _subscription != null &&
+          !_sameRun(_subscribedRunId, accepted.runId)) {
+        await _cancelSubscription();
+        if (!mounted) return false;
+      }
       if (shouldStream && jsonInt64IsPositive(accepted.runId)) {
         _ensureSubscribed(accepted.runId);
       }
@@ -479,8 +564,10 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     if (!jsonInt64IsPositive(runId)) return false;
     var changed = false;
     state = state.copyWith(
-      messages: _updateLastAssistant((message) {
-        return message.copyWith(
+      messages: _updateResponseMessage(
+        'run-${jsonInt64Id(runId)}',
+        runId,
+        (message) => message.copyWith(
           toolSteps: [
             for (final step in message.toolSteps)
               if (step.callId == callId &&
@@ -492,8 +579,8 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
               else
                 step,
           ],
-        );
-      }),
+        ),
+      ),
     );
     if (!changed) return false;
     try {
@@ -505,6 +592,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
       if (!mounted || !_sameRun(state.activeRunId, runId)) return false;
       state = state.copyWith(
         messages: _setToolStatus(
+          runId,
           callId,
           from: const {AssistantToolStatus.confirming},
           to: approved
@@ -518,6 +606,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
       if (!mounted || !_sameRun(state.activeRunId, runId)) return false;
       state = state.copyWith(
         messages: _setToolStatus(
+          runId,
           callId,
           from: const {AssistantToolStatus.confirming},
           to: AssistantToolStatus.awaitingConfirmation,
@@ -543,27 +632,42 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     await _cancelSubscription();
     if (!mounted || !_sameRun(state.activeRunId, runId)) return true;
     _activeCommand = null;
+    _activeRunFloorMessageId = 0;
+    final responseId = 'run-${jsonInt64Id(runId)}';
     state = state.copyWith(
-      messages: _updateLastAssistant(
+      messages: _updateResponseMessage(
+        responseId,
+        runId,
         (message) => message.copyWith(
           text: message.text.isEmpty ? '已取消' : message.text,
           isStreaming: false,
           isCanceled: true,
+          terminalEventReceived: true,
         ),
+        createIfMissing: true,
+        matchPersistedTerminal: true,
       ),
       isStreaming: false,
       isQueued: false,
       clearActiveRun: true,
+      clearLastDisposition: true,
       clearConnectionError: true,
     );
     return true;
   }
 
   Future<void> clearHistory() async {
-    if (!await stop()) return;
+    if (state.isSending || state.isLoadingHistory) return;
     _loadGeneration++;
     _refreshGeneration++;
     _olderGeneration++;
+    state = state.copyWith(isLoadingHistory: true, isLoadingOlder: false);
+    final stopped = await stop();
+    if (!mounted) return;
+    if (!stopped) {
+      state = state.copyWith(isLoadingHistory: false);
+      return;
+    }
     try {
       await _repository.deleteHistory();
       if (!mounted) return;
@@ -572,9 +676,14 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         isLoaded: true,
       );
       _lastMessageId = 0;
+      _activeRunFloorMessageId = 0;
     } catch (error) {
       if (!mounted) return;
-      state = state.copyWith(connectionError: friendlyErrorMessage(error));
+      state = state.copyWith(
+        connectionError: friendlyErrorMessage(error),
+        isLoaded: true,
+        isLoadingHistory: false,
+      );
     }
   }
 
@@ -609,6 +718,20 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
       );
       return false;
     }
+  }
+
+  bool reconnectActiveRun() {
+    final runId = state.activeRunId;
+    if (_identityKey.isEmpty ||
+        !mounted ||
+        !jsonInt64IsPositive(runId) ||
+        _subscription != null ||
+        _hasPersistedTerminalResponseForRun(state.messages, runId)) {
+      return false;
+    }
+    state = state.copyWith(isStreaming: true);
+    _ensureSubscribed(runId);
+    return true;
   }
 
   void _ensureSubscribed(Object runId) {
@@ -646,9 +769,11 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         _applyEvent(runId, event);
         if (event.isTerminal &&
             _isCurrentConnection(generation, connectionGeneration)) {
+          final terminalSubscription = _subscription;
           _subscription = null;
           _subscribedRunId = 0;
           _connectionGeneration++;
+          unawaited(terminalSubscription?.cancel());
         }
       },
       onError: (Object error, StackTrace stackTrace) {
@@ -665,6 +790,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         }
         _finishWithTransportError(
           friendlyErrorMessage(error),
+          runId,
           generation,
           connectionGeneration,
         );
@@ -681,6 +807,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         }
         _finishWithTransportError(
           'Assistant 连接意外中断',
+          runId,
           generation,
           connectionGeneration,
         );
@@ -696,26 +823,31 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   }
 
   void _applyEvent(Object runId, AssistantRunEvent event) {
+    if (!_acceptEvent(event)) return;
     final sessionId = jsonInt64IsPositive(event.sessionId)
         ? event.sessionId
         : state.sessionId;
     final responseId = 'run-${jsonInt64Id(runId)}';
+    _clearRecoveredTransportError(responseId, runId, event.isTerminal);
     switch (event.type) {
       case AssistantEventType.runStarted:
         state = state.copyWith(
           sessionId: sessionId,
           activeRunId: runId,
           activeRunPhase: 'model_request',
+          clearLastDisposition: true,
           isQueued: false,
           isStreaming: true,
-          messages: _ensureAssistant(responseId),
+          messages: _ensureAssistant(responseId, runId),
         );
       case AssistantEventType.token:
-        if (!_acceptToken(event)) return;
         state = state.copyWith(
           sessionId: sessionId,
-          messages: _updateMessage(
+          activeRunPhase: 'model_request',
+          clearLastDisposition: true,
+          messages: _updateResponseMessage(
             responseId,
+            runId,
             (message) => message.copyWith(text: '${message.text}${event.text}'),
             createIfMissing: true,
           ),
@@ -723,10 +855,10 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
           isQueued: false,
         );
       case AssistantEventType.responseReset:
-        if (!_acceptReset(event)) return;
         state = state.copyWith(
           sessionId: sessionId,
-          messages: _clearResetResponse(responseId),
+          clearLastDisposition: true,
+          messages: _clearResetResponse(responseId, runId),
           isStreaming: true,
           isQueued: false,
         );
@@ -734,8 +866,10 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         state = state.copyWith(
           sessionId: sessionId,
           activeRunPhase: 'tool_executing',
+          clearLastDisposition: true,
           messages: _upsertTool(
             responseId,
+            runId,
             event.toolCall!,
             AssistantToolStatus.running,
           ),
@@ -745,6 +879,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
           sessionId: sessionId,
           messages: _upsertTool(
             responseId,
+            runId,
             event.toolCall!,
             AssistantToolStatus.completed,
           ),
@@ -754,86 +889,125 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
           sessionId: sessionId,
           messages: _upsertTool(
             responseId,
+            runId,
             event.toolCall!,
             AssistantToolStatus.awaitingConfirmation,
           ),
         );
       case AssistantEventType.sourceCard:
-        if (event.sourceCard == null) return;
         state = state.copyWith(
           sessionId: sessionId,
-          messages: _updateMessage(responseId, (message) {
-            final source = event.sourceCard!;
-            return message.sources.contains(source)
-                ? message
-                : message.copyWith(sources: [...message.sources, source]);
-          }, createIfMissing: true),
+          messages: _updateResponseMessage(
+            responseId,
+            runId,
+            (message) {
+              final source = event.sourceCard!;
+              return message.sources.contains(source)
+                  ? message
+                  : message.copyWith(sources: [...message.sources, source]);
+            },
+            createIfMissing: true,
+            matchPersistedTerminal: true,
+          ),
         );
       case AssistantEventType.memoryChanged:
         state = state.copyWith(
           sessionId: sessionId,
-          messages: [
-            ...state.messages,
-            AssistantMessage(
-              id: 'memory-${jsonInt64Id(event.changeId)}-${event.seq}',
-              role: AssistantMessageRole.system,
-              kind: 'memory_changed',
-              text: event.text.isEmpty ? '记忆已更新' : event.text,
-              changeId: event.changeId,
-            ),
-          ],
+          messages: _upsertMemoryChangedEvent(runId, event),
         );
       case AssistantEventType.unknown:
         return;
       case AssistantEventType.done:
         _resetStreamTracking();
         _activeCommand = null;
+        _activeRunFloorMessageId = 0;
         state = state.copyWith(
           sessionId: sessionId,
-          messages: _updateMessage(
+          messages: _updateResponseMessage(
             responseId,
+            runId,
             (message) => message.copyWith(
               isStreaming: false,
               degraded: event.degraded,
+              terminalEventReceived: true,
               toolSteps: _settleSteps(
                 message.toolSteps,
                 AssistantToolStatus.completed,
               ),
             ),
             createIfMissing: true,
+            matchPersistedTerminal: true,
           ),
           isStreaming: false,
           isQueued: false,
+          clearConnectionError: state.pendingRetryCommand == null,
           clearActiveRun: true,
+          clearLastDisposition: true,
         );
       case AssistantEventType.error:
         _resetStreamTracking();
         final needsAuthorization = event.errorCode == 'AGENT_NOT_AUTHORIZED';
         final retryCommand = needsAuthorization ? _activeCommand : null;
         _activeCommand = null;
+        _activeRunFloorMessageId = 0;
         state = state.copyWith(
           sessionId: sessionId,
           agentAuthorizationRequired: needsAuthorization,
-          messages: _updateMessage(
+          messages: _updateResponseMessage(
             responseId,
+            runId,
             (message) => message.copyWith(
               text: message.text.isEmpty ? event.text : message.text,
               isStreaming: false,
               degraded: true,
               errorCode: event.errorCode,
+              terminalEventReceived: true,
               toolSteps: _settleSteps(
                 message.toolSteps,
                 AssistantToolStatus.failed,
               ),
             ),
             createIfMissing: true,
+            matchPersistedTerminal: true,
           ),
           isStreaming: false,
           isQueued: false,
           connectionError: event.text,
           pendingRetryCommand: retryCommand,
           clearActiveRun: true,
+          clearLastDisposition: true,
         );
+    }
+  }
+
+  bool _acceptEvent(AssistantRunEvent event) {
+    return switch (event.type) {
+      AssistantEventType.token => _acceptToken(event),
+      AssistantEventType.responseReset => _acceptReset(event),
+      AssistantEventType.sourceCard => event.sourceCard != null,
+      AssistantEventType.unknown => false,
+      _ => true,
+    };
+  }
+
+  void _clearRecoveredTransportError(
+    String responseId,
+    Object runId,
+    bool terminal,
+  ) {
+    var recovered = false;
+    final messages = _updateResponseMessage(responseId, runId, (message) {
+      if (message.errorCode != 'STREAM_DISCONNECTED') return message;
+      recovered = true;
+      return message.copyWith(
+        text: message.text == '响应中断' ? '' : message.text,
+        isStreaming: !terminal,
+        degraded: false,
+        errorCode: '',
+      );
+    }, matchPersistedTerminal: true);
+    if (recovered) {
+      state = state.copyWith(messages: messages, clearConnectionError: true);
     }
   }
 
@@ -866,14 +1040,16 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     _usesStreamIds = false;
   }
 
-  List<AssistantMessage> _ensureAssistant(String id) {
-    if (state.messages.any((message) => message.id == id)) {
+  List<AssistantMessage> _ensureAssistant(String id, Object runId) {
+    if (_exactMessageIndex(state.messages, id) >= 0 ||
+        _hasPersistedTerminalResponseForRun(state.messages, runId)) {
       return state.messages;
     }
     return [
       ...state.messages,
       AssistantMessage(
         id: id,
+        runId: runId,
         role: AssistantMessageRole.assistant,
         text: '',
         isStreaming: true,
@@ -884,12 +1060,17 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   static List<AssistantMessage> _ensureAssistantIn(
     List<AssistantMessage> messages,
     String id,
+    Object runId,
   ) {
-    if (messages.any((message) => message.id == id)) return messages;
+    if (_exactMessageIndex(messages, id) >= 0 ||
+        _hasPersistedTerminalResponseForRun(messages, runId)) {
+      return messages;
+    }
     return [
       ...messages,
       AssistantMessage(
         id: id,
+        runId: runId,
         role: AssistantMessageRole.assistant,
         text: '',
         isStreaming: true,
@@ -897,32 +1078,59 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     ];
   }
 
+  static int _exactMessageIndex(
+    List<AssistantMessage> messages,
+    String responseId,
+  ) {
+    return messages.indexWhere((message) => message.id == responseId);
+  }
+
+  static int _persistedTerminalResponseIndex(
+    List<AssistantMessage> messages,
+    Object runId,
+  ) {
+    if (!jsonInt64IsPositive(runId)) return -1;
+    return messages.indexWhere(
+      (message) =>
+          _isTerminalAssistantResponse(message) &&
+          _sameRun(message.runId, runId) &&
+          BigInt.tryParse(message.id) != null,
+    );
+  }
+
   List<AssistantMessage> _upsertTool(
     String responseId,
+    Object runId,
     AssistantToolCall call,
     AssistantToolStatus status,
   ) {
-    return _updateMessage(responseId, (message) {
-      final existing = message.toolSteps.indexWhere(
-        (step) => step.callId == call.callId,
-      );
-      final steps = [...message.toolSteps];
-      final step = AssistantToolStep(
-        callId: call.callId,
-        tool: call.tool,
-        summary: call.summary,
-        status: status,
-      );
-      if (existing >= 0) {
-        steps[existing] = steps[existing].copyWith(
-          status: status,
-          summary: call.summary.isEmpty ? null : call.summary,
+    return _updateResponseMessage(
+      responseId,
+      runId,
+      (message) {
+        final existing = message.toolSteps.indexWhere(
+          (step) => step.callId == call.callId,
         );
-      } else {
-        steps.add(step);
-      }
-      return message.copyWith(toolSteps: steps);
-    }, createIfMissing: true);
+        final steps = [...message.toolSteps];
+        final step = AssistantToolStep(
+          callId: call.callId,
+          tool: call.tool,
+          summary: call.summary,
+          status: status,
+        );
+        if (existing >= 0) {
+          steps[existing] = steps[existing].copyWith(
+            status: status,
+            summary: call.summary.isEmpty ? null : call.summary,
+          );
+        } else {
+          steps.add(step);
+        }
+        return message.copyWith(toolSteps: steps);
+      },
+      createIfMissing: true,
+      matchPersistedTerminal: true,
+    );
   }
 
   List<AssistantToolStep> _settleSteps(
@@ -950,6 +1158,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
 
   void _finishWithTransportError(
     String error,
+    Object runId,
     int generation,
     int connectionGeneration,
   ) {
@@ -958,32 +1167,49 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     _subscription = null;
     _connectionGeneration++;
     unawaited(subscription?.cancel());
+    if (_hasPersistedTerminalResponseForRun(state.messages, runId)) {
+      _subscribedRunId = 0;
+      _resetStreamTracking();
+      _activeCommand = null;
+      _activeRunFloorMessageId = 0;
+      state = state.copyWith(
+        isStreaming: false,
+        isQueued: false,
+        clearActiveRun: true,
+        clearLastDisposition: true,
+        clearConnectionError: state.pendingRetryCommand == null,
+      );
+      return;
+    }
+    final responseId = 'run-${jsonInt64Id(runId)}';
     state = state.copyWith(
-      messages: _updateLastAssistant(
+      messages: _updateResponseMessage(
+        responseId,
+        runId,
         (message) => message.copyWith(
           text: message.text.isEmpty ? '响应中断' : message.text,
           isStreaming: false,
           degraded: true,
           errorCode: 'STREAM_DISCONNECTED',
-          toolSteps: _settleSteps(
-            message.toolSteps,
-            AssistantToolStatus.failed,
-          ),
         ),
+        createIfMissing: true,
+        matchPersistedTerminal: true,
       ),
       isStreaming: false,
-      isQueued: false,
       connectionError: error,
     );
   }
 
   List<AssistantMessage> _setToolStatus(
+    Object runId,
     String callId, {
     required Set<AssistantToolStatus> from,
     required AssistantToolStatus to,
   }) {
-    return _updateLastAssistant((message) {
-      return message.copyWith(
+    return _updateResponseMessage(
+      'run-${jsonInt64Id(runId)}',
+      runId,
+      (message) => message.copyWith(
         toolSteps: [
           for (final step in message.toolSteps)
             if (step.callId == callId && from.contains(step.status))
@@ -991,8 +1217,9 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
             else
               step,
         ],
-      );
-    });
+      ),
+      matchPersistedTerminal: true,
+    );
   }
 
   List<AssistantMessage> _updateMemoryChange(
@@ -1009,36 +1236,72 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     ];
   }
 
-  List<AssistantMessage> _clearResetResponse(String responseId) {
-    return updateAll(
-      _ensureAssistant(responseId),
+  List<AssistantMessage> _upsertMemoryChangedEvent(
+    Object runId,
+    AssistantRunEvent event,
+  ) {
+    if (jsonInt64IsPositive(event.changeId) &&
+        state.messages.any(
+          (message) =>
+              message.isMemoryChanged &&
+              _sameRun(message.changeId, event.changeId),
+        )) {
+      return state.messages;
+    }
+    return [
+      ...state.messages,
+      AssistantMessage(
+        id: 'memory-${jsonInt64Id(event.changeId)}-${event.seq}',
+        runId: runId,
+        role: AssistantMessageRole.system,
+        kind: 'memory_changed',
+        text: event.text.isEmpty ? '记忆已更新' : event.text,
+        changeId: event.changeId,
+      ),
+    ];
+  }
+
+  List<AssistantMessage> _clearResetResponse(String responseId, Object runId) {
+    return _updateResponseMessage(
       responseId,
+      runId,
       (message) => message.copyWith(text: ''),
+      createIfMissing: true,
     );
   }
 
-  List<AssistantMessage> _updateMessage(
+  List<AssistantMessage> _updateResponseMessage(
     String id,
+    Object runId,
     AssistantMessage Function(AssistantMessage) update, {
     bool createIfMissing = false,
+    bool matchPersistedTerminal = false,
   }) {
-    final exists = state.messages.any((message) => message.id == id);
-    if (!exists && createIfMissing) {
-      return updateAll(
-        [
-          ...state.messages,
-          AssistantMessage(
-            id: id,
-            role: AssistantMessageRole.assistant,
-            text: '',
-            isStreaming: true,
-          ),
-        ],
-        id,
-        update,
-      );
+    final messages = [...state.messages];
+    var index = _exactMessageIndex(messages, id);
+    if (index < 0 && matchPersistedTerminal) {
+      index = _persistedTerminalResponseIndex(messages, runId);
     }
-    return updateAll(state.messages, id, update);
+    if (index >= 0) {
+      messages[index] = update(messages[index]);
+      return messages;
+    }
+    if (!createIfMissing ||
+        _hasPersistedTerminalResponseForRun(messages, runId)) {
+      return messages;
+    }
+    messages.add(
+      update(
+        AssistantMessage(
+          id: id,
+          runId: runId,
+          role: AssistantMessageRole.assistant,
+          text: '',
+          isStreaming: true,
+        ),
+      ),
+    );
+    return messages;
   }
 
   static List<AssistantMessage> updateAll(
@@ -1052,33 +1315,65 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     ];
   }
 
-  List<AssistantMessage> _updateLastAssistant(
-    AssistantMessage Function(AssistantMessage) update,
-  ) {
-    final messages = [...state.messages];
-    final index = messages.lastIndexWhere(
-      (message) => message.role == AssistantMessageRole.assistant,
-    );
-    if (index >= 0) messages[index] = update(messages[index]);
-    return messages;
-  }
-
   Future<bool> refreshForThread(AssistantThreadSummary thread) async {
-    if (_identityKey.isEmpty || !state.isLoaded) return false;
+    if (_identityKey.isEmpty || !state.isLoaded || state.isLoadingHistory) {
+      return false;
+    }
     if (jsonInt64IsPositive(thread.sessionId) &&
         !_sameRun(thread.sessionId, state.sessionId)) {
+      if (state.isSending) return false;
       await load();
       return mounted && state.connectionError == null;
     }
-    if (!jsonInt64IsPositive(thread.lastMessageId) ||
-        !_idIsAfter(thread.lastMessageId, _lastMessageId)) {
-      return false;
+    if (thread.hasActiveRun &&
+        !_sameRun(thread.activeRunId, state.activeRunId)) {
+      if (state.isSending) return false;
+      await load();
+      return mounted && state.connectionError == null;
     }
-    return refreshMessages();
+    final observedRunId = state.activeRunId;
+    var changed = false;
+    if (thread.hasActiveRun && _sameRun(thread.activeRunId, observedRunId)) {
+      final phase = thread.activeRunPhase.trim();
+      final queuedConsumed =
+          phase == 'model_request' || phase == 'tool_executing';
+      final preserveQueued =
+          (state.isQueued ||
+              state.lastDisposition == AssistantDisposition.queued) &&
+          !queuedConsumed;
+      if ((phase.isNotEmpty && phase != state.activeRunPhase) ||
+          preserveQueued != state.isQueued) {
+        final hasLiveSubscription =
+            _subscription != null && _sameRun(_subscribedRunId, observedRunId);
+        state = state.copyWith(
+          activeRunPhase: phase.isEmpty ? null : phase,
+          isQueued: preserveQueued,
+          isStreaming: hasLiveSubscription,
+          clearLastDisposition:
+              state.lastDisposition != AssistantDisposition.queued ||
+              !preserveQueued,
+        );
+        changed = true;
+      }
+      if (_subscription == null && reconnectActiveRun()) changed = true;
+    }
+    final needsMessageRefresh =
+        jsonInt64IsPositive(thread.lastMessageId) &&
+        _idIsAfter(thread.lastMessageId, _lastMessageId);
+    if (needsMessageRefresh) {
+      final refreshed = await refreshMessages();
+      if (!refreshed) return changed;
+      changed = true;
+    }
+    if (!mounted || !_sameRun(thread.sessionId, state.sessionId)) {
+      return changed;
+    }
+    return await _settleRunFromThread(thread, observedRunId) || changed;
   }
 
   Future<bool> loadOlderMessages() async {
     if (_identityKey.isEmpty ||
+        state.isLoadingHistory ||
         state.isLoadingOlder ||
         !state.hasMoreHistory ||
         !jsonInt64IsPositive(state.nextBeforeId) ||
@@ -1086,13 +1381,19 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
       return false;
     }
     final generation = ++_olderGeneration;
+    final sessionId = state.sessionId;
+    final beforeId = state.nextBeforeId;
     state = state.copyWith(isLoadingOlder: true, clearHistoryError: true);
     try {
       final page = await _repository.listMessages(
-        sessionId: state.sessionId,
-        beforeId: state.nextBeforeId,
+        sessionId: sessionId,
+        beforeId: beforeId,
       );
       if (!mounted || generation != _olderGeneration) return false;
+      if (!_sameRun(state.sessionId, sessionId)) {
+        state = state.copyWith(isLoadingOlder: false);
+        return false;
+      }
       final existingIds = {for (final item in state.messages) item.id};
       final older = [
         for (final item in page.messages)
@@ -1116,31 +1417,65 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     }
   }
 
-  Future<bool> refreshMessages() async {
-    if (_identityKey.isEmpty || !jsonInt64IsPositive(state.sessionId)) {
-      return false;
+  Future<bool> refreshMessages() {
+    if (_identityKey.isEmpty ||
+        state.isLoadingHistory ||
+        !jsonInt64IsPositive(state.sessionId)) {
+      return Future.value(false);
     }
+    _refreshRequested = true;
+    return _refreshFuture ??= _drainMessageRefreshes();
+  }
+
+  Future<bool> _drainMessageRefreshes() async {
+    var lastRefreshSucceeded = false;
+    try {
+      do {
+        _refreshRequested = false;
+        lastRefreshSucceeded = await _refreshMessagesOnce();
+      } while (_refreshRequested &&
+          mounted &&
+          !state.isLoadingHistory &&
+          jsonInt64IsPositive(state.sessionId));
+      return lastRefreshSucceeded;
+    } finally {
+      _refreshFuture = null;
+    }
+  }
+
+  Future<bool> _refreshMessagesOnce() async {
     final generation = ++_refreshGeneration;
+    final sessionId = state.sessionId;
     try {
       final history = <AssistantHistoryMessage>[];
       var cursor = _lastMessageId;
       while (true) {
         final page = await _repository.listMessages(
-          sessionId: state.sessionId,
+          sessionId: sessionId,
           afterId: cursor,
         );
-        if (!mounted || generation != _refreshGeneration) return false;
+        if (!mounted ||
+            generation != _refreshGeneration ||
+            !_sameRun(state.sessionId, sessionId)) {
+          return false;
+        }
         history.addAll(page.messages);
         if (!page.hasMore || page.messages.isEmpty) break;
         final nextCursor = page.messages.last.id;
         if (!_idIsAfter(nextCursor, cursor)) break;
         cursor = nextCursor;
       }
+      final messages = history.isEmpty
+          ? state.messages
+          : _mergeHistory(history);
+      state = state.copyWith(
+        messages: messages,
+        clearConnectionError: state.pendingRetryCommand == null,
+      );
       if (history.isNotEmpty) {
         for (final item in history) {
           _advanceMessageCursor(item.id);
         }
-        state = state.copyWith(messages: _mergeHistory(history));
       }
       unawaited(_markRead());
       return true;
@@ -1154,18 +1489,232 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   List<AssistantMessage> _mergeHistory(List<AssistantHistoryMessage> history) {
     final messages = [...state.messages];
     for (final item in history) {
-      final id = jsonInt64Id(item.id);
-      if (messages.any((message) => message.id == id)) continue;
-      if (jsonInt64IsPositive(item.runId) &&
-          item.role != 'user' &&
-          messages.any(
-            (message) => message.id == 'run-${jsonInt64Id(item.runId)}',
-          )) {
-        continue;
+      final persisted = _fromHistory(item);
+      if (_isTerminalAssistantResponse(persisted) &&
+          jsonInt64IsPositive(persisted.runId)) {
+        final responseId = 'run-${jsonInt64Id(persisted.runId)}';
+        final placeholderIndex = messages.indexWhere(
+          (message) => message.id == responseId,
+        );
+        if (placeholderIndex >= 0) {
+          final existing = messages[placeholderIndex];
+          messages.removeWhere(
+            (message) => message.id == responseId || message.id == persisted.id,
+          );
+          _insertNumericMessage(
+            messages,
+            _reconcilePersistedAssistant(existing, persisted),
+          );
+          continue;
+        }
       }
-      messages.add(_fromHistory(item));
+      if (messages.any((message) => message.id == persisted.id)) continue;
+      if (persisted.isMemoryChanged &&
+          jsonInt64IsPositive(persisted.changeId)) {
+        final existingIndex = messages.indexWhere(
+          (message) =>
+              message.isMemoryChanged &&
+              _sameRun(message.changeId, persisted.changeId),
+        );
+        if (existingIndex >= 0) {
+          final existing = messages.removeAt(existingIndex);
+          _insertNumericMessage(
+            messages,
+            AssistantMessage(
+              id: persisted.id,
+              runId: persisted.runId,
+              role: persisted.role,
+              kind: persisted.kind,
+              text: persisted.text,
+              changeId: persisted.changeId,
+              memoryUndoing: existing.memoryUndoing,
+              memoryUndone: existing.memoryUndone,
+            ),
+          );
+          continue;
+        }
+      }
+      _insertNumericMessage(messages, persisted);
     }
     return messages;
+  }
+
+  AssistantMessage _reconcilePersistedAssistant(
+    AssistantMessage existing,
+    AssistantMessage persisted,
+  ) {
+    return AssistantMessage(
+      id: persisted.id,
+      runId: persisted.runId,
+      role: persisted.role,
+      kind: persisted.kind,
+      text: persisted.text,
+      sources: existing.sources,
+      toolSteps: _settleSteps(
+        existing.toolSteps,
+        AssistantToolStatus.completed,
+      ),
+      attachments: existing.attachments,
+      changeId: persisted.changeId,
+      isStreaming: false,
+      isCanceled: existing.terminalEventReceived && existing.isCanceled,
+      degraded: existing.terminalEventReceived && existing.degraded,
+      errorCode: existing.terminalEventReceived ? existing.errorCode : '',
+      terminalEventReceived: existing.terminalEventReceived,
+      memoryUndoing: existing.memoryUndoing,
+      memoryUndone: existing.memoryUndone,
+    );
+  }
+
+  static void _insertNumericMessage(
+    List<AssistantMessage> messages,
+    AssistantMessage message,
+  ) {
+    final messageId = BigInt.tryParse(message.id);
+    final firstLaterMessage = messageId == null
+        ? -1
+        : messages.indexWhere((existing) {
+            final existingId = BigInt.tryParse(existing.id);
+            return existingId != null && existingId > messageId;
+          });
+    if (firstLaterMessage < 0) {
+      messages.add(message);
+    } else {
+      messages.insert(firstLaterMessage, message);
+    }
+  }
+
+  static bool _hasPersistedTerminalResponseForRun(
+    List<AssistantMessage> messages,
+    Object runId,
+  ) {
+    if (!jsonInt64IsPositive(runId)) return false;
+    return messages.any(
+      (message) =>
+          _isTerminalAssistantResponse(message) &&
+          _sameRun(message.runId, runId) &&
+          BigInt.tryParse(message.id) != null,
+    );
+  }
+
+  static bool _hasTerminalEventResponseForRun(
+    List<AssistantMessage> messages,
+    Object runId,
+  ) {
+    if (!jsonInt64IsPositive(runId)) return false;
+    return messages.any(
+      (message) =>
+          message.role == AssistantMessageRole.assistant &&
+          message.terminalEventReceived &&
+          _sameRun(message.runId, runId),
+    );
+  }
+
+  static bool _isTerminalAssistantResponse(AssistantMessage message) {
+    return message.role == AssistantMessageRole.assistant &&
+        (message.kind.isEmpty ||
+            message.kind == 'message' ||
+            message.kind == 'watch');
+  }
+
+  Future<bool> _settleRunFromThread(
+    AssistantThreadSummary thread,
+    Object observedRunId,
+  ) async {
+    final hasPersistedTerminal = _hasPersistedTerminalResponseForRun(
+      state.messages,
+      observedRunId,
+    );
+    if (thread.hasActiveRun ||
+        !jsonInt64IsPositive(observedRunId) ||
+        !_sameRun(state.activeRunId, observedRunId) ||
+        state.isSending ||
+        (!hasPersistedTerminal &&
+            state.isStreaming &&
+            _subscription != null &&
+            _sameRun(_subscribedRunId, observedRunId)) ||
+        (jsonInt64IsPositive(_activeRunFloorMessageId) &&
+            _idIsAfter(_activeRunFloorMessageId, thread.lastMessageId))) {
+      return false;
+    }
+    await _cancelSubscription();
+    if (!mounted ||
+        !_sameRun(state.activeRunId, observedRunId) ||
+        !_sameRun(state.sessionId, thread.sessionId) ||
+        state.isSending ||
+        (jsonInt64IsPositive(_activeRunFloorMessageId) &&
+            _idIsAfter(_activeRunFloorMessageId, thread.lastMessageId))) {
+      return false;
+    }
+    _activeCommand = null;
+    _activeRunFloorMessageId = 0;
+    state = state.copyWith(
+      messages: _updateResponseMessage(
+        'run-${jsonInt64Id(observedRunId)}',
+        observedRunId,
+        (message) => message.copyWith(isStreaming: false),
+      ),
+      isStreaming: false,
+      isQueued: false,
+      clearConnectionError: state.pendingRetryCommand == null,
+      clearActiveRun: true,
+      clearLastDisposition: true,
+    );
+    return true;
+  }
+
+  void _advanceActiveRunFloor(Object id) {
+    if (jsonInt64IsPositive(id) && _idIsAfter(id, _activeRunFloorMessageId)) {
+      _activeRunFloorMessageId = id;
+    }
+  }
+
+  static List<AssistantMessage> _reconcileAcceptedUserMessage(
+    List<AssistantMessage> messages, {
+    required String optimisticId,
+    required String acceptedMessageId,
+    required Object acceptedRunId,
+  }) {
+    final optimisticIndex = messages.indexWhere(
+      (item) => item.id == optimisticId,
+    );
+    if (optimisticIndex < 0) return [...messages];
+
+    final acceptedIndex = messages.indexWhere(
+      (item) => item.id == acceptedMessageId,
+    );
+    final acceptedMessage = messages[optimisticIndex].copyWith(
+      id: acceptedMessageId,
+      runId: acceptedRunId,
+    );
+    final result = [
+      for (final item in messages)
+        if (item.id != optimisticId && item.id != acceptedMessageId) item,
+    ];
+
+    // A history refresh can observe the accepted write before POST returns.
+    if (acceptedIndex >= 0) {
+      final insertionIndex = messages
+          .take(acceptedIndex)
+          .where(
+            (item) => item.id != optimisticId && item.id != acceptedMessageId,
+          )
+          .length;
+      result.insert(insertionIndex, acceptedMessage);
+      return result;
+    }
+
+    final acceptedNumericId = BigInt.parse(acceptedMessageId);
+    final firstLaterMessage = result.indexWhere((item) {
+      final itemId = BigInt.tryParse(item.id);
+      return itemId != null && itemId > acceptedNumericId;
+    });
+    if (firstLaterMessage < 0) {
+      result.add(acceptedMessage);
+    } else {
+      result.insert(firstLaterMessage, acceptedMessage);
+    }
+    return result;
   }
 
   void _advanceMessageCursor(Object id) {
@@ -1211,6 +1760,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     };
     return AssistantMessage(
       id: jsonInt64Id(item.id),
+      runId: item.runId,
       role: role,
       kind: item.kind,
       text: item.content,
@@ -1294,6 +1844,7 @@ class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
   final AssistantDataSource _repository;
   final String _identityKey;
   int _generation = 0;
+  Future<void>? _loadFuture;
 
   AgentConsentNotifier({
     required AssistantDataSource repository,
@@ -1302,14 +1853,24 @@ class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
        _identityKey = identityKey,
        super(const AgentConsentState());
 
-  Future<void> ensureLoaded() async {
-    if (_identityKey.isEmpty) return;
-    if (state.loaded || state.loading) return;
-    await reload();
+  Future<void> ensureLoaded() {
+    if (_identityKey.isEmpty || state.loaded) return Future<void>.value();
+    return reload();
   }
 
-  Future<void> reload() async {
-    if (_identityKey.isEmpty || !mounted) return;
+  Future<void> reload() {
+    if (_identityKey.isEmpty || !mounted) return Future<void>.value();
+    final active = _loadFuture;
+    if (active != null) return active;
+    late final Future<void> future;
+    future = _reloadOnce().whenComplete(() {
+      if (identical(_loadFuture, future)) _loadFuture = null;
+    });
+    _loadFuture = future;
+    return future;
+  }
+
+  Future<void> _reloadOnce() async {
     final generation = ++_generation;
     state = state.copyWith(loading: true);
     try {

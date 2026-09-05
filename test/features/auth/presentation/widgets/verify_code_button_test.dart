@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/features/auth/presentation/widgets/verify_code_button.dart';
@@ -78,5 +80,27 @@ void main() {
 
     await tester.pump(const Duration(seconds: 6));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('ignores a successful send after the button is disposed', (
+    tester,
+  ) async {
+    final send = Completer<void>();
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: foruiTestBuilder,
+        home: Scaffold(
+          body: Center(child: VerifyCodeButton(onSend: () => send.future)),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('获取验证码'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpWidget(const SizedBox.shrink());
+    send.complete();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
   });
 }

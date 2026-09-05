@@ -46,6 +46,7 @@ class DirectMessage {
   final int msgType;
   final int status;
   final int createdAt;
+  final Object mediaId;
 
   const DirectMessage({
     required this.id,
@@ -56,6 +57,7 @@ class DirectMessage {
     required this.msgType,
     required this.status,
     required this.createdAt,
+    this.mediaId = 0,
   });
 
   factory DirectMessage.fromJson(Map<String, dynamic> json) {
@@ -78,6 +80,7 @@ class DirectMessage {
       msgType: _integer(json['msgType']),
       status: _integer(json['status']),
       createdAt: _integer(json['createdAt']),
+      mediaId: json['mediaId'] ?? 0,
     );
   }
 }

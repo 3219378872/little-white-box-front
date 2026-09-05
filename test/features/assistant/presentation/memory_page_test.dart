@@ -10,6 +10,8 @@ import 'package:xiaobaihe_app/features/assistant/presentation/memory_page.dart';
 import '../../../helpers/forui_test_builder.dart';
 import '../helpers/fake_assistant_source.dart';
 
+final _memoryIdentityProvider = StateProvider<String>((_) => 'account-a');
+
 FakeAssistantSource _grantedSource() => FakeAssistantSource()
   ..granted = true
   ..consentVersion = 2
@@ -30,6 +32,33 @@ Future<void> _pumpMemory(
   );
   await tester.pump();
   await tester.pump();
+}
+
+Future<ProviderContainer> _pumpSwitchableMemory(
+  WidgetTester tester,
+  FakeAssistantSource accountA,
+  FakeAssistantSource accountB,
+) async {
+  final container = ProviderContainer(
+    overrides: [
+      assistantUserKeyProvider.overrideWith(
+        (ref) => ref.watch(_memoryIdentityProvider),
+      ),
+      assistantRepositoryProvider.overrideWith((ref) {
+        final identity = ref.watch(_memoryIdentityProvider);
+        return identity == 'account-a' ? accountA : accountB;
+      }),
+    ],
+  );
+  addTearDown(container.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(builder: foruiTestBuilder, home: MemoryPage()),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return container;
 }
 
 void main() {
@@ -87,5 +116,56 @@ void main() {
     expect(find.text('需要升级 Agent 授权才能修改记忆'), findsOneWidget);
     expect(find.text('喜欢美食'), findsOneWidget);
     expect(find.text('修改'), findsNothing);
+  });
+
+  testWidgets('account switch dismisses add dialog without submitting draft', (
+    tester,
+  ) async {
+    final accountA = _grantedSource();
+    final accountB = _grantedSource()
+      ..memories = const [
+        MemoryRecord(id: 2, target: 'memory', content: '账号 B 的记忆', version: 1),
+      ];
+    final container = await _pumpSwitchableMemory(tester, accountA, accountB);
+
+    await tester.tap(find.bySemanticsLabel('新增记忆'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText), '账号 A 的未提交草稿');
+
+    container.read(_memoryIdentityProvider.notifier).state = 'account-b';
+    await tester.pumpAndSettle();
+
+    expect(find.text('新增记忆'), findsNothing);
+    expect(find.text('账号 A 的未提交草稿'), findsNothing);
+    expect(find.text('账号 B 的记忆'), findsOneWidget);
+    expect(accountA.addMemoryRequestIds, isEmpty);
+    expect(accountB.addMemoryRequestIds, isEmpty);
+  });
+
+  testWidgets('account switch dismisses edit dialog without updating B', (
+    tester,
+  ) async {
+    final accountA = _grantedSource()
+      ..memories = const [
+        MemoryRecord(id: 1, target: 'memory', content: '账号 A 的记忆', version: 1),
+      ];
+    final accountB = _grantedSource()
+      ..memories = const [
+        MemoryRecord(id: 2, target: 'user', content: '账号 B 的记忆', version: 3),
+      ];
+    final container = await _pumpSwitchableMemory(tester, accountA, accountB);
+
+    await tester.tap(find.text('修改'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText), '不应写给账号 B');
+
+    container.read(_memoryIdentityProvider.notifier).state = 'account-b';
+    await tester.pumpAndSettle();
+
+    expect(find.text('修改记忆'), findsNothing);
+    expect(find.text('账号 A 的记忆'), findsNothing);
+    expect(find.text('账号 B 的记忆'), findsOneWidget);
+    expect(accountA.replaceMemoryRequestIds, isEmpty);
+    expect(accountB.replaceMemoryRequestIds, isEmpty);
   });
 }

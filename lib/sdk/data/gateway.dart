@@ -1,4 +1,4 @@
-// --/home/dev/projects/little/little-white-box-content-community/.worktree/task-audit-remediation/app/gateway/gateway--
+// --app/gateway/gateway--
 
 class AddAssistantMemoryReq {
   final String target;
@@ -1636,6 +1636,8 @@ class GetPostResp {
   final num revision;
 
   final num createdAt;
+
+  final List<Object> mediaIds;
   GetPostResp({
     required this.id,
     required this.authorId,
@@ -1654,6 +1656,7 @@ class GetPostResp {
     required this.isFavorited,
     required this.revision,
     required this.createdAt,
+    required this.mediaIds,
   });
   factory GetPostResp.fromJson(Map<String, dynamic> m) {
     return GetPostResp(
@@ -1674,6 +1677,9 @@ class GetPostResp {
       isFavorited: m['isFavorited'] ?? false,
       revision: m['revision'] ?? 0,
       createdAt: m['createdAt'] ?? 0,
+      mediaIds: m['mediaIds'] is List
+          ? List<Object>.from(m['mediaIds'] as List)
+          : <Object>[],
     );
   }
   Map<String, dynamic> toJson() {
@@ -1695,6 +1701,7 @@ class GetPostResp {
       'isFavorited': isFavorited,
       'revision': revision,
       'createdAt': createdAt,
+      'mediaIds': mediaIds,
     };
   }
 }
@@ -2236,6 +2243,8 @@ class MessageItem {
   final num status;
 
   final num createdAt;
+
+  final Object mediaId;
   MessageItem({
     required this.id,
     required this.conversationId,
@@ -2245,6 +2254,7 @@ class MessageItem {
     required this.msgType,
     required this.status,
     required this.createdAt,
+    required this.mediaId,
   });
   factory MessageItem.fromJson(Map<String, dynamic> m) {
     return MessageItem(
@@ -2256,6 +2266,7 @@ class MessageItem {
       msgType: m['msgType'] ?? 0,
       status: m['status'] ?? 0,
       createdAt: m['createdAt'] ?? 0,
+      mediaId: m['mediaId'] ?? 0,
     );
   }
   Map<String, dynamic> toJson() {
@@ -2268,6 +2279,7 @@ class MessageItem {
       'msgType': msgType,
       'status': status,
       'createdAt': createdAt,
+      'mediaId': mediaId,
     };
   }
 }
@@ -2372,6 +2384,8 @@ class PostItem {
   final num revision;
 
   final num createdAt;
+
+  final List<Object> mediaIds;
   PostItem({
     required this.id,
     required this.authorId,
@@ -2390,6 +2404,7 @@ class PostItem {
     required this.isFavorited,
     required this.revision,
     required this.createdAt,
+    required this.mediaIds,
   });
   factory PostItem.fromJson(Map<String, dynamic> m) {
     return PostItem(
@@ -2410,6 +2425,9 @@ class PostItem {
       isFavorited: m['isFavorited'] ?? false,
       revision: m['revision'] ?? 0,
       createdAt: m['createdAt'] ?? 0,
+      mediaIds: m['mediaIds'] is List
+          ? List<Object>.from(m['mediaIds'] as List)
+          : <Object>[],
     );
   }
   Map<String, dynamic> toJson() {
@@ -2431,6 +2449,7 @@ class PostItem {
       'isFavorited': isFavorited,
       'revision': revision,
       'createdAt': createdAt,
+      'mediaIds': mediaIds,
     };
   }
 }

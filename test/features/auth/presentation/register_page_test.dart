@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/auth/presentation/register_page.dart';
 import 'package:xiaobaihe_app/sdk/api/api.dart';
 
@@ -57,8 +60,9 @@ void main() {
     expect(find.text('已有账号？去登录'), findsOneWidget);
   });
 
-  testWidgets('rejects incomplete forms without a network call',
-      (tester) async {
+  testWidgets('rejects incomplete forms without a network call', (
+    tester,
+  ) async {
     final client = ScriptedGatewayClient.always(<String, dynamic>{});
     setApiClient(client);
     await pumpRegister(tester);
@@ -85,8 +89,9 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('registers with the gateway contract and lands on the feed',
-      (tester) async {
+  testWidgets('registers with the gateway contract and lands on the feed', (
+    tester,
+  ) async {
     final client = ScriptedGatewayClient.always({
       'userId': 9,
       'token': 'access-9',
@@ -114,8 +119,9 @@ void main() {
     expect(find.text('信息流占位'), findsOneWidget);
   });
 
-  testWidgets('sends the verify code for the entered phone number',
-      (tester) async {
+  testWidgets('sends the verify code for the entered phone number', (
+    tester,
+  ) async {
     final client = ScriptedGatewayClient.always(<String, dynamic>{});
     setApiClient(client);
     await pumpRegister(tester);
@@ -131,8 +137,9 @@ void main() {
     expect(find.text('60s'), findsOneWidget);
   });
 
-  testWidgets('navigates to the login page via the ghost action',
-      (tester) async {
+  testWidgets('navigates to the login page via the ghost action', (
+    tester,
+  ) async {
     await pumpRegister(tester);
 
     await tester.tap(find.text('已有账号？去登录'));
@@ -140,4 +147,120 @@ void main() {
 
     expect(find.text('登录页占位'), findsOneWidget);
   });
+
+  testWidgets('ignores a failed register response after page disposal', (
+    tester,
+  ) async {
+    final response = Completer<http.Response>();
+    final client = ScriptedGatewayClient((_) => response.future);
+    setApiClient(client);
+    final router = GoRouter(
+      initialLocation: '/auth/register',
+      routes: [
+        GoRoute(
+          path: '/auth/register',
+          builder: (_, _) => const RegisterPage(),
+        ),
+        GoRoute(
+          path: '/away',
+          builder: (_, _) => const Scaffold(body: Text('其他页面')),
+        ),
+        GoRoute(
+          path: '/feed',
+          builder: (_, _) => const Scaffold(body: Text('信息流占位')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: foruiTestBuilder,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText).at(0), 'neo');
+    await tester.enterText(find.byType(EditableText).at(1), 'secret');
+    await tester.enterText(find.byType(EditableText).at(2), 'secret');
+    await tester.enterText(find.byType(EditableText).at(3), '13800000000');
+    await tester.enterText(find.byType(EditableText).at(4), '123456');
+    await tester.tap(find.widgetWithText(FButton, '注册'));
+    await tester.pump();
+    expect(client.requests, hasLength(1));
+
+    router.go('/away');
+    await tester.pumpAndSettle();
+    response.complete(
+      jsonResponse({'code': 6, 'message': 'late failure'}, 503),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('其他页面'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'does not authenticate from a successful response after leaving',
+    (tester) async {
+      final response = Completer<http.Response>();
+      final client = ScriptedGatewayClient((_) => response.future);
+      setApiClient(client);
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final router = GoRouter(
+        initialLocation: '/auth/register',
+        routes: [
+          GoRoute(
+            path: '/auth/register',
+            builder: (_, _) => const RegisterPage(),
+          ),
+          GoRoute(
+            path: '/away',
+            builder: (_, _) => const Scaffold(body: Text('其他页面')),
+          ),
+          GoRoute(
+            path: '/feed',
+            builder: (_, _) => const Scaffold(body: Text('信息流占位')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            routerConfig: router,
+            builder: foruiTestBuilder,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(EditableText).at(0), 'neo');
+      await tester.enterText(find.byType(EditableText).at(1), 'secret');
+      await tester.enterText(find.byType(EditableText).at(2), 'secret');
+      await tester.enterText(find.byType(EditableText).at(3), '13800000000');
+      await tester.enterText(find.byType(EditableText).at(4), '123456');
+      await tester.tap(find.widgetWithText(FButton, '注册'));
+      await tester.pump();
+      expect(client.requests, hasLength(1));
+
+      router.go('/away');
+      await tester.pumpAndSettle();
+      response.complete(
+        jsonResponse({
+          'userId': 9,
+          'token': 'late-access-token',
+          'refreshToken': 'late-refresh-token',
+        }),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('其他页面'), findsOneWidget);
+      expect(container.read(authNotifierProvider).isAuthenticated, isFalse);
+      expect(container.read(authNotifierProvider).token, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

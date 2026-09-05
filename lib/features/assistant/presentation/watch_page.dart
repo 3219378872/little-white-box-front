@@ -19,6 +19,10 @@ class WatchPage extends ConsumerStatefulWidget {
 }
 
 class _WatchPageState extends ConsumerState<WatchPage> {
+  BuildContext? _activeDialogContext;
+  String? _activeDialogIdentity;
+  bool _dialogDismissScheduled = false;
+
   @override
   void initState() {
     super.initState();
@@ -30,6 +34,9 @@ class _WatchPageState extends ConsumerState<WatchPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<String>(assistantUserKeyProvider, (_, _) {
+      _dismissDialogForIdentityChange();
+    });
     final consent = ref.watch(agentConsentNotifierProvider);
     final tasks = ref.watch(watchListProvider);
 
@@ -67,14 +74,31 @@ class _WatchPageState extends ConsumerState<WatchPage> {
                 subtitle: const Text('命中会进入小白盒 Agent 线程，不会写入普通私信。未升级时仅可只读查看。'),
               ),
             ),
+          if (tasks.error != null && tasks.items.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: FAlert(
+                key: const Key('watch-list-error'),
+                variant: FAlertVariant.destructive,
+                title: Text(tasks.error!),
+                subtitle: Align(
+                  alignment: Alignment.centerLeft,
+                  child: FButton(
+                    variant: .outline,
+                    size: .sm,
+                    onPress: () => ref.read(watchListProvider.notifier).load(),
+                    child: const Text('重试'),
+                  ),
+                ),
+              ),
+            ),
           Expanded(
             child: tasks.loading && tasks.items.isEmpty
                 ? const Center(child: FCircularProgress())
                 : tasks.error != null && tasks.items.isEmpty
                 ? ErrorView(
                     message: tasks.error!,
-                    onRetry: () =>
-                        ref.read(watchListProvider.notifier).load(),
+                    onRetry: () => ref.read(watchListProvider.notifier).load(),
                   )
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -114,22 +138,28 @@ class _WatchPageState extends ConsumerState<WatchPage> {
   }
 
   Future<void> _runWatchAction(Future<void> Function() action) async {
+    final identity = ref.read(assistantUserKeyProvider);
+    if (!_ownsIdentity(identity)) return;
     try {
       await action();
     } catch (error) {
-      if (!mounted) return;
-      showAppError(context, friendlyErrorMessage(error));
+      if (mounted && _ownsIdentity(identity)) {
+        showAppError(context, friendlyErrorMessage(error));
+      }
     }
   }
 
   Future<void> _create() async {
+    final identity = ref.read(assistantUserKeyProvider);
+    if (!_ownsIdentity(identity)) return;
     var condition = 'author_new_post';
-    final targetCtrl = TextEditingController();
+    var target = '';
     var confirmed = false;
     try {
       await showFDialog<void>(
         context: context,
         builder: (dialogContext, style, animation) {
+          _bindDialog(dialogContext, identity);
           return StatefulBuilder(
             builder: (context, setDialogState) {
               return Padding(
@@ -158,8 +188,15 @@ class _WatchPageState extends ConsumerState<WatchPage> {
                     ),
                     const SizedBox(height: 12),
                     FTextField(
-                      control: FTextFieldControl.managed(
-                        controller: targetCtrl,
+                      control: FTextFieldControl.lifted(
+                        value: TextEditingValue(
+                          text: target,
+                          selection: TextSelection.collapsed(
+                            offset: target.length,
+                          ),
+                        ),
+                        onChange: (value) =>
+                            setDialogState(() => target = value.text),
                       ),
                       label: Text(
                         condition == 'tag_new_post' ||
@@ -194,30 +231,73 @@ class _WatchPageState extends ConsumerState<WatchPage> {
           );
         },
       );
-      if (!confirmed || !mounted) return;
+      if (!confirmed || !_ownsIdentity(identity)) return;
       final targetType = watchConditionTargetTypes[condition]!;
-      final raw = targetCtrl.text.trim();
+      final raw = target.trim();
+      final notifier = ref.read(watchListProvider.notifier);
       try {
-        await ref
-            .read(watchListProvider.notifier)
-            .createTask(
-              conditionType: condition,
-              targetType: targetType,
-              targetId:
-                  condition == 'author_new_post' || condition == 'post_revised'
-                  ? raw
-                  : 0,
-              targetText:
-                  condition == 'tag_new_post' || condition == 'keyword_new_post'
-                  ? raw
-                  : '',
-            );
+        await notifier.createTask(
+          conditionType: condition,
+          targetType: targetType,
+          targetId:
+              condition == 'author_new_post' || condition == 'post_revised'
+              ? raw
+              : 0,
+          targetText:
+              condition == 'tag_new_post' || condition == 'keyword_new_post'
+              ? raw
+              : '',
+        );
       } catch (error) {
-        if (mounted) showAppError(context, friendlyErrorMessage(error));
+        if (mounted && _ownsIdentity(identity)) {
+          showAppError(context, friendlyErrorMessage(error));
+        }
       }
     } finally {
-      targetCtrl.dispose();
+      _clearDialog(identity);
     }
+  }
+
+  bool _ownsIdentity(String identity) {
+    return mounted &&
+        identity.isNotEmpty &&
+        ref.read(assistantUserKeyProvider) == identity;
+  }
+
+  void _bindDialog(BuildContext dialogContext, String identity) {
+    _activeDialogContext = dialogContext;
+    _activeDialogIdentity = identity;
+    _dismissDialogForIdentityChange();
+  }
+
+  void _clearDialog(String identity) {
+    if (_activeDialogIdentity != identity) return;
+    _activeDialogContext = null;
+    _activeDialogIdentity = null;
+    _dialogDismissScheduled = false;
+  }
+
+  void _dismissDialogForIdentityChange() {
+    final dialogContext = _activeDialogContext;
+    final identity = _activeDialogIdentity;
+    if (dialogContext == null ||
+        identity == null ||
+        _dialogDismissScheduled ||
+        ref.read(assistantUserKeyProvider) == identity) {
+      return;
+    }
+    _dialogDismissScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _dialogDismissScheduled = false;
+      if (!mounted ||
+          _activeDialogContext != dialogContext ||
+          _activeDialogIdentity != identity ||
+          !dialogContext.mounted ||
+          ref.read(assistantUserKeyProvider) == identity) {
+        return;
+      }
+      Navigator.of(dialogContext).pop();
+    });
   }
 }
 

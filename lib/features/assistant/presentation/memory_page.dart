@@ -18,6 +18,10 @@ class MemoryPage extends ConsumerStatefulWidget {
 }
 
 class _MemoryPageState extends ConsumerState<MemoryPage> {
+  BuildContext? _activeDialogContext;
+  String? _activeDialogIdentity;
+  bool _dialogDismissScheduled = false;
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +33,9 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<String>(assistantUserKeyProvider, (_, _) {
+      _dismissDialogForIdentityChange();
+    });
     final consent = ref.watch(agentConsentNotifierProvider);
     final state = ref.watch(memoryListProvider);
     final theme = context.theme;
@@ -87,9 +94,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
                   for (final cap in state.capacities)
                     FBadge(
                       variant: .secondary,
-                      child: Text(
-                        '${cap.target} ${cap.used}/${cap.limit}',
-                      ),
+                      child: Text('${cap.target} ${cap.used}/${cap.limit}'),
                     ),
                 ],
               ),
@@ -138,13 +143,16 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
   }
 
   Future<void> _add() async {
+    final identity = ref.read(assistantUserKeyProvider);
+    if (!_ownsIdentity(identity)) return;
     var target = 'memory';
-    final contentCtrl = TextEditingController();
+    var content = '';
     var confirmed = false;
     try {
       await showFDialog<void>(
         context: context,
         builder: (dialogContext, style, animation) {
+          _bindDialog(dialogContext, identity);
           return StatefulBuilder(
             builder: (context, setDialogState) {
               return Padding(
@@ -175,8 +183,15 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
                     ),
                     const SizedBox(height: 8),
                     FTextField.multiline(
-                      control: FTextFieldControl.managed(
-                        controller: contentCtrl,
+                      control: FTextFieldControl.lifted(
+                        value: TextEditingValue(
+                          text: content,
+                          selection: TextSelection.collapsed(
+                            offset: content.length,
+                          ),
+                        ),
+                        onChange: (value) =>
+                            setDialogState(() => content = value.text),
                       ),
                       label: const Text('内容'),
                       minLines: 2,
@@ -208,89 +223,159 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
           );
         },
       );
-      if (!confirmed || !mounted) return;
+      if (!confirmed || !_ownsIdentity(identity)) return;
+      final notifier = ref.read(memoryListProvider.notifier);
       try {
-        await ref
-            .read(memoryListProvider.notifier)
-            .addRecord(target: target, content: contentCtrl.text.trim());
+        await notifier.addRecord(target: target, content: content.trim());
       } catch (error) {
-        if (mounted) showAppError(context, friendlyErrorMessage(error));
+        if (mounted && _ownsIdentity(identity)) {
+          showAppError(context, friendlyErrorMessage(error));
+        }
       }
     } finally {
-      contentCtrl.dispose();
+      _clearDialog(identity);
     }
   }
 
   Future<void> _edit(MemoryRecord record) async {
-    final contentCtrl = TextEditingController(text: record.content);
+    final identity = ref.read(assistantUserKeyProvider);
+    if (!_ownsIdentity(identity)) return;
+    var content = record.content;
     var confirmed = false;
     try {
       await showFDialog<void>(
         context: context,
-        builder: (dialogContext, style, animation) => Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('修改记忆', style: style.titleTextStyle),
-              const SizedBox(height: 12),
-              FTextField.multiline(
-                control: FTextFieldControl.managed(controller: contentCtrl),
-                label: const Text('内容'),
-                minLines: 2,
-                maxLines: 6,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+        builder: (dialogContext, style, animation) {
+          _bindDialog(dialogContext, identity);
+          return StatefulBuilder(
+            builder: (context, setDialogState) => Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  FButton(
-                    variant: .outline,
-                    onPress: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('取消'),
+                  Text('修改记忆', style: style.titleTextStyle),
+                  const SizedBox(height: 12),
+                  FTextField.multiline(
+                    control: FTextFieldControl.lifted(
+                      value: TextEditingValue(
+                        text: content,
+                        selection: TextSelection.collapsed(
+                          offset: content.length,
+                        ),
+                      ),
+                      onChange: (value) =>
+                          setDialogState(() => content = value.text),
+                    ),
+                    label: const Text('内容'),
+                    minLines: 2,
+                    maxLines: 6,
                   ),
-                  const SizedBox(width: 8),
-                  FButton(
-                    onPress: () {
-                      confirmed = true;
-                      Navigator.of(dialogContext).pop();
-                    },
-                    child: const Text('保存'),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      FButton(
+                        variant: .outline,
+                        onPress: () => Navigator.of(dialogContext).pop(),
+                        child: const Text('取消'),
+                      ),
+                      const SizedBox(width: 8),
+                      FButton(
+                        onPress: () {
+                          confirmed = true;
+                          Navigator.of(dialogContext).pop();
+                        },
+                        child: const Text('保存'),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       );
-      if (!confirmed || !mounted) return;
+      if (!confirmed || !_ownsIdentity(identity)) return;
+      final notifier = ref.read(memoryListProvider.notifier);
       try {
-        await ref
-            .read(memoryListProvider.notifier)
-            .updateRecord(record: record, content: contentCtrl.text.trim());
+        await notifier.updateRecord(record: record, content: content.trim());
       } catch (error) {
-        if (mounted) showAppError(context, friendlyErrorMessage(error));
+        if (mounted && _ownsIdentity(identity)) {
+          showAppError(context, friendlyErrorMessage(error));
+        }
       }
     } finally {
-      contentCtrl.dispose();
+      _clearDialog(identity);
     }
   }
 
   Future<void> _delete(MemoryRecord record) async {
+    final identity = ref.read(assistantUserKeyProvider);
+    if (!_ownsIdentity(identity)) return;
+    final notifier = ref.read(memoryListProvider.notifier);
     try {
-      await ref.read(memoryListProvider.notifier).deleteRecord(record);
+      await notifier.deleteRecord(record);
     } catch (error) {
-      if (mounted) showAppError(context, friendlyErrorMessage(error));
+      if (mounted && _ownsIdentity(identity)) {
+        showAppError(context, friendlyErrorMessage(error));
+      }
     }
   }
 
   Future<void> _undo() async {
+    final identity = ref.read(assistantUserKeyProvider);
+    if (!_ownsIdentity(identity)) return;
+    final notifier = ref.read(memoryListProvider.notifier);
     try {
-      await ref.read(memoryListProvider.notifier).undoLastChange();
+      await notifier.undoLastChange();
     } catch (error) {
-      if (mounted) showAppError(context, friendlyErrorMessage(error));
+      if (mounted && _ownsIdentity(identity)) {
+        showAppError(context, friendlyErrorMessage(error));
+      }
     }
+  }
+
+  bool _ownsIdentity(String identity) {
+    return mounted &&
+        identity.isNotEmpty &&
+        ref.read(assistantUserKeyProvider) == identity;
+  }
+
+  void _bindDialog(BuildContext dialogContext, String identity) {
+    _activeDialogContext = dialogContext;
+    _activeDialogIdentity = identity;
+    _dismissDialogForIdentityChange();
+  }
+
+  void _clearDialog(String identity) {
+    if (_activeDialogIdentity != identity) return;
+    _activeDialogContext = null;
+    _activeDialogIdentity = null;
+    _dialogDismissScheduled = false;
+  }
+
+  void _dismissDialogForIdentityChange() {
+    final dialogContext = _activeDialogContext;
+    final identity = _activeDialogIdentity;
+    if (dialogContext == null ||
+        identity == null ||
+        _dialogDismissScheduled ||
+        ref.read(assistantUserKeyProvider) == identity) {
+      return;
+    }
+    _dialogDismissScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _dialogDismissScheduled = false;
+      if (!mounted ||
+          _activeDialogContext != dialogContext ||
+          _activeDialogIdentity != identity ||
+          !dialogContext.mounted ||
+          ref.read(assistantUserKeyProvider) == identity) {
+        return;
+      }
+      Navigator.of(dialogContext).pop();
+    });
   }
 }
 

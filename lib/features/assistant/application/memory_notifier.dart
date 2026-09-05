@@ -46,8 +46,8 @@ class MemoryListState {
 class MemoryListNotifier extends StateNotifier<MemoryListState> {
   final AssistantDataSource _repository;
   final String Function() _createRequestId;
-  String? _pendingCommandFingerprint;
-  String? _pendingRequestId;
+  final Map<String, String> _pendingRequestIds = {};
+  int _loadGeneration = 0;
 
   MemoryListNotifier({
     required AssistantDataSource repository,
@@ -57,10 +57,11 @@ class MemoryListNotifier extends StateNotifier<MemoryListState> {
        super(const MemoryListState());
 
   Future<void> load() async {
+    final generation = ++_loadGeneration;
     state = state.copyWith(loading: true, clearError: true);
     try {
       final result = await _repository.listMemory();
-      if (!mounted) return;
+      if (!_isCurrentLoad(generation)) return;
       state = state.copyWith(
         loading: false,
         clearError: true,
@@ -68,7 +69,7 @@ class MemoryListNotifier extends StateNotifier<MemoryListState> {
         capacities: result.$2,
       );
     } catch (error) {
-      if (!mounted) return;
+      if (!_isCurrentLoad(generation)) return;
       state = state.copyWith(
         loading: false,
         items: state.items,
@@ -84,16 +85,19 @@ class MemoryListNotifier extends StateNotifier<MemoryListState> {
   }) async {
     final normalizedTarget = target.trim();
     final normalizedContent = content.trim();
-    final requestId = _requestIdFor(
-      ['add', normalizedTarget, normalizedContent].join('\u0000'),
-    );
+    final fingerprint = [
+      'add',
+      normalizedTarget,
+      normalizedContent,
+    ].join('\u0000');
+    final requestId = _requestIdFor(fingerprint);
     try {
       final result = await _repository.addMemory(
         target: normalizedTarget,
         content: normalizedContent,
         requestId: requestId,
       );
-      _clearPendingCommand();
+      _clearPendingCommand(fingerprint, requestId);
       if (!mounted) return;
       state = state.copyWith(lastChangeId: result.changeId);
       await load();
@@ -110,14 +114,13 @@ class MemoryListNotifier extends StateNotifier<MemoryListState> {
     required String content,
   }) async {
     final normalizedContent = content.trim();
-    final requestId = _requestIdFor(
-      [
-        'replace',
-        jsonInt64Id(record.id),
-        '${record.version}',
-        normalizedContent,
-      ].join('\u0000'),
-    );
+    final fingerprint = [
+      'replace',
+      jsonInt64Id(record.id),
+      '${record.version}',
+      normalizedContent,
+    ].join('\u0000');
+    final requestId = _requestIdFor(fingerprint);
     try {
       final result = await _repository.replaceMemory(
         id: record.id,
@@ -125,7 +128,7 @@ class MemoryListNotifier extends StateNotifier<MemoryListState> {
         version: record.version,
         requestId: requestId,
       );
-      _clearPendingCommand();
+      _clearPendingCommand(fingerprint, requestId);
       if (!mounted) return;
       state = state.copyWith(lastChangeId: result.changeId);
       await load();
@@ -138,16 +141,19 @@ class MemoryListNotifier extends StateNotifier<MemoryListState> {
   }
 
   Future<void> deleteRecord(MemoryRecord record) async {
-    final requestId = _requestIdFor(
-      ['remove', jsonInt64Id(record.id), '${record.version}'].join('\u0000'),
-    );
+    final fingerprint = [
+      'remove',
+      jsonInt64Id(record.id),
+      '${record.version}',
+    ].join('\u0000');
+    final requestId = _requestIdFor(fingerprint);
     try {
       final result = await _repository.removeMemory(
         id: record.id,
         version: record.version,
         requestId: requestId,
       );
-      _clearPendingCommand();
+      _clearPendingCommand(fingerprint, requestId);
       if (!mounted) return;
       state = state.copyWith(lastChangeId: result.changeId);
       await load();
@@ -176,18 +182,17 @@ class MemoryListNotifier extends StateNotifier<MemoryListState> {
   }
 
   String _requestIdFor(String fingerprint) {
-    if (_pendingCommandFingerprint != fingerprint ||
-        _pendingRequestId == null) {
-      _pendingCommandFingerprint = fingerprint;
-      _pendingRequestId = _createRequestId();
-    }
-    return _pendingRequestId!;
+    return _pendingRequestIds.putIfAbsent(fingerprint, _createRequestId);
   }
 
-  void _clearPendingCommand() {
-    _pendingCommandFingerprint = null;
-    _pendingRequestId = null;
+  void _clearPendingCommand(String fingerprint, String requestId) {
+    if (_pendingRequestIds[fingerprint] == requestId) {
+      _pendingRequestIds.remove(fingerprint);
+    }
   }
+
+  bool _isCurrentLoad(int generation) =>
+      mounted && generation == _loadGeneration;
 
   static String _defaultRequestId() => 'memory-${newIdempotencyKey(24)}';
 }

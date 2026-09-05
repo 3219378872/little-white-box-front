@@ -37,6 +37,14 @@ final RegExp _repeatedBlankLinePattern = RegExp(r'\n{3,}');
 
 const _maxImageBytes = 10 * 1024 * 1024;
 
+final assistantImagePickerProvider = Provider<ImagePicker>((ref) {
+  return ImagePicker();
+});
+
+final assistantAttachmentRepositoryProvider = Provider<PostRepository>((ref) {
+  return PostRepository();
+});
+
 String stripCitationMarkers(String text) {
   final withoutEvidenceBlocks = text
       .replaceAll(_evidenceJsonLinePattern, '')
@@ -71,23 +79,31 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
   var _loadedIdentity = '';
   var _pinnedToBottom = true;
   var _scrollScheduled = false;
+  var _sendAttempt = 0;
+  var _sendBusy = false;
 
   void _scheduleLoad(String identity) {
-    if (identity.isEmpty) {
-      _loadedIdentity = '';
-      return;
-    }
     if (identity == _loadedIdentity) return;
     _loadedIdentity = identity;
+    _sendAttempt++;
+    _sendBusy = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
           _loadedIdentity != identity ||
           ref.read(assistantUserKeyProvider) != identity) {
         return;
       }
+      _controller.clear();
+      if (identity.isEmpty) return;
       ref.read(agentConsentNotifierProvider.notifier).ensureLoaded();
       ref.read(assistantNotifierProvider.notifier).load();
     });
+  }
+
+  bool _ownsAssistantIdentity(String identity) {
+    return mounted &&
+        identity.isNotEmpty &&
+        ref.read(assistantUserKeyProvider) == identity;
   }
 
   @override
@@ -98,44 +114,66 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
   }
 
   Future<void> _recoverAuthorization() async {
+    final identity = ref.read(assistantUserKeyProvider);
+    if (!_ownsAssistantIdentity(identity)) return;
     final agreed = await _showAgentConsentDialog();
-    if (!agreed || !mounted) return;
+    if (!mounted || !agreed || !_ownsAssistantIdentity(identity)) return;
     try {
       await ref.read(agentConsentNotifierProvider.notifier).grant();
+      if (!mounted || !_ownsAssistantIdentity(identity)) return;
       await ref.read(assistantNotifierProvider.notifier).retryPending();
     } on ApiException catch (error) {
-      if (!mounted) return;
+      if (!mounted || !_ownsAssistantIdentity(identity)) return;
       showAppError(context, friendlyErrorMessage(error));
     }
   }
 
   Future<void> _send() async {
-    final notifier = ref.read(assistantNotifierProvider.notifier);
-    final text = _controller.text;
-    final consent = ref.read(agentConsentNotifierProvider.notifier);
-    await consent.ensureLoaded();
-    if (!mounted) return;
-    final status = ref.read(agentConsentNotifierProvider);
-    if (!status.canStartRun) {
-      final agreed = await _showAgentConsentDialog(
-        upgrade: status.needsUpgrade,
-      );
-      if (!mounted || !agreed) return;
-      try {
-        await consent.grant();
-      } on ApiException catch (error) {
-        if (mounted) showAppError(context, friendlyErrorMessage(error));
-        return;
+    if (_sendBusy) return;
+    final identity = ref.read(assistantUserKeyProvider);
+    if (!_ownsAssistantIdentity(identity)) return;
+    final attempt = ++_sendAttempt;
+    setState(() => _sendBusy = true);
+    try {
+      final current = ref.read(assistantNotifierProvider);
+      if (!current.isLoaded || current.isLoadingHistory) return;
+      final text = _controller.text;
+      await ref.read(agentConsentNotifierProvider.notifier).ensureLoaded();
+      if (!_ownsAssistantIdentity(identity)) return;
+      final status = ref.read(agentConsentNotifierProvider);
+      if (!status.canStartRun) {
+        final agreed = await _showAgentConsentDialog(
+          upgrade: status.needsUpgrade,
+        );
+        if (!mounted || !agreed || !_ownsAssistantIdentity(identity)) return;
+        try {
+          await ref.read(agentConsentNotifierProvider.notifier).grant();
+          if (!mounted || !_ownsAssistantIdentity(identity)) return;
+        } on ApiException catch (error) {
+          if (mounted && _ownsAssistantIdentity(identity)) {
+            showAppError(context, friendlyErrorMessage(error));
+          }
+          return;
+        }
+      }
+      final accepted = await ref
+          .read(assistantNotifierProvider.notifier)
+          .send(text, contextPostId: widget.contextPostId);
+      if (_ownsAssistantIdentity(identity) &&
+          accepted &&
+          _controller.text == text) {
+        _controller.clear();
+      }
+    } finally {
+      if (mounted && attempt == _sendAttempt) {
+        setState(() => _sendBusy = false);
       }
     }
-    final accepted = await notifier.send(
-      text,
-      contextPostId: widget.contextPostId,
-    );
-    if (accepted) _controller.clear();
   }
 
   Future<void> _revokeAuthorization() async {
+    final identity = ref.read(assistantUserKeyProvider);
+    if (!_ownsAssistantIdentity(identity)) return;
     var confirmed = false;
     await showFDialog<void>(
       context: context,
@@ -176,12 +214,16 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
         ),
       ),
     );
-    if (!confirmed || !mounted) return;
+    if (!mounted || !confirmed || !_ownsAssistantIdentity(identity)) return;
     try {
       await ref.read(agentConsentNotifierProvider.notifier).revoke();
-      if (mounted) showAppSuccess(context, 'Agent 授权已撤销');
+      if (mounted && _ownsAssistantIdentity(identity)) {
+        showAppSuccess(context, 'Agent 授权已撤销');
+      }
     } catch (error) {
-      if (mounted) showAppError(context, friendlyErrorMessage(error));
+      if (mounted && _ownsAssistantIdentity(identity)) {
+        showAppError(context, friendlyErrorMessage(error));
+      }
     }
   }
 
@@ -234,32 +276,44 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
   }
 
   Future<void> _dislikeCard(AssistantSourceCard card) async {
-    if (!card.isVerifiedPost || card.postId == null) return;
+    final identity = ref.read(assistantUserKeyProvider);
+    if (!card.isVerifiedPost ||
+        card.postId == null ||
+        !_ownsAssistantIdentity(identity)) {
+      return;
+    }
     try {
       await ref
           .read(assistantRepositoryProvider)
           .submitRecommendFeedback(postId: card.postId!, reason: 'dislike');
-      if (mounted) showAppSuccess(context, '已记录反馈');
+      if (mounted && _ownsAssistantIdentity(identity)) {
+        showAppSuccess(context, '已记录反馈');
+      }
     } catch (error) {
-      if (mounted) showAppError(context, friendlyErrorMessage(error));
+      if (mounted && _ownsAssistantIdentity(identity)) {
+        showAppError(context, friendlyErrorMessage(error));
+      }
     }
   }
 
   Future<void> _pickAttachment() async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery);
-    if (file == null || !mounted) return;
+    final identity = ref.read(assistantUserKeyProvider);
+    if (!_ownsAssistantIdentity(identity)) return;
+    final file = await ref
+        .read(assistantImagePickerProvider)
+        .pickImage(source: ImageSource.gallery);
+    if (file == null || !mounted || !_ownsAssistantIdentity(identity)) return;
     try {
       final bytes = await file.readAsBytes();
+      if (!mounted || !_ownsAssistantIdentity(identity)) return;
       if (bytes.length > _maxImageBytes) {
-        if (mounted) showAppError(context, '图片不能超过 10 MiB');
+        showAppError(context, '图片不能超过 10 MiB');
         return;
       }
-      final uploaded = await PostRepository().uploadImageMultipart(
-        bytes: bytes,
-        filename: file.name,
-      );
-      if (!mounted) return;
+      final uploaded = await ref
+          .read(assistantAttachmentRepositoryProvider)
+          .uploadImageMultipart(bytes: bytes, filename: file.name);
+      if (!mounted || !_ownsAssistantIdentity(identity)) return;
       ref
           .read(assistantNotifierProvider.notifier)
           .addPendingAttachment(
@@ -270,7 +324,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
             ),
           );
     } catch (error) {
-      if (mounted) {
+      if (mounted && _ownsAssistantIdentity(identity)) {
         showAppError(context, '图片上传失败: ${friendlyErrorMessage(error)}');
       }
     }
@@ -320,6 +374,65 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     });
   }
 
+  Widget _buildConversationBody(AssistantState state) {
+    if (!state.isLoaded || (state.isLoadingHistory && state.messages.isEmpty)) {
+      return const Center(
+        key: Key('assistant-initial-loading'),
+        child: FCircularProgress(),
+      );
+    }
+    if (state.messages.isEmpty) {
+      final error = state.connectionError;
+      if (error != null) {
+        return ErrorView(
+          key: const Key('assistant-initial-error'),
+          message: error,
+          onRetry: ref.read(assistantNotifierProvider.notifier).load,
+        );
+      }
+      return const EmptyView(
+        key: Key('assistant-empty'),
+        message: '开始新的对话',
+        icon: FLucideIcons.sparkles,
+      );
+    }
+    return NotificationListener<UserScrollNotification>(
+      onNotification: (notification) {
+        if (!_scrollController.hasClients) return false;
+        final pos = _scrollController.position;
+        _pinnedToBottom = (pos.maxScrollExtent - pos.pixels) <= 48;
+        return false;
+      },
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
+        itemCount: state.messages.length,
+        itemBuilder: (context, index) {
+          final message = state.messages[index];
+          final runKey = 'run-${jsonInt64Id(state.activeRunId)}';
+          final isStreaming =
+              message.isStreaming ||
+              (state.isStreaming && message.id == runKey);
+          return _AssistantMessageBubble(
+            key: ValueKey(message.id),
+            message: message,
+            isStreaming: isStreaming,
+            onRevealed: _onRevealed,
+            canOpenSource: _canOpen,
+            onOpenSource: _openSource,
+            onConfirm: (callId, approved) => ref
+                .read(assistantNotifierProvider.notifier)
+                .respondToConfirmation(callId, approved),
+            onDislikeCard: _dislikeCard,
+            onUndo: (changeId) => ref
+                .read(assistantNotifierProvider.notifier)
+                .undoMemoryChange(changeId),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final identity = ref.watch(assistantUserKeyProvider);
@@ -341,7 +454,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
       }
     });
     ref.listen<AssistantThreadState>(assistantThreadProvider, (previous, next) {
-      if (previous?.thread.lastMessageId == next.thread.lastMessageId) return;
+      if (next.isLoading) return;
       unawaited(
         ref
             .read(assistantNotifierProvider.notifier)
@@ -375,8 +488,12 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
             key: const Key('assistant-clear-history'),
             icon: const Icon(FLucideIcons.trash2),
             semanticsLabel: '清除历史',
-            onPress: () =>
-                ref.read(assistantNotifierProvider.notifier).clearHistory(),
+            onPress:
+                !state.isLoaded || state.isLoadingHistory || state.isSending
+                ? null
+                : () => ref
+                      .read(assistantNotifierProvider.notifier)
+                      .clearHistory(),
           ),
         ],
       ),
@@ -393,7 +510,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                     key: const Key('assistant-load-older'),
                     variant: .ghost,
                     size: .sm,
-                    onPress: state.isLoadingOlder
+                    onPress: state.isLoadingHistory || state.isLoadingOlder
                         ? null
                         : ref
                               .read(assistantNotifierProvider.notifier)
@@ -410,58 +527,32 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                 ],
               ),
             ),
-          Expanded(
-            child: state.messages.isEmpty
-                ? const EmptyView(
-                    message: '开始新的对话',
-                    icon: FLucideIcons.sparkles,
-                  )
-                : NotificationListener<UserScrollNotification>(
-                    onNotification: (notification) {
-                      if (!_scrollController.hasClients) return false;
-                      final pos = _scrollController.position;
-                      _pinnedToBottom =
-                          (pos.maxScrollExtent - pos.pixels) <= 48;
-                      return false;
-                    },
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
-                      itemCount: state.messages.length,
-                      itemBuilder: (context, index) {
-                        final message = state.messages[index];
-                        final runKey = 'run-${jsonInt64Id(state.activeRunId)}';
-                        final isStreaming =
-                            message.isStreaming ||
-                            (state.isStreaming && message.id == runKey);
-                        return _AssistantMessageBubble(
-                          key: ValueKey(message.id),
-                          message: message,
-                          isStreaming: isStreaming,
-                          onRevealed: _onRevealed,
-                          canOpenSource: _canOpen,
-                          onOpenSource: _openSource,
-                          onConfirm: (callId, approved) => ref
-                              .read(assistantNotifierProvider.notifier)
-                              .respondToConfirmation(callId, approved),
-                          onDislikeCard: _dislikeCard,
-                          onUndo: (changeId) => ref
-                              .read(assistantNotifierProvider.notifier)
-                              .undoMemoryChange(changeId),
-                        );
-                      },
-                    ),
-                  ),
-          ),
-          if (state.connectionError != null)
+          Expanded(child: _buildConversationBody(state)),
+          if (state.messages.isNotEmpty && state.connectionError != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
               child: FAlert(
                 variant: FAlertVariant.destructive,
                 title: Text(state.connectionError!),
+                subtitle: state.hasActiveRun && !state.isStreaming
+                    ? Align(
+                        alignment: Alignment.centerLeft,
+                        child: FButton(
+                          key: const Key('assistant-reconnect'),
+                          variant: .outline,
+                          size: .sm,
+                          onPress: ref
+                              .read(assistantNotifierProvider.notifier)
+                              .reconnectActiveRun,
+                          child: const Text('重新连接'),
+                        ),
+                      )
+                    : null,
               ),
             ),
-          if (state.isQueued || state.lastDisposition != null)
+          if (state.isQueued ||
+              (state.lastDisposition != null &&
+                  (state.hasActiveRun || state.isStreaming)))
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
               child: Align(
@@ -505,7 +596,13 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                       FButton.icon(
                         key: const Key('assistant-add-attachment'),
                         variant: .ghost,
-                        onPress: state.isSending ? null : _pickAttachment,
+                        onPress:
+                            state.isLoaded &&
+                                !state.isLoadingHistory &&
+                                !state.isSending &&
+                                !_sendBusy
+                            ? _pickAttachment
+                            : null,
                         child: const Icon(
                           FLucideIcons.imagePlus,
                           semanticLabel: '添加图片附件',
@@ -542,7 +639,13 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                       FButton.icon(
                         key: const Key('assistant-send-or-stop'),
                         variant: FButtonVariant.primary,
-                        onPress: state.canSend ? _send : null,
+                        onPress:
+                            state.isLoaded &&
+                                !state.isLoadingHistory &&
+                                state.canSend &&
+                                !_sendBusy
+                            ? _send
+                            : null,
                         child: const Icon(
                           FLucideIcons.send,
                           semanticLabel: '发送',

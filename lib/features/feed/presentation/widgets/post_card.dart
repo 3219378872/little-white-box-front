@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../../../../core/api/api_exceptions.dart';
 import '../../../../core/api/json_int64.dart';
+import '../../../../core/formatters/time_formatter.dart';
 import '../../../../core/widgets/app_tag_badge.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/cached_avatar.dart';
@@ -303,7 +304,7 @@ class _PostCardState extends ConsumerState<PostCard>
                         ),
                       ),
                       Text(
-                        _formatTime(post.createdAt),
+                        formatRelativeTime(post.createdAt),
                         style: typography.body.xs.copyWith(
                           color: colors.mutedForeground,
                         ),
@@ -471,16 +472,5 @@ class _PostCardState extends ConsumerState<PostCard>
       semanticsLabel: semanticsLabel,
       child: content,
     );
-  }
-
-  String _formatTime(num timestamp) {
-    final date = DateTime.fromMillisecondsSinceEpoch(timestamp.toInt() * 1000);
-    final now = DateTime.now();
-    final diff = now.difference(date);
-    if (diff.inMinutes < 1) return '刚刚';
-    if (diff.inHours < 1) return '${diff.inMinutes}分钟前';
-    if (diff.inDays < 1) return '${diff.inHours}小时前';
-    if (diff.inDays < 30) return '${diff.inDays}天前';
-    return '${date.month}-${date.day}';
   }
 }

@@ -349,6 +349,83 @@ void main() {
       expect(find.text('账号 A 资料'), findsNothing);
     },
   );
+
+  testWidgets('follow ignores repeated taps while the request is in flight', (
+    tester,
+  ) async {
+    final harness = await _pumpFollowProfile(tester);
+
+    await tester.tap(find.byKey(const Key('profile-follow-toggle')));
+    await tester.pump();
+    expect(find.text('已关注'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('profile-follow-toggle')));
+    await tester.pump();
+    expect(harness.followCalls, 1);
+
+    harness.followResponse.complete(jsonResponse(okEnvelope(const {})));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('follow failure after disposal does not update widget state', (
+    tester,
+  ) async {
+    final harness = await _pumpFollowProfile(tester);
+
+    await tester.tap(find.byKey(const Key('profile-follow-toggle')));
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.pumpWidget(const SizedBox.shrink());
+    harness.followResponse.complete(
+      jsonResponse(const {'code': 2, 'message': 'follow failed'}, 500),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+  });
+}
+
+Future<_FollowProfileHarness> _pumpFollowProfile(WidgetTester tester) async {
+  final harness = _FollowProfileHarness();
+  setApiClient(harness.client);
+  final container = ProviderContainer(
+    overrides: [
+      userPostsRepositoryProvider.overrideWithValue(_TestUserPostsRepository()),
+    ],
+  );
+  addTearDown(container.dispose);
+  await container
+      .read(authNotifierProvider.notifier)
+      .onLoginSuccess(1, 'access-token');
+  final router = GoRouter(
+    initialLocation: '/user/2',
+    routes: [
+      GoRoute(
+        path: '/user/:userId',
+        builder: (_, state) =>
+            ProfilePage(userId: int.parse(state.pathParameters['userId']!)),
+      ),
+    ],
+  );
+  addTearDown(router.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp.router(
+        routerConfig: router,
+        builder: foruiTestBuilder,
+      ),
+    ),
+  );
+  for (
+    var i = 0;
+    i < 30 && find.byKey(const Key('profile-follow-toggle')).evaluate().isEmpty;
+    i++
+  ) {
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+  expect(find.byKey(const Key('profile-follow-toggle')), findsOneWidget);
+  return harness;
 }
 
 Map<String, dynamic> _profileJson(String nickname) => {
@@ -390,6 +467,27 @@ class _AccountSwitchProfileHarness {
       return jsonResponse(okEnvelope(_profileJson('账号 B 资料')));
     }
     fail('unexpected profile request $profileCalls');
+  }
+}
+
+class _FollowProfileHarness {
+  late final ScriptedGatewayClient client;
+  final followResponse = Completer<http.Response>();
+  int followCalls = 0;
+
+  _FollowProfileHarness() {
+    client = ScriptedGatewayClient(route);
+  }
+
+  Future<http.Response> route(http.BaseRequest request) async {
+    if (request.method == 'GET' && request.url.path == '/api/v1/user/2') {
+      return jsonResponse(okEnvelope(_profileJson('被关注用户')));
+    }
+    if (request.method == 'POST' && request.url.path == '/api/v1/user/follow') {
+      followCalls++;
+      return followResponse.future;
+    }
+    fail('unexpected request: ${request.method} ${request.url.path}');
   }
 }
 
@@ -439,6 +537,7 @@ class _TestUserPostsRepository implements UserPostsRepository {
       title: '$prefix ${index + 1}',
       content: '用于验证个人资料区、吸顶标签栏和帖子列表的连续滚动行为。',
       images: const [],
+      mediaIds: const [],
       tags: const ['测试'],
       status: 1,
       viewCount: index,

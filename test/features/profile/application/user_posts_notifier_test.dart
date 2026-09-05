@@ -106,6 +106,7 @@ PostItem _post(num id) {
     title: 't$id',
     content: 'c',
     images: const [],
+    mediaIds: const [],
     tags: const [],
     status: 1,
     viewCount: 0,

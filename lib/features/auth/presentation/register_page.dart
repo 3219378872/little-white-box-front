@@ -23,9 +23,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _phoneCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
   bool _isLoading = false;
+  int _registerAttempt = 0;
 
   @override
   void dispose() {
+    _registerAttempt++;
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
@@ -47,6 +49,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       return;
     }
 
+    final attempt = ++_registerAttempt;
     setState(() => _isLoading = true);
     try {
       final resp = await ref
@@ -57,17 +60,30 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             phone: _phoneCtrl.text,
             verifyCode: _codeCtrl.text,
           );
+      if (!_ownsRegisterMutation(attempt)) return;
       await ref
           .read(authNotifierProvider.notifier)
-          .onLoginSuccess(resp.userId, resp.token,
-              refreshToken: resp.refreshToken);
+          .onLoginSuccess(
+            resp.userId,
+            resp.token,
+            refreshToken: resp.refreshToken,
+          );
       // Pushed register keeps the public URL; redirect will not pop this page.
-      if (mounted) context.go('/feed');
+      if (!mounted || !_ownsRegisterMutation(attempt)) return;
+      context.go('/feed');
     } catch (e) {
-      _showError(e.toString());
+      if (mounted && attempt == _registerAttempt) _showError(e.toString());
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && attempt == _registerAttempt) {
+        setState(() => _isLoading = false);
+      }
     }
+  }
+
+  bool _ownsRegisterMutation(int attempt) {
+    return mounted &&
+        attempt == _registerAttempt &&
+        (ModalRoute.of(context)?.isCurrent ?? false);
   }
 
   void _showError(String msg) {
@@ -82,8 +98,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         title: const Text('注册'),
         prefixes: [
           FHeaderAction.back(
-            onPress: () =>
-                context.canPop() ? context.pop() : context.go('/auth/login'),
+            onPress: _isLoading
+                ? null
+                : () => context.canPop()
+                      ? context.pop()
+                      : context.go('/auth/login'),
           ),
         ],
       ),
@@ -159,7 +178,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               const SizedBox(height: 16),
               FButton(
                 variant: .ghost,
-                onPress: () => context.go('/auth/login'),
+                onPress: _isLoading ? null : () => context.go('/auth/login'),
                 child: const Text('已有账号？去登录'),
               ),
             ],

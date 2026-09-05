@@ -34,19 +34,21 @@ class WatchListState {
 
 class WatchListNotifier extends StateNotifier<WatchListState> {
   final AssistantDataSource _repository;
+  int _loadGeneration = 0;
 
   WatchListNotifier({required AssistantDataSource repository})
     : _repository = repository,
       super(const WatchListState());
 
   Future<void> load() async {
+    final generation = ++_loadGeneration;
     state = state.copyWith(loading: true, clearError: true);
     try {
       final items = await _repository.listWatches();
-      if (!mounted) return;
+      if (!_isCurrentLoad(generation)) return;
       state = WatchListState(items: items);
     } catch (error) {
-      if (!mounted) return;
+      if (!_isCurrentLoad(generation)) return;
       state = WatchListState(
         items: state.items,
         error: friendlyErrorMessage(error),
@@ -85,7 +87,9 @@ class WatchListNotifier extends StateNotifier<WatchListState> {
         expectedVersion: task.version,
       );
       if (!mounted) return;
+      _invalidateLoads();
       state = state.copyWith(
+        loading: false,
         clearError: true,
         items: [
           for (final item in state.items)
@@ -105,7 +109,9 @@ class WatchListNotifier extends StateNotifier<WatchListState> {
     try {
       await _repository.deleteWatch(task.id, expectedVersion: task.version);
       if (!mounted) return;
+      _invalidateLoads();
       state = state.copyWith(
+        loading: false,
         clearError: true,
         items: [
           for (final item in state.items)
@@ -126,6 +132,13 @@ class WatchListNotifier extends StateNotifier<WatchListState> {
     }
     if (!mounted) return;
     state = state.copyWith(error: message);
+  }
+
+  bool _isCurrentLoad(int generation) =>
+      mounted && generation == _loadGeneration;
+
+  void _invalidateLoads() {
+    _loadGeneration++;
   }
 }
 

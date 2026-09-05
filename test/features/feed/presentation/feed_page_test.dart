@@ -114,14 +114,11 @@ void main() {
         overrides: [
           feedRepositoryProvider.overrideWithValue(
             _QueueFeedRepository([
-              feedPage([
-                1,
-                2,
-                3,
-                4,
-                5,
-                6,
-              ], requestId: 'request-1', cursor: 'cursor-1'),
+              feedPage(
+                [1, 2, 3, 4, 5, 6],
+                requestId: 'request-1',
+                cursor: 'cursor-1',
+              ),
               nextPage.future,
             ]),
           ),
@@ -136,9 +133,7 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -2400));
     await tester.pump();
     expect(nextPage.isCompleted, isFalse);
-    nextPage.complete(
-      feedPage([7], requestId: 'request-1', hasMore: false),
-    );
+    nextPage.complete(feedPage([7], requestId: 'request-1', hasMore: false));
     await pumpUntilFound(tester, find.text('Post 7'));
     await scrollFeedToEnd(tester);
     expect(find.text('— 没有更多了 —'), findsOneWidget);
@@ -228,6 +223,7 @@ FeedEntry feedEntry(int id) => FeedEntry(
     title: 'Post $id',
     content: 'Body of post $id',
     images: const [],
+    mediaIds: const [],
     tags: const [],
     status: 1,
     viewCount: 0,

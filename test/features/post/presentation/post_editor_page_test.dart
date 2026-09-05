@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,6 +31,7 @@ Map<String, dynamic> _existingPostJson() => {
   'isFavorited': false,
   'revision': 3,
   'createdAt': 1700000000,
+  'mediaIds': <Object>['9007199254740993'],
 };
 
 GoRouter _routerWith(Widget home, {String initial = '/'}) {
@@ -61,6 +64,41 @@ class _EditorHome extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _expectLateEditResponseIgnored(
+  WidgetTester tester,
+  http.Response response,
+) async {
+  final responseCompleter = Completer<http.Response>();
+  final client = ScriptedGatewayClient((request) {
+    expect(request.url.path, '/api/v1/post/9');
+    return responseCompleter.future;
+  });
+  setApiClient(client);
+  final router = _routerWith(const _EditorHome(Text('打开编辑器')));
+  addTearDown(router.dispose);
+
+  await tester.pumpWidget(
+    ProviderScope(
+      child: MaterialApp.router(
+        routerConfig: router,
+        builder: foruiTestBuilder,
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('打开编辑器'));
+  await tester.pump();
+  expect(client.requests, hasLength(1));
+
+  router.pop();
+  await tester.pumpAndSettle();
+  expect(find.text('打开编辑器'), findsOneWidget);
+
+  responseCompleter.complete(response);
+  await tester.pumpAndSettle();
+  expect(tester.takeException(), isNull);
 }
 
 void main() {
@@ -282,6 +320,24 @@ void main() {
     expect(body['tags'], ['go']);
     // 更新成功后返回上一页。
     expect(find.text('打开编辑器'), findsOneWidget);
+  });
+
+  testWidgets('ignores a successful detail response after editor disposal', (
+    tester,
+  ) async {
+    await _expectLateEditResponseIgnored(
+      tester,
+      jsonResponse(okEnvelope(_existingPostJson())),
+    );
+  });
+
+  testWidgets('ignores a failed detail response after editor disposal', (
+    tester,
+  ) async {
+    await _expectLateEditResponseIgnored(
+      tester,
+      jsonResponse({'code': 6, 'message': 'late failure'}, 503),
+    );
   });
 
   testWidgets('adding and removing tags feeds the submit payload', (

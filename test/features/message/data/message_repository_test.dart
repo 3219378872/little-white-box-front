@@ -60,6 +60,7 @@ void main() {
       expect(client.getCalls[2].path, '/api/v2/messages/unread');
       expect(conversations.conversations.single.id, 8);
       expect(messages.messages.single.id, 20);
+      expect(messages.messages.single.mediaId, '9007199254740993');
       expect(messages.hasMore, isTrue);
       expect(messageId, 21);
       expect(unread.messageUnread, 3);
@@ -87,6 +88,7 @@ Map<String, dynamic> messageJson(int id) => {
   'msgType': 1,
   'status': 0,
   'createdAt': 1700000000,
+  'mediaId': '9007199254740993',
 };
 
 class _GetCall {

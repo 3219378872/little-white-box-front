@@ -12,6 +12,7 @@ class ImagePickerGrid extends StatelessWidget {
   final ValueChanged<int> onRemoveNetwork;
   final ValueChanged<int> onRemoveLocal;
   final int maxCount;
+  final ImagePicker? imagePicker;
 
   const ImagePickerGrid({
     super.key,
@@ -21,6 +22,7 @@ class ImagePickerGrid extends StatelessWidget {
     required this.onRemoveNetwork,
     required this.onRemoveLocal,
     this.maxCount = 9,
+    this.imagePicker,
   });
 
   int get _totalCount => networkImages.length + localImages.length;
@@ -114,17 +116,16 @@ class ImagePickerGrid extends StatelessWidget {
 
   Widget _addButton(BuildContext context) {
     return FTappable(
+      semanticsLabel: '添加图片',
       onPress: () async {
-        final picker = ImagePicker();
-        final xFile = await picker.pickImage(
+        final xFile = await (imagePicker ?? ImagePicker()).pickImage(
           source: ImageSource.gallery,
           maxWidth: 1920,
           maxHeight: 1920,
           imageQuality: 85,
         );
-        if (xFile != null) {
-          onAdd(xFile);
-        }
+        if (!context.mounted || xFile == null) return;
+        onAdd(xFile);
       },
       child: Container(
         decoration: BoxDecoration(

@@ -12,7 +12,8 @@ Current policy:
 
 `sync_gateway_sdk.py` regenerates Dart types and API methods from the sibling
 backend `gateway.api` via `goctl api dart`, then patches PUT/DELETE verbs that
-the Dart generator still emits as POST.
+the Dart generator still emits as POST. It also removes the checkout-specific
+absolute source path and formats the generated files before copying them.
 
 ```bash
 python3 tools/sync_gateway_sdk.py \
