@@ -98,7 +98,7 @@ evidence:
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
 updated_at: 2026-09-05
-observed_commit: 74c96f6e487df0e8c08a1154c4c2e9b3ebbcbb1d
+observed_commit: 7ab3de2
 ---
 
 # Flutter 客户端实现映射
@@ -109,16 +109,18 @@ FX-095～099 已实现结构化问答、待答恢复、精确引用、原文摘�
 网络错误与待答暂停分开处理，迟到回答响应不能重开完成任务；Markdown 不产生可信来源或外部图片请求。
 代码、测试与截图范围见[本轮证据](../evidence/EVD-assistant-research-2026-09-05.md)。全主题规格已按工程
 约束重分层，技术栈与具体机制仍由设计承接；整体 baseline 设计不因此自动升级为 accepted。
+整合后 477 项 Flutter 测试与三个 Mock 浏览器场景通过；正常 provider 的基础生成与全量黑盒通过，
+但真实长检索请求因模型超时失败，真实模型浏览器闭环与语义质量门禁仍未关闭。
 
 ## 结论
 
 当前实现已用 `goctl api dart` 同步后端 `gateway.api`（观察后端提交
-e76a447c6ad2213a25a8581b69f2274e79125d69），帖子写入走 `/api/v2/post*`，PUT/DELETE
+66f4406），帖子写入走 `/api/v2/post*`，PUT/DELETE
 由同步脚本修补，搜索降级、Assistant 帖子来源、行为事件所有权和输入边界已跟进。桌面 Feed
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是 `74c96f6e487df0e8c08a1154c4c2e9b3ebbcbb1d`。
+本页观察基准是 `7ab3de2`。
 
 ## 代码入口
 

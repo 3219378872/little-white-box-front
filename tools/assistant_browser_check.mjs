@@ -10,10 +10,9 @@ const reports = [];
 
 async function click(page, locator) {
   await locator.waitFor();
-  await locator.scrollIntoViewIfNeeded();
   const box = await locator.boundingBox();
   assert(box && box.width > 0 && box.height > 0, 'control must have a visible hit target');
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await locator.click();
 }
 
 try {
@@ -34,15 +33,21 @@ try {
     const accessibility = page.locator('flt-semantics-placeholder');
     await accessibility.waitFor({ state: 'attached' });
     await accessibility.evaluate(element => element.click());
+    const send = page.getByRole('button', { name: '发送', exact: true });
+    // History loading disables commands while leaving the editing surface visible.
+    await send.click({ trial: true });
     const composer = page.getByRole('textbox', { name: /^消息/ });
     await composer.waitFor();
     const bounds = await composer.boundingBox();
     assert(bounds);
     // Focus the actual Flutter editing surface before entering text.
     await page.mouse.click(bounds.x + Math.min(80, bounds.width / 2), bounds.y + Math.min(15, bounds.height / 2));
+    // Flutter attaches the editing client after focusing its semantics textarea.
+    await page.waitForFunction(element => document.activeElement === element && element.style.font !== '', await composer.elementHandle());
     await page.keyboard.insertText('比较社区中的方案');
+    await page.waitForFunction(element => element.value === '比较社区中的方案', await composer.elementHandle());
     assert.equal(await composer.inputValue(), '比较社区中的方案');
-    await click(page, page.getByRole('button', { name: '发送', exact: true }));
+    await click(page, send);
     const choice = page.getByRole('checkbox', { name: '使用成本', exact: true });
     await choice.waitFor({ timeout: 20000 });
     await page.screenshot({ path: `${output}/${variant.name}-questions.png` });
