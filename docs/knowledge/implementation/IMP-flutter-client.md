@@ -62,6 +62,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-desktop-nav-semantics-2026-09-05
   - EVD-code-quality-hardening-2026-09-05
   - EVD-assistant-research-2026-09-05
   - EVD-assistant-strict-reset-2026-09-01
@@ -98,7 +99,7 @@ evidence:
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
 updated_at: 2026-09-05
-observed_commit: 7ab3de2
+observed_commit: b8c309cc9608eb8c32a43e69c35ba1932bf6e70c
 ---
 
 # Flutter 客户端实现映射
@@ -120,7 +121,7 @@ FX-095～099 已实现结构化问答、待答恢复、精确引用、原文摘�
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是 `7ab3de2`。
+本页观察基准是 `b8c309cc9608eb8c32a43e69c35ba1932bf6e70c`。
 
 ## 代码入口
 
@@ -204,6 +205,12 @@ FX-095～099 已实现结构化问答、待答恢复、精确引用、原文摘�
 - HTTP JSON 在 `decodeApiJson`/`encodeApiJson` 中保全 16 位及以上整数：解码成字符串，编码还原成 JSON
   number。详情、资料、私信路由使用路径十进制，不再 `int.parse` 雪花 ID。
 - 导航未读图标继承 `IconTheme` 尺寸（桌面侧栏 16、移动底栏 24），不硬编码 24，避免「消息」项与其他入口错位。
+- 桌面 `FSidebarItem` 以单一可操作语义节点暴露名称、选中态和点击动作；嵌套路由 child 的语义容器
+  阻止 route barrier 裁掉相邻侧栏。消息入口保持稳定名称「消息」，未读数作为附加描述，视觉角标不重复
+  朗读；这些语义包装不改变 240px 侧栏、内容区域位置或路由回调
+  （见 [EVD-desktop-nav-semantics-2026-09-05](../evidence/EVD-desktop-nav-semantics-2026-09-05.md)）。
+- 应用 locale 固定为 `zh`，与当前全中文可见界面一致，使 Forui/Material 内置辅助语义也使用中文；登录页
+  密码可见性动作分别暴露「显示密码」与「隐藏密码」。
 - 验证码输入与「获取验证码」底对齐，按钮使用默认 `md` 尺寸匹配 `FTextField`；登录和注册共用 `VerifyCodeField`。
 - 个人资料帖子列表与收藏列表在成为当前 tab、以及从其它路由返回且仍为当前 tab 时重新拉取第一页；
   `UserPostsNotifier` 用 generation 丢弃被刷新打断的首屏响应。
@@ -296,6 +303,7 @@ FX-095～099 已实现结构化问答、待答恢复、精确引用、原文摘�
 [EVD-favorites-reload-2026-08-20](../evidence/EVD-favorites-reload-2026-08-20.md)
 与
 [EVD-client-ui-align-2026-08-20](../evidence/EVD-client-ui-align-2026-08-20.md)、
+[EVD-desktop-nav-semantics-2026-09-05](../evidence/EVD-desktop-nav-semantics-2026-09-05.md)、
 [EVD-code-quality-hardening-2026-09-05](../evidence/EVD-code-quality-hardening-2026-09-05.md)、
 [EVD-assistant-hermes-2026-08-29](../evidence/EVD-assistant-hermes-2026-08-29.md)、
 [EVD-assistant-strict-reset-2026-09-01](../evidence/EVD-assistant-strict-reset-2026-09-01.md)、
