@@ -13,7 +13,9 @@ updated_at: 2026-08-13
 意图层 -> 规格层 -> 设计层 -> 实现层 <-> 证据层
 ```
 
-上游回答“为什么、应该是什么”，下游回答“如何做、当前实际是什么”。历史材料只用于追溯，不能作为
+意图定义产品价值、能力、优先级和非目标；规格定义工程约束、质量指标与验收条件，不规定内部实现。
+框架、组件库、协议字段、内部状态结构及实现算法归设计；外部兼容承诺和安全边界仍受规格约束。
+上游回答“为什么、必须保证什么”，下游回答“如何做、当前实际是什么”。历史材料只用于追溯，不能作为
 当前规则。
 
 ## 层级与当前入口
@@ -21,8 +23,8 @@ updated_at: 2026-08-13
 | 层级 | 回答的问题 | 语义所有者 | 当前入口 |
 | --- | --- | --- | --- |
 | 意图 | 为谁解决什么问题，边界是什么 | human | [前端产品意图](intent/INT-content-community-client.md) |
-| 规格 | 哪些可观察行为必须成立 | human | [体验规格](spec/SPEC-client-experience.md)、[工程规格](spec/SPEC-client-engineering.md) |
-| 设计 | 组件如何协作、为何这样取舍 | agent | [Flutter 客户端设计](design/DES-flutter-client.md) |
+| 规格 | 必须满足哪些工程约束、指标和验收条件 | human | [体验规格](spec/SPEC-client-experience.md)、[工程规格](spec/SPEC-client-engineering.md) |
+| 设计 | 组件如何协作、为何这样取舍 | agent | [Flutter 客户端设计](design/DES-flutter-client.md)、[Assistant 问答与卡片](design/DES-assistant-research-client.md) |
 | 实现 | 当前代码如何承载设计、已知偏离是什么 | agent | [实现映射](implementation/IMP-flutter-client.md)、[Forui 实现指南](implementation/IMP-forui-ui.md) |
 | 证据 | 哪个版本以什么命令或观察得到什么结论 | agent | [当前基线证据](evidence/EVD-client-baseline-2026-08-13.md) |
 

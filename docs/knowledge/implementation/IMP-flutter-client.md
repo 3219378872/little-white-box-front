@@ -6,6 +6,7 @@ status: diverged
 owner: agent
 upstream:
   - DES-flutter-client
+  - DES-assistant-research-client
 tracks:
   - FX-001
   - FX-002
@@ -47,6 +48,11 @@ tracks:
   - FX-092
   - FX-093
   - FX-094
+  - FX-095
+  - FX-096
+  - FX-097
+  - FX-098
+  - FX-099
   - FQ-001
   - FQ-002
   - FQ-003
@@ -57,6 +63,7 @@ tracks:
   - FQ-008
 evidence:
   - EVD-code-quality-hardening-2026-09-05
+  - EVD-assistant-research-2026-09-05
   - EVD-assistant-strict-reset-2026-09-01
   - EVD-audit-remediation-client-2026-08-31
   - EVD-assistant-reset-snapshot-2026-08-31
@@ -95,6 +102,13 @@ observed_commit: 74c96f6e487df0e8c08a1154c4c2e9b3ebbcbb1d
 ---
 
 # Flutter 客户端实现映射
+
+## 社区研究闭环
+
+FX-095～099 已实现结构化问答、待答恢复、精确引用、原文摘录卡片、应用内导航和持久展示 DTO。
+网络错误与待答暂停分开处理，迟到回答响应不能重开完成任务；Markdown 不产生可信来源或外部图片请求。
+代码、测试与截图范围见[本轮证据](../evidence/EVD-assistant-research-2026-09-05.md)。全主题规格已按工程
+约束重分层，技术栈与具体机制仍由设计承接；整体 baseline 设计不因此自动升级为 accepted。
 
 ## 结论
 
