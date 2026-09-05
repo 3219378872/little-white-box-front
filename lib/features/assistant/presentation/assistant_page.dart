@@ -16,6 +16,7 @@ import '../application/assistant_notifier.dart';
 import '../application/assistant_thread_notifier.dart';
 import '../data/assistant_models.dart';
 import 'assistant_runtime_widgets.dart';
+import 'assistant_research_widgets.dart';
 import 'streaming_markdown.dart';
 
 final RegExp _citationMarkerPattern = RegExp(r'\[[A-Za-z][A-Za-z0-9_-]*:\d+\]');
@@ -424,6 +425,13 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                 .read(assistantNotifierProvider.notifier)
                 .respondToConfirmation(callId, approved),
             onDislikeCard: _dislikeCard,
+            onAnswerQuestion: (question, answers, continueExpired) => ref
+                .read(assistantNotifierProvider.notifier)
+                .answerQuestion(
+                  question,
+                  answers,
+                  continueExpired: continueExpired,
+                ),
             onUndo: (changeId) => ref
                 .read(assistantNotifierProvider.notifier)
                 .undoMemoryChange(changeId),
@@ -550,9 +558,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                     : null,
               ),
             ),
-          if (state.isQueued ||
-              (state.lastDisposition != null &&
-                  (state.hasActiveRun || state.isStreaming)))
+          if (state.isQueued || state.hasActiveRun || state.isStreaming)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
               child: Align(
@@ -664,6 +670,9 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
 }
 
 String _busyLabel(AssistantState state) {
+  if (state.activeRunPhase == 'waiting_input') {
+    return '等待回答';
+  }
   if (state.isQueued || state.lastDisposition == AssistantDisposition.queued) {
     return '已排队，等待当前任务可注入';
   }
@@ -750,6 +759,7 @@ String _toolStatusLabel(AssistantToolStatus status) {
 }
 
 class _AssistantMessageBubble extends StatelessWidget {
+  final AnswerQuestion? onAnswerQuestion;
   final AssistantMessage message;
   final bool isStreaming;
   final VoidCallback? onRevealed;
@@ -760,6 +770,7 @@ class _AssistantMessageBubble extends StatelessWidget {
   final ValueChanged<Object>? onUndo;
 
   const _AssistantMessageBubble({
+    this.onAnswerQuestion,
     super.key,
     required this.message,
     required this.isStreaming,
@@ -783,7 +794,7 @@ class _AssistantMessageBubble extends StatelessWidget {
       alignment: own ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.82,
+          maxWidth: own ? MediaQuery.sizeOf(context).width * 0.82 : 760,
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 5),
@@ -793,7 +804,7 @@ class _AssistantMessageBubble extends StatelessWidget {
                   ? theme.colors.primary
                   : message.role == AssistantMessageRole.system
                   ? theme.colors.muted
-                  : theme.colors.secondary,
+                  : const Color(0x00000000),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Padding(
@@ -823,12 +834,25 @@ class _AssistantMessageBubble extends StatelessWidget {
                     if (bodyText.isNotEmpty) const SizedBox(height: 8),
                   ],
                   if (message.toolSteps.isNotEmpty) ...[
-                    for (final step in message.toolSteps)
+                    for (final step in message.toolSteps.where(
+                      (step) => step.tool != 'ask_questions',
+                    ))
                       _ToolStepEntry(step: step, onConfirm: onConfirm),
                     if (bodyText.isNotEmpty || isStreaming)
                       const SizedBox(height: 8),
                   ],
-                  if (own && bodyText.isNotEmpty)
+                  if (message.questionRequest != null &&
+                      onAnswerQuestion != null)
+                    AssistantQuestionCard(
+                      question: message.questionRequest!,
+                      onAnswer: onAnswerQuestion!,
+                    )
+                  else if (message.answerPresentation != null)
+                    AssistantResearchAnswer(
+                      answer: message.answerPresentation!,
+                      onDislike: onDislikeCard,
+                    )
+                  else if (own && bodyText.isNotEmpty)
                     Text(
                       bodyText,
                       style: theme.typography.body.md.copyWith(
@@ -853,7 +877,9 @@ class _AssistantMessageBubble extends StatelessWidget {
                         color: foreground,
                       ),
                     ),
-                  if (isStreaming) ...[
+                  if (isStreaming &&
+                      message.questionRequest == null &&
+                      message.answerPresentation == null) ...[
                     if (bodyText.isNotEmpty) const SizedBox(height: 8),
                     const FCircularProgress(size: .sm),
                   ],

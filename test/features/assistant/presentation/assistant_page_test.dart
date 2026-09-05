@@ -486,6 +486,7 @@ void main() {
     expect(find.textContaining('[post:'), findsNothing);
     expect(find.textContaining('Community sources'), findsNothing);
     expect(find.text('Referenced post'), findsOneWidget);
+    expect(find.text('正在思考'), findsNothing);
     expect(find.text('增强搜索'), findsNothing);
     expect(source.postedContextPostIds, ['99']);
     await tester.tap(find.text('打开帖子'));

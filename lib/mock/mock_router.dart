@@ -5,6 +5,8 @@ import 'package:characters/characters.dart';
 import '../core/api/json_int64.dart';
 import 'mock_data.dart';
 
+part 'mock_assistant_research.dart';
+
 /// In-memory Gateway mock aligned with `app/gateway/gateway.api`.
 ///
 /// Success bodies are the typed payloads (no `{code,desc,data}` wrapper).
@@ -662,6 +664,11 @@ MockRouterResponse _routeV2(
     if (segments[5] == 'confirm' && method == 'POST') {
       _confirmAssistantRun(auth.userId, runId, body ?? const {});
       return _jsonResponse(const {});
+    }
+    if (segments[5] == 'answers' && method == 'POST') {
+      return _jsonResponse(
+        _answerResearchQuestions(auth.userId, runId, body ?? const {}),
+      );
     }
     throw const _MockBiz(405, 1, '未知错误');
   }
@@ -1629,6 +1636,15 @@ Map<String, dynamic> _postAssistantMessage(
   int userId,
   Map<String, dynamic> body,
 ) {
+  final researchMessage = body['message']?.toString() ?? '';
+  if (body['clientProtocolVersion'] == 2 &&
+      (researchMessage.contains('比较') ||
+          researchMessage.contains('选择') ||
+          researchMessage.contains('先搜索') ||
+          body['questionContext'] != null ||
+          _activeResearchRun(userId) != null)) {
+    return _postResearchMessage(userId, body);
+  }
   final message = body['message']?.toString().trim() ?? '';
   if (message.isEmpty || message.length > 2000) {
     throw const _MockBiz(400, 2, '参数错误');
@@ -1811,6 +1827,9 @@ MockRouterResponse _streamAssistantRunEvents(
   if (run == null || run['userId'] != userId) {
     throw const _MockBiz(404, 4, '资源不存在');
   }
+  if (run['research'] == true) {
+    _expireResearch(runId);
+  }
   final lastHeader = headers['last-event-id'] ?? headers['Last-Event-ID'] ?? '';
   final afterSeq = int.tryParse(query['afterSeq'] ?? lastHeader) ?? 0;
   final events = [
@@ -1837,6 +1856,10 @@ void _cancelAssistantRun(int userId, int runId) {
   final run = _assistantRuns[runId];
   if (run == null || run['userId'] != userId) {
     throw const _MockBiz(404, 4, '资源不存在');
+  }
+  if (run['research'] == true) {
+    _terminateResearch(runId, 'cancelled', 'CANCELLED', '已停止');
+    return;
   }
   run['status'] = 'cancelled';
   _completeRun(runId);
@@ -1865,12 +1888,21 @@ void _completeRun(int runId) {
 }
 
 void _deleteAssistantHistory(int userId) {
+  final runs = [
+    for (final entry in _assistantRuns.entries)
+      if (entry.value['userId'] == userId) entry.key,
+  ];
+  for (final runId in runs) {
+    _assistantRuns.remove(runId);
+    _assistantRunEvents.remove(runId);
+  }
   _assistantMessages[userId] = [];
   final thread = _assistantThreads.putIfAbsent(userId, _emptyThread);
   thread['lastMessageId'] = 0;
   thread['lastMessagePreview'] = '';
   thread['unreadCount'] = 0;
   thread['activeRunId'] = 0;
+  thread.remove('questionRequest');
 }
 
 Map<String, dynamic> _emptyThread() => {

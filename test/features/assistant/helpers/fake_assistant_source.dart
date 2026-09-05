@@ -6,6 +6,38 @@ import 'package:xiaobaihe_app/features/assistant/data/assistant_models.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_repository.dart';
 
 class FakeAssistantSource implements AssistantDataSource {
+  final answerRequestIds = <String>[];
+  Future<AssistantQuestionRequest> Function(
+    String,
+    List<AssistantQuestionAnswer>,
+  )?
+  answerHandler;
+
+  @override
+  Future<AssistantQuestionRequest> answerQuestions({
+    required AssistantQuestionRequest question,
+    required String requestId,
+    required List<AssistantQuestionAnswer> answers,
+  }) async {
+    answerRequestIds.add(requestId);
+    if (answerHandler != null) return answerHandler!(requestId, answers);
+    return AssistantQuestionRequest(
+      id: question.id,
+      runId: question.runId,
+      messageId: question.messageId,
+      status: 'answered',
+      deadlineMs: question.deadlineMs,
+      questions: question.questions,
+      answers: answers,
+    );
+  }
+
+  @override
+  Future<AssistantPostResult> continueQuestions({
+    required AssistantQuestionRequest question,
+    required String requestId,
+    required List<AssistantQuestionAnswer> answers,
+  }) => postMessage(message: '继续上次的问题。', requestId: requestId);
   Stream<AssistantRunEvent> Function({
     required Object runId,
     required Object afterSeq,

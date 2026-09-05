@@ -23,6 +23,7 @@ dependencies:
   gpt_markdown: ^1.1.8
   characters: ^1.4.0
   visibility_detector: ^0.4.0+2
+  url_launcher: ^6.3.2
 
 dependency_overrides:
   shared_preferences_android: 2.4.10

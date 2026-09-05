@@ -18,6 +18,51 @@ void main() {
     setApiClient(http.Client());
   });
 
+  test(
+    'a durable question may suspend the stream without a fake failure',
+    () async {
+      final payload = jsonEncode({
+        'type': 'questions_required',
+        'runId': 21,
+        'seq': 1,
+        'questionRequest': {
+          'id': 'q1',
+          'runId': 21,
+          'messageId': 31,
+          'status': 'pending',
+          'deadlineMs': 4102444800000,
+          'questions': [
+            {
+              'id': 'q',
+              'text': '优先级？',
+              'selection': 'single',
+              'options': [
+                {'id': 'a', 'label': '成本'},
+                {'id': 'b', 'label': '体验'},
+              ],
+            },
+          ],
+          'answers': [],
+        },
+      });
+      final client = _CapturingClient(
+        (_) => http.StreamedResponse(
+          Stream.value(utf8.encode('data: $payload\n\n')),
+          200,
+        ),
+      );
+      final repository = AssistantRepository(
+        client: client,
+        baseUrl: 'http://gateway.test',
+        loadAccessToken: () async => 'test-token',
+      );
+      final events = await repository.runEvents(runId: 21).toList();
+      expect(events, hasLength(1));
+      expect(events.single.questionRequest!.isPending, isTrue);
+      expect(events.single.isTerminal, isFalse);
+    },
+  );
+
   test('parses fragmented token, source_card, and done SSE events', () async {
     final payload = [
       'id: 1\ndata: {"type":"token","text":"你","runId":21,"seq":1}\n\n',

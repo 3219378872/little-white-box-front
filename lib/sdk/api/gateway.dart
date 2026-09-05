@@ -309,6 +309,28 @@ Future submitAssistantRecommendFeedback(
   );
 }
 
+/// --/api/v2/assistant/runs/:id/answers--
+///
+/// request: AnswerAssistantQuestionsReq
+/// response: AnswerAssistantQuestionsResp
+Future answerAssistantQuestions(
+  Object id,
+  AnswerAssistantQuestionsReq request, {
+  Function(AnswerAssistantQuestionsResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v2/assistant/runs/${id}/answers",
+    request,
+    ok: (data) {
+      if (ok != null) ok(AnswerAssistantQuestionsResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 /// --/api/v2/assistant/runs/:id/cancel--
 ///
 /// request: CancelAssistantRunReq

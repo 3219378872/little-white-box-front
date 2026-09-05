@@ -39,6 +39,144 @@ class AddAssistantMemoryResp {
   }
 }
 
+class AnswerAssistantQuestionsReq {
+  final Object id;
+
+  final String questionRequestId;
+
+  final String requestId;
+
+  final List<AssistantQuestionAnswer> answers;
+  AnswerAssistantQuestionsReq({
+    required this.id,
+    required this.questionRequestId,
+    required this.requestId,
+    required this.answers,
+  });
+  factory AnswerAssistantQuestionsReq.fromJson(Map<String, dynamic> m) {
+    return AnswerAssistantQuestionsReq(
+      id: m['id'] ?? 0,
+      questionRequestId: m['questionRequestId'] ?? "",
+      requestId: m['requestId'] ?? "",
+      answers: ((m['answers'] ?? []) as List<dynamic>)
+          .map((i) => AssistantQuestionAnswer.fromJson(i))
+          .toList(),
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'questionRequestId': questionRequestId,
+      'requestId': requestId,
+      'answers': answers.map((i) => i.toJson()),
+    };
+  }
+}
+
+class AnswerAssistantQuestionsResp {
+  final AssistantQuestionRequest questionRequest;
+  AnswerAssistantQuestionsResp({required this.questionRequest});
+  factory AnswerAssistantQuestionsResp.fromJson(Map<String, dynamic> m) {
+    return AnswerAssistantQuestionsResp(
+      questionRequest: AssistantQuestionRequest.fromJson(m['questionRequest']),
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'questionRequest': questionRequest.toJson()};
+  }
+}
+
+class AssistantAnswerBlock {
+  final String id;
+
+  final String kind;
+
+  final String text;
+
+  final List<AssistantAnswerCitation> citations;
+  AssistantAnswerBlock({
+    required this.id,
+    required this.kind,
+    required this.text,
+    required this.citations,
+  });
+  factory AssistantAnswerBlock.fromJson(Map<String, dynamic> m) {
+    return AssistantAnswerBlock(
+      id: m['id'] ?? "",
+      kind: m['kind'] ?? "",
+      text: m['text'] ?? "",
+      citations: ((m['citations'] ?? []) as List<dynamic>)
+          .map((i) => AssistantAnswerCitation.fromJson(i))
+          .toList(),
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'kind': kind,
+      'text': text,
+      'citations': citations.map((i) => i.toJson()),
+    };
+  }
+}
+
+class AssistantAnswerCitation {
+  final String handle;
+
+  final List<String> evidenceIds;
+  AssistantAnswerCitation({required this.handle, required this.evidenceIds});
+  factory AssistantAnswerCitation.fromJson(Map<String, dynamic> m) {
+    return AssistantAnswerCitation(
+      handle: m['handle'] ?? "",
+      evidenceIds: m['evidenceIds']?.cast<String>() ?? [],
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {'handle': handle, 'evidenceIds': evidenceIds};
+  }
+}
+
+class AssistantAnswerPresentation {
+  final num version;
+
+  final Object messageId;
+
+  final Object runId;
+
+  final List<AssistantAnswerBlock> blocks;
+
+  final List<AssistantResearchSource> sources;
+  AssistantAnswerPresentation({
+    required this.version,
+    required this.messageId,
+    required this.runId,
+    required this.blocks,
+    required this.sources,
+  });
+  factory AssistantAnswerPresentation.fromJson(Map<String, dynamic> m) {
+    return AssistantAnswerPresentation(
+      version: m['version'] ?? 0,
+      messageId: m['messageId'] ?? 0,
+      runId: m['runId'] ?? 0,
+      blocks: ((m['blocks'] ?? []) as List<dynamic>)
+          .map((i) => AssistantAnswerBlock.fromJson(i))
+          .toList(),
+      sources: ((m['sources'] ?? []) as List<dynamic>)
+          .map((i) => AssistantResearchSource.fromJson(i))
+          .toList(),
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'version': version,
+      'messageId': messageId,
+      'runId': runId,
+      'blocks': blocks.map((i) => i.toJson()),
+      'sources': sources.map((i) => i.toJson()),
+    };
+  }
+}
+
 class AssistantAttachment {
   final Object mediaId;
 
@@ -49,6 +187,48 @@ class AssistantAttachment {
   }
   Map<String, dynamic> toJson() {
     return {'mediaId': mediaId, 'url': url};
+  }
+}
+
+class AssistantEvidence {
+  final String id;
+
+  final String handle;
+
+  final String kind;
+
+  final String text;
+
+  final String commentId;
+
+  final num retrievedAtMs;
+  AssistantEvidence({
+    required this.id,
+    required this.handle,
+    required this.kind,
+    required this.text,
+    required this.commentId,
+    required this.retrievedAtMs,
+  });
+  factory AssistantEvidence.fromJson(Map<String, dynamic> m) {
+    return AssistantEvidence(
+      id: m['id'] ?? "",
+      handle: m['handle'] ?? "",
+      kind: m['kind'] ?? "",
+      text: m['text'] ?? "",
+      commentId: m['commentId'] ?? "",
+      retrievedAtMs: m['retrievedAtMs'] ?? 0,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'handle': handle,
+      'kind': kind,
+      'text': text,
+      'commentId': commentId,
+      'retrievedAtMs': retrievedAtMs,
+    };
   }
 }
 
@@ -172,6 +352,10 @@ class AssistantMessage {
   final num createdAtMs;
 
   final Object changeId;
+
+  final AssistantQuestionRequest? questionRequest;
+
+  final AssistantAnswerPresentation? answerPresentation;
   AssistantMessage({
     required this.id,
     required this.sessionId,
@@ -182,6 +366,8 @@ class AssistantMessage {
     required this.unread,
     required this.createdAtMs,
     required this.changeId,
+    required this.questionRequest,
+    required this.answerPresentation,
   });
   factory AssistantMessage.fromJson(Map<String, dynamic> m) {
     return AssistantMessage(
@@ -194,6 +380,12 @@ class AssistantMessage {
       unread: m['unread'] ?? false,
       createdAtMs: m['createdAtMs'] ?? 0,
       changeId: m['changeId'] ?? 0,
+      questionRequest: m['questionRequest'] == null
+          ? null
+          : AssistantQuestionRequest?.fromJson(m['questionRequest']),
+      answerPresentation: m['answerPresentation'] == null
+          ? null
+          : AssistantAnswerPresentation?.fromJson(m['answerPresentation']),
     );
   }
   Map<String, dynamic> toJson() {
@@ -207,6 +399,177 @@ class AssistantMessage {
       'unread': unread,
       'createdAtMs': createdAtMs,
       'changeId': changeId,
+      'questionRequest': questionRequest?.toJson(),
+      'answerPresentation': answerPresentation?.toJson(),
+    };
+  }
+}
+
+class AssistantQuestion {
+  final String id;
+
+  final String text;
+
+  final String selection;
+
+  final List<AssistantQuestionOption> options;
+  AssistantQuestion({
+    required this.id,
+    required this.text,
+    required this.selection,
+    required this.options,
+  });
+  factory AssistantQuestion.fromJson(Map<String, dynamic> m) {
+    return AssistantQuestion(
+      id: m['id'] ?? "",
+      text: m['text'] ?? "",
+      selection: m['selection'] ?? "",
+      options: ((m['options'] ?? []) as List<dynamic>)
+          .map((i) => AssistantQuestionOption.fromJson(i))
+          .toList(),
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'text': text,
+      'selection': selection,
+      'options': options.map((i) => i.toJson()),
+    };
+  }
+}
+
+class AssistantQuestionAnswer {
+  final String questionId;
+
+  final List<String> selectedOptionIds;
+
+  final String text;
+
+  final String disposition;
+  AssistantQuestionAnswer({
+    required this.questionId,
+    required this.selectedOptionIds,
+    required this.text,
+    required this.disposition,
+  });
+  factory AssistantQuestionAnswer.fromJson(Map<String, dynamic> m) {
+    return AssistantQuestionAnswer(
+      questionId: m['questionId'] ?? "",
+      selectedOptionIds: m['selectedOptionIds']?.cast<String>() ?? [],
+      text: m['text'] ?? "",
+      disposition: m['disposition'] ?? "",
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'questionId': questionId,
+      'selectedOptionIds': selectedOptionIds,
+      'text': text,
+      'disposition': disposition,
+    };
+  }
+}
+
+class AssistantQuestionContext {
+  final Object runId;
+
+  final String questionRequestId;
+
+  final List<AssistantQuestionAnswer> answers;
+  AssistantQuestionContext({
+    required this.runId,
+    required this.questionRequestId,
+    required this.answers,
+  });
+  factory AssistantQuestionContext.fromJson(Map<String, dynamic> m) {
+    return AssistantQuestionContext(
+      runId: m['runId'] ?? 0,
+      questionRequestId: m['questionRequestId'] ?? "",
+      answers: ((m['answers'] ?? []) as List<dynamic>)
+          .map((i) => AssistantQuestionAnswer.fromJson(i))
+          .toList(),
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'runId': runId,
+      'questionRequestId': questionRequestId,
+      'answers': answers.map((i) => i.toJson()),
+    };
+  }
+}
+
+class AssistantQuestionOption {
+  final String id;
+
+  final String label;
+  AssistantQuestionOption({required this.id, required this.label});
+  factory AssistantQuestionOption.fromJson(Map<String, dynamic> m) {
+    return AssistantQuestionOption(id: m['id'] ?? "", label: m['label'] ?? "");
+  }
+  Map<String, dynamic> toJson() {
+    return {'id': id, 'label': label};
+  }
+}
+
+class AssistantQuestionRequest {
+  final String id;
+
+  final Object runId;
+
+  final String callId;
+
+  final Object messageId;
+
+  final String status;
+
+  final List<AssistantQuestion> questions;
+
+  final List<AssistantQuestionAnswer> answers;
+
+  final num deadlineMs;
+
+  final num createdAtMs;
+  AssistantQuestionRequest({
+    required this.id,
+    required this.runId,
+    required this.callId,
+    required this.messageId,
+    required this.status,
+    required this.questions,
+    required this.answers,
+    required this.deadlineMs,
+    required this.createdAtMs,
+  });
+  factory AssistantQuestionRequest.fromJson(Map<String, dynamic> m) {
+    return AssistantQuestionRequest(
+      id: m['id'] ?? "",
+      runId: m['runId'] ?? 0,
+      callId: m['callId'] ?? "",
+      messageId: m['messageId'] ?? 0,
+      status: m['status'] ?? "",
+      questions: ((m['questions'] ?? []) as List<dynamic>)
+          .map((i) => AssistantQuestion.fromJson(i))
+          .toList(),
+      answers: ((m['answers'] ?? []) as List<dynamic>)
+          .map((i) => AssistantQuestionAnswer.fromJson(i))
+          .toList(),
+      deadlineMs: m['deadlineMs'] ?? 0,
+      createdAtMs: m['createdAtMs'] ?? 0,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'runId': runId,
+      'callId': callId,
+      'messageId': messageId,
+      'status': status,
+      'questions': questions.map((i) => i.toJson()),
+      'answers': answers.map((i) => i.toJson()),
+      'deadlineMs': deadlineMs,
+      'createdAtMs': createdAtMs,
     };
   }
 }
@@ -244,6 +607,80 @@ class AssistantRecommendFeedbackResp {
   }
 }
 
+class AssistantResearchSource {
+  final String handle;
+
+  final String kind;
+
+  final String authorityId;
+
+  final String title;
+
+  final num revision;
+
+  final String url;
+
+  final String thumbnailUrl;
+
+  final String author;
+
+  final num publishedAtMs;
+
+  final bool available;
+
+  final String unavailableReason;
+
+  final List<AssistantEvidence> excerpts;
+  AssistantResearchSource({
+    required this.handle,
+    required this.kind,
+    required this.authorityId,
+    required this.title,
+    required this.revision,
+    required this.url,
+    required this.thumbnailUrl,
+    required this.author,
+    required this.publishedAtMs,
+    required this.available,
+    required this.unavailableReason,
+    required this.excerpts,
+  });
+  factory AssistantResearchSource.fromJson(Map<String, dynamic> m) {
+    return AssistantResearchSource(
+      handle: m['handle'] ?? "",
+      kind: m['kind'] ?? "",
+      authorityId: m['authorityId'] ?? "",
+      title: m['title'] ?? "",
+      revision: m['revision'] ?? 0,
+      url: m['url'] ?? "",
+      thumbnailUrl: m['thumbnailUrl'] ?? "",
+      author: m['author'] ?? "",
+      publishedAtMs: m['publishedAtMs'] ?? 0,
+      available: m['available'] ?? false,
+      unavailableReason: m['unavailableReason'] ?? "",
+      excerpts: ((m['excerpts'] ?? []) as List<dynamic>)
+          .map((i) => AssistantEvidence.fromJson(i))
+          .toList(),
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'handle': handle,
+      'kind': kind,
+      'authorityId': authorityId,
+      'title': title,
+      'revision': revision,
+      'url': url,
+      'thumbnailUrl': thumbnailUrl,
+      'author': author,
+      'publishedAtMs': publishedAtMs,
+      'available': available,
+      'unavailableReason': unavailableReason,
+      'excerpts': excerpts.map((i) => i.toJson()),
+    };
+  }
+}
+
 class AssistantRunEvent {
   final Object runId;
 
@@ -266,6 +703,10 @@ class AssistantRunEvent {
   final Object changeId;
 
   final String streamId;
+
+  final AssistantQuestionRequest? questionRequest;
+
+  final AssistantAnswerPresentation? answerPresentation;
   AssistantRunEvent({
     required this.runId,
     required this.seq,
@@ -278,6 +719,8 @@ class AssistantRunEvent {
     required this.sourceCard,
     required this.changeId,
     required this.streamId,
+    required this.questionRequest,
+    required this.answerPresentation,
   });
   factory AssistantRunEvent.fromJson(Map<String, dynamic> m) {
     return AssistantRunEvent(
@@ -296,6 +739,12 @@ class AssistantRunEvent {
           : AssistantSourceCard?.fromJson(m['sourceCard']),
       changeId: m['changeId'] ?? 0,
       streamId: m['streamId'] ?? "",
+      questionRequest: m['questionRequest'] == null
+          ? null
+          : AssistantQuestionRequest?.fromJson(m['questionRequest']),
+      answerPresentation: m['answerPresentation'] == null
+          ? null
+          : AssistantAnswerPresentation?.fromJson(m['answerPresentation']),
     );
   }
   Map<String, dynamic> toJson() {
@@ -311,6 +760,8 @@ class AssistantRunEvent {
       'sourceCard': sourceCard?.toJson(),
       'changeId': changeId,
       'streamId': streamId,
+      'questionRequest': questionRequest?.toJson(),
+      'answerPresentation': answerPresentation?.toJson(),
     };
   }
 }
@@ -389,6 +840,8 @@ class AssistantThread {
   final String activeRunStatus;
 
   final String activeRunPhase;
+
+  final AssistantQuestionRequest? questionRequest;
   AssistantThread({
     required this.sessionId,
     required this.unreadCount,
@@ -398,6 +851,7 @@ class AssistantThread {
     required this.activeRunId,
     required this.activeRunStatus,
     required this.activeRunPhase,
+    required this.questionRequest,
   });
   factory AssistantThread.fromJson(Map<String, dynamic> m) {
     return AssistantThread(
@@ -409,6 +863,9 @@ class AssistantThread {
       activeRunId: m['activeRunId'] ?? 0,
       activeRunStatus: m['activeRunStatus'] ?? "",
       activeRunPhase: m['activeRunPhase'] ?? "",
+      questionRequest: m['questionRequest'] == null
+          ? null
+          : AssistantQuestionRequest?.fromJson(m['questionRequest']),
     );
   }
   Map<String, dynamic> toJson() {
@@ -421,6 +878,7 @@ class AssistantThread {
       'activeRunId': activeRunId,
       'activeRunStatus': activeRunStatus,
       'activeRunPhase': activeRunPhase,
+      'questionRequest': questionRequest?.toJson(),
     };
   }
 }
@@ -2292,11 +2750,17 @@ class PostAssistantMessageReq {
   final List<AssistantAttachment> attachments;
 
   final Object contextPostId;
+
+  final num clientProtocolVersion;
+
+  final AssistantQuestionContext? questionContext;
   PostAssistantMessageReq({
     required this.message,
     required this.requestId,
     required this.attachments,
     required this.contextPostId,
+    required this.clientProtocolVersion,
+    required this.questionContext,
   });
   factory PostAssistantMessageReq.fromJson(Map<String, dynamic> m) {
     return PostAssistantMessageReq(
@@ -2306,6 +2770,10 @@ class PostAssistantMessageReq {
           .map((i) => AssistantAttachment.fromJson(i))
           .toList(),
       contextPostId: m['contextPostId'] ?? 0,
+      clientProtocolVersion: m['clientProtocolVersion'] ?? 0,
+      questionContext: m['questionContext'] == null
+          ? null
+          : AssistantQuestionContext?.fromJson(m['questionContext']),
     );
   }
   Map<String, dynamic> toJson() {
@@ -2314,6 +2782,8 @@ class PostAssistantMessageReq {
       'requestId': requestId,
       'attachments': attachments.map((i) => i.toJson()),
       'contextPostId': contextPostId,
+      'clientProtocolVersion': clientProtocolVersion,
+      'questionContext': questionContext?.toJson(),
     };
   }
 }
@@ -2404,7 +2874,7 @@ class PostItem {
     required this.isFavorited,
     required this.revision,
     required this.createdAt,
-    required this.mediaIds,
+    this.mediaIds = const [],
   });
   factory PostItem.fromJson(Map<String, dynamic> m) {
     return PostItem(

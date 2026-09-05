@@ -126,6 +126,7 @@ def normalize_generated_header(source: str) -> str:
 
 
 def patch_generated_types(source: str) -> str:
+    source = normalize_generated_header(source)
     nullable_primitives = re.findall(
         r"final (String|double|bool|int)\? (\w+);", source
     )
@@ -152,6 +153,15 @@ def patch_generated_types(source: str) -> str:
     for field in ENTITY_ID_FIELDS:
         source = source.replace(f"final num {field};", f"final Object {field};")
     source = source.replace("final List<int> mediaIds;", "final List<Object> mediaIds;")
+    # Read models accept additive media metadata without breaking local constructors.
+    source = re.sub(
+        r"(class PostItem \{.*?)(\n  factory PostItem\.fromJson)",
+        lambda match: match[1].replace(
+            "required this.mediaIds,", "this.mediaIds = const [],"
+        ) + match[2],
+        source,
+        flags=re.DOTALL,
+    )
     source = source.replace(
         "mediaIds: m['mediaIds']?.cast<int>() ?? [],",
         "mediaIds: m['mediaIds'] is List\n"
@@ -178,6 +188,7 @@ def patch_generated_types(source: str) -> str:
 
 
 def patch_generated_api(source: str) -> str:
+    source = normalize_generated_header(source)
     for field in PATH_ID_PARAMS:
         source = source.replace(f"  int {field},", f"  Object {field},")
         source = source.replace(f"  int {field}", f"  Object {field}")

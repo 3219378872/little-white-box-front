@@ -17,8 +17,9 @@ import 'assistant_models.dart';
 
 class AssistantStreamException implements Exception {
   final String message;
+  final bool retryable;
 
-  const AssistantStreamException(this.message);
+  const AssistantStreamException(this.message, {this.retryable = true});
 
   @override
   String toString() => message;
@@ -56,6 +57,16 @@ class AgentConsentStatus {
 }
 
 abstract interface class AssistantDataSource {
+  Future<AssistantQuestionRequest> answerQuestions({
+    required AssistantQuestionRequest question,
+    required String requestId,
+    required List<AssistantQuestionAnswer> answers,
+  });
+  Future<AssistantPostResult> continueQuestions({
+    required AssistantQuestionRequest question,
+    required String requestId,
+    required List<AssistantQuestionAnswer> answers,
+  });
   Future<AgentConsentStatus> loadAgentConsent();
 
   Future<void> setAgentConsent({required bool granted});
@@ -245,12 +256,51 @@ class AssistantRepository implements AssistantDataSource {
       throw const ApiException('Assistant 请求标识不能为空');
     }
     final response = await _api.post('/api/v2/assistant/messages', {
+      'clientProtocolVersion': 2,
       'message': normalized,
       'requestId': normalizedRequestId,
       if (attachments.isNotEmpty)
         'attachments': [for (final item in attachments) item.toJson()],
       if (jsonInt64IsPositive(contextPostId))
         'contextPostId': jsonInt64Id(contextPostId),
+    });
+    return AssistantPostResult.fromJson(response);
+  }
+
+  @override
+  Future<AssistantQuestionRequest> answerQuestions({
+    required AssistantQuestionRequest question,
+    required String requestId,
+    required List<AssistantQuestionAnswer> answers,
+  }) async {
+    final response = await _api.post(
+      '/api/v2/assistant/runs/${jsonInt64Id(question.runId)}/answers',
+      {
+        'questionRequestId': question.id,
+        'requestId': requestId,
+        'answers': [for (final answer in answers) answer.toJson()],
+      },
+    );
+    return AssistantQuestionRequest.fromJson(
+      Map<String, dynamic>.from(response['questionRequest'] as Map),
+    );
+  }
+
+  @override
+  Future<AssistantPostResult> continueQuestions({
+    required AssistantQuestionRequest question,
+    required String requestId,
+    required List<AssistantQuestionAnswer> answers,
+  }) async {
+    final response = await _api.post('/api/v2/assistant/messages', {
+      'message': '继续上次的问题。',
+      'requestId': requestId,
+      'clientProtocolVersion': 2,
+      'questionContext': {
+        'runId': question.runId,
+        'questionRequestId': question.id,
+        'answers': [for (final answer in answers) answer.toJson()],
+      },
     });
     return AssistantPostResult.fromJson(response);
   }
@@ -299,10 +349,14 @@ class AssistantRepository implements AssistantDataSource {
           (exception.isAuthError || response.statusCode == 401)) {
         await sdk_api.invalidateSessionIfCredentialsMatch(session);
       }
+      if (response.statusCode >= 500) {
+        throw const AssistantStreamException('Assistant 服务暂时不可用');
+      }
       throw exception;
     }
 
     var terminal = false;
+    var waiting = false;
     try {
       await for (final frame in _sseFrames(response.stream)) {
         if (frame.data.trim().isEmpty) continue;
@@ -316,6 +370,12 @@ class AssistantRepository implements AssistantDataSource {
         }
         final event = AssistantRunEvent.fromJson(json);
         if (event.type == AssistantEventType.unknown) continue;
+        if (event.type == AssistantEventType.questionsRequired) {
+          waiting = event.questionRequest?.isPending == true;
+        }
+        if (event.type == AssistantEventType.questionsResolved) {
+          waiting = false;
+        }
         yield event;
         if (event.isTerminal) {
           terminal = true;
@@ -323,16 +383,22 @@ class AssistantRepository implements AssistantDataSource {
         }
       }
     } on FormatException {
-      throw const AssistantStreamException('Assistant 返回了无效事件');
+      throw const AssistantStreamException(
+        'Assistant 返回了无效事件',
+        retryable: false,
+      );
     } on JsonUnsupportedObjectError {
-      throw const AssistantStreamException('Assistant 返回了无效事件');
+      throw const AssistantStreamException(
+        'Assistant 返回了无效事件',
+        retryable: false,
+      );
     } on AssistantStreamException {
       rethrow;
     } catch (error) {
       throw AssistantStreamException('Assistant 连接中断: $error');
     }
 
-    if (!terminal) {
+    if (!terminal && !waiting) {
       throw const AssistantStreamException('Assistant 连接意外中断');
     }
   }

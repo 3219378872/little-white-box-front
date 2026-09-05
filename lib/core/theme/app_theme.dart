@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 
 class AppTheme {
+  static const assistantCard = FCardStyleDelta.delta(
+    decoration: DecorationDelta.boxDelta(
+      borderRadius: BorderRadius.all(Radius.circular(8)),
+    ),
+  );
   static const _seedColor = Color(0xFF3B6CA8);
 
   /// Forui 亮色主题：neutral 基础 + 品牌蓝 primary

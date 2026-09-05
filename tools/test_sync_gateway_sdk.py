@@ -60,6 +60,20 @@ class NullablePrimitivePatchTest(unittest.TestCase):
             patched,
         )
 
+    def test_additive_post_media_preserves_constructor_compatibility(self):
+        generated = """// --/temporary/worktree/app/gateway/gateway--
+class PostItem {
+  final List<int> mediaIds;
+  PostItem({required this.mediaIds,});
+  factory PostItem.fromJson(Map<String,dynamic> m) { return PostItem(); }
+}
+"""
+        patched = patch_generated_types(generated)
+        self.assertIn("this.mediaIds = const [],", patched)
+        self.assertIn("final List<Object> mediaIds;", patched)
+        self.assertNotIn("/temporary/worktree", patched)
+        self.assertEqual(patch_generated_types(patched), patched)
+
     def test_patches_nullable_primitive_serialization(self):
         generated = """
 final String? value;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -77,6 +78,8 @@ class PendingAssistantCommand {
 }
 
 class AssistantMessage {
+  final AssistantQuestionRequest? questionRequest;
+  final AssistantAnswerPresentation? answerPresentation;
   final String id;
   final Object runId;
   final AssistantMessageRole role;
@@ -95,6 +98,8 @@ class AssistantMessage {
   final bool memoryUndone;
 
   const AssistantMessage({
+    this.questionRequest,
+    this.answerPresentation,
     required this.id,
     required this.role,
     required this.text,
@@ -120,6 +125,8 @@ class AssistantMessage {
   bool get isMemoryChanged => kind == 'memory_changed';
 
   AssistantMessage copyWith({
+    AssistantQuestionRequest? questionRequest,
+    AssistantAnswerPresentation? answerPresentation,
     String? id,
     Object? runId,
     String? text,
@@ -136,6 +143,8 @@ class AssistantMessage {
     bool? memoryUndone,
   }) {
     return AssistantMessage(
+      questionRequest: questionRequest ?? this.questionRequest,
+      answerPresentation: answerPresentation ?? this.answerPresentation,
       id: id ?? this.id,
       runId: runId ?? this.runId,
       role: role,
@@ -271,6 +280,8 @@ class AssistantState {
 class AssistantNotifier extends StateNotifier<AssistantState> {
   final AssistantDataSource _repository;
   final String Function() _createRequestId;
+  final Map<String, String> _questionRequestIds = {};
+  Timer? _waitingReconnect;
   final String _identityKey;
   StreamSubscription<AssistantRunEvent>? _subscription;
   int _generation = 0;
@@ -559,6 +570,153 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     return _submit(pending, addOptimisticMessage: false);
   }
 
+  Future<bool> answerQuestion(
+    AssistantQuestionRequest question,
+    List<AssistantQuestionAnswer> answers, {
+    bool continueExpired = false,
+  }) async {
+    if (_identityKey.isEmpty || state.isSending || state.isLoadingHistory) {
+      return false;
+    }
+    if (continueExpired && state.hasActiveRun) {
+      state = state.copyWith(connectionError: '当前任务结束后再继续此问题');
+      return false;
+    }
+    final fingerprint = jsonEncode([
+      question.id,
+      continueExpired,
+      [for (final answer in answers) answer.toJson()],
+    ]);
+    final requestId = _questionRequestIds.putIfAbsent(
+      fingerprint,
+      _createRequestId,
+    );
+    state = state.copyWith(isSending: true, clearConnectionError: true);
+    try {
+      if (continueExpired) {
+        await _repository.continueQuestions(
+          question: question,
+          requestId: requestId,
+          answers: answers,
+        );
+        if (!mounted) return false;
+        state = state.copyWith(isSending: false);
+        await load();
+      } else {
+        final updated = await _repository.answerQuestions(
+          question: question,
+          requestId: requestId,
+          answers: answers,
+        );
+        if (!mounted) return false;
+        if (_hasPersistedTerminalResponseForRun(
+              state.messages,
+              question.runId,
+            ) ||
+            _hasTerminalEventResponseForRun(state.messages, question.runId)) {
+          state = state.copyWith(
+            messages: _questionMessages(updated),
+            isSending: false,
+          );
+          _questionRequestIds.remove(fingerprint);
+          return true;
+        }
+        state = state.copyWith(
+          messages: _ensureAssistantIn(
+            _questionMessages(updated),
+            'run-${jsonInt64Id(question.runId)}',
+            question.runId,
+          ),
+          isSending: false,
+          isStreaming: true,
+          activeRunId: question.runId,
+          activeRunPhase: 'queued',
+        );
+        _ensureSubscribed(question.runId);
+      }
+      _questionRequestIds.remove(fingerprint);
+      return true;
+    } catch (error) {
+      if (!mounted) return false;
+      state = state.copyWith(
+        isSending: false,
+        connectionError: friendlyErrorMessage(error),
+      );
+      return false;
+    }
+  }
+
+  List<AssistantMessage> _questionMessages(AssistantQuestionRequest question) {
+    final id = jsonInt64Id(question.messageId);
+    final existing = state.messages
+        .where((message) => message.questionRequest?.id == question.id)
+        .firstOrNull;
+    if (existing?.questionRequest?.status != 'pending' &&
+        existing?.questionRequest != null &&
+        question.isPending) {
+      return state.messages;
+    }
+    if (existing != null) {
+      return [
+        for (final message in state.messages)
+          if (message.questionRequest?.id == question.id)
+            message.copyWith(questionRequest: question)
+          else
+            message,
+      ];
+    }
+    return [
+      ...state.messages,
+      AssistantMessage(
+        id: id,
+        runId: question.runId,
+        role: AssistantMessageRole.assistant,
+        kind: 'question',
+        text: '',
+        questionRequest: question,
+      ),
+    ];
+  }
+
+  List<AssistantMessage> _answerMessages(
+    String responseId,
+    AssistantAnswerPresentation answer,
+    String text,
+  ) {
+    final messageId = jsonInt64Id(answer.messageId);
+    final persisted = state.messages
+        .where((message) => message.id == messageId)
+        .firstOrNull;
+    final existing =
+        persisted ??
+        state.messages.where((message) => message.id == responseId).firstOrNull;
+    final result = [
+      for (final message in state.messages)
+        if (message.id != responseId && message.id != messageId) message,
+    ];
+    final updated =
+        (existing ??
+                AssistantMessage(
+                  id: responseId,
+                  runId: answer.runId,
+                  role: AssistantMessageRole.assistant,
+                  text: '',
+                ))
+            .copyWith(
+              id: persisted == null ? responseId : messageId,
+              runId: answer.runId,
+              text: text,
+              answerPresentation: answer,
+              isStreaming: false,
+            );
+    if (persisted == null) {
+      result.add(updated);
+    } else {
+      _insertNumericMessage(result, updated);
+    }
+    return result;
+  }
+
   Future<bool> respondToConfirmation(String callId, bool approved) async {
     final runId = state.activeRunId;
     if (!jsonInt64IsPositive(runId)) return false;
@@ -743,6 +901,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   }
 
   void _subscribe(Object runId, {required Object afterSeq}) {
+    _waitingReconnect?.cancel();
     if (!_sameRun(_subscribedRunId, runId)) {
       _resetStreamTracking();
     }
@@ -779,6 +938,13 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
       onError: (Object error, StackTrace stackTrace) {
         if (!_isCurrentConnection(generation, connectionGeneration)) return;
         if (error is AssistantStreamException &&
+            error.retryable &&
+            state.activeRunPhase == 'waiting_input') {
+          _scheduleWaitingReconnect(runId, generation);
+          return;
+        }
+        if (error is AssistantStreamException &&
+            error.retryable &&
             state.hasActiveRun &&
             _reconnects < 1) {
           _reconnects++;
@@ -796,6 +962,11 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         );
       },
       onDone: () {
+        if (_isCurrentConnection(generation, connectionGeneration) &&
+            state.activeRunPhase == 'waiting_input') {
+          _scheduleWaitingReconnect(runId, generation);
+          return;
+        }
         if (!_isCurrentConnection(generation, connectionGeneration) ||
             !state.isStreaming) {
           return;
@@ -820,6 +991,21 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     return mounted &&
         generation == _generation &&
         connectionGeneration == _connectionGeneration;
+  }
+
+  void _scheduleWaitingReconnect(Object runId, int generation) {
+    final ticket = ++_connectionGeneration;
+    final previous = _subscription;
+    _subscription = null;
+    unawaited(previous?.cancel());
+    _waitingReconnect?.cancel();
+    _waitingReconnect = Timer(const Duration(seconds: 2), () {
+      if (_isCurrentConnection(generation, ticket) &&
+          state.hasActiveRun &&
+          state.activeRunPhase == 'waiting_input') {
+        _listen(runId, generation);
+      }
+    });
   }
 
   void _applyEvent(Object runId, AssistantRunEvent event) {
@@ -914,6 +1100,43 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
         state = state.copyWith(
           sessionId: sessionId,
           messages: _upsertMemoryChangedEvent(runId, event),
+        );
+      case AssistantEventType.questionsRequired:
+      case AssistantEventType.questionsResolved:
+        final question = event.questionRequest;
+        if (question == null || !_sameRun(question.runId, runId)) return;
+        var messages = _questionMessages(question);
+        final resumes =
+            question.status == 'answered' || question.status == 'superseded';
+        if (question.isPending) {
+          messages = [
+            for (final message in messages)
+              if (!(message.id == responseId &&
+                  message.text.isEmpty &&
+                  message.sources.isEmpty &&
+                  message.toolSteps.every(
+                    (step) => step.tool == 'ask_questions',
+                  )))
+                message.id == responseId
+                    ? message.copyWith(isStreaming: false)
+                    : message,
+          ];
+        } else if (resumes) {
+          messages = _ensureAssistantIn(messages, responseId, runId);
+        }
+        state = state.copyWith(
+          sessionId: sessionId,
+          messages: messages,
+          isStreaming: resumes,
+          activeRunPhase: resumes ? 'queued' : 'waiting_input',
+        );
+      case AssistantEventType.answerCommitted:
+        final answer = event.answerPresentation;
+        if (answer == null || !_sameRun(answer.runId, runId)) return;
+        _resetStreamTracking();
+        state = state.copyWith(
+          sessionId: sessionId,
+          messages: _answerMessages(responseId, answer, event.text),
         );
       case AssistantEventType.unknown:
         return;
@@ -1490,6 +1713,28 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     final messages = [...state.messages];
     for (final item in history) {
       final persisted = _fromHistory(item);
+      if (persisted.questionRequest != null) {
+        final index = messages.indexWhere(
+          (message) =>
+              message.id == persisted.id ||
+              message.questionRequest?.id == persisted.questionRequest!.id,
+        );
+        if (index < 0) {
+          _insertNumericMessage(messages, persisted);
+        } else {
+          final existing = messages[index];
+          if (!(existing.questionRequest != null &&
+              !existing.questionRequest!.isPending &&
+              persisted.questionRequest!.isPending)) {
+            messages[index] = existing.copyWith(
+              questionRequest: persisted.questionRequest,
+              runId: persisted.runId,
+              text: persisted.text,
+            );
+          }
+        }
+        continue;
+      }
       if (_isTerminalAssistantResponse(persisted) &&
           jsonInt64IsPositive(persisted.runId)) {
         final responseId = 'run-${jsonInt64Id(persisted.runId)}';
@@ -1549,6 +1794,9 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
       role: persisted.role,
       kind: persisted.kind,
       text: persisted.text,
+      questionRequest: persisted.questionRequest ?? existing.questionRequest,
+      answerPresentation:
+          persisted.answerPresentation ?? existing.answerPresentation,
       sources: existing.sources,
       toolSteps: _settleSteps(
         existing.toolSteps,
@@ -1735,6 +1983,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   }
 
   Future<void> _cancelSubscription() async {
+    _waitingReconnect?.cancel();
     _generation++;
     _connectionGeneration++;
     _subscribedRunId = 0;
@@ -1761,6 +2010,8 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
     return AssistantMessage(
       id: jsonInt64Id(item.id),
       runId: item.runId,
+      questionRequest: item.questionRequest,
+      answerPresentation: item.answerPresentation,
       role: role,
       kind: item.kind,
       text: item.content,
@@ -1784,6 +2035,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
 
   @override
   void dispose() {
+    _waitingReconnect?.cancel();
     _generation++;
     _connectionGeneration++;
     _loadGeneration++;

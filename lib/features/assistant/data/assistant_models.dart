@@ -1,5 +1,7 @@
 import '../../../core/api/json_int64.dart';
 
+part 'assistant_research_models.dart';
+
 enum AssistantEventType {
   runStarted,
   token,
@@ -9,6 +11,9 @@ enum AssistantEventType {
   confirmRequired,
   sourceCard,
   memoryChanged,
+  questionsRequired,
+  questionsResolved,
+  answerCommitted,
   done,
   error,
   unknown,
@@ -35,6 +40,7 @@ class AssistantAttachment {
 }
 
 class AssistantThreadSummary {
+  final AssistantQuestionRequest? questionRequest;
   final Object sessionId;
   final int unreadCount;
   final Object lastMessageId;
@@ -45,6 +51,7 @@ class AssistantThreadSummary {
   final String activeRunPhase;
 
   const AssistantThreadSummary({
+    this.questionRequest,
     this.sessionId = 0,
     this.unreadCount = 0,
     this.lastMessageId = 0,
@@ -59,6 +66,10 @@ class AssistantThreadSummary {
 
   factory AssistantThreadSummary.fromJson(Map<String, dynamic> json) {
     return AssistantThreadSummary(
+      questionRequest: _researchObject(
+        json['questionRequest'],
+        AssistantQuestionRequest.fromJson,
+      ),
       sessionId: json['sessionId'] ?? 0,
       unreadCount: _integer(json['unreadCount']),
       lastMessageId: json['lastMessageId'] ?? 0,
@@ -72,6 +83,8 @@ class AssistantThreadSummary {
 }
 
 class AssistantHistoryMessage {
+  final AssistantQuestionRequest? questionRequest;
+  final AssistantAnswerPresentation? answerPresentation;
   final Object id;
   final Object sessionId;
   final Object runId;
@@ -83,6 +96,8 @@ class AssistantHistoryMessage {
   final Object changeId;
 
   const AssistantHistoryMessage({
+    this.questionRequest,
+    this.answerPresentation,
     required this.id,
     this.sessionId = 0,
     this.runId = 0,
@@ -100,6 +115,14 @@ class AssistantHistoryMessage {
       throw const FormatException('invalid assistant message');
     }
     return AssistantHistoryMessage(
+      questionRequest: _researchObject(
+        json['questionRequest'],
+        AssistantQuestionRequest.fromJson,
+      ),
+      answerPresentation: _researchObject(
+        json['answerPresentation'],
+        AssistantAnswerPresentation.fromJson,
+      ),
       id: id,
       sessionId: json['sessionId'] ?? 0,
       runId: json['runId'] ?? 0,
@@ -232,6 +255,8 @@ class AssistantSourceCard {
 }
 
 class AssistantRunEvent {
+  final AssistantQuestionRequest? questionRequest;
+  final AssistantAnswerPresentation? answerPresentation;
   final Object runId;
   final int seq;
   final AssistantEventType type;
@@ -245,6 +270,8 @@ class AssistantRunEvent {
   final String streamId;
 
   const AssistantRunEvent({
+    this.questionRequest,
+    this.answerPresentation,
     required this.type,
     this.runId = 0,
     this.seq = 0,
@@ -272,6 +299,9 @@ class AssistantRunEvent {
       'confirm_required' => AssistantEventType.confirmRequired,
       'source_card' => AssistantEventType.sourceCard,
       'memory_changed' => AssistantEventType.memoryChanged,
+      'questions_required' => AssistantEventType.questionsRequired,
+      'questions_resolved' => AssistantEventType.questionsResolved,
+      'answer_committed' => AssistantEventType.answerCommitted,
       'done' => AssistantEventType.done,
       'error' => AssistantEventType.error,
       _ => AssistantEventType.unknown,
@@ -285,6 +315,22 @@ class AssistantRunEvent {
       );
     }
     final text = _string(json['text']);
+    final question = _researchObject(
+      json['questionRequest'],
+      AssistantQuestionRequest.fromJson,
+    );
+    final answer = _researchObject(
+      json['answerPresentation'],
+      AssistantAnswerPresentation.fromJson,
+    );
+    if ((type == AssistantEventType.questionsRequired ||
+            type == AssistantEventType.questionsResolved) &&
+        question == null) {
+      throw const FormatException('missing assistant question');
+    }
+    if (type == AssistantEventType.answerCommitted && answer == null) {
+      throw const FormatException('missing assistant answer presentation');
+    }
     final rawToolCall = json['toolCall'];
     final toolCall = rawToolCall is Map
         ? AssistantToolCall.fromJson(Map<String, dynamic>.from(rawToolCall))
@@ -315,6 +361,8 @@ class AssistantRunEvent {
       throw const FormatException('invalid assistant error');
     }
     return AssistantRunEvent(
+      questionRequest: question,
+      answerPresentation: answer,
       runId: json['runId'] ?? 0,
       seq: _integer(json['seq']),
       type: type,
