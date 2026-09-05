@@ -56,6 +56,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-code-quality-hardening-2026-09-05
   - EVD-assistant-strict-reset-2026-09-01
   - EVD-audit-remediation-client-2026-08-31
   - EVD-assistant-reset-snapshot-2026-08-31
@@ -89,8 +90,8 @@ evidence:
   - EVD-client-relative-api-2026-08-18
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
-updated_at: 2026-09-01
-observed_commit: 47062ba91e1f07ed6923320389d5877be53e1578
+updated_at: 2026-09-05
+observed_commit: 74c96f6e487df0e8c08a1154c4c2e9b3ebbcbb1d
 ---
 
 # Flutter 客户端实现映射
@@ -98,12 +99,12 @@ observed_commit: 47062ba91e1f07ed6923320389d5877be53e1578
 ## 结论
 
 当前实现已用 `goctl api dart` 同步后端 `gateway.api`（观察后端提交
-f21b68795233b34ee07ffa5c574bb8f06add9ac6），帖子写入走 `/api/v2/post*`，PUT/DELETE
+e76a447c6ad2213a25a8581b69f2274e79125d69），帖子写入走 `/api/v2/post*`，PUT/DELETE
 由同步脚本修补，搜索降级、Assistant 帖子来源、行为事件所有权和输入边界已跟进。桌面 Feed
 双列、私信分栏、个性化开关和图片私信已落地。视频/语音发送仍受网关缺少上传接口限制，故整体
 仍为 `diverged`。
 
-本页观察基准是 `47062ba91e1f07ed6923320389d5877be53e1578`。
+本页观察基准是 `74c96f6e487df0e8c08a1154c4c2e9b3ebbcbb1d`。
 
 ## 代码入口
 
@@ -165,7 +166,20 @@ f21b68795233b34ee07ffa5c574bb8f06add9ac6），帖子写入走 `/api/v2/post*`，
   Text。`!isStreaming` 不挂 Ticker，直接 `GptMarkdown`。
 - 助手列表钉住底部只听 `UserScrollNotification`；字素揭示经 `onRevealed` 同帧 `jumpTo`。内容变高
   不 unpin。已删除按 last-message identity 重启 180ms `animateTo` 的 `_scheduleScroll`。
+- Assistant 首屏加载、清历史、增量刷新和更早消息分页分别以 generation 与 busy 状态隔离；POST
+  返回、持久历史和 SSE 终止事件按 runId 收敛到单一回答。断流耗尽后保留 active run、seq、工具状态
+  与排队状态，同 run thread 轮询或显式「重新连接」从最后 `afterSeq` 续订；只有通过 seq/streamId
+  fence 的真实事件才清除断流错误，旧 attempt 的迟到 token 不能伪造恢复。
+- Consent 首次读取为 single-flight；页面级发送 fence 防止并发授权框和重复 POST。queued 输入在
+  compact/attachment 阶段保持排队提示，到 model_request、工具/SSE 或终止证据才清除。输入等待期间
+  用户新编辑的草稿不会被前一发送完成回调清空。
 - 帖子图片通过 multipart 并行上传，任一失败时阻止帖子写入；图片选择上限为 9。
+- 帖子提交在点击时冻结标题、正文、标签及本地/网络图片，避免上传等待期间 UI 变化改写在途命令；
+  图片选择器返回后检查 Widget 生命周期。登录/注册、Memory/Watch 对话框和 Assistant 附件异步回调
+  均以当前 route/session identity 隔离，资料关注增加 single-flight busy fence。
+- 时间展示统一由 `lib/core/formatters/time_formatter.dart` 处理秒级兼容数据和当前毫秒时间戳；生成 SDK
+  将 Snowflake ID 字段保留为 `Object`，避免 Flutter Web 将 int64 舍入。SDK 同步脚本可从主检出或
+  嵌套 task worktree 自动定位同级后端，生成来源与应用副本保持逐字一致。
 - 页面与数据层在真实/Mock 模式共用。Mock router 按当前 `gateway.api` 分发：成功体为类型 payload，
   错误为 `{code, message}` 加 `errx` HTTP 状态，JWT 路由要求 `Bearer`，可选鉴权写 `x-auth-state`，
   Feed 条目为扁平网关字段，关注流按关注关系过滤，行为接口拒绝权威动作。
@@ -230,6 +244,8 @@ f21b68795233b34ee07ffa5c574bb8f06add9ac6），帖子写入走 `/api/v2/post*`，
 - Assistant 消息首屏读取最新 50 条，以 `beforeId` 加载更早消息、`afterId` 增量接收新消息，两种 cursor
   互斥。线程轮询观察到更大的 `lastMessageId` 时，已打开页面增量拉取 Watch 主动消息；POST 透传已有
   `contextPostId`，GET 不推测附件或上下文字段（FX-050/055/057/083/085/088～093）。
+- Assistant、Memory 与 Watch 的 loading/error/empty/partial-list 状态均可见且可重试；Memory/Watch
+  load generation 防止旧读取覆盖新写入。Watch 非空列表的写入或刷新错误保留现有任务并显示内联重试。
 
 ## 偏离登记
 
@@ -250,7 +266,7 @@ f21b68795233b34ee07ffa5c574bb8f06add9ac6），帖子写入走 `/api/v2/post*`，
 | 搜索 | aligned | 已建模并展示部分降级；搜索帖子带作者身份并在结果中展示 |
 | 内容核心 | aligned | v2 写路径、revision/幂等和输入边界已对齐；评论楼中楼按需展开加载（内嵌预览 + replies 分页接口）见 [EVD-comment-replies-2026-08-22](../evidence/EVD-comment-replies-2026-08-22.md)，接口语义缺口登记于后端仓 PROP-20260822-comment-reply-thread（open） |
 | 私信 | diverged | 文本/图片闭环；视频/语音发送受网关缺口阻塞 |
-| Assistant | partial | 客户端自有边界已补齐 session revision/凭据快照、账号缓存隔离、SSE cursor/generation、稳定重试、严格 `streamId`/`response_reset` attempt fencing、展示层字素揭示（FX-094）、Memory 写入幂等、Watch version CAS、真实失败态、最新消息分页、memory undo、授权撤销与 Watch 增量刷新；`EVD-assistant-strict-reset-2026-09-01` 证明 reset 后只有一个 run 气泡且最终正文只含获胜 attempt，`EVD-assistant-stream-render-2026-08-31` 覆盖揭示 widget/Dart 测试，`EVD-audit-remediation-client-2026-08-31` 已在真实同源 release 浏览器覆盖桌面换号、Memory 503 稳定重试/undo 与 Watch `409/2007` 收敛；浏览器 SSE 断流/重连与真机图片上传仍待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
+| Assistant | partial | 客户端自有边界已补齐 session revision/凭据快照、账号缓存隔离、SSE cursor/generation、稳定重试、严格 `streamId`/`response_reset` attempt fencing、断流后显式/轮询重连、Consent single-flight、展示层字素揭示（FX-094）、Memory 写入幂等、Watch version CAS、真实失败态、最新消息分页、memory undo、授权撤销与 Watch 增量刷新；`EVD-code-quality-hardening-2026-09-05` 覆盖本轮 run/history/queued/重连与页面生命周期状态机，`EVD-assistant-strict-reset-2026-09-01` 证明 reset 后只有一个 run 气泡且最终正文只含获胜 attempt，`EVD-audit-remediation-client-2026-08-31` 已在真实同源 release 浏览器覆盖桌面换号、Memory 503 稳定重试/undo 与 Watch `409/2007` 收敛；浏览器 SSE 断流/重连与真机图片上传仍待补。整体仓库仍因私信视频/语音发送缺口保持 diverged |
 | 行为反馈 | aligned | 客户端不再上报 like/unlike |
 | UI/工程分层 | aligned | 详见 [Forui 实现指南](IMP-forui-ui.md) |
 | Mock/真实同路径 | aligned | transport 注入；Mock HTTP 契约对齐 `gateway.api`；账号切换、Memory 与 Watch 关键写路径已有独立真实同源浏览器证据，其余契约仍按各证据页边界解释 |
@@ -264,6 +280,7 @@ f21b68795233b34ee07ffa5c574bb8f06add9ac6），帖子写入走 `/api/v2/post*`，
 [EVD-favorites-reload-2026-08-20](../evidence/EVD-favorites-reload-2026-08-20.md)
 与
 [EVD-client-ui-align-2026-08-20](../evidence/EVD-client-ui-align-2026-08-20.md)、
+[EVD-code-quality-hardening-2026-09-05](../evidence/EVD-code-quality-hardening-2026-09-05.md)、
 [EVD-assistant-hermes-2026-08-29](../evidence/EVD-assistant-hermes-2026-08-29.md)、
 [EVD-assistant-strict-reset-2026-09-01](../evidence/EVD-assistant-strict-reset-2026-09-01.md)、
 [EVD-assistant-isolation-2026-08-30](../evidence/EVD-assistant-isolation-2026-08-30.md)、
