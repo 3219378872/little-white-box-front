@@ -19,6 +19,7 @@ class XiaobaiheApp extends ConsumerWidget {
       title: '小白盒',
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
+      locale: const Locale('zh'),
       supportedLocales: FLocalizations.supportedLocales,
       localizationsDelegates: const [...FLocalizations.localizationsDelegates],
       routerConfig: router,

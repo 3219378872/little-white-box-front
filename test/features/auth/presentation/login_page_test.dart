@@ -7,6 +7,8 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/app.dart';
+import 'package:xiaobaihe_app/core/router/app_router.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/auth/presentation/login_page.dart';
 import 'package:xiaobaihe_app/features/auth/presentation/widgets/verify_code_button.dart';
@@ -39,6 +41,39 @@ void main() {
     expect(find.text('手机号'), findsOneWidget);
     expect(find.text('验证码'), findsOneWidget);
     expect(find.text('获取验证码'), findsOneWidget);
+  });
+
+  testWidgets('app localizes password visibility semantics in Chinese', (
+    tester,
+  ) async {
+    final router = GoRouter(
+      initialLocation: '/auth/login',
+      routes: [
+        GoRoute(path: '/auth/login', builder: (_, _) => const LoginPage()),
+      ],
+    );
+    addTearDown(router.dispose);
+    final semantics = tester.ensureSemantics();
+    try {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [routerProvider.overrideWithValue(router)],
+          child: const XiaobaiheApp(),
+        ),
+      );
+      await tester.pump();
+
+      final showPassword = find.semantics.byLabel('显示密码');
+      expect(showPassword, findsOne);
+
+      tester.semantics.tap(showPassword);
+      await tester.pump();
+
+      expect(find.semantics.byLabel('显示密码'), findsNothing);
+      expect(find.semantics.byLabel('隐藏密码'), findsOne);
+    } finally {
+      semantics.dispose();
+    }
   });
 
   testWidgets('aligns the verify-code input with the send button', (

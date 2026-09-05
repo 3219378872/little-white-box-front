@@ -254,7 +254,8 @@ class MainShell extends ConsumerWidget {
           ContentConstraint(
             maxWidth: _contentMaxWidth(location, width),
             horizontalPadding: horizontalPadding,
-            child: child,
+            // Keep the nested Navigator's route barrier from pruning sidebar semantics.
+            child: isDesktop ? Semantics(container: true, child: child) : child,
           ),
           const AssistantThreadPollBinding(),
         ],
@@ -308,6 +309,12 @@ class _DesktopSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    String? unreadSemanticsHint;
+    if (messageUnread > 99) {
+      unreadSemanticsHint = '99 条以上未读';
+    } else if (messageUnread > 0) {
+      unreadSemanticsHint = '$messageUnread 条未读';
+    }
 
     return FSidebar(
       style: const FSidebarStyleDelta.delta(
@@ -329,38 +336,53 @@ class _DesktopSidebar extends StatelessWidget {
         ),
       ),
       children: [
-        FSidebarItem(
-          icon: const Icon(FLucideIcons.house),
-          label: const Text('首页'),
-          selected: selectedDestination == _AppDestination.feed,
-          onPress: () => onDestinationSelected(_AppDestination.feed),
-        ),
-        FSidebarItem(
-          icon: const Icon(FLucideIcons.search),
-          label: const Text('搜索'),
-          selected: selectedDestination == _AppDestination.search,
-          onPress: () => onDestinationSelected(_AppDestination.search),
-        ),
-        FSidebarItem(
-          icon: _UnreadNavigationIcon(
-            icon: FLucideIcons.messagesSquare,
-            count: messageUnread,
+        MergeSemantics(
+          child: FSidebarItem(
+            icon: const Icon(FLucideIcons.house),
+            label: const Text('首页'),
+            selected: selectedDestination == _AppDestination.feed,
+            onPress: () => onDestinationSelected(_AppDestination.feed),
           ),
-          label: const Text('消息'),
-          selected: selectedDestination == _AppDestination.messages,
-          onPress: () => onDestinationSelected(_AppDestination.messages),
         ),
-        FSidebarItem(
-          icon: const Icon(FLucideIcons.circlePlus),
-          label: const Text('发布'),
-          selected: selectedDestination == _AppDestination.create,
-          onPress: () => onDestinationSelected(_AppDestination.create),
+        MergeSemantics(
+          child: FSidebarItem(
+            icon: const Icon(FLucideIcons.search),
+            label: const Text('搜索'),
+            selected: selectedDestination == _AppDestination.search,
+            onPress: () => onDestinationSelected(_AppDestination.search),
+          ),
         ),
-        FSidebarItem(
-          icon: const Icon(FLucideIcons.userRound),
-          label: const Text('我的'),
-          selected: selectedDestination == _AppDestination.profile,
-          onPress: () => onDestinationSelected(_AppDestination.profile),
+        MergeSemantics(
+          child: FSidebarItem(
+            icon: ExcludeSemantics(
+              child: _UnreadNavigationIcon(
+                icon: FLucideIcons.messagesSquare,
+                count: messageUnread,
+              ),
+            ),
+            label: Semantics(
+              hint: unreadSemanticsHint,
+              child: const Text('消息'),
+            ),
+            selected: selectedDestination == _AppDestination.messages,
+            onPress: () => onDestinationSelected(_AppDestination.messages),
+          ),
+        ),
+        MergeSemantics(
+          child: FSidebarItem(
+            icon: const Icon(FLucideIcons.circlePlus),
+            label: const Text('发布'),
+            selected: selectedDestination == _AppDestination.create,
+            onPress: () => onDestinationSelected(_AppDestination.create),
+          ),
+        ),
+        MergeSemantics(
+          child: FSidebarItem(
+            icon: const Icon(FLucideIcons.userRound),
+            label: const Text('我的'),
+            selected: selectedDestination == _AppDestination.profile,
+            onPress: () => onDestinationSelected(_AppDestination.profile),
+          ),
         ),
       ],
     );

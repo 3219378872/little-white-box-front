@@ -195,6 +195,53 @@ void main() {
     expect(selection(), [false, false, false, false, true]);
   });
 
+  testWidgets('desktop destinations expose one actionable semantics node', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      final router = await pumpShell(
+        tester,
+        location: '/feed',
+        width: 1280,
+        unreadSource: _RouterMessageSource(
+          unread: const UnreadSummary(messageUnread: 12),
+        ),
+      );
+
+      void expectDestinations(String selectedLabel) {
+        for (final label in ['首页', '搜索', '消息', '发布', '我的']) {
+          final destination = find.semantics.byLabel(label);
+          expect(destination, findsOne);
+          expect(
+            destination.evaluate().single,
+            isSemantics(
+              label: label,
+              isButton: true,
+              hasTapAction: true,
+              hasSelectedState: true,
+              isSelected: label == selectedLabel,
+            ),
+          );
+        }
+        expect(
+          find.semantics.byLabel('消息').evaluate().single,
+          isSemantics(hint: '12 条未读'),
+        );
+      }
+
+      expectDestinations('首页');
+
+      tester.semantics.tap(find.semantics.byLabel('搜索'));
+      await tester.pump();
+
+      expect(router.routeInformationProvider.value.uri.path, '/search');
+      expectDestinations('搜索');
+    } finally {
+      semantics.dispose();
+    }
+  });
+
   testWidgets('hides primary navigation on mobile secondary routes', (
     tester,
   ) async {
@@ -284,11 +331,23 @@ void main() {
     expect(find.text('12'), findsOneWidget);
   });
 
-  testWidgets('desktop sidebar destinations share the same item box', (
+  testWidgets('desktop sidebar keeps its visual position and item boxes', (
     tester,
   ) async {
     await pumpShell(tester, location: '/feed', width: 1280);
 
+    expect(
+      tester.getRect(find.byType(FSidebar)),
+      const Rect.fromLTWH(0, 0, 240, 900),
+    );
+    expect(
+      tester.getRect(find.byType(FeedPage)),
+      const Rect.fromLTWH(264, 0, 992, 900),
+    );
+    expect(
+      Directionality.of(tester.element(find.text('首页'))),
+      TextDirection.ltr,
+    );
     _expectSidebarItemsAligned(tester);
   });
 
@@ -431,31 +490,30 @@ void main() {
     },
   );
 
-  testWidgets(
-    'password login from a pushed login page opens feed',
-    (tester) async {
-      final (_, router) = await pumpApp(tester);
+  testWidgets('password login from a pushed login page opens feed', (
+    tester,
+  ) async {
+    final (_, router) = await pumpApp(tester);
 
-      router.push('/auth/login');
-      for (var i = 0; i < 4; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-      expect(find.byType(LoginPage), findsOneWidget);
+    router.push('/auth/login');
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(LoginPage), findsOneWidget);
 
-      final fields = find.byType(TextField);
-      expect(fields, findsWidgets);
-      await tester.enterText(fields.at(0), 'admin');
-      await tester.enterText(fields.at(1), '123456');
-      await tester.tap(find.widgetWithText(FButton, '登录').first);
-      for (var i = 0; i < 8; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
+    final fields = find.byType(TextField);
+    expect(fields, findsWidgets);
+    await tester.enterText(fields.at(0), 'admin');
+    await tester.enterText(fields.at(1), '123456');
+    await tester.tap(find.widgetWithText(FButton, '登录').first);
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
 
-      expect(find.byType(LoginPage), findsNothing);
-      expect(find.byType(FeedPage), findsOneWidget);
-      expect(router.routeInformationProvider.value.uri.path, '/feed');
-    },
-  );
+    expect(find.byType(LoginPage), findsNothing);
+    expect(find.byType(FeedPage), findsOneWidget);
+    expect(router.routeInformationProvider.value.uri.path, '/feed');
+  });
 }
 
 void _expectSidebarItemsAligned(WidgetTester tester) {
