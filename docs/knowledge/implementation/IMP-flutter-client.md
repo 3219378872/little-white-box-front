@@ -62,6 +62,7 @@ tracks:
   - FQ-007
   - FQ-008
 evidence:
+  - EVD-watch-cannot-self-2026-09-06
   - EVD-desktop-nav-semantics-2026-09-05
   - EVD-code-quality-hardening-2026-09-05
   - EVD-assistant-research-2026-09-05
@@ -98,8 +99,8 @@ evidence:
   - EVD-client-relative-api-2026-08-18
   - EVD-client-api-followup-2026-08-18
   - EVD-client-baseline-2026-08-13
-updated_at: 2026-09-05
-observed_commit: b8c309cc9608eb8c32a43e69c35ba1932bf6e70c
+updated_at: 2026-09-06
+observed_commit: 9b3fba2004ad39275963ac512df3ebe6caa65c2a
 ---
 
 # Flutter 客户端实现映射
@@ -256,7 +257,8 @@ FX-095～099 已实现结构化问答、待答恢复、精确引用、原文摘�
   类型处理（FX-051/053～059/080/084/085/087）。
 - 认证用户可打开 `/messages/assistant/memory` 与 `/messages/assistant/watch`。记忆列出
   MEMORY/USER、容量 used/limit，支持 content+version 写入与 undo。Watch 仅任务 CRUD，无命中
-  收件箱。帖子详情盯梢未授权引导 `/messages/assistant`（FX-081/082/086）。
+  收件箱。帖子详情盯梢未授权引导 `/messages/assistant`；作者是自己时本地提示「不能关注自己的动态」。
+  Watch `targetId` 经 `jsonInt64JsonValue` 编码为 JSON number（FX-081/082/086）。
 - Memory add/replace/remove 以完整命令指纹复用稳定 requestId；成功后才清理待重试命令。列表刷新保留
   `lastChangeId`，undo 失败保留入口，成功才清除。Memory provider 在当前认证 session 内常驻，避免
   对话框和错误提示造成的短暂无监听窗口丢失待重试 requestId；它仍依赖 session identity，换号或登出

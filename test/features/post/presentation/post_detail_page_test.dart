@@ -21,9 +21,10 @@ import '../../assistant/helpers/fake_assistant_source.dart';
 Map<String, dynamic> _postJson({
   String title = '联调标题',
   String content = '联调正文',
+  int authorId = 2,
 }) => {
   'id': 9,
-  'authorId': 2,
+  'authorId': authorId,
   'authorName': '作者甲',
   'authorAvatar': '',
   'title': title,
@@ -78,9 +79,10 @@ class _Harness {
   bool postDetailOk = true;
   bool commentsOk = true;
   int replyCount = 0;
+  int authorId = 2;
   List<Map<String, dynamic>> embeddedReplies = const [];
 
-  _Harness() {
+  _Harness({this.authorId = 2}) {
     client = ScriptedGatewayClient(route);
   }
 
@@ -88,7 +90,7 @@ class _Harness {
     final path = request.url.path;
     if (path == '/api/v1/post/9') {
       return postDetailOk
-          ? jsonResponse(okEnvelope(_postJson()))
+          ? jsonResponse(okEnvelope(_postJson(authorId: authorId)))
           : jsonResponse({'code': 500, 'message': '服务器开小差'}, 500);
     }
     if (path == '/api/v1/comments/9') {
@@ -467,6 +469,49 @@ void main() {
     await tester.tap(find.byKey(const Key('post-watch-revision')));
     await tester.pumpAndSettle();
     expect(source.lastCreateCondition, 'post_revised');
+  });
+
+  testWidgets('own posts show a self-watch error without creating a task', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'tokens': jsonEncode({
+        'access_token': _testJwt(userId: 1),
+        'access_expire': 0,
+        'refresh_token': '',
+        'refresh_expire': 0,
+        'refresh_after': 0,
+      }),
+    });
+    final harness = _Harness(authorId: 1);
+    setApiClient(harness.client);
+    final source = FakeAssistantSource()
+      ..granted = true
+      ..consentVersion = 2
+      ..currentVersion = 2;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [assistantRepositoryProvider.overrideWithValue(source)],
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: const PostDetailPage(postId: '9'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('post-watch-author')));
+    await tester.pumpAndSettle();
+    expect(find.text('不能关注自己的动态'), findsOneWidget);
+    expect(source.lastCreateCondition, isNull);
+
+    await tester.tap(find.byKey(const Key('post-watch-revision')));
+    await tester.pumpAndSettle();
+    expect(source.lastCreateCondition, isNull);
+
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
   });
 
   testWidgets(

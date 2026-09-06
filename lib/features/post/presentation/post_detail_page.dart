@@ -129,11 +129,17 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     required String conditionType,
     required String targetType,
     required Object targetId,
+    required Object authorId,
   }) async {
     final auth = ref.read(authNotifierProvider);
     if (!auth.isAuthenticated) {
       context.push('/auth/login');
       throw const ApiException('请先登录');
+    }
+    if (jsonInt64IsPositive(auth.userId) &&
+        jsonInt64Id(authorId) == jsonInt64Id(auth.userId)) {
+      if (mounted) showAppError(context, '不能关注自己的动态');
+      return;
     }
     final consent = ref.read(agentConsentNotifierProvider.notifier);
     await consent.ensureLoaded();
@@ -341,6 +347,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                         conditionType: 'author_new_post',
                                         targetType: 'author',
                                         targetId: post.authorId,
+                                        authorId: post.authorId,
                                       ),
                                       child: const Text('盯作者'),
                                     ),
@@ -352,6 +359,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                         conditionType: 'post_revised',
                                         targetType: 'post',
                                         targetId: post.id,
+                                        authorId: post.authorId,
                                       ),
                                       child: const Text('盯本帖修订'),
                                     ),

@@ -2486,6 +2486,26 @@ Map<String, dynamic> _createWatch(int userId, Map<String, dynamic> body) {
       !_isPositiveId(targetId)) {
     throw const _MockBiz(400, 2, '参数错误');
   }
+  if (condition == 'author_new_post' &&
+      jsonInt64Id(targetId) == jsonInt64Id(userId)) {
+    throw const _MockBiz(400, 6005, '不能关注自己的动态');
+  }
+  if (condition == 'post_revised') {
+    final postId = int.tryParse(jsonInt64Id(targetId));
+    Map<String, dynamic>? post;
+    if (postId != null) {
+      for (final item in _posts) {
+        if ((item['id'] as num?)?.toInt() == postId) {
+          post = item;
+          break;
+        }
+      }
+    }
+    if (post != null &&
+        jsonInt64Id(post['authorId']) == jsonInt64Id(userId)) {
+      throw const _MockBiz(400, 6005, '不能关注自己的动态');
+    }
+  }
   if ((condition == 'tag_new_post' || condition == 'keyword_new_post') &&
       targetText.trim().isEmpty) {
     throw const _MockBiz(400, 2, '参数错误');

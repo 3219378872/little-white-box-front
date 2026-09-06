@@ -56,7 +56,7 @@ tracks:
   - FQ-006
   - FQ-007
   - FQ-008
-updated_at: 2026-09-01
+updated_at: 2026-09-06
 ---
 
 # Flutter 内容社区客户端设计
@@ -228,7 +228,9 @@ SSE：
 - Watch 页只做任务 CRUD，四种条件类型，无命中收件箱。命中以助手主动消息进入虚拟线程
   （FX-082/083）。更新和删除携带当前 task `expectedVersion`；更新采用响应中的权威 task/version。
   版本冲突（`409/2007`）先刷新任务列表，再保留冲突错误供用户决定。帖子详情「盯作者」「盯本帖修订」
-  未授权时引导 `/messages/assistant`（FX-086）。
+  未授权时引导 `/messages/assistant`；若帖子作者是当前用户，本地提示「不能关注自己的动态」且不发
+  创建请求。Watch 创建把 `targetId` 编成 JSON number（小 ID 用 Dart int，雪花 ID 经
+  `jsonInt64JsonValue` + `encodeApiJson`），避免网关 `int64` 解析成通用参数错误（FX-086）。
 
 ## 关键数据流
 

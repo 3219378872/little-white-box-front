@@ -33,6 +33,8 @@ abstract final class ErrorCodes {
 
   static const int searchEmpty = 5001;
 
+  static const int cannotWatchSelf = 6005;
+
   static bool isAuthError(int? code) =>
       code == tokenExpired || code == tokenInvalid || code == loginRequired;
 }

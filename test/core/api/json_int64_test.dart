@@ -53,6 +53,25 @@ void main() {
     expect(encoded, isNot(contains('"$snowflake"')));
   });
 
+  test('jsonInt64JsonValue emits numbers for small and snowflake ids', () {
+    expect(
+      encodeApiJson({'targetId': jsonInt64JsonValue(1)}),
+      contains('"targetId":1'),
+    );
+    expect(
+      encodeApiJson({'targetId': jsonInt64JsonValue('4000')}),
+      contains('"targetId":4000'),
+    );
+    expect(
+      encodeApiJson({'targetId': jsonInt64JsonValue(snowflake)}),
+      contains('"targetId":348206251022356480'),
+    );
+    expect(
+      encodeApiJson({'targetId': jsonInt64JsonValue(snowflake)}),
+      isNot(contains('"$snowflake"')),
+    );
+  });
+
   test('does not unquote object keys that look like integers', () {
     final encoded = unquoteLargeJsonIntStrings('{"$snowflake":1}');
     expect(encoded, '{"$snowflake":1}');

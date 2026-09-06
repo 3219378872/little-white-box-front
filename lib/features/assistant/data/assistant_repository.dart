@@ -262,7 +262,7 @@ class AssistantRepository implements AssistantDataSource {
       if (attachments.isNotEmpty)
         'attachments': [for (final item in attachments) item.toJson()],
       if (jsonInt64IsPositive(contextPostId))
-        'contextPostId': jsonInt64Id(contextPostId),
+        'contextPostId': jsonInt64JsonValue(contextPostId),
     });
     return AssistantPostResult.fromJson(response);
   }
@@ -580,7 +580,8 @@ class AssistantRepository implements AssistantDataSource {
     final response = await _api.post('/api/v2/assistant/watch', {
       'conditionType': conditionType,
       'targetType': targetType,
-      if (jsonInt64IsPositive(targetId)) 'targetId': jsonInt64Id(targetId),
+      if (jsonInt64IsPositive(targetId))
+        'targetId': jsonInt64JsonValue(targetId),
       if (targetText.trim().isNotEmpty) 'targetText': targetText,
     });
     final raw = response['task'];
@@ -627,7 +628,7 @@ class AssistantRepository implements AssistantDataSource {
     }
     await _api.post('/api/v2/assistant/recommend/feedback', {
       if (requestId.isNotEmpty) 'requestId': requestId,
-      'postId': jsonInt64Id(postId),
+      'postId': jsonInt64JsonValue(postId),
       'reason': normalizedReason,
     });
   }

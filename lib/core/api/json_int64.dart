@@ -44,6 +44,22 @@ bool jsonInt64IsPositive(Object? value) {
   return _digitsOnly.hasMatch(id);
 }
 
+/// JSON body value for an int64 entity ID.
+///
+/// Digit strings shorter than [jsonInt64DigitThreshold] become a Dart [int] so
+/// [jsonEncode] emits a JSON number. Longer IDs stay digit strings and
+/// [unquoteLargeJsonIntStrings] turns them into JSON numbers without rounding
+/// through IEEE-754.
+Object jsonInt64JsonValue(Object? value) {
+  final id = jsonInt64Id(value);
+  if (!_digitsOnly.hasMatch(id)) return id;
+  final digits = id.startsWith('-') ? id.substring(1) : id;
+  if (digits.length < jsonInt64DigitThreshold) {
+    return int.parse(id);
+  }
+  return id;
+}
+
 String quoteLargeJsonInts(String source) {
   final out = StringBuffer();
   var i = 0;

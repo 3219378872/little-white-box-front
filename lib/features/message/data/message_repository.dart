@@ -92,12 +92,12 @@ class MessageRepository implements MessageDataSource {
       throw const ApiException('消息参数无效');
     }
     final response = await _client.post('/api/v2/messages', {
-      'receiverId': jsonInt64Id(command.receiverId),
+      'receiverId': jsonInt64JsonValue(command.receiverId),
       'content': content,
       'msgType': command.msgType,
       'idempotencyKey': key,
       if (jsonInt64IsPositive(command.mediaId))
-        'mediaId': jsonInt64Id(command.mediaId),
+        'mediaId': jsonInt64JsonValue(command.mediaId),
     });
     final messageId = response['messageId'];
     if (!jsonInt64IsPositive(messageId)) {

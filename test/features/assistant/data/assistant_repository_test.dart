@@ -279,6 +279,47 @@ void main() {
     expect(body['attachments'], hasLength(1));
   });
 
+  test('createWatch sends targetId as a JSON number', () async {
+    final requests = <http.Request>[];
+    final apiClient = _JsonApiClient((request) async {
+      requests.add(request);
+      return http.Response(
+        jsonEncode({
+          'task': {
+            'id': 7,
+            'conditionType': 'author_new_post',
+            'targetType': 'author',
+            'targetId': 1,
+            'targetText': '',
+            'enabled': true,
+            'version': 1,
+            'createdAt': 1700000000000,
+          },
+        }),
+        200,
+      );
+    });
+    setApiClient(apiClient);
+    final repository = AssistantRepository();
+
+    await repository.createWatch(
+      conditionType: 'author_new_post',
+      targetType: 'author',
+      targetId: 1,
+    );
+    await repository.createWatch(
+      conditionType: 'post_revised',
+      targetType: 'post',
+      targetId: '348206251022356480',
+    );
+
+    expect(jsonDecode(requests[0].body)['targetId'], 1);
+    expect(requests[0].body, contains('"targetId":1'));
+    expect(requests[0].body, isNot(contains('"targetId":"1"')));
+    expect(requests[1].body, contains('"targetId":348206251022356480'));
+    expect(requests[1].body, isNot(contains('"targetId":"348206251022356480"')));
+  });
+
   test(
     'watch writes send expectedVersion and parse the updated task',
     () async {
