@@ -44,7 +44,8 @@ updated_at: 2026-09-06
 
 `active/passed` 只表示该 EVD 在声明范围、命令和观察提交上通过。它不能证明未列范围，也不能在观察提交
 被后续代码变更覆盖后继续充当当前证据。validator 会针对 EVD 的每个上游 IMP 执行等价于
-`git diff <observed_commit>..HEAD -- <code_paths>` 的检查，并覆盖这些路径下工作树、暂存区和未跟踪文件；
+`git diff <observed_commit>..HEAD -- <code_paths>` 的检查；`code_paths` 取自该观察提交上对应 IMP 当时的
+声明，并覆盖这些路径下工作树、暂存区和未跟踪文件。若迁移前的观察提交还没有该 IMP，才回退当前声明。
 任一路径发生变化都会使该证据失效，单独更新 IMP/EVD 知识页则不会误报。仅临时 `/tmp` 产物不能支撑
 active passed 的视觉或运行结论。
 
@@ -69,12 +70,14 @@ active passed 的视觉或运行结论。
 冒号和非空定义；表格的第一列表头必须归一化为 `requirement`、`条款` 或 `id`，紧跟列数一致的合法
 separator，只有之后连续且列数一致的数据行可定义条款。表格可省略外侧 pipe，转义的 `\|` 不作为
 列分隔。普通正文引用、孤立表格行和其他表格不建立条款所有权。IMP 权威矩阵和层级 README 索引同样
-只解析可见内容。checker 先隔离 fenced code block，
-再识别 fence 外、匹配 inline backtick code span 之外的 HTML comment；跨行 code span 只由长度完全相同的
-backtick run 闭合，并且不能越过空行、ATX/Setext 标题或 fenced code block 起始。未闭合的 opener 按
-字面量处理；info string 含 backtick 的非法 fence-shaped 行也不能发起跨行匹配。未闭合的 `<!--` 隐藏
-到文件末尾，而 code span 或 fence 内的注释标记只作为字面量。被上述区域隐藏的示例、草稿或链接不
-参与条款归属、权威状态和索引计数。
+只解析可见内容。checker 先隔离 fenced code block，再识别 fence 外、匹配 inline backtick code span
+之外的 HTML comment。fence 可位于 blockquote、列表 marker 同行或列表续行；其容器由 quote 深度和按
+tab stop 4 计算的列表内容缩进约束，未闭合 fence 在退出 quote、退回列表内容缩进之外或进入同级/外层
+列表项时结束。跨行 code span 只由长度完全相同的 backtick run 闭合，并且不能越过空行、ATX/Setext
+标题或 fenced code block 起始；列表项内的 span 也不能跨越嵌套、同级或外层列表项。未闭合的 opener
+按字面量处理；info string 含 backtick 的非法 fence-shaped 行也不能发起跨行匹配。未闭合的 `<!--`
+隐藏到文件末尾，而 code span 或 fence 内的注释标记只作为字面量。被上述区域隐藏的示例、草稿或链接
+不参与条款归属、权威状态和索引计数。
 
 ## 跨仓边界
 

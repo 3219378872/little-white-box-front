@@ -464,6 +464,34 @@ updated_at: 2026-09-06
 
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_freshness_uses_code_paths_declared_at_the_observed_commit(self):
+        implementation = "docs/knowledge/implementation/IMP-client.md"
+        evidence = "docs/knowledge/evidence/EVD-client-2026-09-06.md"
+        self._git("add", implementation)
+        self._git("commit", "-m", "record historical implementation paths")
+        historical_commit = self._git("rev-parse", "HEAD").stdout.strip()
+        self._replace(evidence, self.commit, historical_commit)
+
+        self._write("tools/new_guard.py", "VALUE = 1\n")
+        self._replace(
+            implementation,
+            "code_paths:\n  - lib/app.dart",
+            "code_paths:\n  - lib/app.dart\n  - tools/new_guard.py",
+        )
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        self._git("add", implementation, "tools/new_guard.py")
+        self._git("commit", "-m", "expand implementation paths")
+        expanded_commit = self._git("rev-parse", "HEAD").stdout.strip()
+        self._replace(evidence, historical_commit, expanded_commit)
+        self._write("tools/new_guard.py", "VALUE = 2\n")
+
+        result = self._run()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("stale", result.stderr)
+        self.assertIn("tools/new_guard.py", result.stderr)
+
     def test_allows_dirty_implementation_and_evidence_docs(self):
         implementation = "docs/knowledge/implementation/IMP-client.md"
         evidence = "docs/knowledge/evidence/EVD-client-2026-09-06.md"
@@ -781,13 +809,12 @@ examples:
                 finally:
                     self._write(path, original)
 
-    def test_multiline_code_span_hides_false_definitions_and_comment_literal(self):
+    def test_multiline_code_span_hides_false_table_and_comment_literal(self):
         raw = """
 Paragraph ``starts a code span
-- `FX-777`: False bullet definition.
 | requirement | acceptance |
 | --- | --- |
-| FX-778 | False table definition. |
+| FX-777 | False table definition. |
 single ` and triple ``` runs do not close it
 <!-- remains literal
 and this closes it``
@@ -814,14 +841,22 @@ and this closes it{delimiter}
                 self.assertEqual(requirement_definitions(raw), ["FX-001"])
 
     def test_multiline_code_span_can_close_in_the_same_list_item(self):
-        raw = """
-- Context ``starts a code span
-  <!-- remains literal on a continuation line
-  and this closes it`` outside the span.
-- `FX-001`: Visible requirement after the list item.
-"""
-
-        self.assertEqual(requirement_definitions(raw), ["FX-001"])
+        cases = {
+            "unordered": (
+                "- Context ``starts a code span\n"
+                "  <!-- remains literal on a continuation line\n"
+                "  and this closes it`` outside the span."
+            ),
+            "ordered": (
+                "1. Context ``starts a code span\n"
+                "   <!-- remains literal on a continuation line\n"
+                "   and this closes it`` outside the span."
+            ),
+        }
+        for name, item in cases.items():
+            with self.subTest(container=name):
+                raw = f"{item}\n- `FX-001`: Visible requirement after the item.\n"
+                self.assertEqual(requirement_definitions(raw), ["FX-001"])
 
     def test_multiline_span_does_not_promote_a_closing_line_suffix(self):
         raw = """
@@ -855,6 +890,134 @@ The later `` delimiter cannot close the earlier opener.
 ```markdown`invalid fence info
 - `FX-001`: Visible requirement after the invalid fence line.
 The later ``` run cannot close the invalid fence marker.
+"""
+
+        self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_ignores_definitions_in_unordered_and_ordered_list_fences(self):
+        cases = {
+            "unordered tilde": """- ~~~markdown
+  - `FX-777`: False bullet definition.
+  | requirement | acceptance |
+  | --- | --- |
+  | FX-778 | False table definition. |
+  ~~~""",
+            "ordered backtick": """1. ```markdown
+   - `FX-777`: False bullet definition.
+   | requirement | acceptance |
+   | --- | --- |
+   | FX-778 | False table definition. |
+   ```""",
+        }
+        for name, fenced_example in cases.items():
+            with self.subTest(container=name):
+                raw = f"{fenced_example}\n- `FX-001`: Visible requirement.\n"
+                self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_ignores_definitions_in_list_continuation_fences(self):
+        cases = {
+            "unordered tilde": """- Example:
+  ~~~markdown
+  - `FX-777`: False definition.
+  ~~~""",
+            "ordered backtick": """1. Example:
+   ```markdown
+   - `FX-777`: False definition.
+   ```""",
+            "quoted list": """> - Example:
+>   ~~~markdown
+>   - `FX-777`: False definition.
+>   ~~~""",
+        }
+        for name, fenced_example in cases.items():
+            with self.subTest(container=name):
+                raw = f"{fenced_example}\n- `FX-001`: Visible requirement.\n"
+                self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_bare_list_marker_owns_a_continuation_fence(self):
+        raw = """-
+  ```markdown
+  - `FX-777`: False definition.
+  ```
+- `FX-001`: Visible requirement.
+"""
+
+        self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_list_backtick_fence_ignores_same_length_run_in_content(self):
+        raw = """1. ```markdown
+   A same-length ``` run in content is not a closing fence.
+   - `FX-777`: False bullet definition.
+   ```
+- `FX-001`: Visible requirement after the fence.
+"""
+
+        self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_unclosed_list_fence_stops_at_the_container_boundary(self):
+        cases = {
+            "unordered sibling": """- ~~~markdown
+  - `FX-777`: False definition.""",
+            "ordered sibling": """1. ~~~markdown
+   - `FX-777`: False definition.
+2. A sibling item ends the unclosed fence.""",
+        }
+        for name, fenced_example in cases.items():
+            with self.subTest(container=name):
+                raw = f"{fenced_example}\n- `FX-001`: Visible requirement.\n"
+                self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_unclosed_list_continuation_fence_stops_at_a_sibling(self):
+        cases = {
+            "unordered": """- Example:
+  ~~~markdown
+  - `FX-777`: False definition.""",
+            "ordered": """1. Example:
+   ```markdown
+   - `FX-777`: False definition.
+2. The sibling ends the fence.""",
+        }
+        for name, fenced_example in cases.items():
+            with self.subTest(container=name):
+                raw = f"{fenced_example}\n- `FX-001`: Visible requirement.\n"
+                self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_blockquote_container_fences_keep_comment_markers_literal(self):
+        cases = {
+            "closed quote": "> ~~~markdown\n> <!-- literal\n> ~~~",
+            "unclosed quote": "> ~~~markdown\n> <!-- literal",
+            "quoted list": "> - ~~~markdown\n>   <!-- literal\n>   ~~~",
+        }
+        for name, fenced_example in cases.items():
+            with self.subTest(container=name):
+                raw = f"{fenced_example}\n- `FX-001`: Visible requirement.\n"
+                self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_unclosed_list_item_span_stops_before_a_sibling_item(self):
+        cases = {
+            "unordered opener": "- Context ``has no close in this item",
+            "ordered opener": "1. Context ``has no close in this item",
+        }
+        for name, opener in cases.items():
+            with self.subTest(container=name):
+                raw = f"""{opener}
+- `FX-001`: Visible requirement in a sibling item.
+Paragraph with the later `` exact run.
+"""
+                self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_unclosed_top_level_span_stops_before_a_list_item(self):
+        raw = """Paragraph `has no close in this block
+- `FX-001`: Visible requirement in a new list.
+Paragraph with the later ` exact run.
+"""
+
+        self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_unclosed_list_item_span_stops_before_a_nested_item(self):
+        raw = """- Context `has no close in this item
+  - `FX-001`: Visible requirement in a nested item.
+Paragraph with the later ` exact run.
 """
 
         self.assertEqual(requirement_definitions(raw), ["FX-001"])

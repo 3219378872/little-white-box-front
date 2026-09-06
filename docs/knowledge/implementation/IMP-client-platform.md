@@ -25,7 +25,9 @@ code_paths:
   - lib/mock
   - lib/sdk
   - vendor/sdk_source
+  - tools/knowledge_base.py
   - tools/sync_gateway_sdk.py
+  - tools/test_knowledge_base.py
 evidence:
   - EVD-knowledge-graph-refactor-2026-09-06
   - EVD-assistant-research-2026-09-05

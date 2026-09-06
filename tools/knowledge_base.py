@@ -93,6 +93,7 @@ EXTERNAL_UPSTREAM_RE = re.compile(r"^([^@]+)@([0-9a-f]{40}):(.+)$")
 FENCE_OPEN_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 ATX_HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:[ \t]+|$)")
 SETEXT_HEADING_RE = re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$")
+LIST_MARKER_RE = re.compile(r"(?:[-+*]|\d{1,9}[.)])")
 INLINE_SPAN_SENTINEL = "x"
 AUTHORITY_HEADER = ("requirement", "design", "state", "evidence or gap")
 AUTHORITY_SEPARATOR_RE = re.compile(r"^:?-{3,}:?$")
@@ -116,6 +117,31 @@ class Document:
         if isinstance(value, list):
             return value
         return [value] if value else []
+
+
+@dataclass(frozen=True)
+class ContainerScope:
+    quote_depth: int = 0
+    list_marker_indent: int | None = None
+    list_content_indent: int | None = None
+
+    @property
+    def is_container(self) -> bool:
+        return self.quote_depth > 0 or self.list_content_indent is not None
+
+
+@dataclass(frozen=True)
+class ListItem:
+    marker_indent: int
+    content_indent: int
+    content_start: int
+
+
+@dataclass(frozen=True)
+class FenceState:
+    character: str
+    length: int
+    container: ContainerScope
 
 
 def relative(path: Path) -> str:
@@ -142,41 +168,171 @@ def _backtick_run_end(line: str, start: int) -> int:
     return end
 
 
-def _is_fence_opening(line: str) -> bool:
-    opening = FENCE_OPEN_RE.fullmatch(line)
-    if opening is None:
-        return False
-    marker, remainder = opening.groups()
-    return marker[0] != "`" or "`" not in remainder
+def _next_visual_column(column: int, character: str) -> int:
+    if character == "\t":
+        return column + (4 - column % 4)
+    return column + 1
 
 
-def _is_invalid_backtick_fence(line: str) -> bool:
-    opening = FENCE_OPEN_RE.fullmatch(line)
-    if opening is None:
-        return False
-    marker, remainder = opening.groups()
-    return marker[0] == "`" and "`" in remainder
+def _leading_indent(text: str, start_column: int = 0) -> tuple[int, int]:
+    cursor = 0
+    column = start_column
+    while cursor < len(text) and text[cursor] in " \t":
+        column = _next_visual_column(column, text[cursor])
+        cursor += 1
+    return cursor, column - start_column
 
 
-def _starts_inline_block_boundary(line: str) -> bool:
+def _strip_indent(text: str, width: int) -> str | None:
+    cursor, actual = _leading_indent(text)
+    if actual < width:
+        return None
+    return " " * (actual - width) + text[cursor:]
+
+
+def _strip_blockquote_prefixes(line: str) -> tuple[str, int, int]:
+    cursor = 0
+    depth = 0
+    while cursor < len(line):
+        indentation_end, indentation = _leading_indent(line[cursor:])
+        if indentation > 3:
+            break
+        marker = cursor + indentation_end
+        if marker >= len(line) or line[marker] != ">":
+            break
+        cursor = marker + 1
+        if cursor < len(line) and line[cursor] in " \t":
+            cursor += 1
+        depth += 1
+    return line[cursor:], depth, cursor
+
+
+def _parse_list_item(text: str, base_column: int = 0) -> ListItem | None:
+    indentation_end, indentation = _leading_indent(text, base_column)
+    if indentation > 3:
+        return None
+    marker = LIST_MARKER_RE.match(text, indentation_end)
+    if marker is None:
+        return None
+    marker_end = marker.end()
+    marker_column = base_column + indentation + len(marker.group())
+    if marker_end == len(text):
+        spacing_end = 0
+        spacing = 1
+    elif text[marker_end] not in " \t":
+        return None
+    else:
+        spacing_end, spacing = _leading_indent(text[marker_end:], marker_column)
+        if not 1 <= spacing <= 4:
+            return None
+    return ListItem(
+        marker_indent=base_column + indentation,
+        content_indent=marker_column + spacing,
+        content_start=marker_end + spacing_end,
+    )
+
+
+def _container_candidates(line: str) -> list[tuple[str, ContainerScope]]:
+    content, quote_depth, _ = _strip_blockquote_prefixes(line)
+    candidates = [(content, ContainerScope(quote_depth=quote_depth))]
+    remaining = content
+    base_column = 0
+    while True:
+        item = _parse_list_item(remaining, base_column)
+        if item is None:
+            break
+        remaining = remaining[item.content_start :]
+        base_column = item.content_indent
+        candidates.append(
+            (
+                remaining,
+                ContainerScope(
+                    quote_depth=quote_depth,
+                    list_marker_indent=item.marker_indent,
+                    list_content_indent=item.content_indent,
+                ),
+            )
+        )
+    return candidates
+
+
+def _fence_candidates(
+    line: str, active_container: ContainerScope | None = None
+) -> list[tuple[str, ContainerScope]]:
+    candidates: list[tuple[str, ContainerScope]] = []
+    if active_container is not None and active_container.list_content_indent is not None:
+        content, quote_depth, _ = _strip_blockquote_prefixes(line)
+        if quote_depth == active_container.quote_depth:
+            continuation = _strip_indent(
+                content, active_container.list_content_indent
+            )
+            if continuation is not None:
+                candidates.append((continuation, active_container))
+    candidates.extend(_container_candidates(line))
+    return candidates
+
+
+def _fence_opening(
+    line: str, active_container: ContainerScope | None = None
+) -> FenceState | None:
+    for candidate, container in _fence_candidates(line, active_container):
+        opening = FENCE_OPEN_RE.fullmatch(candidate)
+        if opening is None:
+            continue
+        marker, remainder = opening.groups()
+        if marker[0] != "`" or "`" not in remainder:
+            return FenceState(marker[0], len(marker), container)
+    return None
+
+
+def _is_invalid_backtick_fence(
+    line: str, active_container: ContainerScope | None = None
+) -> bool:
+    for candidate, _ in _fence_candidates(line, active_container):
+        opening = FENCE_OPEN_RE.fullmatch(candidate)
+        if opening is not None:
+            marker, remainder = opening.groups()
+            if marker[0] == "`" and "`" in remainder:
+                return True
+    return False
+
+
+def _plain_block_boundary(line: str) -> bool:
     return (
         not line.strip()
         or ATX_HEADING_RE.match(line) is not None
         or SETEXT_HEADING_RE.fullmatch(line) is not None
-        or _is_fence_opening(line)
+        or _fence_opening(line) is not None
     )
 
 
+def _inline_line_crosses_boundary(line: str, scope: ContainerScope) -> bool:
+    if not line.strip():
+        return True
+    content, quote_depth, _ = _strip_blockquote_prefixes(line)
+    if quote_depth != scope.quote_depth:
+        return True
+    if scope.list_content_indent is not None:
+        content = _strip_indent(content, scope.list_content_indent)
+        if content is None:
+            return True
+    elif not scope.is_container and quote_depth > 0:
+        return True
+    if _parse_list_item(content) is not None:
+        return True
+    return _plain_block_boundary(content)
+
+
 def _inline_code_span_end(
-    lines: list[str], line_index: int, start: int
+    lines: list[str], line_index: int, start: int, scope: ContainerScope
 ) -> tuple[int, int] | None:
     opening_end = _backtick_run_end(lines[line_index], start)
     opening_length = opening_end - start
-    single_line_only = _is_invalid_backtick_fence(lines[line_index])
+    single_line_only = _is_invalid_backtick_fence(lines[line_index], scope)
     for candidate_line_index in range(line_index, len(lines)):
         line = lines[candidate_line_index]
         if candidate_line_index > line_index:
-            if single_line_only or _starts_inline_block_boundary(line):
+            if single_line_only or _inline_line_crosses_boundary(line, scope):
                 return None
         cursor = opening_end if candidate_line_index == line_index else 0
         while cursor < len(line):
@@ -190,26 +346,101 @@ def _inline_code_span_end(
     return None
 
 
+def _update_list_context(
+    line: str, stack: list[ContainerScope]
+) -> ContainerScope:
+    content, quote_depth, _ = _strip_blockquote_prefixes(line)
+    if line.strip() and any(item.quote_depth != quote_depth for item in stack):
+        stack.clear()
+
+    list_scopes = [
+        scope
+        for _, scope in _container_candidates(line)
+        if scope.list_content_indent is not None
+    ]
+    if list_scopes:
+        first_marker_indent = list_scopes[0].list_marker_indent
+        assert first_marker_indent is not None
+        while (
+            stack
+            and stack[-1].list_content_indent is not None
+            and first_marker_indent < stack[-1].list_content_indent
+        ):
+            stack.pop()
+        for scope in list_scopes:
+            marker_indent = scope.list_marker_indent
+            assert marker_indent is not None
+            if stack:
+                content_indent = stack[-1].list_content_indent
+                assert content_indent is not None
+                if marker_indent < content_indent:
+                    break
+            elif marker_indent > 3:
+                break
+            stack.append(scope)
+    elif line.strip():
+        _, indentation = _leading_indent(content)
+        while (
+            stack
+            and stack[-1].list_content_indent is not None
+            and indentation < stack[-1].list_content_indent
+        ):
+            stack.pop()
+
+    if stack and stack[-1].quote_depth == quote_depth:
+        return stack[-1]
+    return ContainerScope(quote_depth=quote_depth)
+
+
+def _fence_line(
+    line: str, state: FenceState
+) -> tuple[str | None, bool]:
+    if not state.container.is_container:
+        return line, False
+    if not line.strip():
+        return "", False
+    content, quote_depth, _ = _strip_blockquote_prefixes(line)
+    if quote_depth != state.container.quote_depth:
+        return None, True
+    if state.container.list_content_indent is not None:
+        content = _strip_indent(content, state.container.list_content_indent)
+        if content is None:
+            return None, True
+    return content, False
+
+
+def _is_fence_closing(line: str, state: FenceState) -> bool:
+    indentation_end, indentation = _leading_indent(line)
+    if indentation > 3:
+        return False
+    candidate = line[indentation_end:]
+    return (
+        re.fullmatch(
+            rf"{re.escape(state.character)}{{{state.length},}}[ \t]*",
+            candidate,
+        )
+        is not None
+    )
+
+
 def semantic_markdown(text: str) -> str:
     """Remove content that Markdown renders as comments or fenced code."""
     lines = text.splitlines()
     semantic_lines: list[str] = []
-    fence_character: str | None = None
-    fence_length = 0
+    fence_state: FenceState | None = None
     in_comment = False
     multiline_span_end: tuple[int, int] | None = None
+    list_stack: list[ContainerScope] = []
     for line_index, line in enumerate(lines):
-        if fence_character is not None:
-            candidate = line.lstrip(" ")
-            indentation = len(line) - len(candidate)
-            if indentation <= 3 and re.fullmatch(
-                rf"{re.escape(fence_character)}{{{fence_length},}}[ \t]*",
-                candidate,
-            ):
-                fence_character = None
-                fence_length = 0
-            continue
+        if fence_state is not None:
+            candidate, boundary = _fence_line(line, fence_state)
+            if not boundary:
+                if candidate is not None and _is_fence_closing(candidate, fence_state):
+                    fence_state = None
+                continue
+            fence_state = None
 
+        active_container = _update_list_context(line, list_stack)
         visible_parts: list[str] = []
         cursor = 0
         if multiline_span_end is not None:
@@ -223,13 +454,10 @@ def semantic_markdown(text: str) -> str:
             cursor = closing_end
             multiline_span_end = None
         elif not in_comment:
-            opening = FENCE_OPEN_RE.fullmatch(line)
+            opening = _fence_opening(line, active_container)
             if opening is not None:
-                marker, remainder = opening.groups()
-                if marker[0] != "`" or "`" not in remainder:
-                    fence_character = marker[0]
-                    fence_length = len(marker)
-                    continue
+                fence_state = opening
+                continue
 
         while cursor < len(line):
             if in_comment:
@@ -246,7 +474,9 @@ def semantic_markdown(text: str) -> str:
                 continue
             if line[cursor] == "`":
                 opening_end = _backtick_run_end(line, cursor)
-                span_end = _inline_code_span_end(lines, line_index, cursor)
+                span_end = _inline_code_span_end(
+                    lines, line_index, cursor, active_container
+                )
                 if span_end is not None:
                     closing_line, closing_end = span_end
                     if closing_line == line_index:
@@ -353,13 +583,12 @@ def _requirement_table_id(cell: str) -> str | None:
     return candidate if REQUIREMENT_ID_RE.fullmatch(candidate) else None
 
 
-def parse_frontmatter(
-    path: Path, errors: list[str]
+def _parse_frontmatter_text(
+    text: str, label: str, errors: list[str]
 ) -> tuple[dict[str, str | list[str]], str]:
-    text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
-        errors.append(f"{relative(path)}: missing frontmatter")
+        errors.append(f"{label}: missing frontmatter")
         return {}, text
     try:
         end = next(
@@ -368,7 +597,7 @@ def parse_frontmatter(
             if line.strip() == "---"
         )
     except StopIteration:
-        errors.append(f"{relative(path)}: unclosed frontmatter")
+        errors.append(f"{label}: unclosed frontmatter")
         return {}, text
 
     meta: dict[str, str | list[str]] = {}
@@ -378,24 +607,24 @@ def parse_frontmatter(
             continue
         if line.startswith("  - "):
             if active_list is None:
-                errors.append(f"{relative(path)}:{number}: list item has no key")
+                errors.append(f"{label}:{number}: list item has no key")
                 continue
             value = line[4:].strip().strip("\"'")
             current = meta.setdefault(active_list, [])
             if not isinstance(current, list):
-                errors.append(f"{relative(path)}:{number}: {active_list} is not a list")
+                errors.append(f"{label}:{number}: {active_list} is not a list")
                 continue
             current.append(value)
             continue
         match = re.fullmatch(r"([a-z_][a-z0-9_]*):(?:\s*(.*))?", line)
         if match is None:
-            errors.append(f"{relative(path)}:{number}: unsupported frontmatter syntax")
+            errors.append(f"{label}:{number}: unsupported frontmatter syntax")
             active_list = None
             continue
         key, raw = match.groups()
         raw = (raw or "").strip()
         if key in meta:
-            errors.append(f"{relative(path)}:{number}: duplicate frontmatter key {key}")
+            errors.append(f"{label}:{number}: duplicate frontmatter key {key}")
         if raw in {"", "[]"}:
             meta[key] = []
             active_list = key if raw == "" else None
@@ -403,6 +632,14 @@ def parse_frontmatter(
             meta[key] = raw.strip("\"'")
             active_list = None
     return meta, "\n".join(lines[end + 1 :])
+
+
+def parse_frontmatter(
+    path: Path, errors: list[str]
+) -> tuple[dict[str, str | list[str]], str]:
+    return _parse_frontmatter_text(
+        path.read_text(encoding="utf-8"), relative(path), errors
+    )
 
 
 def formal_documents(errors: list[str]) -> list[Document]:
@@ -472,6 +709,42 @@ def _commit_is_ancestor(commit: str) -> bool:
         check=False,
     )
     return ancestor.returncode == 0
+
+
+def _code_paths_at_commit(
+    commit: str, implementation: Document
+) -> tuple[list[str], str]:
+    path = implementation.path.relative_to(ROOT).as_posix()
+    object_name = f"{commit}:{path}"
+    exists = subprocess.run(
+        ["git", "cat-file", "-e", object_name],
+        cwd=ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if exists.returncode != 0:
+        return implementation.values("code_paths"), ""
+
+    historical = subprocess.run(
+        ["git", "show", object_name],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if historical.returncode != 0:
+        return [], historical.stderr.strip() or f"could not read {object_name}"
+    history_errors: list[str] = []
+    meta, _ = _parse_frontmatter_text(
+        historical.stdout, f"{path}@{commit}", history_errors
+    )
+    value = meta.get("code_paths")
+    if not isinstance(value, list):
+        history_errors.append(f"{path}@{commit}: code_paths must be a YAML list")
+        value = []
+    return value, "; ".join(history_errors)
 
 
 def _changed_paths_since(commit: str, paths: list[str]) -> tuple[list[str], str]:
@@ -883,9 +1156,18 @@ def validate_graph(
                 and _commit_is_ancestor(commit)
             ):
                 for implementation in upstream_docs:
+                    observed_paths, history_error = _code_paths_at_commit(
+                        commit, implementation
+                    )
+                    if history_error:
+                        errors.append(
+                            f"{relative(doc.path)}: could not load {implementation.id} "
+                            f"code_paths at {commit}: {history_error}"
+                        )
+                        continue
                     code_paths = [
                         raw
-                        for raw in implementation.values("code_paths")
+                        for raw in observed_paths
                         if raw.strip()
                         and not Path(raw).is_absolute()
                         and ".." not in Path(raw).parts

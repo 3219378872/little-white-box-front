@@ -50,19 +50,23 @@ Titles and every item in the controlled list fields (`upstream`, `tracks`,
 `external_upstream`) must contain non-whitespace text; list items must be
 unique. Requirements, layer-index links, and implementation authority are read
 from semantic Markdown, so fenced examples, HTML comments, and definition-shaped
-lines inside multiline code spans do not contribute to the graph. Multiline
-code spans require an exact backtick-run match within the same Markdown block;
-blank lines, headings, and fence openings stop the match. Backtick fence-shaped
-lines with invalid info strings cannot seed a multiline match. Each non-retired
-implementation must contain exactly one authority table with the canonical
-four-column header followed by a valid Markdown separator; only its consecutive
-data rows are authoritative.
+lines inside multiline code spans do not contribute to the graph. Fences inside
+blockquotes and list items are bound to their quote depth and visual list-content
+indentation, including fences opened on a list continuation line; leaving that
+container ends an unclosed fence. Multiline code spans require an exact
+backtick-run match within the same Markdown block; blank lines, headings, fence
+openings, and nested or sibling list items stop the match as applicable.
+Backtick fence-shaped lines with invalid info strings cannot seed a multiline
+match. Each non-retired implementation must contain exactly one authority table
+with the canonical four-column header followed by a valid Markdown separator;
+only its consecutive data rows are authoritative.
 
 For active passed evidence, the checker also diffs every upstream
-implementation's `code_paths` from `observed_commit` through `HEAD`. A later
-committed, unstaged, staged, or untracked change under those paths makes the
-evidence stale, while implementation or evidence documentation-only changes do
-not.
+implementation's `code_paths` as declared at `observed_commit` through `HEAD`.
+For compatibility, it uses the current declaration only when that older commit
+predates the implementation page. A later committed, unstaged, staged, or
+untracked change under those paths makes the evidence stale, while implementation
+or evidence documentation-only changes do not.
 
 Run it through the repository command surface:
 
