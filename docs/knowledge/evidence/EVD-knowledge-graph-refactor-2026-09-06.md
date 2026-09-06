@@ -49,7 +49,7 @@ commands:
   - ruff check tools/knowledge_base.py tools/test_knowledge_base.py
   - make knowledge-check
   - git diff --check
-observed_commit: 3b2158f1eb3f4debc4e3757f9e6ca54657c9b95d
+observed_commit: 07fb1ca160bfdbfb196a106edb1247b1c30e416a
 updated_at: 2026-09-06
 ---
 
@@ -57,8 +57,8 @@ updated_at: 2026-09-06
 
 ## 范围与环境
 
-本证据观察前端提交 `3b2158f1eb3f4debc4e3757f9e6ca54657c9b95d`。SDK 漂移检查显式使用后端
-提交 `f706309f860621e7d9079333cf33e81557253b73` 工作树中的 `app/gateway/gateway.api`，没有依赖
+本证据观察前端提交 `07fb1ca160bfdbfb196a106edb1247b1c30e416a`。SDK 漂移检查显式使用后端
+提交 `58735970348ee2258a45058e8f85c21eb0fb4963` 工作树中的 `app/gateway/gateway.api`，没有依赖
 未核验的相邻仓自动发现。执行环境为 Flutter 3.44.7、Dart 3.12.2。
 
 本页只证明当前源码上的静态分析、单元/Widget 测试、Mock transport 集成以及生成契约漂移检查。它
@@ -70,8 +70,8 @@ updated_at: 2026-09-06
 | --- | --- |
 | `make analyze` | exit 0，`No issues found` |
 | `make test` | exit 0，496 项 Flutter 测试全部通过 |
-| `make test-coverage` | exit 0，496 项 Flutter 测试与 51 项工具测试（含 40 项 knowledge fixtures）通过；7786/9546 行，81.6%，高于 70% 门槛 |
-| `make check BACKEND_API=.../app/gateway/gateway.api` | exit 0；静态分析、496 项 Flutter 测试、51 项工具测试（含 40 项 knowledge fixtures）、知识图谱和 SDK 非写入重生成比较全部通过 |
+| `make test-coverage` | exit 0，496 项 Flutter 测试与 62 项工具测试（含 51 项 knowledge fixtures）通过；7786/9546 行，81.6%，高于 70% 门槛 |
+| `make check BACKEND_API=.../app/gateway/gateway.api` | exit 0；静态分析、496 项 Flutter 测试、62 项工具测试（含 51 项 knowledge fixtures）、知识图谱和 SDK 非写入重生成比较全部通过 |
 | `ruff check tools/knowledge_base.py tools/test_knowledge_base.py` | exit 0，`All checks passed` |
 | `make knowledge-check` | exit 0，58 份正式文档、54 条 approved 条款、114 个本地链接通过闭环校验 |
 | `git diff --check` | exit 0，无空白错误 |
@@ -83,7 +83,7 @@ updated_at: 2026-09-06
 
 | 领域 | 条款 | 当前证据 |
 | --- | --- | --- |
-| 平台 | `FX-001`、`FX-002`、`FX-010`、`FX-070`、`FQ-001`、`FQ-002`、`FQ-003`、`FQ-006`、`FQ-008` | analyzer、身份/路由/transport/精确 ID/异步状态测试、知识 checker fixtures 与指定 API 的 SDK 重生成比较通过 |
+| 平台 | `FX-001`、`FX-002`、`FX-010`、`FX-070`、`FQ-001`、`FQ-002`、`FQ-003`、`FQ-006`、`FQ-008` | analyzer、身份/路由/transport/精确 ID/异步状态测试、知识 checker 的容器边界与历史路径 fixtures，以及指定 API 的 SDK 重生成比较通过 |
 | 社区 | `FX-020`～`FX-022`、`FX-030`～`FX-032`、`FX-060`～`FX-062` | 推荐/关注/搜索、写入/详情/评论/资料以及行为队列的 repository、notifier 和 Widget 回归通过 |
 | 私信 | `FX-041` | 会话、线程、已读/未读收敛测试通过；新增 Snowflake receiver/media JSON number 回归通过 |
 | Assistant | `FX-050`、`FX-051`、`FX-086`、`FX-091`、`FX-092` | 虚拟线程入口、结构化来源、禁止 self-watch、Stop 迟到输出隔离及单会话/清历史回归通过 |
