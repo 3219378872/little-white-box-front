@@ -12,7 +12,7 @@ covers:
   - FQ-003
   - FQ-007
 updated_at: 2026-09-06
-observed_commit: 9b3fba2004ad39275963ac512df3ebe6caa65c2a
+observed_commit: 972a206d0f27d3c97a46d4cb7d2e5d7e5b1831b2
 ---
 
 # Watch 盯自己错误与小 ID JSON 编码 2026-09-06
