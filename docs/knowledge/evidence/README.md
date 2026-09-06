@@ -4,6 +4,10 @@ EVD 的 lifecycle 是 `active` 或 `superseded`，实际结果另记为 `passed/
 记录完整祖先提交、实际命令和范围；历史 passed 不自动证明当前 HEAD，Mock、浏览器、设备、真实服务与
 生产观察也不能互相替代。
 
+当前通过证据：
+
+- [EVD-knowledge-graph-refactor-2026-09-06](EVD-knowledge-graph-refactor-2026-09-06.md)
+
 当前部分证据：
 
 - [EVD-assistant-research-2026-09-05](EVD-assistant-research-2026-09-05.md)

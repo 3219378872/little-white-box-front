@@ -18,6 +18,7 @@ code_paths:
   - tools/heybox_visual_check.mjs
   - tools/heybox_android_check.py
 evidence:
+  - EVD-knowledge-graph-refactor-2026-09-06
   - EVD-assistant-research-2026-09-05
   - EVD-desktop-nav-semantics-2026-09-05
   - EVD-heybox-presentation-2026-09-06
@@ -32,6 +33,6 @@ updated_at: 2026-09-06
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FQ-004 | DES-presentation-client | unknown | gap: current shared-theme, semantics, tooltip, and overflow tests pending |
+| FQ-004 | DES-presentation-client | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
 | FQ-005 | DES-presentation-client | unknown | gap: current native-platform evidence is temporary and does not cover physical devices or iOS |
 | FQ-009 | DES-presentation-client | unknown | gap: visual artifacts exist only in temporary paths and no durable acceptance bundle or formal human review exists |

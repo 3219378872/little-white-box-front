@@ -41,6 +41,7 @@ code_paths:
   - lib/features/assistant
   - test/features/assistant
 evidence:
+  - EVD-knowledge-graph-refactor-2026-09-06
   - EVD-assistant-research-2026-09-05
   - EVD-audit-remediation-client-2026-08-31
   - EVD-code-quality-hardening-2026-09-05
@@ -56,8 +57,8 @@ REST/SSE 模型、repository、线程与 Memory/Watch 状态机、展示组件�
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FX-050 | DES-assistant-client | unknown | gap: current virtual-thread entry and command tests pending |
-| FX-051 | DES-assistant-client | unknown | gap: current structured-source trust tests pending |
+| FX-050 | DES-assistant-client | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
+| FX-051 | DES-assistant-client | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
 | FX-052 | DES-assistant-client | unknown | gap: no current browser evidence for equivalent mobile and desktop entry hierarchy |
 | FX-053 | DES-assistant-client | unknown | gap: no current real-gateway first-task consent round trip |
 | FX-054 | DES-assistant-client | unknown | gap: no current real-gateway authorization rejection and retry round trip |
@@ -72,13 +73,13 @@ REST/SSE 模型、repository、线程与 Memory/Watch 状态机、展示组件�
 | FX-083 | DES-assistant-client | unknown | gap: scheduled Watch delivery into the thread and unread convergence lack current end-to-end evidence |
 | FX-084 | DES-assistant-client | unknown | gap: source mutation and invalidation payload presentation lacks current end-to-end evidence |
 | FX-085 | DES-assistant-client | unknown | gap: memory_changed unread exclusion and real undo failure recovery lack current end-to-end evidence |
-| FX-086 | DES-assistant-client | unknown | gap: current cannot-watch-self and exact targetId regression tests pending |
+| FX-086 | DES-assistant-client | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
 | FX-087 | DES-assistant-client | unknown | gap: recommendation-source feedback lacks current real-gateway evidence |
 | FX-088 | DES-assistant-client | unknown | gap: 30-second thread polling and combined unread lack current timed integration evidence |
 | FX-089 | DES-assistant-client | unknown | gap: all asynchronous acceptance dispositions lack current real-gateway evidence |
 | FX-090 | DES-assistant-client | unknown | gap: Flutter browser replay, disconnect, and response_reset recovery remain partially verified |
-| FX-091 | DES-assistant-client | unknown | gap: current Stop late-output fence tests pending |
-| FX-092 | DES-assistant-client | unknown | gap: current single-session and clear-history regression tests pending |
+| FX-091 | DES-assistant-client | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
+| FX-092 | DES-assistant-client | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
 | FX-093 | DES-assistant-client | unknown | gap: thread read failure and Watch/Memory unread rules lack current real-gateway evidence |
 | FX-094 | DES-assistant-client | unknown | gap: current browser animation, history prefix, reset, and disableAnimations evidence is partial |
 | FX-095 | DES-assistant-client | unknown | gap: real-provider browser clarification workflow has not passed end to end |

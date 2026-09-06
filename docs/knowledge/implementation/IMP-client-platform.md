@@ -27,6 +27,7 @@ code_paths:
   - vendor/sdk_source
   - tools/sync_gateway_sdk.py
 evidence:
+  - EVD-knowledge-graph-refactor-2026-09-06
   - EVD-assistant-research-2026-09-05
   - EVD-audit-remediation-client-2026-08-31
   - EVD-code-quality-hardening-2026-09-05
@@ -41,17 +42,17 @@ feature 路径。生成 SDK 的来源与应用副本由 `tools/sync_gateway_sdk.
 repository。本页不保存观察提交；版本和命令只进入证据页。
 
 历史 EVD 保留当时结果但已 `superseded`，不能自动证明当前 HEAD。以下表是本领域唯一当前权威映射；
-首轮迁移先保持未知，待当前提交完成声明 gate 后由新 EVD 收敛。
+当前本地门禁只收敛其实际覆盖的条款，要求真实接口与浏览器的 `FQ-007` 仍保持未知。
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FX-001 | DES-client-platform | unknown | gap: post-migration current-revision route and public-read gate pending |
-| FX-002 | DES-client-platform | unknown | gap: post-migration current-revision auth-boundary gate pending |
-| FX-010 | DES-client-platform | unknown | gap: post-migration current-revision session-recovery gate pending |
-| FX-070 | DES-client-platform | unknown | gap: post-migration current-revision shared Mock/real path gate pending |
-| FQ-001 | DES-client-platform | unknown | gap: post-migration current-revision dependency and state-owner gate pending |
-| FQ-002 | DES-client-platform | unknown | gap: current SDK regeneration and int64 regression gate pending |
-| FQ-003 | DES-client-platform | unknown | gap: post-migration current-revision error-classification gate pending |
-| FQ-006 | DES-client-platform | unknown | gap: post-migration current-revision async-state gate pending |
-| FQ-007 | DES-client-platform | unknown | gap: declared current validation commands have not run on the migration commit |
-| FQ-008 | DES-client-platform | unknown | gap: migrated graph and validator fixtures have not passed on a committed revision |
+| FX-001 | DES-client-platform | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
+| FX-002 | DES-client-platform | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
+| FX-010 | DES-client-platform | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
+| FX-070 | DES-client-platform | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
+| FQ-001 | DES-client-platform | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
+| FQ-002 | DES-client-platform | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
+| FQ-003 | DES-client-platform | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
+| FQ-006 | DES-client-platform | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
+| FQ-007 | DES-client-platform | unknown | gap: current evidence lacks the real-interface and browser validation required by the spec |
+| FQ-008 | DES-client-platform | aligned | EVD-knowledge-graph-refactor-2026-09-06 |
