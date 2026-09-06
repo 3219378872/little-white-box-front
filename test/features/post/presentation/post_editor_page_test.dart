@@ -121,12 +121,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('发布帖子'), findsOneWidget);
+    expect(find.text('发帖'), findsOneWidget);
     expect(find.text('存草稿'), findsOneWidget);
     expect(find.text('发布'), findsOneWidget);
     expect(find.text('标题'), findsOneWidget);
-    expect(find.text('内容'), findsOneWidget);
-    expect(find.text('添加标签'), findsOneWidget);
+    expect(find.text('分享你的想法...'), findsOneWidget);
+    expect(find.text('标签'), findsOneWidget);
   });
 
   testWidgets('blocks publishing with an empty title', (tester) async {

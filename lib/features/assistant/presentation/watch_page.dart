@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/error_view.dart';
 import '../application/assistant_notifier.dart';
 import '../application/watch_notifier.dart';
@@ -71,7 +72,7 @@ class _WatchPageState extends ConsumerState<WatchPage> {
                       ? '需要升级 Agent 授权才能管理追踪'
                       : '需要先授权 Agent 才能管理追踪',
                 ),
-                subtitle: const Text('命中会进入小白盒 Agent 线程，不会写入普通私信。未升级时仅可只读查看。'),
+                subtitle: const Text('当前为只读状态'),
               ),
             ),
           if (tasks.error != null && tasks.items.isNotEmpty)
@@ -101,7 +102,7 @@ class _WatchPageState extends ConsumerState<WatchPage> {
                     onRetry: () => ref.read(watchListProvider.notifier).load(),
                   )
                 : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
                     children: [
                       Text('任务', style: context.theme.typography.body.md),
                       const SizedBox(height: 8),
@@ -322,11 +323,10 @@ class _TaskTile extends StatelessWidget {
         : task.targetText;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: theme.colors.secondary,
-        borderRadius: theme.style.borderRadius.md,
+        border: Border(bottom: BorderSide(color: theme.colors.border)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
             Expanded(
@@ -347,17 +347,17 @@ class _TaskTile extends StatelessWidget {
               ),
             ),
             if (canWrite) ...[
-              FButton(
-                variant: .ghost,
-                size: .sm,
-                onPress: onToggle,
-                child: Text(task.enabled ? '停用' : '启用'),
+              Semantics(
+                label: task.enabled ? '停用追踪' : '启用追踪',
+                child: FSwitch(
+                  value: task.enabled,
+                  onChange: (_) => onToggle(),
+                ),
               ),
-              FButton(
-                variant: .ghost,
-                size: .sm,
+              AppIconButton(
+                icon: FLucideIcons.trash2,
+                label: '删除',
                 onPress: onDelete,
-                child: const Text('删除'),
               ),
             ],
           ],

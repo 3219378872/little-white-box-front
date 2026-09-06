@@ -5,9 +5,7 @@ import 'package:xiaobaihe_app/core/widgets/app_tag_badge.dart';
 import '../../helpers/forui_test_builder.dart';
 
 void main() {
-  testWidgets('renders the complete CJK label without constraining its width', (
-    tester,
-  ) async {
+  testWidgets('renders a CJK label with bounded wrapping', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         builder: foruiTestBuilder,
@@ -18,8 +16,8 @@ void main() {
     final text = tester.widget<Text>(find.text('美食探店'));
     final badgeWidth = tester.getSize(find.byType(AppTagBadge)).width;
 
-    expect(text.maxLines, isNull);
-    expect(text.overflow, isNull);
+    expect(text.maxLines, 2);
+    expect(text.overflow, TextOverflow.ellipsis);
     expect(badgeWidth, greaterThan(50));
   });
 

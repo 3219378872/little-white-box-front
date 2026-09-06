@@ -96,10 +96,11 @@ class ImagePickerGrid extends StatelessWidget {
               onPress: onRemove,
               semanticsLabel: '移除图片',
               child: Container(
-                padding: const EdgeInsets.all(2),
+                width: 36,
+                height: 36,
                 decoration: const BoxDecoration(
                   color: Color(0x8A000000),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.all(Radius.circular(4)),
                 ),
                 child: const Icon(
                   FLucideIcons.x,
@@ -129,7 +130,7 @@ class ImagePickerGrid extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          border: Border.all(color: context.theme.colors.border),
+          color: context.theme.colors.muted,
           borderRadius: context.theme.style.borderRadius.md,
         ),
         child: Icon(

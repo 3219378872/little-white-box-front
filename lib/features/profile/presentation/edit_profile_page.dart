@@ -97,7 +97,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           );
       if (mounted) {
         showAppSuccess(context, '保存成功');
-        context.pop();
+        context.canPop() ? context.pop() : context.go('/profile');
       }
     } catch (e) {
       if (mounted) {
@@ -117,7 +117,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       childPad: false,
       header: FHeader.nested(
         title: const Text('编辑资料'),
-        prefixes: [FHeaderAction.back(onPress: () => context.pop())],
+        prefixes: [
+          FHeaderAction.back(
+            onPress: () =>
+                context.canPop() ? context.pop() : context.go('/profile'),
+          ),
+        ],
         suffixes: [
           FButton(
             size: .sm,
@@ -146,13 +151,13 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       return const Center(child: FCircularProgress());
     }
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       children: [
         Center(
           child: CachedAvatar(
             url: _avatarUrl,
             name: _nicknameCtrl.text,
-            radius: 48,
+            radius: 32,
           ),
         ),
         const SizedBox(height: 24),

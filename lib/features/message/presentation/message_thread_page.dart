@@ -109,10 +109,13 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
       return FScaffold(
         childPad: false,
         header: FHeader.nested(
-          title: Text(title),
-          prefixes: context.canPop()
-              ? [FHeaderAction.back(onPress: context.pop)]
-              : const [],
+          title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          prefixes: [
+            FHeaderAction.back(
+              onPress: () =>
+                  context.canPop() ? context.pop() : context.go('/messages'),
+            ),
+          ],
         ),
         child: const Center(child: FCircularProgress()),
       );
@@ -124,10 +127,13 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     return FScaffold(
       childPad: false,
       header: FHeader.nested(
-        title: Text(title),
-        prefixes: context.canPop()
-            ? [FHeaderAction.back(onPress: context.pop)]
-            : const [],
+        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        prefixes: [
+          FHeaderAction.back(
+            onPress: () =>
+                context.canPop() ? context.pop() : context.go('/messages'),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -193,15 +199,17 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: FTextField.multiline(
-                      control: FTextFieldControl.managed(
-                        controller: _controller,
+                    child: Semantics(
+                      label: '消息',
+                      child: FTextField.multiline(
+                        control: FTextFieldControl.managed(
+                          controller: _controller,
+                        ),
+                        hint: '输入消息',
+                        minLines: 1,
+                        maxLines: 4,
+                        maxLength: 1000,
                       ),
-                      label: const Text('消息'),
-                      hint: '输入消息',
-                      minLines: 1,
-                      maxLines: 4,
-                      maxLength: 1000,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -213,20 +221,6 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
                     child: const Icon(
                       FLucideIcons.image,
                       semanticLabel: '发送图片',
-                    ),
-                  ),
-                  FButton.icon(
-                    onPress: null,
-                    child: const Icon(
-                      FLucideIcons.video,
-                      semanticLabel: '视频发送暂不可用',
-                    ),
-                  ),
-                  FButton.icon(
-                    onPress: null,
-                    child: const Icon(
-                      FLucideIcons.mic,
-                      semanticLabel: '语音发送暂不可用',
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -313,7 +307,7 @@ class _MessageBubble extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: own ? theme.colors.primary : theme.colors.secondary,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(4),
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),

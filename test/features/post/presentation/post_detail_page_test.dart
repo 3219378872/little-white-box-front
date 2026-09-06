@@ -3,8 +3,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -196,6 +196,30 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   tearDown(() => setApiClient(http.Client()));
 
+  testWidgets('failed deep-linked detail keeps a working back action', (
+    tester,
+  ) async {
+    final harness = _Harness()..postDetailOk = false;
+    setApiClient(harness.client);
+    final router = GoRouter(
+      initialLocation: '/post/9',
+      routes: [
+        GoRoute(
+          path: '/post/9',
+          builder: (_, _) => const PostDetailPage(postId: '9'),
+        ),
+        GoRoute(path: '/feed', builder: (_, _) => const Text('首页占位')),
+      ],
+    );
+    addTearDown(router.dispose);
+    await _pumpPage(tester, const PostDetailPage(postId: '9'), router: router);
+    await tester.pumpAndSettle();
+    expect(find.text('服务器开小差'), findsOneWidget);
+    await tester.tap(find.byType(FHeaderAction));
+    await tester.pumpAndSettle();
+    expect(find.text('首页占位'), findsOneWidget);
+  });
+
   testWidgets('renders the post header, actions and first comment page', (
     tester,
   ) async {
@@ -213,7 +237,7 @@ void main() {
     expect(find.text('2'), findsOneWidget);
     expect(find.text('5'), findsOneWidget);
     expect(find.text('7'), findsOneWidget);
-    expect(find.text('11'), findsOneWidget);
+    expect(find.text('11 次浏览'), findsOneWidget);
   });
 
   testWidgets('likes optimistically and can toggle back', (tester) async {
@@ -232,13 +256,7 @@ void main() {
     await _pumpPage(tester, const PostDetailPage(postId: '9'));
     await tester.pumpAndSettle();
 
-    // 操作栏的点赞图标是 size 20；评论项里的点赞图标是 size 14。
-    final likeButton = find.byWidgetPredicate(
-      (widget) =>
-          widget is Icon &&
-          widget.icon == FLucideIcons.thumbsUp &&
-          widget.size == 20,
-    );
+    final likeButton = find.byKey(const ValueKey('post-action-点赞'));
 
     await tester.tap(likeButton);
     await tester.pumpAndSettle();
@@ -316,10 +334,17 @@ void main() {
     await _pumpPage(tester, const PostDetailPage(postId: '9'));
     await tester.pumpAndSettle();
 
-    // 未展开：只显示入口，不显示回复内容
+    // 内嵌预览直接展示两条，不提前读取楼中楼接口。
     expect(find.text('共 5 条回复'), findsOneWidget);
-    expect(find.text('回复一'), findsNothing);
+    expect(find.textContaining('回复一', findRichText: true), findsOneWidget);
+    expect(find.textContaining('回复三', findRichText: true), findsNothing);
+    expect(
+      harness.client.requests.where((r) => r.url.path.endsWith('/replies')),
+      isEmpty,
+    );
 
+    await tester.tap(find.byKey(const ValueKey('post-action-查看评论')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('共 5 条回复'));
     await tester.pumpAndSettle();
 
@@ -328,14 +353,16 @@ void main() {
       (r) => r.url.path == '/api/v1/comments/55/replies',
     );
     expect(replyCall.url.queryParameters['page'], '1');
-    expect(find.text('回复一'), findsOneWidget);
-    expect(find.text('回复五'), findsOneWidget);
+    expect(find.textContaining('回复一', findRichText: true), findsOneWidget);
+    expect(find.textContaining('回复五', findRichText: true), findsOneWidget);
     // 5 条全部可见且 total=5 ≤ pageSize → 无"加载更多"
     expect(find.text('加载更多回复'), findsNothing);
 
+    await tester.ensureVisible(find.text('收起回复'));
     await tester.tap(find.text('收起回复'));
     await tester.pumpAndSettle();
-    expect(find.text('回复一'), findsNothing);
+    expect(find.textContaining('回复一', findRichText: true), findsOneWidget);
+    expect(find.textContaining('回复五', findRichText: true), findsNothing);
   });
 
   testWidgets('anonymous comment submission redirects to login', (
@@ -361,10 +388,14 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(EditableText).first, '路过留名');
+    await tester.pump();
     await tester.tap(find.bySemanticsLabel('发送评论'));
     await tester.pumpAndSettle();
 
     expect(find.text('登录页占位'), findsOneWidget);
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('路过留名'), findsOneWidget);
   });
 
   testWidgets(

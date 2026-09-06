@@ -37,6 +37,16 @@ class PostDetailPage extends ConsumerStatefulWidget {
 
 class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   final ScrollController _scrollCtrl = ScrollController();
+  bool _commentsOnly = false;
+
+  void _selectSection(bool commentsOnly) {
+    if (_commentsOnly == commentsOnly) {
+      if (_scrollCtrl.hasClients) _scrollCtrl.jumpTo(0);
+      return;
+    }
+    setState(() => _commentsOnly = commentsOnly);
+    if (_scrollCtrl.hasClients) _scrollCtrl.jumpTo(0);
+  }
 
   @override
   void initState() {
@@ -153,7 +163,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     final auth = ref.read(authNotifierProvider);
     if (!auth.isAuthenticated) {
       context.push('/auth/login');
-      return;
+      throw const ApiException('请先登录');
     }
     try {
       await ref
@@ -175,6 +185,18 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
 
     return FScaffold(
       childPad: false,
+      header: FHeader.nested(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [_sectionTab('正文', false), _sectionTab('评论', true)],
+        ),
+        prefixes: [
+          FHeaderAction.back(
+            onPress: () =>
+                context.canPop() ? context.pop() : context.go('/feed'),
+          ),
+        ],
+      ),
       child: postAsync.when(
         loading: () => const Center(child: FCircularProgress()),
         error: (e, _) => ErrorView(
@@ -193,10 +215,6 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
           final likeCount = post.likeCount.toInt() + interaction.likeCountDelta;
           final favCount =
               post.favoriteCount.toInt() + interaction.favoriteCountDelta;
-          final headerExtent =
-              MediaQuery.paddingOf(context).top +
-              (context.platformVariant.touch ? 62.0 : 54.0);
-
           // 后端契约：列表只含顶级评论，子评论经内嵌预览 + 楼中楼接口按需加载
           final topLevel = comments.comments;
 
@@ -206,174 +224,145 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                 child: CustomScrollView(
                   controller: _scrollCtrl,
                   slivers: [
-                    SliverPersistentHeader(
-                      floating: true,
-                      delegate: _ForuiHeaderDelegate(
-                        extent: headerExtent,
-                        child: FHeader.nested(
-                          title: Text(post.authorName),
-                          prefixes: [
-                            FHeaderAction.back(
-                              onPress: () => context.canPop()
-                                  ? context.pop()
-                                  : context.go('/feed'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                     // 帖子内容
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 作者
-                            FTappable(
-                              onPress: () => context.push(
-                                '/user/${jsonInt64Id(post.authorId)}',
-                              ),
-                              child: Row(
-                                children: [
-                                  CachedAvatar(
-                                    url: post.authorAvatar,
-                                    name: post.authorName,
-                                    radius: 20,
+                            if (!_commentsOnly) ...[
+                              if (post.title.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: Text(
+                                    post.title,
+                                    style: theme.typography.display.sm,
                                   ),
-                                  const SizedBox(width: 12),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        post.authorName,
-                                        style: theme.typography.body.md
-                                            .copyWith(
-                                              fontWeight: FontWeight.w600,
+                                ),
+                              // 作者
+                              FTappable(
+                                onPress: () => context.push(
+                                  '/user/${jsonInt64Id(post.authorId)}',
+                                ),
+                                child: Row(
+                                  children: [
+                                    CachedAvatar(
+                                      url: post.authorAvatar,
+                                      name: post.authorName,
+                                      radius: 20,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            post.authorName,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: theme.typography.body.md
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                          Text(
+                                            formatRelativeTime(
+                                              post.createdAt,
+                                              includeYear: true,
                                             ),
+                                            style: theme.typography.body.xs
+                                                .copyWith(
+                                                  color: theme
+                                                      .colors
+                                                      .mutedForeground,
+                                                ),
+                                          ),
+                                        ],
                                       ),
-                                      Text(
-                                        formatRelativeTime(
-                                          post.createdAt,
-                                          includeYear: true,
-                                        ),
-                                        style: theme.typography.body.xs
-                                            .copyWith(
-                                              color:
-                                                  theme.colors.mutedForeground,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            // 标题
-                            if (post.title.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: Text(
-                                  post.title,
-                                  style: theme.typography.display.sm,
+                                    ),
+                                  ],
                                 ),
                               ),
-                            // 正文
-                            Text(post.content, style: theme.typography.body.lg),
-                            // 图片
-                            if (post.images.isNotEmpty) ...[
                               const SizedBox(height: 16),
-                              ...post.images.map(
-                                (url) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: ClipRRect(
-                                    borderRadius: theme.style.borderRadius.md,
-                                    child: CachedNetworkImage(
-                                      imageUrl: url,
-                                      width: double.infinity,
-                                      fit: BoxFit.fitWidth,
+                              // 正文
+                              Text(
+                                post.content,
+                                style: theme.typography.body.lg,
+                              ),
+                              // 图片
+                              if (post.images.isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                ...post.images.map(
+                                  (url) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: ClipRRect(
+                                      borderRadius: theme.style.borderRadius.md,
+                                      child: CachedNetworkImage(
+                                        imageUrl: url,
+                                        width: double.infinity,
+                                        fit: BoxFit.fitWidth,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                            ],
-                            // 标签
-                            if (post.tags.isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              Wrap(
-                                spacing: 6,
-                                children: post.tags
-                                    .map((tag) => AppTagBadge(label: tag))
-                                    .toList(),
-                              ),
-                            ],
-                            const SizedBox(height: 16),
-                            // 操作栏
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _actionButton(
-                                  icon: FLucideIcons.thumbsUp,
-                                  label: '$likeCount',
-                                  active: isLiked,
-                                  onTap: () => _toggleLike(post),
-                                ),
-                                _actionButton(
-                                  icon: FLucideIcons.bookmark,
-                                  label: '$favCount',
-                                  active: isFavorited,
-                                  onTap: () => _toggleFavorite(post),
-                                ),
-                                _actionButton(
-                                  icon: FLucideIcons.messageCircle,
-                                  label: '${post.commentCount}',
-                                  onTap: () {},
-                                ),
-                                _actionButton(
-                                  icon: FLucideIcons.eye,
-                                  label: '${post.viewCount}',
-                                  onTap: () {},
                                 ),
                               ],
-                            ),
-                            if (ref
-                                .watch(authNotifierProvider)
-                                .isAuthenticated) ...[
-                              const SizedBox(height: 12),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  FButton(
-                                    key: const Key('post-watch-author'),
-                                    variant: .outline,
-                                    size: .sm,
-                                    onPress: () => _createWatch(
-                                      conditionType: 'author_new_post',
-                                      targetType: 'author',
-                                      targetId: post.authorId,
+                              // 标签
+                              if (post.tags.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 6,
+                                  children: post.tags
+                                      .map((tag) => AppTagBadge(label: tag))
+                                      .toList(),
+                                ),
+                              ],
+                              const SizedBox(height: 16),
+                              Text(
+                                '${post.viewCount} 次浏览',
+                                style: theme.typography.body.xs.copyWith(
+                                  color: theme.colors.mutedForeground,
+                                ),
+                              ),
+                              if (ref
+                                  .watch(authNotifierProvider)
+                                  .isAuthenticated) ...[
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    FButton(
+                                      key: const Key('post-watch-author'),
+                                      variant: .outline,
+                                      size: .sm,
+                                      onPress: () => _createWatch(
+                                        conditionType: 'author_new_post',
+                                        targetType: 'author',
+                                        targetId: post.authorId,
+                                      ),
+                                      child: const Text('盯作者'),
                                     ),
-                                    child: const Text('盯作者'),
-                                  ),
-                                  FButton(
-                                    key: const Key('post-watch-revision'),
-                                    variant: .outline,
-                                    size: .sm,
-                                    onPress: () => _createWatch(
-                                      conditionType: 'post_revised',
-                                      targetType: 'post',
-                                      targetId: post.id,
+                                    FButton(
+                                      key: const Key('post-watch-revision'),
+                                      variant: .outline,
+                                      size: .sm,
+                                      onPress: () => _createWatch(
+                                        conditionType: 'post_revised',
+                                        targetType: 'post',
+                                        targetId: post.id,
+                                      ),
+                                      child: const Text('盯本帖修订'),
                                     ),
-                                    child: const Text('盯本帖修订'),
-                                  ),
-                                ],
+                                  ],
+                                ),
+                              ],
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: FDivider(),
                               ),
                             ],
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16),
-                              child: FDivider(),
-                            ),
                             // 评论区标题
                             Row(
                               children: [
@@ -549,6 +538,31 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
               CommentInput(
                 replyTo: comments.replyToUser,
                 onSubmit: _submitComment,
+                actions: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _actionButton(
+                      icon: FLucideIcons.thumbsUp,
+                      label: '$likeCount',
+                      name: '点赞',
+                      active: isLiked,
+                      onTap: () => _toggleLike(post),
+                    ),
+                    _actionButton(
+                      icon: FLucideIcons.star,
+                      label: '$favCount',
+                      name: '收藏',
+                      active: isFavorited,
+                      onTap: () => _toggleFavorite(post),
+                    ),
+                    _actionButton(
+                      icon: FLucideIcons.messageSquare,
+                      label: '${post.commentCount}',
+                      name: '查看评论',
+                      onTap: () => _selectSection(true),
+                    ),
+                  ],
+                ),
               ),
             ],
           );
@@ -560,50 +574,68 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   Widget _actionButton({
     required IconData icon,
     required String label,
+    required String name,
     bool active = false,
     required VoidCallback onTap,
   }) {
     final theme = context.theme;
     final color = active ? theme.colors.primary : theme.colors.mutedForeground;
     return FTappable(
+      key: ValueKey('post-action-$name'),
       onPress: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
+      semanticsLabel: '$name $label',
+      child: SizedBox(
+        width: 44,
+        height: 48,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(width: 4),
-            Text(label, style: theme.typography.body.sm.copyWith(color: color)),
+            Icon(icon, size: 22, color: color),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.typography.body.xs.copyWith(color: color),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
-}
 
-class _ForuiHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final double extent;
-  final Widget child;
-
-  const _ForuiHeaderDelegate({required this.extent, required this.child});
-
-  @override
-  double get minExtent => extent;
-
-  @override
-  double get maxExtent => extent;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return ColoredBox(color: context.theme.colors.background, child: child);
-  }
-
-  @override
-  bool shouldRebuild(covariant _ForuiHeaderDelegate oldDelegate) {
-    return extent != oldDelegate.extent || child != oldDelegate.child;
+  Widget _sectionTab(String label, bool commentsOnly) {
+    final selected = _commentsOnly == commentsOnly;
+    return Semantics(
+      selected: selected,
+      child: FTappable(
+        onPress: () => _selectSection(commentsOnly),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          alignment: Alignment.center,
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                width: 2,
+                color: selected
+                    ? context.theme.colors.foreground
+                    : const Color(0x00000000),
+              ),
+            ),
+          ),
+          child: Text(
+            label,
+            style: context.theme.typography.body.lg.copyWith(
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              color: selected
+                  ? context.theme.colors.foreground
+                  : context.theme.colors.mutedForeground,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

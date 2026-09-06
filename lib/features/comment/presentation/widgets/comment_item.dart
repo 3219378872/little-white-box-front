@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
 import '../../../../core/formatters/time_formatter.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/cached_avatar.dart';
 import '../../../../sdk/data/gateway.dart';
 
@@ -41,63 +42,61 @@ class CommentItemWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.theme.colors;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildComment(context, comment, isReply: false),
-          if (replyCount > 0 || replies.isNotEmpty) ...[
+          _buildComment(context, comment),
+          if (replyCount > 0 || replies.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(left: 48),
-              child: FTappable(
-                onPress: onToggleReplies,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      expanded
-                          ? FLucideIcons.chevronUp
-                          : FLucideIcons.chevronDown,
-                      size: 14,
-                      color: colors.mutedForeground,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      expanded ? '收起回复' : '共 $replyCount 条回复',
-                      style: context.theme.typography.body.xs.copyWith(
-                        color: colors.mutedForeground,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          if (expanded && replies.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(left: 48, top: 4),
+              padding: const EdgeInsets.only(left: 44, top: 8, bottom: 12),
               child: Container(
                 decoration: BoxDecoration(
-                  color: colors.secondary.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(8),
+                  color: colors.muted,
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 padding: const EdgeInsets.all(8),
                 child: Column(
                   children: [
-                    ...replies.map(
-                      (r) => _buildComment(
-                        context,
-                        r,
-                        isReply: true,
-                        onReply: () => onReplyToReply?.call(r),
+                    for (final reply in expanded ? replies : replies.take(2))
+                      FTappable(
+                        onPress: onReplyToReply == null
+                            ? null
+                            : () => onReplyToReply!(reply),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: '${reply.userName}: ',
+                                    style: TextStyle(
+                                      color:
+                                          colors.brightness == Brightness.dark
+                                          ? colors.foreground
+                                          : AppTheme.link,
+                                    ),
+                                  ),
+                                  TextSpan(text: reply.content),
+                                ],
+                              ),
+                              style: context.theme.typography.body.sm,
+                              maxLines: expanded ? null : 3,
+                              overflow: expanded
+                                  ? TextOverflow.visible
+                                  : TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
                     if (loadingReplies)
                       const Padding(
                         padding: EdgeInsets.all(8),
                         child: FCircularProgress(size: .xs),
                       )
-                    else if (hasMoreReplies)
+                    else if (expanded && hasMoreReplies)
                       FTappable(
                         onPress: onLoadMoreReplies,
                         child: Text(
@@ -107,6 +106,32 @@ class CommentItemWidget extends StatelessWidget {
                           ),
                         ),
                       ),
+                    FTappable(
+                      onPress: onToggleReplies,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 40),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                expanded ? '收起回复' : '共 $replyCount 条回复',
+                                style: context.theme.typography.body.sm
+                                    .copyWith(color: colors.mutedForeground),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              expanded
+                                  ? FLucideIcons.chevronUp
+                                  : FLucideIcons.chevronDown,
+                              size: 14,
+                              color: colors.mutedForeground,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -117,87 +142,79 @@ class CommentItemWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildComment(
-    BuildContext context,
-    CommentItem item, {
-    required bool isReply,
-    VoidCallback? onReply,
-  }) {
+  Widget _buildComment(BuildContext context, CommentItem item) {
     final theme = context.theme;
     final muted = theme.colors.mutedForeground;
-    return Padding(
-      padding: EdgeInsets.only(bottom: isReply ? 8 : 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CachedAvatar(
-            url: item.userAvatar,
-            name: item.userName,
-            radius: isReply ? 12 : 16,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CachedAvatar(url: item.userAvatar, name: item.userName, radius: 18),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
                       item.userName,
                       style: theme.typography.body.sm.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const Spacer(),
-                    Text(
-                      formatRelativeTime(item.createdAt),
-                      style: theme.typography.body.xs.copyWith(color: muted),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(item.content, style: theme.typography.body.sm),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    FTappable(
-                      onPress: isReply ? null : onLike,
-                      child: Row(
-                        children: [
-                          Icon(FLucideIcons.thumbsUp, size: 14, color: muted),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${item.likeCount}',
-                            style: theme.typography.body.xs.copyWith(
-                              color: muted,
-                            ),
+                  ),
+                  const SizedBox(width: 8),
+                  FTappable(
+                    onPress: onLike,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(FLucideIcons.thumbsUp, size: 16, color: muted),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${item.likeCount}',
+                          style: theme.typography.body.xs.copyWith(
+                            color: muted,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 16),
-                    FTappable(
-                      onPress: onReply ?? (isReply ? null : this.onReply),
-                      child: Row(
-                        children: [
-                          Icon(FLucideIcons.reply, size: 14, color: muted),
-                          const SizedBox(width: 4),
-                          Text(
-                            '回复',
-                            style: theme.typography.body.xs.copyWith(
-                              color: muted,
-                            ),
+                  ),
+                ],
+              ),
+              Text(
+                formatRelativeTime(item.createdAt),
+                style: theme.typography.body.xs.copyWith(color: muted),
+              ),
+              const SizedBox(height: 8),
+              Text(item.content, style: theme.typography.body.md),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  FTappable(
+                    onPress: onReply,
+                    child: Row(
+                      children: [
+                        Icon(FLucideIcons.reply, size: 14, color: muted),
+                        const SizedBox(width: 4),
+                        Text(
+                          '回复',
+                          style: theme.typography.body.xs.copyWith(
+                            color: muted,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

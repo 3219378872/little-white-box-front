@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/forui_pull_to_refresh.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../auth/application/auth_notifier.dart';
@@ -19,28 +20,76 @@ class FeedPage extends ConsumerStatefulWidget {
 }
 
 class _FeedPageState extends ConsumerState<FeedPage> {
-  int _selectedTab = 0;
+  int _selectedTab = 1;
 
   @override
   Widget build(BuildContext context) {
-    return FTabs(
-      control: FTabControl.managed(
-        onChange: (index) => setState(() => _selectedTab = index),
-      ),
-      expands: true,
-      contentPhysics: const BouncingScrollPhysics(),
+    final showTools =
+        MediaQuery.sizeOf(context).width < context.theme.breakpoints.lg;
+    return Stack(
       children: [
-        FTabEntry(
-          label: const Text('推荐'),
-          child: _FeedContent(
-            kind: FeedKind.recommend,
-            active: _selectedTab == 0,
+        FTabs(
+          scrollable: true,
+          style: FTabsStyleDelta.delta(
+            padding: EdgeInsetsGeometryDelta.value(
+              EdgeInsets.only(right: showTools ? 100 : 0),
+            ),
+            minHeight: 56,
+            indicatorDecoration: const DecorationDelta.value(BoxDecoration()),
+            labelTextStyle: FVariants.from(
+              context.theme.typography.body.xl.copyWith(
+                color: context.theme.colors.mutedForeground,
+              ),
+              variants: {
+                [FTabVariant.selected]: TextStyleDelta.delta(
+                  fontWeight: FontWeight.w700,
+                  color: context.theme.colors.foreground,
+                ),
+              },
+            ),
           ),
+          control: FTabControl.managed(
+            initial: 1,
+            onChange: (index) => setState(() => _selectedTab = index),
+          ),
+          expands: true,
+          contentPhysics: const BouncingScrollPhysics(),
+          children: [
+            FTabEntry(
+              label: const Text('关注'),
+              child: _FeedContent(
+                kind: FeedKind.follow,
+                active: _selectedTab == 0,
+              ),
+            ),
+            FTabEntry(
+              label: const Text('推荐'),
+              child: _FeedContent(
+                kind: FeedKind.recommend,
+                active: _selectedTab == 1,
+              ),
+            ),
+          ],
         ),
-        FTabEntry(
-          label: const Text('关注'),
-          child: _FeedContent(kind: FeedKind.follow, active: _selectedTab == 1),
-        ),
+        if (showTools)
+          Positioned(
+            top: 4,
+            right: 8,
+            child: Row(
+              children: [
+                AppIconButton(
+                  icon: FLucideIcons.search,
+                  label: '搜索',
+                  onPress: () => context.go('/search'),
+                ),
+                AppIconButton(
+                  icon: FLucideIcons.mail,
+                  label: '消息',
+                  onPress: () => context.go('/messages'),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -112,8 +161,6 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
       );
     }
 
-    final isDesktop =
-        MediaQuery.sizeOf(context).width >= context.theme.breakpoints.lg;
     final showFooter = _showFeedFooter(feedState);
     return ForuiPullToRefresh(
       onRefresh: notifier.refresh,
@@ -121,45 +168,19 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
         onNotification: _handleScrollMetrics,
         child: NotificationListener<ScrollNotification>(
           onNotification: _handleScrollNotification,
-          child: isDesktop
-              ? ListView.builder(
-                  key: PageStorageKey('feed-grid-${widget.kind.name}'),
-                  primary: false,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 80),
-                  itemCount:
-                      (feedState.entries.length + 1) ~/ 2 + (showFooter ? 1 : 0),
-                  itemBuilder: (context, row) {
-                    final start = row * 2;
-                    if (start >= feedState.entries.length) {
-                      return _feedFooter(feedState, notifier);
-                    }
-                    final left = _feedItem(feedState, start);
-                    final right = start + 1 < feedState.entries.length
-                        ? _feedItem(feedState, start + 1)
-                        : const SizedBox.shrink();
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: left),
-                        Expanded(child: right),
-                      ],
-                    );
-                  },
-                )
-              : ListView.builder(
-                  key: PageStorageKey('feed-${widget.kind.name}'),
-                  primary: false,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.only(top: 8, bottom: 80),
-                  itemCount: feedState.entries.length + (showFooter ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index >= feedState.entries.length) {
-                      return _feedFooter(feedState, notifier);
-                    }
-                    return _feedItem(feedState, index);
-                  },
-                ),
+          child: ListView.builder(
+            key: PageStorageKey('feed-${widget.kind.name}'),
+            primary: false,
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 24),
+            itemCount: feedState.entries.length + (showFooter ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index >= feedState.entries.length) {
+                return _feedFooter(feedState, notifier);
+              }
+              return _feedItem(feedState, index);
+            },
+          ),
         ),
       ),
     );

@@ -215,35 +215,47 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
                   child: Column(
                     children: [
-                      CachedAvatar(
-                        url: user.avatarUrl,
-                        name: user.nickname.isNotEmpty
-                            ? user.nickname
-                            : user.username,
-                        radius: 28,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        user.nickname.isNotEmpty
-                            ? user.nickname
-                            : user.username,
-                        style: theme.typography.display.sm.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (user.bio.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          user.bio,
-                          style: theme.typography.body.sm.copyWith(
-                            color: theme.colors.mutedForeground,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CachedAvatar(
+                            url: user.avatarUrl,
+                            name: user.nickname.isNotEmpty
+                                ? user.nickname
+                                : user.username,
+                            radius: 30,
                           ),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  user.nickname.isNotEmpty
+                                      ? user.nickname
+                                      : user.username,
+                                  style: theme.typography.display.md,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (user.bio.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    user.bio,
+                                    style: theme.typography.body.sm.copyWith(
+                                      color: theme.colors.mutedForeground,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
@@ -254,31 +266,24 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                       ),
                       const SizedBox(height: 16),
                       if (widget.isOwnProfile) ...[
-                        FButton(
-                          variant: .outline,
-                          mainAxisSize: MainAxisSize.min,
-                          onPress: () => context.push('/profile/edit'),
-                          child: const Text('编辑资料'),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          alignment: WrapAlignment.center,
+                        Row(
                           children: [
-                            FButton(
-                              variant: .ghost,
-                              size: .sm,
-                              onPress: () =>
-                                  context.push('/messages/assistant/memory'),
-                              child: const Text('记忆'),
+                            _shortcut(
+                              FLucideIcons.userRoundPen,
+                              '编辑资料',
+                              '/profile/edit',
                             ),
-                            FButton(
-                              variant: .ghost,
-                              size: .sm,
-                              onPress: () =>
-                                  context.push('/messages/assistant/watch'),
-                              child: const Text('追踪'),
+                            const SizedBox(width: 8),
+                            _shortcut(
+                              FLucideIcons.notebook,
+                              '记忆',
+                              '/messages/assistant/memory',
+                            ),
+                            const SizedBox(width: 8),
+                            _shortcut(
+                              FLucideIcons.radar,
+                              '追踪',
+                              '/messages/assistant/watch',
                             ),
                           ],
                         ),
@@ -286,7 +291,6 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                           const SizedBox(height: 16),
                           FSwitch(
                             label: const Text('个性化推荐'),
-                            description: const Text('关闭后不再用你的行为做个性化'),
                             value: _personalizationEnabled!,
                             enabled: !_personalizationBusy,
                             onChange: _setPersonalization,
@@ -374,7 +378,9 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
       children: [
         Text(
           '$count',
-          style: theme.typography.body.md.copyWith(fontWeight: FontWeight.bold),
+          style: theme.typography.display.lg.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
         ),
         Text(
           label,
@@ -385,4 +391,19 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
       ],
     );
   }
+
+  Widget _shortcut(IconData icon, String label, String route) => Expanded(
+    child: FButton(
+      variant: FButtonVariant.secondary,
+      onPress: () => context.push(route),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 22),
+          const SizedBox(height: 8),
+          Text(label, textAlign: TextAlign.center),
+        ],
+      ),
+    ),
+  );
 }

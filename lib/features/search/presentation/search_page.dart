@@ -41,16 +41,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   void _openPost(Object id) {
     final callback = widget.onOpenPost;
-    callback == null
-        ? context.push('/post/${jsonInt64Id(id)}')
-        : callback(id);
+    callback == null ? context.push('/post/${jsonInt64Id(id)}') : callback(id);
   }
 
   void _openUser(Object id) {
     final callback = widget.onOpenUser;
-    callback == null
-        ? context.push('/user/${jsonInt64Id(id)}')
-        : callback(id);
+    callback == null ? context.push('/user/${jsonInt64Id(id)}') : callback(id);
   }
 
   @override
@@ -58,26 +54,27 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final state = ref.watch(searchNotifierProvider);
     return Column(
       children: [
-        const FHeader(title: Text('搜索')),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
-                child: FTextField(
-                  control: FTextFieldControl.managed(controller: _controller),
-                  label: const Text('搜索内容'),
-                  hint: '输入关键词',
-                  textInputAction: TextInputAction.search,
-                  onSubmit: _submit,
-                  prefixBuilder: (context, style, variants) =>
-                      FTextField.prefixIconBuilder(
-                        context,
-                        style,
-                        variants,
-                        const Icon(FLucideIcons.search),
-                      ),
+                child: Semantics(
+                  label: '搜索词',
+                  child: FTextField(
+                    control: FTextFieldControl.managed(controller: _controller),
+                    hint: '搜索内容',
+                    textInputAction: TextInputAction.search,
+                    onSubmit: _submit,
+                    prefixBuilder: (context, style, variants) =>
+                        FTextField.prefixIconBuilder(
+                          context,
+                          style,
+                          variants,
+                          const Icon(FLucideIcons.search),
+                        ),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -90,7 +87,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: FTabs(
             control: FTabControl.lifted(
               index: state.scope.index,
@@ -111,10 +108,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   Widget _buildBody(SearchState state) {
     return switch (state.phase) {
-      SearchPhase.idle => const EmptyView(
-        message: '搜索帖子、用户或标签',
-        icon: FLucideIcons.search,
-      ),
+      SearchPhase.idle => const SizedBox.shrink(),
       SearchPhase.loading => const Center(child: FCircularProgress()),
       SearchPhase.failure => ErrorView(
         message: state.error ?? '搜索失败',
@@ -204,7 +198,7 @@ class _SearchResultList extends StatelessWidget {
       children.addAll(results.tags.map(_tag));
     }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
       children: children,
     );
   }
@@ -228,21 +222,71 @@ class _SearchResultList extends StatelessWidget {
     final avatar = CachedAvatar(
       url: post.authorAvatar,
       name: post.displayAuthor,
-      radius: 20,
+      radius: 10,
     );
-    return FItem(
-      prefix: jsonInt64IsPositive(post.authorId)
-          ? FTappable(onPress: () => onOpenUser(post.authorId), child: avatar)
-          : avatar,
-      title: Text(post.title.isEmpty ? '未命名帖子' : post.title),
-      subtitle: Text(
-        [post.displayAuthor, if (highlight.isNotEmpty) highlight].join(' · '),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      details: Text('${post.likeCount} 赞 · ${post.commentCount} 评论'),
-      suffix: const Icon(FLucideIcons.chevronRight),
+    final theme = context.theme;
+    return FTappable(
       onPress: () => onOpenPost(post.id),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: theme.colors.border)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FTappable(
+              onPress: jsonInt64IsPositive(post.authorId)
+                  ? () => onOpenUser(post.authorId)
+                  : null,
+              child: Row(
+                children: [
+                  avatar,
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      post.displayAuthor,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.typography.body.xs.copyWith(
+                        color: theme.colors.mutedForeground,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              post.title.isEmpty ? '未命名帖子' : post.title,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: theme.typography.body.lg.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (highlight.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                highlight,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.typography.body.md,
+              ),
+            ],
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '${post.likeCount} 赞 · ${post.commentCount} 评论',
+                style: theme.typography.body.xs.copyWith(
+                  color: theme.colors.mutedForeground,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -253,8 +297,16 @@ class _SearchResultList extends StatelessWidget {
         name: user.displayName,
         radius: 20,
       ),
-      title: Text(user.displayName),
-      subtitle: user.bio.isEmpty ? Text('@${user.username}') : Text(user.bio),
+      title: Text(
+        user.displayName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        user.bio.isEmpty ? '@${user.username}' : user.bio,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
       details: Text('${user.followerCount} 关注者'),
       suffix: const Icon(FLucideIcons.chevronRight),
       onPress: () => onOpenUser(user.id),

@@ -46,7 +46,7 @@ void main() {
       routes: [
         ShellRoute(
           builder: (context, state, child) =>
-              MainShell(location: state.matchedLocation, child: child),
+              MainShell(location: state.uri.path, child: child),
           routes: [
             GoRoute(path: '/feed', builder: (_, _) => const FeedPage()),
             GoRoute(
@@ -119,7 +119,7 @@ void main() {
 
     expect(find.text('首页'), findsOneWidget);
     expect(find.text('搜索'), findsOneWidget);
-    expect(find.text('发布'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp(r'^发布')), findsOneWidget);
     expect(find.text('消息'), findsOneWidget);
     expect(find.text('我的'), findsOneWidget);
     expect(find.text('Assistant'), findsNothing);
@@ -138,6 +138,14 @@ void main() {
 
     expect(find.byType(FBottomNavigationBar), findsNothing);
     expect(find.byType(FSidebar), findsOneWidget);
+  });
+
+  testWidgets('feed clears the Android status bar inset', (tester) async {
+    tester.view.padding = const FakeViewPadding(top: 28, bottom: 20);
+    addTearDown(tester.view.resetPadding);
+    await pumpShell(tester, location: '/feed', width: 390);
+    expect(tester.getTopLeft(find.byType(FeedPage)).dy, 28);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('uses the tablet content width without stretching the feed', (
@@ -262,6 +270,24 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('push hides mobile navigation and pop restores it', (
+    tester,
+  ) async {
+    final router = await pumpShell(tester, location: '/feed', width: 390);
+    expect(find.byType(FBottomNavigationBar), findsOneWidget);
+
+    router.push<void>('/post/1');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(FBottomNavigationBar), findsNothing);
+
+    router.pop();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(FBottomNavigationBar), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'opens Assistant from messages without retaining mobile navigation',
     (tester) async {
@@ -342,7 +368,7 @@ void main() {
     );
     expect(
       tester.getRect(find.byType(FeedPage)),
-      const Rect.fromLTWH(264, 0, 992, 900),
+      const Rect.fromLTWH(400, 0, 720, 900),
     );
     expect(
       Directionality.of(tester.element(find.text('首页'))),

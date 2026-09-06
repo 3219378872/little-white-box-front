@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
@@ -108,10 +109,10 @@ void main() {
     expect(find.text('Hello World'), findsOneWidget);
     expect(find.text('42'), findsOneWidget);
     expect(find.text('5'), findsOneWidget);
-    expect(find.text('100'), findsOneWidget);
+    expect(find.byType(FCard), findsNothing);
   });
 
-  testWidgets('PostCard shows image count overlay for multiple images', (
+  testWidgets('PostCard renders three individual image previews', (
     tester,
   ) async {
     final imagePost = PostItem(
@@ -142,7 +143,8 @@ void main() {
       ),
     );
 
-    expect(find.text('+2'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('3 张图片')), findsWidgets);
+    expect(find.text('+2'), findsNothing);
   });
 
   testWidgets('likes and unlikes without opening the post', (tester) async {

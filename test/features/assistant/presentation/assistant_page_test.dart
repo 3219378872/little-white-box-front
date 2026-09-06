@@ -61,14 +61,16 @@ void main() {
           .onPress,
       isNull,
     );
+    await tester.tap(find.byKey(const Key('assistant-menu')));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(
       tester
-          .widget<FHeaderAction>(
-            find.byKey(const Key('assistant-clear-history')),
-          )
+          .widget<FItem>(find.byKey(const Key('assistant-clear-history')))
           .onPress,
       isNull,
     );
+    await tester.tap(find.byKey(const Key('assistant-menu')));
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byKey(const Key('assistant-send-or-stop')));
     await tester.pump();
     expect(source.postedRequestIds, isEmpty);
@@ -78,11 +80,11 @@ void main() {
 
     expect(find.byKey(const Key('assistant-initial-loading')), findsNothing);
     expect(find.byKey(const Key('assistant-empty')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('assistant-menu')));
+    await tester.pumpAndSettle();
     expect(
       tester
-          .widget<FHeaderAction>(
-            find.byKey(const Key('assistant-clear-history')),
-          )
+          .widget<FItem>(find.byKey(const Key('assistant-clear-history')))
           .onPress,
       isNotNull,
     );
@@ -706,6 +708,8 @@ void main() {
     await tester.pump();
     await tester.pump();
 
+    await tester.tap(find.byKey(const Key('assistant-menu')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('assistant-revoke-consent')), findsOneWidget);
     source.consentError = const ApiException('revoke failed');
     await tester.tap(find.byKey(const Key('assistant-revoke-consent')));
@@ -713,6 +717,8 @@ void main() {
     await tester.tap(find.byKey(const Key('assistant-confirm-revoke-consent')));
     await tester.pumpAndSettle();
     expect(source.granted, isTrue);
+    await tester.tap(find.byKey(const Key('assistant-menu')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('assistant-revoke-consent')), findsOneWidget);
 
     source.consentError = null;
@@ -721,6 +727,8 @@ void main() {
     await tester.tap(find.byKey(const Key('assistant-confirm-revoke-consent')));
     await tester.pumpAndSettle();
     expect(source.granted, isFalse);
+    await tester.tap(find.byKey(const Key('assistant-menu')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('assistant-revoke-consent')), findsNothing);
   });
 
@@ -971,6 +979,8 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
+    await tester.tap(find.byKey(const Key('assistant-menu')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('assistant-clear-history')), findsOneWidget);
     expect(find.byKey(const Key('assistant-new-session')), findsNothing);
   });

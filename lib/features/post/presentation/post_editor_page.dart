@@ -9,6 +9,7 @@ import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/error_codes.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/api/idempotency.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_dialog.dart';
 import '../../../core/widgets/app_tag_badge.dart';
 import '../../../core/widgets/app_toast.dart';
@@ -271,7 +272,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
     return FScaffold(
       childPad: false,
       header: FHeader.nested(
-        title: Text(_isEditMode ? '编辑帖子' : '发布帖子'),
+        title: Text(_isEditMode ? '编辑帖子' : '发帖'),
         prefixes: [
           FHeaderAction.back(
             onPress: () =>
@@ -300,22 +301,32 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
       child: !_isInitialized
           ? const Center(child: FCircularProgress())
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
               children: [
-                FTextField(
-                  control: FTextFieldControl.managed(controller: _titleCtrl),
-                  label: const Text('标题'),
-                  hint: '请输入标题（最多$_maxTitleLength字）',
-                  maxLength: _maxTitleLength,
+                Semantics(
+                  label: '帖子标题',
+                  child: FTextField.multiline(
+                    control: FTextFieldControl.managed(controller: _titleCtrl),
+                    style: AppTheme.editorField(context, title: true),
+                    hint: '标题',
+                    minLines: 1,
+                    maxLines: 3,
+                    maxLength: _maxTitleLength,
+                  ),
                 ),
-                const SizedBox(height: 16),
-                FTextField.multiline(
-                  control: FTextFieldControl.managed(controller: _contentCtrl),
-                  label: const Text('内容'),
-                  hint: '分享你的想法...',
-                  minLines: 8,
-                  maxLines: 8,
-                  maxLength: _maxContentLength,
+                const FDivider(),
+                Semantics(
+                  label: '正文',
+                  child: FTextField.multiline(
+                    control: FTextFieldControl.managed(
+                      controller: _contentCtrl,
+                    ),
+                    style: AppTheme.editorField(context),
+                    hint: '分享你的想法...',
+                    minLines: 8,
+                    maxLines: 20,
+                    maxLength: _maxContentLength,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 // 标签
@@ -323,13 +334,16 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(
-                      child: FTextField(
-                        control: FTextFieldControl.managed(
-                          controller: _tagCtrl,
+                      child: Semantics(
+                        label: '帖子标签',
+                        child: FTextField(
+                          control: FTextFieldControl.managed(
+                            controller: _tagCtrl,
+                          ),
+                          hint: '标签',
+                          maxLength: _maxTagLength,
+                          onSubmit: (_) => _addTag(),
                         ),
-                        label: const Text('添加标签'),
-                        hint: '输入标签后点击添加',
-                        onSubmit: (_) => _addTag(),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -358,7 +372,24 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                   ),
                 ],
                 const SizedBox(height: 16),
-                Text('图片', style: theme.typography.body.md),
+                Row(
+                  children: [
+                    Icon(
+                      FLucideIcons.images,
+                      size: 18,
+                      color: theme.colors.mutedForeground,
+                    ),
+                    const SizedBox(width: 8),
+                    Text('图片', style: theme.typography.body.sm),
+                    const Spacer(),
+                    Text(
+                      '${_networkImages.length + _localImages.length}/9',
+                      style: theme.typography.body.xs.copyWith(
+                        color: theme.colors.mutedForeground,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
                 ImagePickerGrid(
                   networkImages: _networkImages,

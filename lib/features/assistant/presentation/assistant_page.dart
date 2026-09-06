@@ -393,7 +393,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
       }
       return const EmptyView(
         key: Key('assistant-empty'),
-        message: '开始新的对话',
+        message: '暂无消息',
         icon: FLucideIcons.sparkles,
       );
     }
@@ -472,16 +472,22 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
 
     return FScaffold(
       childPad: false,
-      header: FHeader(
-        title: const Text('小白盒 Agent'),
+      header: FHeader.nested(
+        title: Text(
+          '小白盒 Agent',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.theme.typography.body.md.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        prefixes: [
+          FHeaderAction.back(
+            onPress: () =>
+                context.canPop() ? context.pop() : context.go('/messages'),
+          ),
+        ],
         suffixes: [
-          if (consent.loaded && consent.granted)
-            FHeaderAction(
-              key: const Key('assistant-revoke-consent'),
-              icon: const Icon(FLucideIcons.shieldOff),
-              semanticsLabel: '撤销 Agent 授权',
-              onPress: _revokeAuthorization,
-            ),
           FHeaderAction(
             icon: const Icon(FLucideIcons.brain),
             semanticsLabel: '记忆',
@@ -492,16 +498,47 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
             semanticsLabel: '追踪',
             onPress: () => context.push('/messages/assistant/watch'),
           ),
-          FHeaderAction(
-            key: const Key('assistant-clear-history'),
-            icon: const Icon(FLucideIcons.trash2),
-            semanticsLabel: '清除历史',
-            onPress:
-                !state.isLoaded || state.isLoadingHistory || state.isSending
-                ? null
-                : () => ref
-                      .read(assistantNotifierProvider.notifier)
-                      .clearHistory(),
+          FPopoverMenu(
+            menuAnchor: Alignment.topRight,
+            childAnchor: Alignment.bottomRight,
+            menuBuilder: (context, controller, _) => [
+              FItemGroup(
+                children: [
+                  FItem(
+                    key: const Key('assistant-clear-history'),
+                    prefix: const Icon(FLucideIcons.trash2),
+                    title: const Text('清除历史'),
+                    onPress:
+                        !state.isLoaded ||
+                            state.isLoadingHistory ||
+                            state.isSending
+                        ? null
+                        : () {
+                            controller.hide();
+                            ref
+                                .read(assistantNotifierProvider.notifier)
+                                .clearHistory();
+                          },
+                  ),
+                  if (consent.loaded && consent.granted)
+                    FItem(
+                      key: const Key('assistant-revoke-consent'),
+                      prefix: const Icon(FLucideIcons.shieldOff),
+                      title: const Text('撤销 Agent 授权'),
+                      onPress: () {
+                        controller.hide();
+                        _revokeAuthorization();
+                      },
+                    ),
+                ],
+              ),
+            ],
+            builder: (context, controller, _) => FHeaderAction(
+              key: const Key('assistant-menu'),
+              icon: const Icon(FLucideIcons.ellipsis),
+              semanticsLabel: '更多操作',
+              onPress: controller.toggle,
+            ),
           ),
         ],
       ),
@@ -616,15 +653,17 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
                       ),
                       const SizedBox(width: 4),
                       Expanded(
-                        child: FTextField.multiline(
-                          control: FTextFieldControl.managed(
-                            controller: _controller,
+                        child: Semantics(
+                          label: '消息',
+                          child: FTextField.multiline(
+                            control: FTextFieldControl.managed(
+                              controller: _controller,
+                            ),
+                            hint: '输入消息',
+                            minLines: 1,
+                            maxLines: 5,
+                            maxLength: 2000,
                           ),
-                          label: const Text('消息'),
-                          hint: '输入消息',
-                          minLines: 1,
-                          maxLines: 5,
-                          maxLength: 2000,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -805,10 +844,12 @@ class _AssistantMessageBubble extends StatelessWidget {
                   : message.role == AssistantMessageRole.system
                   ? theme.colors.muted
                   : const Color(0x00000000),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(4),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: own
+                  ? const EdgeInsets.all(12)
+                  : const EdgeInsets.symmetric(vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

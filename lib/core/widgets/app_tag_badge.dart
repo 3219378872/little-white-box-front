@@ -11,7 +11,7 @@ class AppTagBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final horizontalPadding = context.platformVariant.touch ? 12.0 : 10.0;
+    const horizontalPadding = 6.0;
     final labelStyle = theme.typography.body.xs.copyWith(
       color: theme.colors.secondaryForeground,
       fontWeight: FontWeight.w500,
@@ -21,20 +21,27 @@ class AppTagBadge extends StatelessWidget {
       decoration: ShapeDecoration(
         color: theme.colors.secondary,
         shape: RoundedSuperellipseBorder(
-          borderRadius: theme.style.borderRadius.pill,
+          borderRadius: theme.style.borderRadius.xs2,
         ),
       ),
       child: Padding(
         padding: EdgeInsetsDirectional.fromSTEB(
           horizontalPadding,
-          6,
+          3,
           onRemove == null ? horizontalPadding : 6,
-          6,
+          3,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label, softWrap: false, style: labelStyle),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: labelStyle,
+              ),
+            ),
             if (onRemove != null) ...[
               const SizedBox(width: 4),
               FTappable(

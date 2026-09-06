@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/error_view.dart';
 import '../application/assistant_notifier.dart';
 import '../application/memory_notifier.dart';
@@ -113,9 +114,9 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
                     icon: FLucideIcons.brain,
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                    padding: const EdgeInsets.only(top: 12, bottom: 24),
                     itemCount: state.items.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    separatorBuilder: (_, _) => const FDivider(),
                     itemBuilder: (context, index) {
                       final item = state.items[index];
                       return _MemoryTile(
@@ -396,10 +397,7 @@ class _MemoryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colors.secondary,
-        borderRadius: theme.style.borderRadius.md,
-      ),
+      decoration: BoxDecoration(color: theme.colors.background),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -427,17 +425,15 @@ class _MemoryTile extends StatelessWidget {
               Wrap(
                 spacing: 6,
                 children: [
-                  FButton(
-                    variant: .ghost,
-                    size: .sm,
+                  AppIconButton(
+                    icon: FLucideIcons.pencil,
+                    label: '修改',
                     onPress: onEdit,
-                    child: const Text('修改'),
                   ),
-                  FButton(
-                    variant: .ghost,
-                    size: .sm,
+                  AppIconButton(
+                    icon: FLucideIcons.trash2,
+                    label: '删除',
                     onPress: onDelete,
-                    child: const Text('删除'),
                   ),
                 ],
               ),

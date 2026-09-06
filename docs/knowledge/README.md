@@ -2,7 +2,7 @@
 title: 小白盒前端知识总路由
 status: active
 owner: human
-updated_at: 2026-08-13
+updated_at: 2026-09-06
 ---
 
 # 五层知识总路由
@@ -34,6 +34,11 @@ updated_at: 2026-08-13
 当前 `INT-content-community-client`、`SPEC-client-experience` 和 `SPEC-client-engineering` 已于
 2026-08-13 获得人类明确批准。`DES-flutter-client` 仍为 `baseline`，当前整体实现仍为 `diverged`；
 批准上游语义不等于接受设计或完成代码修复。
+
+2026-09-06 按人类授权增加 FQ-009 全界面视觉迁移，入口为
+[Heybox Android 设计](design/DES-heybox-presentation.md)、
+[视觉实现映射](implementation/IMP-heybox-presentation.md)与
+[本轮验收](evidence/EVD-heybox-presentation-2026-09-06.md)。
 
 ## 两种权威
 

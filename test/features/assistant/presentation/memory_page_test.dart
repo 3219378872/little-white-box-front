@@ -97,7 +97,7 @@ void main() {
     expect(find.text('MEMORY'), findsOneWidget);
     expect(find.text('USER'), findsOneWidget);
     expect(find.text('memory 4/2200'), findsOneWidget);
-    expect(find.text('修改'), findsNWidgets(2));
+    expect(find.bySemanticsLabel('修改'), findsNWidgets(2));
     expect(find.text('不要记住这个'), findsNothing);
   });
 
@@ -115,7 +115,7 @@ void main() {
 
     expect(find.text('需要升级 Agent 授权才能修改记忆'), findsOneWidget);
     expect(find.text('喜欢美食'), findsOneWidget);
-    expect(find.text('修改'), findsNothing);
+    expect(find.bySemanticsLabel('修改'), findsNothing);
   });
 
   testWidgets('account switch dismisses add dialog without submitting draft', (
@@ -155,7 +155,7 @@ void main() {
       ];
     final container = await _pumpSwitchableMemory(tester, accountA, accountB);
 
-    await tester.tap(find.text('修改'));
+    await tester.tap(find.bySemanticsLabel('修改'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(EditableText), '不应写给账号 B');
 

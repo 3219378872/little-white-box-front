@@ -136,6 +136,7 @@ void main() {
     nextPage.complete(feedPage([7], requestId: 'request-1', hasMore: false));
     await pumpUntilFound(tester, find.text('Post 7'));
     await scrollFeedToEnd(tester);
+    await tester.pump(const Duration(milliseconds: 200));
     expect(find.text('— 没有更多了 —'), findsOneWidget);
   });
 

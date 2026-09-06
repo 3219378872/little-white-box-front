@@ -71,7 +71,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) =>
-            MainShell(location: state.matchedLocation, child: child),
+            MainShell(location: state.uri.path, child: child),
         routes: [
           GoRoute(
             path: '/feed',
@@ -251,11 +251,16 @@ class MainShell extends ConsumerWidget {
           : null,
       child: Stack(
         children: [
-          ContentConstraint(
-            maxWidth: _contentMaxWidth(location, width),
-            horizontalPadding: horizontalPadding,
-            // Keep the nested Navigator's route barrier from pruning sidebar semantics.
-            child: isDesktop ? Semantics(container: true, child: child) : child,
+          SafeArea(
+            bottom: false,
+            child: ContentConstraint(
+              maxWidth: _contentMaxWidth(location, width),
+              horizontalPadding: horizontalPadding,
+              // Keep the nested Navigator's route barrier from pruning sidebar semantics.
+              child: isDesktop
+                  ? Semantics(container: true, child: child)
+                  : child,
+            ),
           ),
           const AssistantThreadPollBinding(),
         ],
@@ -276,7 +281,6 @@ class MainShell extends ConsumerWidget {
   bool _isPrimaryRoute(String location) {
     return location == '/feed' ||
         location == '/search' ||
-        location == '/post/new' ||
         location == '/messages' ||
         location == '/profile';
   }
@@ -290,7 +294,7 @@ class MainShell extends ConsumerWidget {
       return width >= 1024 ? 1100 : 720;
     }
     if (location == '/profile/edit') return 560;
-    if (location == '/feed' && width >= 1024) return 1100;
+    if (location == '/feed' && width >= 1024) return 720;
     return 680;
   }
 }
@@ -407,26 +411,42 @@ class _MobileBottomNavigation extends StatelessWidget {
       onChange: onChange,
       children: [
         const FBottomNavigationBarItem(
-          icon: Icon(FLucideIcons.house),
+          icon: Icon(FLucideIcons.triangle),
           label: Text('首页'),
         ),
         const FBottomNavigationBarItem(
           icon: Icon(FLucideIcons.search),
           label: Text('搜索'),
         ),
-        const FBottomNavigationBarItem(
-          icon: Icon(FLucideIcons.circlePlus),
-          label: Text('发布'),
+        FBottomNavigationBarItem(
+          semanticsLabel: '发布',
+          icon: FTooltip(
+            tipBuilder: (_, _) => const Text('发布'),
+            child: Container(
+              width: 38,
+              height: 30,
+              decoration: BoxDecoration(
+                color: context.theme.colors.primary,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                FLucideIcons.plus,
+                color: context.theme.colors.primaryForeground,
+                size: 24,
+                semanticLabel: '发布',
+              ),
+            ),
+          ),
         ),
         FBottomNavigationBarItem(
           icon: _UnreadNavigationIcon(
-            icon: FLucideIcons.messagesSquare,
+            icon: FLucideIcons.mail,
             count: messageUnread,
           ),
           label: const Text('消息'),
         ),
         const FBottomNavigationBarItem(
-          icon: Icon(FLucideIcons.userRound),
+          icon: Icon(FLucideIcons.square),
           label: Text('我的'),
         ),
       ],

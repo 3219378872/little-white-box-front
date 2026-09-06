@@ -36,7 +36,7 @@ try {
     const send = page.getByRole('button', { name: '发送', exact: true });
     // History loading disables commands while leaving the editing surface visible.
     await send.click({ trial: true });
-    const composer = page.getByRole('textbox', { name: /^消息/ });
+    const composer = page.getByRole('textbox').first();
     await composer.waitFor();
     const bounds = await composer.boundingBox();
     assert(bounds);

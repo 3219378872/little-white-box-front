@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:forui/forui.dart';
 import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
 import 'package:xiaobaihe_app/core/widgets/error_view.dart';
 import 'package:xiaobaihe_app/features/assistant/application/assistant_notifier.dart';
@@ -93,8 +94,9 @@ void main() {
 
     expect(find.text('盯作者新帖'), findsOneWidget);
     expect(find.textContaining('author:2'), findsOneWidget);
-    expect(find.text('停用'), findsOneWidget);
-    expect(find.text('删除'), findsOneWidget);
+    expect(find.byType(FSwitch), findsOneWidget);
+    expect(tester.widget<FSwitch>(find.byType(FSwitch)).value, isTrue);
+    expect(find.bySemanticsLabel('删除'), findsOneWidget);
     expect(find.text('标为已读'), findsNothing);
   });
 
@@ -113,7 +115,7 @@ void main() {
     await _pumpWatch(tester, source);
     source.updateWatchError = const ApiException('更新暂时失败');
 
-    await tester.tap(find.text('停用'));
+    await tester.tap(find.byType(FSwitch));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('watch-list-error')), findsOneWidget);

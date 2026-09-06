@@ -108,10 +108,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: ListView(
             children: [
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
               FTextField(
                 control: FTextFieldControl.managed(controller: _usernameCtrl),
                 label: const Text('用户名'),

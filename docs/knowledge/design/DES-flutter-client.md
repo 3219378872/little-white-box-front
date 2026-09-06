@@ -268,10 +268,13 @@ tab、或从其它路由返回且仍为当前 tab 时，都重新请求第一页
 variant。
 
 主壳在 Forui `lg` 断点切换底部导航和桌面侧栏；正文由 `ContentConstraint` 限宽。`lg` 及以上
-Feed 使用双列卡片、私信使用左列表右线程，Feed/私信内容宽放宽到 1100。移动端底栏为 5 项，桌面
+Feed 按 FQ-009 改为 720px 单列阅读流，私信使用左列表右线程、内容宽 1100。移动端底栏为 5 项，桌面
 侧栏同样 5 项，Assistant 作为消息页固定虚拟线程进入。主 Tab 页不再嵌套第二层 `FScaffold`。
 新增 feature 页面优先使用 Forui/`FLucideIcons`，无法等价时才使用 Material，不为局部需求创建
 第二套主题或 overlay 根。
+
+2026-09-06 的全界面视觉规则见 [Heybox Android 视觉迁移](DES-heybox-presentation.md)。本设计仍为
+baseline，不因单次视觉迁移提升为 accepted。
 
 ## 失败与恢复
 

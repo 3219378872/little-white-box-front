@@ -15,7 +15,18 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 900),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+      _controller.value = 0;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -47,73 +58,60 @@ class PostCardSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SkeletonLoader(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: FCard(
-          builder: (context, style, _) => Padding(
-            padding: style.padding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    FAvatar.raw(size: 32),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 80,
-                      height: 14,
-                      color: const Color(0xFFFFFFFF),
-                    ),
-                    const Spacer(),
-                    Container(
-                      width: 40,
-                      height: 12,
-                      color: const Color(0xFFFFFFFF),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                FAvatar.raw(size: 20),
+                const SizedBox(width: 8),
                 Container(
-                  width: double.infinity,
-                  height: 16,
-                  color: const Color(0xFFFFFFFF),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: 200,
+                  width: 80,
                   height: 14,
                   color: const Color(0xFFFFFFFF),
                 ),
-                const SizedBox(height: 8),
+                const Spacer(),
                 Container(
-                  width: 160,
-                  height: 14,
+                  width: 40,
+                  height: 12,
                   color: const Color(0xFFFFFFFF),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 12,
-                      color: const Color(0xFFFFFFFF),
-                    ),
-                    const SizedBox(width: 16),
-                    Container(
-                      width: 40,
-                      height: 12,
-                      color: const Color(0xFFFFFFFF),
-                    ),
-                    const SizedBox(width: 16),
-                    Container(
-                      width: 40,
-                      height: 12,
-                      color: const Color(0xFFFFFFFF),
-                    ),
-                  ],
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              height: 16,
+              color: const Color(0xFFFFFFFF),
+            ),
+            const SizedBox(height: 8),
+            Container(width: 200, height: 14, color: const Color(0xFFFFFFFF)),
+            const SizedBox(height: 8),
+            Container(width: 160, height: 14, color: const Color(0xFFFFFFFF)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 12,
+                  color: const Color(0xFFFFFFFF),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  width: 40,
+                  height: 12,
+                  color: const Color(0xFFFFFFFF),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  width: 40,
+                  height: 12,
+                  color: const Color(0xFFFFFFFF),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

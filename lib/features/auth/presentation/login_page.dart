@@ -105,20 +105,37 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final theme = context.theme;
     return FScaffold(
       childPad: false,
+      header: FHeader.nested(
+        title: const SizedBox.shrink(),
+        prefixes: [
+          FHeaderAction.back(
+            onPress: () =>
+                context.canPop() ? context.pop() : context.go('/feed'),
+          ),
+        ],
+      ),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             children: [
-              const SizedBox(height: 60),
-              Icon(
-                FLucideIcons.infinity,
-                size: 64,
-                color: theme.colors.primary,
+              const SizedBox(height: 16),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: theme.colors.primary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  FLucideIcons.box,
+                  size: 38,
+                  color: theme.colors.primaryForeground,
+                ),
               ),
               const SizedBox(height: 12),
               Text('小白盒', style: theme.typography.display.xl2),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               Expanded(
                 child: FTabs(
                   expands: true,

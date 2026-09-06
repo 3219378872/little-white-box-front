@@ -70,7 +70,7 @@ class ConversationsPage extends ConsumerWidget {
     return Column(
       children: [
         FHeader(
-          title: const Text('私信'),
+          title: const Text('消息'),
           suffixes: [
             if (unread.summary.notificationUnread > 0)
               Center(
@@ -126,7 +126,6 @@ class ConversationsPage extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     details: _ConversationDetails(conversation: conversation),
-                    suffix: const Icon(FLucideIcons.chevronRight),
                     onPress: () => _open(context, conversation),
                   ),
                 ),
@@ -176,15 +175,26 @@ class _AssistantPin extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 6),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: selected ? theme.colors.secondary : theme.colors.background,
-          borderRadius: theme.style.borderRadius.md,
+          color: selected ? theme.colors.secondary : theme.colors.muted,
         ),
         child: FItem(
           key: const Key('assistant-pinned-thread'),
-          prefix: Icon(FLucideIcons.sparkles, color: theme.colors.primary),
+          prefix: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: theme.colors.primary,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              FLucideIcons.sparkles,
+              color: theme.colors.primaryForeground,
+              size: 24,
+            ),
+          ),
           title: const Text('小白盒 Agent'),
           subtitle: Text(
             thread.lastMessagePreview.isEmpty
