@@ -91,6 +91,9 @@ DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 EXTERNAL_UPSTREAM_RE = re.compile(r"^([^@]+)@([0-9a-f]{40}):(.+)$")
 FENCE_OPEN_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+ATX_HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:[ \t]+|$)")
+SETEXT_HEADING_RE = re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$")
+INLINE_SPAN_SENTINEL = "x"
 AUTHORITY_HEADER = ("requirement", "design", "state", "evidence or gap")
 AUTHORITY_SEPARATOR_RE = re.compile(r"^:?-{3,}:?$")
 EVIDENCE_ID_RE = re.compile(r"EVD-[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -139,28 +142,63 @@ def _backtick_run_end(line: str, start: int) -> int:
     return end
 
 
-def _inline_code_span_end(line: str, start: int) -> int | None:
-    opening_end = _backtick_run_end(line, start)
+def _is_fence_opening(line: str) -> bool:
+    opening = FENCE_OPEN_RE.fullmatch(line)
+    if opening is None:
+        return False
+    marker, remainder = opening.groups()
+    return marker[0] != "`" or "`" not in remainder
+
+
+def _is_invalid_backtick_fence(line: str) -> bool:
+    opening = FENCE_OPEN_RE.fullmatch(line)
+    if opening is None:
+        return False
+    marker, remainder = opening.groups()
+    return marker[0] == "`" and "`" in remainder
+
+
+def _starts_inline_block_boundary(line: str) -> bool:
+    return (
+        not line.strip()
+        or ATX_HEADING_RE.match(line) is not None
+        or SETEXT_HEADING_RE.fullmatch(line) is not None
+        or _is_fence_opening(line)
+    )
+
+
+def _inline_code_span_end(
+    lines: list[str], line_index: int, start: int
+) -> tuple[int, int] | None:
+    opening_end = _backtick_run_end(lines[line_index], start)
     opening_length = opening_end - start
-    cursor = opening_end
-    while cursor < len(line):
-        candidate = line.find("`", cursor)
-        if candidate < 0:
-            return None
-        candidate_end = _backtick_run_end(line, candidate)
-        if candidate_end - candidate == opening_length:
-            return candidate_end
-        cursor = candidate_end
+    single_line_only = _is_invalid_backtick_fence(lines[line_index])
+    for candidate_line_index in range(line_index, len(lines)):
+        line = lines[candidate_line_index]
+        if candidate_line_index > line_index:
+            if single_line_only or _starts_inline_block_boundary(line):
+                return None
+        cursor = opening_end if candidate_line_index == line_index else 0
+        while cursor < len(line):
+            candidate = line.find("`", cursor)
+            if candidate < 0:
+                break
+            candidate_end = _backtick_run_end(line, candidate)
+            if candidate_end - candidate == opening_length:
+                return candidate_line_index, candidate_end
+            cursor = candidate_end
     return None
 
 
 def semantic_markdown(text: str) -> str:
     """Remove content that Markdown renders as comments or fenced code."""
+    lines = text.splitlines()
     semantic_lines: list[str] = []
     fence_character: str | None = None
     fence_length = 0
     in_comment = False
-    for line in text.splitlines():
+    multiline_span_end: tuple[int, int] | None = None
+    for line_index, line in enumerate(lines):
         if fence_character is not None:
             candidate = line.lstrip(" ")
             indentation = len(line) - len(candidate)
@@ -172,7 +210,19 @@ def semantic_markdown(text: str) -> str:
                 fence_length = 0
             continue
 
-        if not in_comment:
+        visible_parts: list[str] = []
+        cursor = 0
+        if multiline_span_end is not None:
+            closing_line, closing_end = multiline_span_end
+            if line_index < closing_line:
+                semantic_lines.append(INLINE_SPAN_SENTINEL)
+                continue
+            # Keep a non-whitespace prefix so a closing-line suffix cannot
+            # become a block-level definition after the span is removed.
+            visible_parts.append(INLINE_SPAN_SENTINEL)
+            cursor = closing_end
+            multiline_span_end = None
+        elif not in_comment:
             opening = FENCE_OPEN_RE.fullmatch(line)
             if opening is not None:
                 marker, remainder = opening.groups()
@@ -181,8 +231,6 @@ def semantic_markdown(text: str) -> str:
                     fence_length = len(marker)
                     continue
 
-        visible_parts: list[str] = []
-        cursor = 0
         while cursor < len(line):
             if in_comment:
                 end = line.find("-->", cursor)
@@ -198,10 +246,16 @@ def semantic_markdown(text: str) -> str:
                 continue
             if line[cursor] == "`":
                 opening_end = _backtick_run_end(line, cursor)
-                span_end = _inline_code_span_end(line, cursor)
+                span_end = _inline_code_span_end(lines, line_index, cursor)
                 if span_end is not None:
-                    visible_parts.append(line[cursor:span_end])
-                    cursor = span_end
+                    closing_line, closing_end = span_end
+                    if closing_line == line_index:
+                        visible_parts.append(line[cursor:closing_end])
+                        cursor = closing_end
+                    else:
+                        visible_parts.append(INLINE_SPAN_SENTINEL)
+                        multiline_span_end = span_end
+                        cursor = len(line)
                 else:
                     visible_parts.append(line[cursor:opening_end])
                     cursor = opening_end

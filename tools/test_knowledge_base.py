@@ -781,6 +781,84 @@ examples:
                 finally:
                     self._write(path, original)
 
+    def test_multiline_code_span_hides_false_definitions_and_comment_literal(self):
+        raw = """
+Paragraph ``starts a code span
+- `FX-777`: False bullet definition.
+| requirement | acceptance |
+| --- | --- |
+| FX-778 | False table definition. |
+single ` and triple ``` runs do not close it
+<!-- remains literal
+and this closes it``
+- `FX-001`: Visible requirement after the span.
+"""
+
+        self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_multiline_code_span_requires_matching_delimiter_length(self):
+        cases = {
+            "`": "double `` and triple ``` runs stay literal",
+            "``": "single ` and triple ``` runs stay literal",
+            "```": "single ` and double `` runs stay literal",
+        }
+        for delimiter, mismatched_runs in cases.items():
+            with self.subTest(delimiter=delimiter):
+                raw = f"""
+Paragraph {delimiter}starts a code span
+{mismatched_runs}
+<!-- remains literal
+and this closes it{delimiter}
+- `FX-001`: Visible requirement after the span.
+"""
+                self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_multiline_code_span_can_close_in_the_same_list_item(self):
+        raw = """
+- Context ``starts a code span
+  <!-- remains literal on a continuation line
+  and this closes it`` outside the span.
+- `FX-001`: Visible requirement after the list item.
+"""
+
+        self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_multiline_span_does_not_promote_a_closing_line_suffix(self):
+        raw = """
+Paragraph ``starts a code span
+``- `FX-777`: This suffix is still paragraph text.
+- `FX-001`: Visible requirement on the next line.
+"""
+
+        self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_unclosed_multiline_span_stops_at_markdown_block_boundaries(self):
+        cases = {
+            "blank line": "",
+            "ATX heading": "# New section",
+            "Setext heading": "New section\n---",
+            "backtick fence": "```markdown\n<!-- literal in fence\n```",
+            "tilde fence": "~~~markdown\n<!-- literal in fence\n~~~",
+        }
+        for name, boundary in cases.items():
+            with self.subTest(boundary=name):
+                raw = f"""
+Paragraph ``has no close in this block
+{boundary}
+- `FX-001`: Visible requirement in a later block.
+The later `` delimiter cannot close the earlier opener.
+"""
+                self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
+    def test_invalid_backtick_fence_line_cannot_start_a_multiline_span(self):
+        raw = """
+```markdown`invalid fence info
+- `FX-001`: Visible requirement after the invalid fence line.
+The later ``` run cannot close the invalid fence marker.
+"""
+
+        self.assertEqual(requirement_definitions(raw), ["FX-001"])
+
     def test_ignores_authority_shaped_rows_outside_the_authority_table(self):
         self._append(
             "docs/knowledge/implementation/IMP-client.md",

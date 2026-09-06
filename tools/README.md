@@ -49,10 +49,14 @@ Titles and every item in the controlled list fields (`upstream`, `tracks`,
 `code_paths`, `evidence`, `covers`, `scope`, `commands`, and optional
 `external_upstream`) must contain non-whitespace text; list items must be
 unique. Requirements, layer-index links, and implementation authority are read
-from semantic Markdown, so fenced examples and HTML comments do not contribute
-to the graph. Each non-retired implementation must contain exactly one
-authority table with the canonical four-column header followed by a valid
-Markdown separator; only its consecutive data rows are authoritative.
+from semantic Markdown, so fenced examples, HTML comments, and definition-shaped
+lines inside multiline code spans do not contribute to the graph. Multiline
+code spans require an exact backtick-run match within the same Markdown block;
+blank lines, headings, and fence openings stop the match. Backtick fence-shaped
+lines with invalid info strings cannot seed a multiline match. Each non-retired
+implementation must contain exactly one authority table with the canonical
+four-column header followed by a valid Markdown separator; only its consecutive
+data rows are authoritative.
 
 For active passed evidence, the checker also diffs every upstream
 implementation's `code_paths` from `observed_commit` through `HEAD`. A later

@@ -70,9 +70,11 @@ active passed 的视觉或运行结论。
 separator，只有之后连续且列数一致的数据行可定义条款。表格可省略外侧 pipe，转义的 `\|` 不作为
 列分隔。普通正文引用、孤立表格行和其他表格不建立条款所有权。IMP 权威矩阵和层级 README 索引同样
 只解析可见内容。checker 先隔离 fenced code block，
-再识别 fence 外、匹配 inline backtick code span 之外的 HTML comment；未闭合的 `<!--` 隐藏到文件末尾，
-而 code span 或 fence 内的注释标记只作为字面量。被上述区域隐藏的示例、草稿或链接不参与条款归属、
-权威状态和索引计数。
+再识别 fence 外、匹配 inline backtick code span 之外的 HTML comment；跨行 code span 只由长度完全相同的
+backtick run 闭合，并且不能越过空行、ATX/Setext 标题或 fenced code block 起始。未闭合的 opener 按
+字面量处理；info string 含 backtick 的非法 fence-shaped 行也不能发起跨行匹配。未闭合的 `<!--` 隐藏
+到文件末尾，而 code span 或 fence 内的注释标记只作为字面量。被上述区域隐藏的示例、草稿或链接不
+参与条款归属、权威状态和索引计数。
 
 ## 跨仓边界
 
