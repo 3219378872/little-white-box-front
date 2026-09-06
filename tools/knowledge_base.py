@@ -77,12 +77,12 @@ CONTROLLED_LIST_KEYS = {
 }
 
 ID_RE = re.compile(r"^(?:INT|SPEC|DES|IMP|EVD)-[a-z0-9]+(?:-[a-z0-9]+)*$")
-REQUIREMENT_DEFINITION_RE = re.compile(
-    r"(?:^\s*[-*]\s+`(?P<bullet>(?:FX|FQ)-\d{3})`[：:]"
-    r"|^\s*\|\s*`?(?P<table>(?:FX|FQ)-\d{3})`?\s*\|)",
-    re.MULTILINE,
+REQUIREMENT_BULLET_RE = re.compile(
+    r"^ {0,3}[-*][ \t]+`(?P<requirement>(?:FX|FQ)-\d{3})`[：:]"
+    r"[ \t]*\S"
 )
 REQUIREMENT_ID_RE = re.compile(r"^(?:FX|FQ)-\d{3}$")
+REQUIREMENT_TABLE_HEADERS = {"requirement", "条款", "id"}
 EXTERNAL_REQUIREMENT_ID_RE = re.compile(
     r"^[A-Z][A-Z0-9]*-(?:A[0-9]{2}|[0-9]{3}(?:-[0-9]{2})?)$"
 )
@@ -120,6 +120,38 @@ def relative(path: Path) -> str:
         return path.relative_to(ROOT).as_posix()
     except ValueError:
         return str(path)
+
+
+def _frontmatter_body(text: str) -> str:
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return text
+    for index, line in enumerate(lines[1:], start=1):
+        if line.strip() == "---":
+            return "\n".join(lines[index + 1 :])
+    return ""
+
+
+def _backtick_run_end(line: str, start: int) -> int:
+    end = start
+    while end < len(line) and line[end] == "`":
+        end += 1
+    return end
+
+
+def _inline_code_span_end(line: str, start: int) -> int | None:
+    opening_end = _backtick_run_end(line, start)
+    opening_length = opening_end - start
+    cursor = opening_end
+    while cursor < len(line):
+        candidate = line.find("`", cursor)
+        if candidate < 0:
+            return None
+        candidate_end = _backtick_run_end(line, candidate)
+        if candidate_end - candidate == opening_length:
+            return candidate_end
+        cursor = candidate_end
+    return None
 
 
 def semantic_markdown(text: str) -> str:
@@ -160,22 +192,111 @@ def semantic_markdown(text: str) -> str:
                 in_comment = False
                 cursor = end + 3
                 continue
-            start = line.find("<!--", cursor)
-            if start < 0:
-                visible_parts.append(line[cursor:])
-                break
-            visible_parts.append(line[cursor:start])
-            in_comment = True
-            cursor = start + 4
+            if line.startswith("<!--", cursor):
+                in_comment = True
+                cursor += 4
+                continue
+            if line[cursor] == "`":
+                opening_end = _backtick_run_end(line, cursor)
+                span_end = _inline_code_span_end(line, cursor)
+                if span_end is not None:
+                    visible_parts.append(line[cursor:span_end])
+                    cursor = span_end
+                else:
+                    visible_parts.append(line[cursor:opening_end])
+                    cursor = opening_end
+                continue
+            visible_parts.append(line[cursor])
+            cursor += 1
         semantic_lines.append("".join(visible_parts))
     return "\n".join(semantic_lines)
 
 
+def _split_requirement_table_row(line: str) -> list[str] | None:
+    leading_spaces = len(line) - len(line.lstrip(" "))
+    if leading_spaces > 3 or line[leading_spaces:].startswith("\t"):
+        return None
+    stripped = line.strip()
+    cells: list[str] = []
+    current: list[str] = []
+    separators = 0
+    for character in stripped:
+        if character == "|":
+            backslashes = 0
+            for previous in reversed(current):
+                if previous != "\\":
+                    break
+                backslashes += 1
+            if backslashes % 2 == 0:
+                cells.append("".join(current).strip())
+                current = []
+                separators += 1
+                continue
+        current.append(character)
+    if separators == 0:
+        return None
+    cells.append("".join(current).strip())
+    if cells and not cells[0]:
+        cells.pop(0)
+    if cells and not cells[-1]:
+        cells.pop()
+    return cells
+
+
 def requirement_definitions(text: str) -> list[str]:
+    lines = semantic_markdown(_frontmatter_body(text)).splitlines()
     definitions: list[str] = []
-    for match in REQUIREMENT_DEFINITION_RE.finditer(semantic_markdown(text)):
-        definitions.append(match.group("bullet") or match.group("table"))
+    index = 0
+    while index < len(lines):
+        bullet = REQUIREMENT_BULLET_RE.match(lines[index])
+        if bullet is not None:
+            definitions.append(bullet.group("requirement"))
+
+        header = _split_requirement_table_row(lines[index])
+        if (
+            header is None
+            or len(header) < 2
+            or _normalized_requirement_header(header[0])
+            not in REQUIREMENT_TABLE_HEADERS
+            or not all(cell.strip() for cell in header)
+            or index + 1 >= len(lines)
+        ):
+            index += 1
+            continue
+
+        separator = _split_requirement_table_row(lines[index + 1])
+        if (
+            separator is None
+            or len(separator) != len(header)
+            or not all(AUTHORITY_SEPARATOR_RE.fullmatch(cell) for cell in separator)
+        ):
+            index += 1
+            continue
+
+        index += 2
+        while index < len(lines):
+            row = _split_requirement_table_row(lines[index])
+            if row is None or len(row) != len(header):
+                break
+            requirement = _requirement_table_id(row[0])
+            if requirement is not None and any(cell.strip() for cell in row[1:]):
+                definitions.append(requirement)
+            index += 1
     return definitions
+
+
+def _normalized_requirement_header(cell: str) -> str:
+    normalized = cell.strip()
+    if normalized.startswith("`") and normalized.endswith("`"):
+        normalized = normalized[1:-1]
+    return " ".join(normalized.lower().split())
+
+
+def _requirement_table_id(cell: str) -> str | None:
+    candidate = cell.strip()
+    if candidate.startswith("`") and candidate.endswith("`"):
+        candidate = candidate[1:-1].strip()
+    return candidate if REQUIREMENT_ID_RE.fullmatch(candidate) else None
 
 
 def parse_frontmatter(

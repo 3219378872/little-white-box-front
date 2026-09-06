@@ -65,11 +65,14 @@ active passed 的视觉或运行结论。
 - 每个层级 README 必须恰好一次列出该层所有正式页。模板位于 [templates](templates/README.md)，历史
   材料位于[归档](archive/README.md)。
 
-规格条款只从可见 Markdown 的正式定义行解析：`-`/`*` 列表项中的反引号条款 ID，或表格首列中的
-条款 ID；普通正文中的反引号引用不建立条款所有权。IMP 权威矩阵和层级 README 索引同样只解析可见
-内容。checker 先隔离 fenced code block，再识别 fence 外的 HTML comment；未闭合的 `<!--` 隐藏到
-文件末尾，而 fence 内的注释标记只作为代码字面量。被上述区域隐藏的示例、草稿或链接不参与条款
-归属、权威状态和索引计数。
+规格条款只从 frontmatter 之后可见 Markdown 的正式定义解析：`-`/`*` 列表项必须使用反引号条款 ID、
+冒号和非空定义；表格的第一列表头必须归一化为 `requirement`、`条款` 或 `id`，紧跟列数一致的合法
+separator，只有之后连续且列数一致的数据行可定义条款。表格可省略外侧 pipe，转义的 `\|` 不作为
+列分隔。普通正文引用、孤立表格行和其他表格不建立条款所有权。IMP 权威矩阵和层级 README 索引同样
+只解析可见内容。checker 先隔离 fenced code block，
+再识别 fence 外、匹配 inline backtick code span 之外的 HTML comment；未闭合的 `<!--` 隐藏到文件末尾，
+而 code span 或 fence 内的注释标记只作为字面量。被上述区域隐藏的示例、草稿或链接不参与条款归属、
+权威状态和索引计数。
 
 ## 跨仓边界
 

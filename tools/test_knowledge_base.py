@@ -5,6 +5,8 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from knowledge_base import requirement_definitions
+
 
 CHECKER = Path(__file__).with_name("knowledge_base.py")
 
@@ -634,6 +636,150 @@ updated_at: 2026-09-06
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("tracks not declared by upstream specs: FX-001", result.stderr)
+
+    def test_frontmatter_requirement_example_is_not_a_definition(self):
+        raw = """---
+id: SPEC-client
+examples:
+  - "- `FX-001`: Frontmatter example."
+---
+# No requirements
+"""
+        self.assertEqual(requirement_definitions(raw), [])
+
+        path = "docs/knowledge/spec/SPEC-client.md"
+        self._replace(
+            path,
+            "updated_at: 2026-09-06\n---",
+            "updated_at: 2026-09-06\n"
+            "examples:\n"
+            '  - "- `FX-001`: Frontmatter example."\n'
+            "---",
+        )
+        self._replace(path, "- `FX-001`: Works.", "No formal requirements.")
+
+        result = self._run()
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("tracks not declared by upstream specs: FX-001", result.stderr)
+
+    def test_isolated_or_malformed_table_rows_are_not_definitions(self):
+        path = "docs/knowledge/spec/SPEC-client.md"
+        original = "- `FX-001`: Works."
+        cases = {
+            "isolated row": "| `FX-001` | Incidental reference |",
+            "unrelated header": (
+                "| reference | note |\n"
+                "| --- | --- |\n"
+                "| `FX-001` | Incidental reference |"
+            ),
+            "malformed separator": (
+                "| requirement | acceptance |\n| -- | --- |\n| `FX-001` | Works. |"
+            ),
+            "mismatched columns": (
+                "| requirement | acceptance |\n| --- |\n| `FX-001` | Works. |"
+            ),
+            "four-space indented code": (
+                "    | requirement | acceptance |\n"
+                "    | --- | --- |\n"
+                "    | `FX-001` | Code example. |"
+            ),
+            "tab-indented code": (
+                "\t| requirement | acceptance |\n"
+                "\t| --- | --- |\n"
+                "\t| `FX-001` | Code example. |"
+            ),
+            "spaces-before-tab indented code": (
+                "   \t| requirement | acceptance |\n"
+                "   \t| --- | --- |\n"
+                "   \t| `FX-001` | Code example. |"
+            ),
+        }
+        for name, invalid in cases.items():
+            with self.subTest(case=name):
+                self._replace(path, original, invalid)
+                try:
+                    result = self._run()
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(
+                        "tracks not declared by upstream specs: FX-001",
+                        result.stderr,
+                    )
+                finally:
+                    self._replace(path, invalid, original)
+
+    def test_valid_requirement_table_headers_define_requirements(self):
+        path = "docs/knowledge/spec/SPEC-client.md"
+        original = "- `FX-001`: Works."
+        tables = {
+            "requirement": (
+                "| requirement | acceptance |\n| --- | --- |\n| `FX-001` | Works. |"
+            ),
+            "条款": "| 条款 | 验收 |\n| --- | --- |\n| `FX-001` | Works. |",
+            "ID without outer pipes": (
+                "   ID | acceptance\n"
+                "   --- | ---\n"
+                r"   FX-001 | Works \| with an escaped pipe."
+            ),
+        }
+        for name, table in tables.items():
+            with self.subTest(case=name):
+                self._replace(path, original, table)
+                try:
+                    result = self._run()
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                finally:
+                    self._replace(path, table, original)
+
+    def test_rejects_malformed_requirement_bullets(self):
+        path = "docs/knowledge/spec/SPEC-client.md"
+        original = "- `FX-001`: Works."
+        cases = {
+            "unquoted id": "- FX-001: Works.",
+            "missing colon": "- `FX-001` Works.",
+            "missing definition": "- `FX-001`:",
+            "indented code": "    - `FX-001`: Code example.",
+        }
+        for name, invalid in cases.items():
+            with self.subTest(case=name):
+                self._replace(path, original, invalid)
+                try:
+                    result = self._run()
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(
+                        "tracks not declared by upstream specs: FX-001",
+                        result.stderr,
+                    )
+                finally:
+                    self._replace(path, invalid, original)
+
+    def test_accepts_star_requirement_bullet(self):
+        self._replace(
+            "docs/knowledge/spec/SPEC-client.md",
+            "- `FX-001`: Works.",
+            "* `FX-001`: Works.",
+        )
+
+        result = self._run()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_inline_code_comment_literal_does_not_hide_visible_requirement(self):
+        path = "docs/knowledge/spec/SPEC-client.md"
+        original = (self.root / path).read_text(encoding="utf-8")
+        for delimiter in ("`", "``"):
+            with self.subTest(delimiter=delimiter):
+                self._append(
+                    path,
+                    f"\nThe literal {delimiter}<!--{delimiter} is not a comment.\n"
+                    "- `FX-001`: Visible duplicate requirement.\n",
+                )
+                try:
+                    result = self._run()
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("duplicate requirement FX-001", result.stderr)
+                finally:
+                    self._write(path, original)
 
     def test_ignores_authority_shaped_rows_outside_the_authority_table(self):
         self._append(
