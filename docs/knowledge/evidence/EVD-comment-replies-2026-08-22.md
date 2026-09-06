@@ -2,14 +2,23 @@
 id: EVD-comment-replies-2026-08-22
 layer: evidence
 title: 评论楼中楼展开加载 2026-08-22
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-031
+scope:
+  - static
+  - unit
+commands:
+  - flutter test test/features/comment/ test/features/post/
+  - flutter test test/mock/
+  - make test
+  - make analyze
+observed_commit: 647df1721b13ee8bb54d4401967942b7a5b83d0f
 updated_at: 2026-08-22
-observed_commit: 647df17
 ---
 
 # 评论楼中楼展开加载 2026-08-22

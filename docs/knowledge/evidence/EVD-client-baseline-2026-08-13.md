@@ -2,7 +2,8 @@
 id: EVD-client-baseline-2026-08-13
 layer: evidence
 title: Flutter 客户端基线证据 2026-08-13
-status: verified
+status: superseded
+result: partial
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -33,8 +34,15 @@ covers:
   - FQ-006
   - FQ-007
   - FQ-008
-updated_at: 2026-08-13
+scope:
+  - static
+  - unit
+commands:
+  - make knowledge-check
+  - make analyze
+  - make test
 observed_commit: edf598f291c889c3ec3bbdc597ab3acff6a0c9fd
+updated_at: 2026-08-13
 ---
 
 # Flutter 客户端基线证据 2026-08-13

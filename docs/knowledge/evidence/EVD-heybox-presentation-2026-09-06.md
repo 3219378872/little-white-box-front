@@ -2,10 +2,13 @@
 id: EVD-heybox-presentation-2026-09-06
 layer: evidence
 title: Heybox Android 视觉迁移验收
-status: verified
+status: active
+result: partial
 owner: agent
 upstream:
-  - IMP-heybox-presentation
+  - IMP-community-client
+  - IMP-assistant-client
+  - IMP-presentation-client
 covers:
   - FQ-004
   - FQ-005
@@ -14,6 +17,19 @@ covers:
   - FX-031
   - FX-032
   - FX-050
+scope:
+  - static
+  - unit
+  - browser
+  - device
+  - synthetic
+commands:
+  - flutter test --no-pub --reporter expanded
+  - make knowledge-check
+artifacts:
+  - /tmp/xbh-heybox-migration-20260906.4EhL6I
+  - /tmp/heybox-android-baseline-20260906.YwszWV
+observed_commit: 9b3fba2004ad39275963ac512df3ebe6caa65c2a
 updated_at: 2026-09-06
 ---
 
@@ -21,7 +37,8 @@ updated_at: 2026-09-06
 
 任务基线为前端 `998dd23`，参考 APK 1.3.394。环境 Flutter 3.44.7 / Dart 3.12.2 / Forui 0.24.2。
 本次没有升级依赖、修改后端或生成 SDK。实施与证据互链于
-[IMP-heybox-presentation](../implementation/IMP-heybox-presentation.md)。
+[IMP-presentation-client](../implementation/IMP-presentation-client.md)，涉及的社区与 Assistant 条款分别
+回链当前领域 IMP。
 
 ## 参考与隔离
 
@@ -80,7 +97,7 @@ Android 脚本需要已安装 APK、`uiautomator2` 与 ImageMagick；Web 脚本�
 
 ## 验证边界
 
-本页 `verified` 只指上述本地视觉与既有 Mock 交互验证，不代表逐像素一致率、实体 Android 设备、
+本页 `result: partial` 只确认上述本地视觉与既有 Mock 交互观察，不代表逐像素一致率、实体 Android 设备、
 iOS 或真实模型服务验收。原版未采样的私信、Agent、记忆和追踪使用同一套视觉规则适配。
 真实联调入口在任务开始时为 502；恢复与真实 API 检查属于整合后的独立运行时记录，不能从本页的
 Mock 结果推导其通过。没有修改后端、SDK、数据层或原有输入限制。

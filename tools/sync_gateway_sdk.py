@@ -23,14 +23,10 @@ import tempfile
 from pathlib import Path
 
 HANDLER_RE = re.compile(r"@handler\s+(\w+)")
-ROUTE_RE = re.compile(
-    r"^\s*(get|post|put|delete|patch)\s+(\S+)", re.IGNORECASE
-)
+ROUTE_RE = re.compile(r"^\s*(get|post|put|delete|patch)\s+(\S+)", re.IGNORECASE)
 FUNC_RE = re.compile(r"^Future (\w+)\(")
 GENERATED_SOURCE_HEADER_RE = re.compile(r"\A// --[^\r\n]*--")
-OPTIONAL_NUM_TO_JSON_RE = re.compile(
-    r"\b(position|durationMs|status)\?\.toJson\(\)"
-)
+OPTIONAL_NUM_TO_JSON_RE = re.compile(r"\b(position|durationMs|status)\?\.toJson\(\)")
 ENTITY_ID_FIELDS = (
     "id",
     "postId",
@@ -127,28 +123,21 @@ def normalize_generated_header(source: str) -> str:
 
 def patch_generated_types(source: str) -> str:
     source = normalize_generated_header(source)
-    nullable_primitives = re.findall(
-        r"final (String|double|bool|int)\? (\w+);", source
-    )
+    nullable_primitives = re.findall(r"final (String|double|bool|int)\? (\w+);", source)
     for primitive, field in nullable_primitives:
         generated = rf"{primitive}\?\.fromJson\(m\['{field}'\]\)"
         replacement = {
             "String": f"m['{field}']?.toString()",
             "double": (
-                f"(m['{field}'] is num) ? "
-                f"(m['{field}'] as num).toDouble() : null"
+                f"(m['{field}'] is num) ? (m['{field}'] as num).toDouble() : null"
             ),
-            "int": (
-                f"(m['{field}'] is num) ? "
-                f"(m['{field}'] as num).toInt() : null"
-            ),
-            "bool": (
-                f"(m['{field}'] is bool) ? "
-                f"m['{field}'] as bool : null"
-            ),
+            "int": (f"(m['{field}'] is num) ? (m['{field}'] as num).toInt() : null"),
+            "bool": (f"(m['{field}'] is bool) ? m['{field}'] as bool : null"),
         }[primitive]
         source = re.sub(generated, replacement, source)
-        source = source.replace(f"'{field}': {field}?.toJson(),", f"'{field}': {field},")
+        source = source.replace(
+            f"'{field}': {field}?.toJson(),", f"'{field}': {field},"
+        )
     source = OPTIONAL_NUM_TO_JSON_RE.sub(r"\1", source)
     for field in ENTITY_ID_FIELDS:
         source = source.replace(f"final num {field};", f"final Object {field};")
@@ -156,9 +145,10 @@ def patch_generated_types(source: str) -> str:
     # Read models accept additive media metadata without breaking local constructors.
     source = re.sub(
         r"(class PostItem \{.*?)(\n  factory PostItem\.fromJson)",
-        lambda match: match[1].replace(
-            "required this.mediaIds,", "this.mediaIds = const [],"
-        ) + match[2],
+        lambda match: (
+            match[1].replace("required this.mediaIds,", "this.mediaIds = const [],")
+            + match[2]
+        ),
         source,
         flags=re.DOTALL,
     )
@@ -216,16 +206,44 @@ def copy_generated(src_root: Path, dest_root: Path, files: list[str]) -> None:
         shutil.copyfile(src, dest)
 
 
+def generated_differences(
+    src_root: Path, destinations: list[Path], files: list[str]
+) -> list[Path]:
+    differences: list[Path] = []
+    for destination in destinations:
+        for rel in files:
+            current = destination / rel
+            generated = src_root / rel
+            if not current.is_file() or current.read_bytes() != generated.read_bytes():
+                differences.append(current)
+    return differences
+
+
 def main() -> int:
     repo = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--api",
-        default=str(default_backend_api_path(repo)),
-        help="Path to backend gateway.api",
+        help=(
+            "Path to backend gateway.api; required with --check and otherwise "
+            "auto-discovered for writing sync"
+        ),
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Compare generated files without modifying the checkout",
     )
     args = parser.parse_args()
-    api_path = Path(args.api).resolve()
+    if args.check and not args.api:
+        parser.error(
+            "--check requires an explicit --api path to the reviewed backend revision"
+        )
+    api_path = (
+        Path(args.api).resolve()
+        if args.api
+        else default_backend_api_path(repo).resolve()
+    )
     if not api_path.is_file():
         print(f"gateway.api not found: {api_path}", file=sys.stderr)
         return 1
@@ -248,21 +266,15 @@ def main() -> int:
         gateway_api = normalize_generated_header(
             patch_generated_api(
                 patch_gateway_methods(
-                    (generated / "api" / "gateway.dart").read_text(
-                        encoding="utf-8"
-                    ),
+                    (generated / "api" / "gateway.dart").read_text(encoding="utf-8"),
                     verbs,
                 )
             )
         )
-        (generated / "api" / "gateway.dart").write_text(
-            gateway_api, encoding="utf-8"
-        )
+        (generated / "api" / "gateway.dart").write_text(gateway_api, encoding="utf-8")
         types = normalize_generated_header(
             patch_generated_types(
-                (generated / "data" / "gateway.dart").read_text(
-                    encoding="utf-8"
-                )
+                (generated / "data" / "gateway.dart").read_text(encoding="utf-8")
             )
         )
         (generated / "data" / "gateway.dart").write_text(types, encoding="utf-8")
@@ -272,13 +284,27 @@ def main() -> int:
             ["dart", "format", *(str(generated / rel) for rel in generated_files)],
             check=True,
         )
-        copy_generated(generated, repo / "vendor" / "sdk_source", generated_files)
-        copy_generated(generated, repo / "lib" / "sdk", generated_files)
+        destinations = [repo / "vendor" / "sdk_source", repo / "lib" / "sdk"]
+        if args.check:
+            differences = generated_differences(
+                generated, destinations, generated_files
+            )
+            if differences:
+                print("generated SDK drift detected:", file=sys.stderr)
+                for path in differences:
+                    print(f"  {path.relative_to(repo)}", file=sys.stderr)
+                return 1
+            print("generated SDK is current")
+        else:
+            for destination in destinations:
+                copy_generated(generated, destination, generated_files)
 
-        patched = sorted(
-            name for name, verb in verbs.items() if verb in VERB_TO_HELPER
+        patched = sorted(name for name, verb in verbs.items() if verb in VERB_TO_HELPER)
+        print(
+            "checked generated SDK files:"
+            if args.check
+            else "synced generated SDK files:"
         )
-        print("synced generated SDK files:")
         for rel in generated_files:
             print(f"  {rel}")
         print("patched HTTP helpers:")

@@ -8,10 +8,11 @@ PORT ?= 3000
 TARGET ?= lib/main_mock.dart
 BUILD_DIR ?= build/web
 SERVER_HOST ?=
+BACKEND_API ?=
 PID_FILE ?= .dart_tool/web-server-$(PORT).pid
 LOG_FILE ?= .dart_tool/web-server-$(PORT).log
 
-.PHONY: help setup analyze test test-coverage knowledge-check dev dev-real build-web serve start stop restart status
+.PHONY: help setup analyze test test-coverage tools-test knowledge-test knowledge-check require-backend-api sdk-check check dev dev-real build-web serve start stop restart status
 
 help:
 	@printf '%s\n' \
@@ -19,7 +20,11 @@ help:
 		'make analyze     Run Flutter static analysis' \
 		'make test        Run the test suite' \
 		'make test-coverage  Run tests with coverage; fails below COVERAGE_MIN (default 70)' \
+		'make tools-test   Run repository maintenance tests' \
+		'make knowledge-test  Run knowledge validator fixture tests' \
 		'make knowledge-check  Validate five-layer project knowledge' \
+		'make sdk-check BACKEND_API=/path/to/gateway.api  Verify generated SDK copies without writing' \
+		'make check BACKEND_API=/path/to/gateway.api  Run analyze, tests, knowledge, and SDK gates' \
 		'make dev         Start Mock Web in foreground with hot reload' \
 		'make dev-real    Start Web with relative /api paths (optional SERVER_HOST)' \
 		'make build-web   Build the Mock Web release artifact' \
@@ -39,10 +44,28 @@ test:
 
 test-coverage:
 	$(FLUTTER) test --coverage
-	$(PYTHON) -m unittest discover -s tools -p 'test_*.py'
+	$(MAKE) tools-test
 	$(PYTHON) tools/lcov_summary.py coverage/lcov.info --min $(COVERAGE_MIN)
+
+tools-test:
+	$(PYTHON) -m unittest discover -s tools -p 'test_*.py'
+
+knowledge-test:
+	$(PYTHON) -m unittest discover -s tools -p 'test_knowledge_base.py'
+
 knowledge-check:
 	$(PYTHON) tools/knowledge_base.py check
+
+require-backend-api:
+	@if [ -z "$(strip $(BACKEND_API))" ]; then \
+		printf '%s\n' 'BACKEND_API is required; pass BACKEND_API=/absolute/path/to/gateway.api' >&2; \
+		exit 2; \
+	fi
+
+sdk-check: require-backend-api
+	$(PYTHON) tools/sync_gateway_sdk.py --check --api "$(BACKEND_API)"
+
+check: require-backend-api analyze test tools-test knowledge-check sdk-check
 
 dev:
 	$(FLUTTER) run -d web-server \

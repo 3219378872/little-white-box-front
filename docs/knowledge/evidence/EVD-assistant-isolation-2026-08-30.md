@@ -2,7 +2,8 @@
 id: EVD-assistant-isolation-2026-08-30
 layer: evidence
 title: Assistant 账号隔离与恢复状态机 2026-08-30
-status: partial
+status: superseded
+result: partial
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -24,8 +25,15 @@ covers:
   - FQ-006
   - FQ-007
   - FQ-008
-updated_at: 2026-08-30
+scope:
+  - static
+  - unit
+commands:
+  - make analyze
+  - make test
+  - make knowledge-check
 observed_commit: a0bc7abef22417cc5f3583420b7ffbda0d1ffdf6
+updated_at: 2026-08-30
 ---
 
 # Assistant 账号隔离与恢复状态机 2026-08-30

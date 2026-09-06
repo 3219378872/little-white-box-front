@@ -2,14 +2,21 @@
 id: EVD-assistant-evidence-strip-2026-08-22
 layer: evidence
 title: Assistant 证据行与全角标记隐藏 2026-08-22
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-051
-updated_at: 2026-08-22
+scope:
+  - static
+  - unit
+commands:
+  - flutter test
+  - make knowledge-check
 observed_commit: fead883fa0db37fdcf7ee5c1833b7f53800b5bed
+updated_at: 2026-08-22
 ---
 
 # Assistant 证据行与全角标记隐藏 2026-08-22

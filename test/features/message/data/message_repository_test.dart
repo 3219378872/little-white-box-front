@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xiaobaihe_app/core/api/json_int64.dart';
 import 'package:xiaobaihe_app/core/api/v2_api_client.dart';
 import 'package:xiaobaihe_app/features/message/data/message_models.dart';
 import 'package:xiaobaihe_app/features/message/data/message_repository.dart';
@@ -50,7 +51,7 @@ void main() {
       expect(client.getCalls[1].path, '/api/v2/messages/conversations/8');
       expect(client.getCalls[1].query, {'lastId': '30', 'pageSize': 10});
       expect(client.postCalls.first.body, {
-        'receiverId': '7',
+        'receiverId': 7,
         'content': 'hello',
         'msgType': 1,
         'idempotencyKey': 'message-key-1',
@@ -67,6 +68,45 @@ void main() {
       expect(unread.notificationUnread, 4);
     },
   );
+
+  test('preserves snowflake receiver and media IDs as JSON numbers', () async {
+    const receiverId = '9007199254740993';
+    const mediaId = '9007199254740995';
+    final client = _StubV2ApiClient(
+      getResponses: [],
+      postResponses: [
+        {'messageId': '9007199254740997'},
+      ],
+    );
+    final repository = MessageRepository(client: client);
+
+    final messageId = await repository.sendMessage(
+      const SendMessageCommand(
+        receiverId: receiverId,
+        content: 'https://example.test/image.webp',
+        msgType: MessageTypes.image,
+        mediaId: mediaId,
+        idempotencyKey: 'message-key-snowflake',
+      ),
+    );
+
+    expect(client.postCalls.single.body, {
+      'receiverId': receiverId,
+      'content': 'https://example.test/image.webp',
+      'msgType': MessageTypes.image,
+      'idempotencyKey': 'message-key-snowflake',
+      'mediaId': mediaId,
+    });
+    expect(
+      encodeApiJson(client.postCalls.single.body),
+      '{"receiverId":$receiverId,'
+      '"content":"https://example.test/image.webp",'
+      '"msgType":2,'
+      '"idempotencyKey":"message-key-snowflake",'
+      '"mediaId":$mediaId}',
+    );
+    expect(messageId, '9007199254740997');
+  });
 }
 
 Map<String, dynamic> conversationJson(int id) => {

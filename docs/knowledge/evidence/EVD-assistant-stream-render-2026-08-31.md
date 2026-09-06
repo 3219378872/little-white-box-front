@@ -2,15 +2,23 @@
 id: EVD-assistant-stream-render-2026-08-31
 layer: evidence
 title: Assistant 流式揭示渲染 2026-08-31
-status: partial
+status: superseded
+result: partial
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-094
   - FX-050
+scope:
+  - static
+  - unit
+commands:
+  - make analyze
+  - make test
+  - make knowledge-check
+observed_commit: b3818765cafaf4d6426f594f161cd367ea7a04c6
 updated_at: 2026-08-31
-observed_commit: 27197709a11eccdfe016ffa7e9d0c825ed363617
 ---
 
 # Assistant 流式揭示渲染 2026-08-31
@@ -47,3 +55,8 @@ make knowledge-check
 
 未在真实网关 / `:3002` CanvasKit 手测 200ms 批次插值、2KiB 代码块追赶、上翻不再被拽回。
 `just e2e` 的 Assistant pytest 看不见 Flutter 揭示动画。
+
+## 历史提交映射
+
+frontmatter 原记录 `27197709a11eccdfe016ffa7e9d0c825ed363617`；主线重放后的等价提交为 `b3818765cafaf4d6426f594f161cd367ea7a04c6`。
+迁移时以 `git range-diff` 核对，差异仅为提交内自引用 SHA/知识说明。

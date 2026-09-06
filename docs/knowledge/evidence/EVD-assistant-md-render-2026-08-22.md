@@ -2,14 +2,21 @@
 id: EVD-assistant-md-render-2026-08-22
 layer: evidence
 title: Assistant 回答 Markdown 渲染 2026-08-22
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-050
-updated_at: 2026-08-22
+scope:
+  - static
+  - unit
+commands:
+  - flutter test
+  - make knowledge-check
 observed_commit: 5b2babbabcacdf9c968fae9b17987da245c5d976
+updated_at: 2026-08-22
 ---
 
 # Assistant 回答 Markdown 渲染 2026-08-22

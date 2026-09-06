@@ -2,7 +2,8 @@
 id: EVD-watch-cannot-self-2026-09-06
 layer: evidence
 title: Watch 盯自己错误与小 ID JSON 编码 2026-09-06
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -11,8 +12,14 @@ covers:
   - FQ-002
   - FQ-003
   - FQ-007
-updated_at: 2026-09-06
+scope:
+  - static
+  - unit
+commands:
+  - flutter test
+  - make test
 observed_commit: 972a206d0f27d3c97a46d4cb7d2e5d7e5b1831b2
+updated_at: 2026-09-06
 ---
 
 # Watch 盯自己错误与小 ID JSON 编码 2026-09-06

@@ -2,10 +2,13 @@
 id: EVD-code-quality-hardening-2026-09-05
 layer: evidence
 title: 客户端异步生命周期与状态边界加固 2026-09-05
-status: partial
+status: active
+result: partial
 owner: agent
 upstream:
-  - IMP-flutter-client
+  - IMP-client-platform
+  - IMP-community-client
+  - IMP-assistant-client
 covers:
   - FX-002
   - FX-030
@@ -27,8 +30,16 @@ covers:
   - FQ-006
   - FQ-007
   - FQ-008
-updated_at: 2026-09-05
+scope:
+  - static
+  - unit
+commands:
+  - make analyze
+  - make test
+  - make test-coverage
+  - make knowledge-check
 observed_commit: 74c96f6e487df0e8c08a1154c4c2e9b3ebbcbb1d
+updated_at: 2026-09-05
 ---
 
 # 客户端异步生命周期与状态边界加固 2026-09-05
@@ -109,4 +120,4 @@ make build-web
   positional mapping，也未改变公开 API。Watch 快速重复写会由服务端 version CAS 防止数据损坏，
   客户端尚未增加逐任务 busy fence。
 - Consent GET 失败沿用既有未授权表现，尚未建模为独立的可恢复读取错误态。私信视频/语音上传契约缺口
-  仍存在，因此实现总体状态保持 `diverged`，本证据保持 `partial`。
+  仍存在；当前结论分别登记在 Assistant 与私信 IMP，本证据保持 `active/partial`。

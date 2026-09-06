@@ -2,15 +2,23 @@
 id: EVD-exposure-event-driven-2026-08-25
 layer: evidence
 title: 曝光追踪事件化与 int64 编码白名单 2026-08-25
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-060
   - FQ-006
+scope:
+  - static
+  - unit
+commands:
+  - make analyze
+  - make test
+  - make test-coverage
+observed_commit: 81834e56c20e13e44ca00d43831e596fcc44e7f0
 updated_at: 2026-08-25
-observed_commit: 81834e5
 ---
 
 # 曝光追踪事件化与 int64 编码白名单 2026-08-25

@@ -2,7 +2,8 @@
 id: EVD-non-agent-bugs-2026-08-27
 layer: evidence
 title: 非 Agent 模块缺陷修复 2026-08-27
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -16,8 +17,13 @@ covers:
   - FX-061
   - FQ-006
   - FQ-007
+scope:
+  - static
+  - unit
+commands:
+  - flutter test
+observed_commit: 53511f355565555fa056690fad6f7529409ed6b4
 updated_at: 2026-08-27
-observed_commit: 53511f3
 ---
 
 # 非 Agent 模块缺陷修复 2026-08-27

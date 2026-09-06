@@ -2,7 +2,8 @@
 id: EVD-client-ui-align-2026-08-20
 layer: evidence
 title: 侧栏消息项与验证码行对齐 2026-08-20
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -10,8 +11,14 @@ covers:
   - FQ-004
   - FQ-005
   - FQ-007
-updated_at: 2026-08-20
+scope:
+  - static
+  - unit
+commands:
+  - flutter test test/core/router/app_router_test.dart test/features/auth/presentation/login_page_test.dart
+  - flutter test
 observed_commit: e9aa8613eee3a1c2041843b2e29cf694e9442b95
+updated_at: 2026-08-20
 ---
 
 # 侧栏消息项与验证码行对齐 2026-08-20

@@ -1,13 +1,19 @@
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from sync_gateway_sdk import (
     default_backend_api_path,
+    generated_differences,
     normalize_generated_header,
     patch_bodyless_request_args,
     patch_generated_types,
 )
+
+REPO = Path(__file__).resolve().parents[1]
+SCRIPT = Path(__file__).with_name("sync_gateway_sdk.py")
 
 
 class NullablePrimitivePatchTest(unittest.TestCase):
@@ -31,12 +37,7 @@ class NullablePrimitivePatchTest(unittest.TestCase):
     def test_finds_backend_api_from_nested_task_worktree(self):
         with TemporaryDirectory() as tmp:
             workspace = Path(tmp) / "little"
-            frontend = (
-                workspace
-                / "little-white-box-front"
-                / ".worktree"
-                / "task-sdk"
-            )
+            frontend = workspace / "little-white-box-front" / ".worktree" / "task-sdk"
             api = (
                 workspace
                 / "little-white-box-content-community"
@@ -145,6 +146,57 @@ Future createAssistantSession({
         patched = patch_bodyless_request_args(generated)
         self.assertIn("const {},", patched)
         self.assertNotIn("    request,", patched)
+
+    def test_detects_generated_file_drift_without_writing_destinations(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            generated = root / "generated"
+            vendor = root / "vendor"
+            app = root / "app"
+            relative = "api/gateway.dart"
+            for directory, contents in (
+                (generated, "current"),
+                (vendor, "current"),
+                (app, "stale"),
+            ):
+                path = directory / relative
+                path.parent.mkdir(parents=True)
+                path.write_text(contents, encoding="utf-8")
+
+            differences = generated_differences(generated, [vendor, app], [relative])
+
+            self.assertEqual(differences, [app / relative])
+            self.assertEqual((app / relative).read_text(encoding="utf-8"), "stale")
+
+    def test_check_cli_requires_an_explicit_backend_api(self):
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--check"],
+            cwd=REPO,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--check requires an explicit --api path", result.stderr)
+        self.assertNotIn("goctl api dart", result.stdout)
+
+    def test_make_check_targets_fail_early_without_backend_api(self):
+        for target in ("sdk-check", "check"):
+            with self.subTest(target=target):
+                result = subprocess.run(
+                    ["make", "--no-print-directory", target, "BACKEND_API="],
+                    cwd=REPO,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False,
+                )
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("BACKEND_API is required", result.stderr)
+                self.assertNotIn("flutter analyze", result.stdout)
 
 
 if __name__ == "__main__":

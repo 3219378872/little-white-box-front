@@ -2,7 +2,8 @@
 id: EVD-mock-gateway-align-2026-08-20
 layer: evidence
 title: Mock API 对齐网关契约 2026-08-20
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -12,8 +13,16 @@ covers:
   - FQ-003
   - FQ-007
   - FQ-008
-updated_at: 2026-08-20
+scope:
+  - static
+  - unit
+  - integration
+commands:
+  - flutter test test/mock
+  - flutter test
+  - make knowledge-check
 observed_commit: c202150884df8b57c5d82a1179585d8f0544ff95
+updated_at: 2026-08-20
 ---
 
 # Mock API 对齐网关契约 2026-08-20

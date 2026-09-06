@@ -2,7 +2,8 @@
 id: EVD-client-found-bugs-fix-2026-08-22
 layer: evidence
 title: 测试暴露缺陷修复 2026-08-22
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -11,8 +12,15 @@ covers:
   - FX-002
   - FX-010
   - FX-031
-updated_at: 2026-08-22
+scope:
+  - static
+  - unit
+commands:
+  - make test
+  - make analyze
+  - make knowledge-check
 observed_commit: b8ffc8aee4e707e133a0ad2ca990abf1d6e39710
+updated_at: 2026-08-22
 ---
 
 # 测试暴露缺陷修复 2026-08-22

@@ -7,7 +7,7 @@ owner: agent
 upstream:
   - SPEC-topic
 tracks:
-  - TOPIC-001
+  - FX-001
 updated_at: YYYY-MM-DD
 ---
 

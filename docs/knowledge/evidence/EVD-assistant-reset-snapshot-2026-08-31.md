@@ -3,13 +3,22 @@ id: EVD-assistant-reset-snapshot-2026-08-31
 layer: evidence
 title: Assistant reset 拆出已提交正文 2026-08-31
 status: superseded
+result: partial
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-090
-updated_at: 2026-09-01
+scope:
+  - static
+  - unit
+commands:
+  - flutter test test/features/assistant/application/assistant_notifier_test.dart
+  - make analyze
+  - flutter test test/features/assistant/
+  - make knowledge-check
 observed_commit: b2bcf977bf681dc44c9ad2648a1c23628ba99186
+updated_at: 2026-09-01
 ---
 
 # Assistant reset 拆出已提交正文 2026-08-31

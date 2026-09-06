@@ -2,14 +2,20 @@
 id: EVD-search-post-author-2026-08-20
 layer: evidence
 title: 搜索帖子作者身份 2026-08-20
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-022
-updated_at: 2026-08-20
+scope:
+  - static
+  - unit
+commands:
+  - flutter test test/features/search
 observed_commit: d8cd60d2f176d5ff16d5d4c9871b034a25827faf
+updated_at: 2026-08-20
 ---
 
 # 搜索帖子作者身份 2026-08-20

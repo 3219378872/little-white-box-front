@@ -2,7 +2,8 @@
 id: EVD-assistant-hermes-2026-08-29
 layer: evidence
 title: Hermes Assistant 虚拟线程客户端 2026-08-29
-status: partial
+status: superseded
+result: partial
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -31,8 +32,15 @@ covers:
   - FX-091
   - FX-092
   - FX-093
-updated_at: 2026-08-29
+scope:
+  - static
+  - unit
+commands:
+  - make knowledge-check
+  - make analyze
+  - make test
 observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
+updated_at: 2026-08-29
 ---
 
 # Hermes Assistant 虚拟线程客户端 2026-08-29

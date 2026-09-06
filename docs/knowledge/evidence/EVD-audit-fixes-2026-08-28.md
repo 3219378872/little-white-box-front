@@ -2,7 +2,8 @@
 id: EVD-audit-fixes-2026-08-28
 layer: evidence
 title: 审查修复 2026-08-28
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -13,8 +14,15 @@ covers:
   - FQ-002
   - FQ-006
   - FQ-007
-updated_at: 2026-08-28
+scope:
+  - static
+  - unit
+commands:
+  - make analyze
+  - make test-coverage
+  - make knowledge-check
 observed_commit: 291097faf360b4bac3a8d7875d7c69d7b863011c
+updated_at: 2026-08-28
 ---
 
 # 审查修复 2026-08-28

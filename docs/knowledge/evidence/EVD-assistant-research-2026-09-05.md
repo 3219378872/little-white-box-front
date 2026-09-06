@@ -2,10 +2,13 @@
 id: EVD-assistant-research-2026-09-05
 layer: evidence
 title: Assistant 问答与原文卡片工程验收
-status: partial
+status: active
+result: partial
 owner: agent
 upstream:
-  - IMP-flutter-client
+  - IMP-client-platform
+  - IMP-assistant-client
+  - IMP-presentation-client
 covers:
   - FX-051
   - FX-056
@@ -26,8 +29,18 @@ covers:
   - FQ-006
   - FQ-007
   - FQ-008
+scope:
+  - static
+  - unit
+  - integration
+  - e2e
+  - browser
+  - live-provider
+commands:
+  - make analyze
+  - make test
+observed_commit: 7ab3de27c0ec7ff0c86bb16de2ec752d66f5c280
 updated_at: 2026-09-05
-observed_commit: 7ab3de2
 ---
 
 # Assistant 问答与原文卡片工程验收
@@ -75,4 +88,5 @@ observed_commit: 7ab3de2
 人类冻结集。
 
 已尝试 `flutter build linux --release -t lib/main_mock.dart`，因环境缺少 CMake 停止；原生外链与
-物理移动设备尚未验收，不能以 Web 结果替代。整体实现仍为 diverged，证据状态保留 partial。
+物理移动设备尚未验收，不能以 Web 结果替代。当前条款结论按领域 IMP 分别登记；本页保持
+`active/partial`，不再用整体状态覆盖局部差异。

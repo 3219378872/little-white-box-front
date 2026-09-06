@@ -2,15 +2,21 @@
 id: EVD-posts-reload-2026-08-20
 layer: evidence
 title: 资料帖子列表进入时重新拉取 2026-08-20
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-031
   - FQ-006
-updated_at: 2026-08-20
+scope:
+  - static
+  - unit
+commands:
+  - flutter test test/features/profile
 observed_commit: 2ebbf44f5061624e3ab5f527e7990d99906e8e32
+updated_at: 2026-08-20
 ---
 
 # 资料帖子列表进入时重新拉取 2026-08-20

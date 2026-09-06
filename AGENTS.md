@@ -15,17 +15,20 @@
 - 正式链路为“意图 → 规格 → 设计 → 实现 ↔ 证据”。先从知识总路由定位主题，不默认遍历整个 `docs/`。
 - 意图定义产品价值与边界；规格定义工程约束、质量指标和验收条件，内部实现机制归设计。
 - 意图和规格的语义所有权属于人类。agent 可按当前对话中的明确要求整理或修改；没有明确批准时保持
-  `draft` 或 `baseline`，不得标为 `approved`。
-- 只有 `approved` 意图/规格及其 `accepted` 设计约束未来实现。源码、配置、依赖锁、生成契约和测试是
+  `draft`，不得标为 `approved`；停用使用 `retired`。
+- 只有 `approved` 意图/规格及其 `active`/`blocked` 设计约束未来实现。`role: baseline` 只表示现状
+  投影，不是 lifecycle。源码、配置、依赖锁、生成契约和测试是
   当前事实；偏离设计时将实现标记 `diverged`，不得反向修改上层掩盖差异。
 - 修改行为时先定位规格条款，再读设计、实现和最近证据；完成后同步实现映射和带日期证据，保持实现与
-  证据双向引用，并运行 `make knowledge-check`。
+  证据双向引用。先提交被验证变更，再在该提交运行声明命令，以后续证据提交记录结果，避免自指。
+- 历史 `passed` 证据不能自动证明当前 HEAD；`aligned` 必须引用当前 `active/passed` EVD，
+  `unknown/diverged` 必须登记明确 gap。
 - `docs/knowledge/archive/` 仅为历史快照。涉及接口语义时还要重新核对同级后端仓库的当前意图、规格和
   生成契约，不能以归档联调文档代替。
 
 ## Forui 文档与版本边界
 
-- 项目内指南见 [docs/knowledge/implementation/IMP-forui-ui.md](docs/knowledge/implementation/IMP-forui-ui.md)。涉及 Forui 的任务应先读取该文件。
+- 项目内规范见 [docs/knowledge/design/DES-presentation-client.md](docs/knowledge/design/DES-presentation-client.md)。涉及 Forui 的任务应先读取该文件。
 - 使用 <https://forui.dev/docs/llms.txt> 查找相关概念、组件或指南页面。
 - 需要完整教程、API 细节或代码示例时，使用 <https://forui.dev/docs/llms-full.txt>，或打开索引中对应的具体页面。
 - 官方在线文档可能先于项目依赖更新。若示例与本仓库不兼容，以 `pubspec.lock` 中的版本和当前代码可用 API 为准，并查阅对应版本的 pub.dev API 文档或升级说明；不得凭最新文档直接假定旧版本支持相同接口。
@@ -45,7 +48,11 @@
 - `make setup`：解析 Flutter 依赖。
 - `make analyze`：运行静态分析。
 - `make test`：运行测试套件。
+- `make tools-test`：运行仓库维护工具单测。
+- `make knowledge-test`：运行知识 validator fixture 测试。
 - `make knowledge-check`：校验五层知识 ID、引用、条款覆盖、本地链接和实现—证据闭环。
+- `make sdk-check BACKEND_API=<已核验 gateway.api>`：在临时目录重生并比较两份 SDK，不写工作树。
+- `make check BACKEND_API=<已核验 gateway.api>`：运行 analyze、测试、知识与 SDK gate。
 - `make dev`：使用仓库内 Mock API 启动 Web 开发模式。
 - `make dev-real`：以相对路径 `/api/...` 连接当前源上的真实网关启动 Web。
 - `make dev-real SERVER_HOST=http://127.0.0.1:8888`：仍可显式指定绝对网关地址。

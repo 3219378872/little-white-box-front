@@ -2,7 +2,8 @@
 id: EVD-web-json-int64-2026-08-20
 layer: evidence
 title: Web JSON 雪花 ID 精度 2026-08-20
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -11,8 +12,14 @@ covers:
   - FX-031
   - FQ-002
   - FQ-007
+scope:
+  - static
+  - unit
+commands:
+  - flutter test
+  - make knowledge-check
+observed_commit: 33e6d355d7fcef001be140b62f002e20931dfa9a
 updated_at: 2026-08-20
-observed_commit: 5126b4d18e0a3a3c42fbceca9fb3430d927fc9c2
 ---
 
 # Web JSON 雪花 ID 精度 2026-08-20
@@ -49,3 +56,8 @@ make knowledge-check
 未在浏览器对正在运行的 `:3003` 开发服热重载后点开「继续联调帖」做端到端点击。合并并重启
 `make dev-real` 后才能在现场网关上复核。后端仍把 ID 编成 JSON number；本证据只证明前端可以在不改
 契约的前提下保住十进制。
+
+## 历史提交映射
+
+frontmatter 原记录 `5126b4d18e0a3a3c42fbceca9fb3430d927fc9c2`；主线重放后的等价提交为 `33e6d355d7fcef001be140b62f002e20931dfa9a`。
+迁移时以 `git range-diff` 核对，差异仅为提交内自引用 SHA/知识说明。

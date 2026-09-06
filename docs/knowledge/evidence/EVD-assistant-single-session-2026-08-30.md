@@ -2,15 +2,22 @@
 id: EVD-assistant-single-session-2026-08-30
 layer: evidence
 title: 去掉 Assistant 新会话入口 2026-08-30
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-092
   - FX-091
+scope:
+  - static
+  - unit
+commands:
+  - flutter test test/features/assistant
+  - make knowledge-check
+observed_commit: 23b53e6bb6821ad29c1a065ef65994fb357e3ef8
 updated_at: 2026-08-30
-observed_commit: ef993c444d2f2cc0c1c54da977e201951412176f
 ---
 
 # 去掉 Assistant 新会话入口 2026-08-30
@@ -37,3 +44,8 @@ observed_commit: ef993c444d2f2cc0c1c54da977e201951412176f
 ## 未证明范围
 
 未验证真实网关 30 分钟冷拼接或浏览器端历史列表。
+
+## 历史提交映射
+
+frontmatter 原记录 `ef993c444d2f2cc0c1c54da977e201951412176f`；主线重放后的等价提交为 `23b53e6bb6821ad29c1a065ef65994fb357e3ef8`。
+迁移时以 `git range-diff` 核对，差异仅为提交内自引用 SHA/知识说明。

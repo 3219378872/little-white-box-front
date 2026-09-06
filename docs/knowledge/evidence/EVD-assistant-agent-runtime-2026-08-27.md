@@ -3,6 +3,7 @@ id: EVD-assistant-agent-runtime-2026-08-27
 layer: evidence
 title: Assistant 记忆、Watch 与卡片表面 2026-08-27
 status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -16,8 +17,15 @@ covers:
   - FX-085
   - FX-086
   - FX-087
+scope:
+  - static
+  - unit
+commands:
+  - make analyze
+  - make test
+  - make knowledge-check
+observed_commit: 79b90ef06346c6a52eb47bc25ac253583282eaba
 updated_at: 2026-08-29
-observed_commit: 2a2beaa
 ---
 
 # Assistant 记忆、Watch 与卡片表面 2026-08-27
@@ -74,3 +82,8 @@ make knowledge-check  # knowledge check passed
 
 真实网关联调（consent 版本升级、记忆/Watch 写路径、card/actions/watch_hit SSE）
 待根仓联调环境跑通后补充，升级为 verified。
+
+## 历史提交映射
+
+frontmatter 原记录 `2a2beaac9f70bb8f5ff23d2b34357d90c67f29e5`；主线重放后的等价提交为 `79b90ef06346c6a52eb47bc25ac253583282eaba`。
+迁移时以 `git range-diff` 核对，差异仅为提交内自引用 SHA/知识说明。

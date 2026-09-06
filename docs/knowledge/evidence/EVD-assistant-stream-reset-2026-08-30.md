@@ -2,15 +2,25 @@
 id: EVD-assistant-stream-reset-2026-08-30
 layer: evidence
 title: Assistant 流 attempt reset 与重放 2026-08-30
-status: partial
+status: superseded
+result: partial
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-059
   - FX-090
-updated_at: 2026-08-30
+scope:
+  - static
+  - unit
+  - e2e
+commands:
+  - make test
+  - make analyze
+  - make test-coverage
+  - make knowledge-check
 observed_commit: 8d4f6dd4da31f10fade15776042641e282531187
+updated_at: 2026-08-30
 ---
 
 # Assistant 流 attempt reset 与重放 2026-08-30

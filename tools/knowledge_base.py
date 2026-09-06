@@ -3,15 +3,19 @@
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
 import sys
+from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from urllib.parse import unquote
 
 
-ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(os.environ.get("KNOWLEDGE_ROOT", DEFAULT_ROOT)).resolve()
 DOCS = ROOT / "docs"
 KNOWLEDGE = DOCS / "knowledge"
 
@@ -37,17 +41,59 @@ UPSTREAM_LAYER = {
     "evidence": "implementation",
 }
 ALLOWED_STATUS = {
-    "intent": {"draft", "baseline", "approved", "deprecated"},
-    "spec": {"draft", "baseline", "approved", "deprecated"},
-    "design": {"draft", "baseline", "accepted", "deprecated"},
-    "implementation": {"aligned", "diverged", "unknown", "deprecated"},
-    "evidence": {"verified", "partial", "failed", "superseded"},
+    "intent": {"draft", "approved", "retired"},
+    "spec": {"draft", "approved", "retired"},
+    "design": {"draft", "active", "blocked", "superseded"},
+    "implementation": {"unknown", "aligned", "diverged", "retired"},
+    "evidence": {"active", "superseded"},
+}
+EVIDENCE_RESULTS = {"passed", "partial", "failed", "blocked"}
+EVIDENCE_SCOPES = {
+    "static",
+    "unit",
+    "integration",
+    "e2e",
+    "browser",
+    "device",
+    "synthetic",
+    "human-review",
+    "live-provider",
+    "production",
+}
+EXTERNAL_REPOS = {
+    "little-white-box",
+    "little-white-box-content-community",
+    "little-white-box-front",
+}
+CONTROLLED_LIST_KEYS = {
+    "upstream",
+    "tracks",
+    "code_paths",
+    "evidence",
+    "covers",
+    "scope",
+    "commands",
+    "external_upstream",
 }
 
 ID_RE = re.compile(r"^(?:INT|SPEC|DES|IMP|EVD)-[a-z0-9]+(?:-[a-z0-9]+)*$")
-REQUIREMENT_RE = re.compile(r"`((?:FX|FQ)-\d{3})`")
+REQUIREMENT_DEFINITION_RE = re.compile(
+    r"(?:^\s*[-*]\s+`(?P<bullet>(?:FX|FQ)-\d{3})`[：:]"
+    r"|^\s*\|\s*`?(?P<table>(?:FX|FQ)-\d{3})`?\s*\|)",
+    re.MULTILINE,
+)
+REQUIREMENT_ID_RE = re.compile(r"^(?:FX|FQ)-\d{3}$")
+EXTERNAL_REQUIREMENT_ID_RE = re.compile(
+    r"^[A-Z][A-Z0-9]*-(?:A[0-9]{2}|[0-9]{3}(?:-[0-9]{2})?)$"
+)
 LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
+EXTERNAL_UPSTREAM_RE = re.compile(r"^([^@]+)@([0-9a-f]{40}):(.+)$")
+FENCE_OPEN_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+AUTHORITY_HEADER = ("requirement", "design", "state", "evidence or gap")
+AUTHORITY_SEPARATOR_RE = re.compile(r"^:?-{3,}:?$")
+EVIDENCE_ID_RE = re.compile(r"EVD-[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
 @dataclass(frozen=True)
@@ -69,14 +115,83 @@ class Document:
         return [value] if value else []
 
 
-def parse_frontmatter(path: Path, errors: list[str]) -> tuple[dict[str, str | list[str]], str]:
+def relative(path: Path) -> str:
+    try:
+        return path.relative_to(ROOT).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def semantic_markdown(text: str) -> str:
+    """Remove content that Markdown renders as comments or fenced code."""
+    semantic_lines: list[str] = []
+    fence_character: str | None = None
+    fence_length = 0
+    in_comment = False
+    for line in text.splitlines():
+        if fence_character is not None:
+            candidate = line.lstrip(" ")
+            indentation = len(line) - len(candidate)
+            if indentation <= 3 and re.fullmatch(
+                rf"{re.escape(fence_character)}{{{fence_length},}}[ \t]*",
+                candidate,
+            ):
+                fence_character = None
+                fence_length = 0
+            continue
+
+        if not in_comment:
+            opening = FENCE_OPEN_RE.fullmatch(line)
+            if opening is not None:
+                marker, remainder = opening.groups()
+                if marker[0] != "`" or "`" not in remainder:
+                    fence_character = marker[0]
+                    fence_length = len(marker)
+                    continue
+
+        visible_parts: list[str] = []
+        cursor = 0
+        while cursor < len(line):
+            if in_comment:
+                end = line.find("-->", cursor)
+                if end < 0:
+                    cursor = len(line)
+                    break
+                in_comment = False
+                cursor = end + 3
+                continue
+            start = line.find("<!--", cursor)
+            if start < 0:
+                visible_parts.append(line[cursor:])
+                break
+            visible_parts.append(line[cursor:start])
+            in_comment = True
+            cursor = start + 4
+        semantic_lines.append("".join(visible_parts))
+    return "\n".join(semantic_lines)
+
+
+def requirement_definitions(text: str) -> list[str]:
+    definitions: list[str] = []
+    for match in REQUIREMENT_DEFINITION_RE.finditer(semantic_markdown(text)):
+        definitions.append(match.group("bullet") or match.group("table"))
+    return definitions
+
+
+def parse_frontmatter(
+    path: Path, errors: list[str]
+) -> tuple[dict[str, str | list[str]], str]:
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         errors.append(f"{relative(path)}: missing frontmatter")
         return {}, text
     try:
-        end = next(index for index, line in enumerate(lines[1:], start=1) if line.strip() == "---")
+        end = next(
+            index
+            for index, line in enumerate(lines[1:], start=1)
+            if line.strip() == "---"
+        )
     except StopIteration:
         errors.append(f"{relative(path)}: unclosed frontmatter")
         return {}, text
@@ -90,7 +205,7 @@ def parse_frontmatter(path: Path, errors: list[str]) -> tuple[dict[str, str | li
             if active_list is None:
                 errors.append(f"{relative(path)}:{number}: list item has no key")
                 continue
-            value = line[4:].strip().strip('"\'')
+            value = line[4:].strip().strip("\"'")
             current = meta.setdefault(active_list, [])
             if not isinstance(current, list):
                 errors.append(f"{relative(path)}:{number}: {active_list} is not a list")
@@ -110,16 +225,9 @@ def parse_frontmatter(path: Path, errors: list[str]) -> tuple[dict[str, str | li
             meta[key] = []
             active_list = key if raw == "" else None
         else:
-            meta[key] = raw.strip('"\'')
+            meta[key] = raw.strip("\"'")
             active_list = None
     return meta, "\n".join(lines[end + 1 :])
-
-
-def relative(path: Path) -> str:
-    try:
-        return path.relative_to(ROOT).as_posix()
-    except ValueError:
-        return str(path)
 
 
 def formal_documents(errors: list[str]) -> list[Document]:
@@ -132,14 +240,126 @@ def formal_documents(errors: list[str]) -> list[Document]:
         if not readme.is_file():
             errors.append(f"{relative(readme)}: required layer index is missing")
         for path in sorted(directory.rglob("*.md")):
-            if path.name == "README.md":
+            if path == readme:
                 continue
             meta, body = parse_frontmatter(path, errors)
             documents.append(Document(path=path, layer=layer, body=body, meta=meta))
     return documents
 
 
-def validate_metadata(documents: list[Document], errors: list[str]) -> dict[str, Document]:
+def _require_list(
+    doc: Document, key: str, errors: list[str], *, nonempty: bool = False
+) -> list[str]:
+    value = doc.meta.get(key)
+    if not isinstance(value, list):
+        errors.append(f"{relative(doc.path)}: {key} must be a YAML list")
+        return []
+    if nonempty and not value:
+        errors.append(f"{relative(doc.path)}: {key} must not be empty")
+    return value
+
+
+def _require_controlled_list(
+    doc: Document, key: str, errors: list[str], *, nonempty: bool = False
+) -> list[str]:
+    if key not in CONTROLLED_LIST_KEYS:
+        raise ValueError(f"uncontrolled list key: {key}")
+    values = _require_list(doc, key, errors, nonempty=nonempty)
+    seen: set[str] = set()
+    for value in values:
+        if not isinstance(value, str) or not value.strip():
+            errors.append(
+                f"{relative(doc.path)}: {key} items must be non-blank strings"
+            )
+            continue
+        normalized = value.strip()
+        if normalized in seen:
+            errors.append(f"{relative(doc.path)}: duplicate {key} item {normalized!r}")
+        seen.add(normalized)
+    return values
+
+
+def _commit_is_ancestor(commit: str) -> bool:
+    exists = subprocess.run(
+        ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
+        cwd=ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if exists.returncode != 0:
+        return False
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", commit, "HEAD"],
+        cwd=ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return ancestor.returncode == 0
+
+
+def _changed_paths_since(commit: str, paths: list[str]) -> tuple[list[str], str]:
+    commands = [
+        ["git", "diff", "--no-ext-diff", "--name-only", f"{commit}..HEAD"],
+        ["git", "diff", "--no-ext-diff", "--name-only"],
+        ["git", "diff", "--no-ext-diff", "--cached", "--name-only"],
+        ["git", "ls-files", "--others", "--exclude-standard"],
+    ]
+    changed: set[str] = set()
+    failures: list[str] = []
+    for command in commands:
+        comparison = subprocess.run(
+            [*command, "--", *paths],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if comparison.returncode != 0:
+            failures.append(comparison.stderr.strip() or "git comparison failed")
+            continue
+        changed.update(line for line in comparison.stdout.splitlines() if line)
+    return sorted(changed), "; ".join(failures)
+
+
+def _validate_code_paths(doc: Document, paths: list[str], errors: list[str]) -> None:
+    for raw in paths:
+        candidate = Path(raw)
+        if candidate.is_absolute() or ".." in candidate.parts:
+            errors.append(
+                f"{relative(doc.path)}: code_path must be root-relative: {raw}"
+            )
+            continue
+        if not (ROOT / candidate).exists():
+            errors.append(f"{relative(doc.path)}: code_path does not exist: {raw}")
+
+
+def _validate_external_upstream(doc: Document, errors: list[str]) -> None:
+    if "external_upstream" not in doc.meta:
+        return
+    for value in _require_controlled_list(
+        doc, "external_upstream", errors, nonempty=True
+    ):
+        match = EXTERNAL_UPSTREAM_RE.fullmatch(value)
+        target = match.group(3) if match is not None else ""
+        if (
+            match is None
+            or match.group(1) not in EXTERNAL_REPOS
+            or not (
+                ID_RE.fullmatch(target) or EXTERNAL_REQUIREMENT_ID_RE.fullmatch(target)
+            )
+        ):
+            errors.append(
+                f"{relative(doc.path)}: invalid external_upstream {value!r}; "
+                "expected repo@40hex:formal-or-requirement-ID"
+            )
+
+
+def validate_metadata(
+    documents: list[Document], errors: list[str]
+) -> dict[str, Document]:
     by_id: dict[str, Document] = {}
     required = {"id", "layer", "title", "status", "owner", "upstream", "updated_at"}
     for doc in documents:
@@ -148,14 +368,22 @@ def validate_metadata(documents: list[Document], errors: list[str]) -> dict[str,
         if missing:
             errors.append(f"{label}: missing frontmatter keys: {', '.join(missing)}")
 
+        title = doc.meta.get("title")
+        if not isinstance(title, str) or not title.strip():
+            errors.append(f"{label}: title must be a non-blank string")
+
         if doc.meta.get("layer") != doc.layer:
             errors.append(f"{label}: layer must be {doc.layer}")
         if not doc.id.startswith(PREFIXES[doc.layer]) or not ID_RE.fullmatch(doc.id):
             errors.append(f"{label}: invalid {doc.layer} id {doc.id!r}")
         elif doc.id in by_id:
-            errors.append(f"{label}: duplicate id {doc.id} (also {relative(by_id[doc.id].path)})")
+            errors.append(
+                f"{label}: duplicate id {doc.id} (also {relative(by_id[doc.id].path)})"
+            )
         else:
             by_id[doc.id] = doc
+        if doc.path.stem != doc.id:
+            errors.append(f"{label}: filename must match id {doc.id!r}")
 
         status = doc.meta.get("status")
         if status not in ALLOWED_STATUS[doc.layer]:
@@ -166,6 +394,10 @@ def validate_metadata(documents: list[Document], errors: list[str]) -> dict[str,
         if doc.layer in {"intent", "spec"} and owner != "human":
             errors.append(f"{label}: intent/spec semantic owner must be human")
 
+        role = doc.meta.get("role")
+        if role is not None and role != "baseline":
+            errors.append(f"{label}: role must be baseline when present")
+
         updated = doc.meta.get("updated_at")
         if not isinstance(updated, str) or not DATE_RE.fullmatch(updated):
             errors.append(f"{label}: updated_at must be YYYY-MM-DD")
@@ -175,128 +407,448 @@ def validate_metadata(documents: list[Document], errors: list[str]) -> dict[str,
             except ValueError:
                 errors.append(f"{label}: updated_at is not a valid date")
 
-        upstream = doc.meta.get("upstream")
-        if not isinstance(upstream, list):
-            errors.append(f"{label}: upstream must be a YAML list")
-        elif doc.layer == "intent" and upstream:
+        upstream = _require_controlled_list(doc, "upstream", errors)
+        if doc.layer == "intent" and upstream:
             errors.append(f"{label}: intent must not have upstream references")
-        elif doc.layer != "intent" and not upstream:
-            errors.append(f"{label}: {doc.layer} requires at least one upstream reference")
+        if doc.layer != "intent" and not upstream:
+            errors.append(
+                f"{label}: {doc.layer} requires at least one upstream reference"
+            )
 
-        if doc.layer in {"design", "implementation"} and not doc.values("tracks"):
-            errors.append(f"{label}: {doc.layer} requires a non-empty tracks list")
-        if doc.layer == "implementation" and not doc.values("evidence"):
-            errors.append(f"{label}: implementation requires a non-empty evidence list")
-        if doc.layer == "evidence" and not doc.values("covers"):
-            errors.append(f"{label}: evidence requires a non-empty covers list")
+        _validate_external_upstream(doc, errors)
+
+        if doc.layer in {"design", "implementation"}:
+            inactive = status in {"superseded", "retired"}
+            tracks = _require_controlled_list(
+                doc, "tracks", errors, nonempty=not inactive
+            )
+            for requirement in tracks:
+                if not REQUIREMENT_ID_RE.fullmatch(requirement):
+                    errors.append(
+                        f"{label}: invalid requirement in tracks: {requirement}"
+                    )
+
+        if doc.layer == "implementation":
+            if "observed_commit" in doc.meta or "verified_commit" in doc.meta:
+                errors.append(
+                    f"{label}: implementation must not store commit observations"
+                )
+            inactive = status == "retired"
+            code_paths = _require_controlled_list(
+                doc, "code_paths", errors, nonempty=not inactive
+            )
+            _require_controlled_list(doc, "evidence", errors, nonempty=not inactive)
+            _validate_code_paths(doc, code_paths, errors)
+
+        if doc.layer == "evidence":
+            covers = _require_controlled_list(doc, "covers", errors, nonempty=True)
+            scopes = _require_controlled_list(doc, "scope", errors, nonempty=True)
+            _require_controlled_list(doc, "commands", errors, nonempty=True)
+            unexpected_scopes = set(scopes) - EVIDENCE_SCOPES
+            if unexpected_scopes:
+                errors.append(
+                    f"{label}: invalid evidence scope: "
+                    f"{', '.join(sorted(unexpected_scopes))}"
+                )
+            for requirement in covers:
+                if not REQUIREMENT_ID_RE.fullmatch(requirement):
+                    errors.append(
+                        f"{label}: invalid requirement in covers: {requirement}"
+                    )
+            result = doc.meta.get("result")
+            if result not in EVIDENCE_RESULTS:
+                errors.append(f"{label}: invalid evidence result {result!r}")
+            commit = doc.meta.get("observed_commit")
+            if not isinstance(commit, str) or not COMMIT_RE.fullmatch(commit):
+                errors.append(
+                    f"{label}: observed_commit must be a full 40-character SHA"
+                )
+            elif not _commit_is_ancestor(commit):
+                errors.append(
+                    f"{label}: observed_commit is not an ancestor of HEAD: {commit}"
+                )
+            artifacts = []
+            if "artifacts" in doc.meta:
+                artifacts = _require_list(doc, "artifacts", errors)
+            only_temporary = bool(artifacts) and all(
+                item == "/tmp" or item.startswith("/tmp/") for item in artifacts
+            )
+            if status == "active" and result == "passed" and only_temporary:
+                errors.append(
+                    f"{label}: active passed evidence must not rely only on /tmp artifacts"
+                )
     return by_id
 
 
-def validate_graph(documents: list[Document], by_id: dict[str, Document], errors: list[str]) -> None:
+def validate_indexes(documents: list[Document], errors: list[str]) -> None:
+    for layer, directory in LAYER_DIRS.items():
+        readme = directory / "README.md"
+        if not readme.is_file():
+            continue
+        links = []
+        index_body = semantic_markdown(readme.read_text(encoding="utf-8"))
+        for raw_target in LINK_RE.findall(index_body):
+            target = raw_target.strip().split(maxsplit=1)[0].strip("<>")
+            target = unquote(target.split("#", maxsplit=1)[0])
+            resolved = (readme.parent / target).resolve()
+            if resolved.parent == directory.resolve() and resolved.suffix == ".md":
+                links.append(resolved)
+        counts = Counter(links)
+        expected = {doc.path.resolve() for doc in documents if doc.layer == layer}
+        for path in sorted(expected):
+            count = counts[path]
+            if count == 0:
+                errors.append(
+                    f"{relative(readme)}: missing formal document {path.name}"
+                )
+            elif count > 1:
+                errors.append(
+                    f"{relative(readme)}: duplicate formal document {path.name}"
+                )
+
+
+def _split_table_row(line: str) -> list[str] | None:
+    stripped = line.strip()
+    if not stripped.startswith("|") or not stripped.endswith("|"):
+        return None
+    return [cell.strip() for cell in stripped[1:-1].split("|")]
+
+
+def _normalized_header(cells: list[str]) -> tuple[str, ...]:
+    return tuple(" ".join(cell.lower().split()) for cell in cells)
+
+
+def _authority_rows(
+    doc: Document, errors: list[str]
+) -> list[tuple[str, str, str, str]]:
+    lines = semantic_markdown(doc.body).splitlines()
+    header_indexes = []
+    for index, line in enumerate(lines):
+        cells = _split_table_row(line)
+        if cells is not None and _normalized_header(cells) == AUTHORITY_HEADER:
+            header_indexes.append(index)
+
+    if len(header_indexes) != 1:
+        errors.append(
+            f"{relative(doc.path)}: requires exactly one authority table header; "
+            f"found {len(header_indexes)}"
+        )
+    if not header_indexes:
+        return []
+
+    header_index = header_indexes[0]
+    if header_index + 1 >= len(lines):
+        errors.append(
+            f"{relative(doc.path)}: authority table header must be followed by "
+            "a valid Markdown separator"
+        )
+        return []
+    separator = _split_table_row(lines[header_index + 1])
+    if (
+        separator is None
+        or len(separator) != len(AUTHORITY_HEADER)
+        or not all(AUTHORITY_SEPARATOR_RE.fullmatch(cell) for cell in separator)
+    ):
+        errors.append(
+            f"{relative(doc.path)}: authority table header must be followed by "
+            "a valid Markdown separator"
+        )
+        return []
+
+    rows: list[tuple[str, str, str, str]] = []
+    for number, line in enumerate(lines[header_index + 2 :], start=header_index + 3):
+        cells = _split_table_row(line)
+        if cells is None:
+            break
+        if len(cells) != len(AUTHORITY_HEADER):
+            errors.append(
+                f"{relative(doc.path)}:{number}: authority row must have four columns"
+            )
+            continue
+        requirement, design_id, state, support = cells
+        if requirement.startswith("`") and requirement.endswith("`"):
+            requirement = requirement[1:-1].strip()
+        if design_id.startswith("`") and design_id.endswith("`"):
+            design_id = design_id[1:-1].strip()
+        if (
+            not REQUIREMENT_ID_RE.fullmatch(requirement)
+            or not design_id.startswith("DES-")
+            or not ID_RE.fullmatch(design_id)
+            or state not in {"aligned", "diverged", "unknown"}
+        ):
+            errors.append(f"{relative(doc.path)}:{number}: invalid authority row")
+            continue
+        rows.append((requirement, design_id, state, support))
+    return rows
+
+
+def validate_graph(
+    documents: list[Document], by_id: dict[str, Document], errors: list[str]
+) -> tuple[dict[str, Document], Counter[str]]:
     requirements: dict[str, Document] = {}
     for doc in documents:
         if doc.layer != "spec":
             continue
-        for requirement in REQUIREMENT_RE.findall(doc.body):
+        for requirement in requirement_definitions(doc.body):
             previous = requirements.get(requirement)
-            if previous is not None and previous.path != doc.path:
+            if previous is None:
+                requirements[requirement] = doc
+            elif previous.path == doc.path:
                 errors.append(
-                    f"{relative(doc.path)}: requirement {requirement} also belongs to {relative(previous.path)}"
+                    f"{relative(doc.path)}: duplicate requirement {requirement} "
+                    "in the same spec"
                 )
-            requirements[requirement] = doc
+            else:
+                errors.append(
+                    f"{relative(doc.path)}: requirement {requirement} also belongs to "
+                    f"{relative(previous.path)}"
+                )
 
     for doc in documents:
         expected = UPSTREAM_LAYER[doc.layer]
+        upstream_docs: list[Document] = []
         for upstream_id in doc.values("upstream"):
             upstream = by_id.get(upstream_id)
             if upstream is None:
-                errors.append(f"{relative(doc.path)}: unknown upstream id {upstream_id}")
+                errors.append(
+                    f"{relative(doc.path)}: unknown upstream id {upstream_id}"
+                )
                 continue
             if upstream.layer != expected:
                 errors.append(
-                    f"{relative(doc.path)}: upstream {upstream_id} must be in {expected}, not {upstream.layer}"
+                    f"{relative(doc.path)}: upstream {upstream_id} must be in "
+                    f"{expected}, not {upstream.layer}"
                 )
+                continue
+            upstream_docs.append(upstream)
 
         status = doc.meta.get("status")
         if doc.layer == "spec" and status == "approved":
-            for upstream_id in doc.values("upstream"):
-                upstream = by_id.get(upstream_id)
-                if upstream is not None and upstream.meta.get("status") != "approved":
-                    errors.append(f"{relative(doc.path)}: approved spec requires approved intent {upstream_id}")
-        if doc.layer == "design" and status == "accepted":
-            for upstream_id in doc.values("upstream"):
-                upstream = by_id.get(upstream_id)
-                if upstream is not None and upstream.meta.get("status") != "approved":
-                    errors.append(f"{relative(doc.path)}: accepted design requires approved spec {upstream_id}")
+            for upstream in upstream_docs:
+                if upstream.meta.get("status") != "approved":
+                    errors.append(
+                        f"{relative(doc.path)}: approved spec requires approved intent {upstream.id}"
+                    )
 
-        for requirement in doc.values("tracks") + doc.values("covers"):
-            if requirement not in requirements:
-                errors.append(f"{relative(doc.path)}: unknown requirement {requirement}")
-
-    design_tracks = {
-        requirement
-        for doc in documents
-        if doc.layer == "design"
-        for requirement in doc.values("tracks")
-    }
-    implementation_tracks = {
-        requirement
-        for doc in documents
-        if doc.layer == "implementation"
-        for requirement in doc.values("tracks")
-    }
-    evidence_covers = {
-        requirement
-        for doc in documents
-        if doc.layer == "evidence"
-        for requirement in doc.values("covers")
-    }
-    for description, missing in (
-        ("requirements without design coverage", set(requirements) - design_tracks),
-        ("design tracks without implementation coverage", design_tracks - implementation_tracks),
-        ("implementation tracks without evidence coverage", implementation_tracks - evidence_covers),
-    ):
-        if missing:
-            errors.append(f"{description}: {', '.join(sorted(missing))}")
-
-    for doc in documents:
-        if doc.layer == "implementation":
-            upstream_tracks = {
+        if doc.layer == "design":
+            allowed = {
                 requirement
-                for upstream_id in doc.values("upstream")
-                for requirement in (by_id.get(upstream_id).values("tracks") if by_id.get(upstream_id) else [])
+                for upstream in upstream_docs
+                for requirement in requirement_definitions(upstream.body)
             }
-            unexpected = set(doc.values("tracks")) - upstream_tracks
+            unexpected = set(doc.values("tracks")) - allowed
             if unexpected:
                 errors.append(
-                    f"{relative(doc.path)}: tracks not covered by upstream design: {', '.join(sorted(unexpected))}"
+                    f"{relative(doc.path)}: tracks not declared by upstream specs: "
+                    f"{', '.join(sorted(unexpected))}"
+                )
+
+        if doc.layer == "implementation":
+            allowed = {
+                requirement
+                for upstream in upstream_docs
+                for requirement in upstream.values("tracks")
+            }
+            unexpected = set(doc.values("tracks")) - allowed
+            if unexpected:
+                errors.append(
+                    f"{relative(doc.path)}: tracks not covered by upstream design: "
+                    f"{', '.join(sorted(unexpected))}"
                 )
             for evidence_id in doc.values("evidence"):
                 evidence = by_id.get(evidence_id)
                 if evidence is None or evidence.layer != "evidence":
-                    errors.append(f"{relative(doc.path)}: unknown evidence id {evidence_id}")
+                    errors.append(
+                        f"{relative(doc.path)}: unknown evidence id {evidence_id}"
+                    )
                 elif doc.id not in evidence.values("upstream"):
                     errors.append(
                         f"{relative(doc.path)}: evidence {evidence_id} does not link back to {doc.id}"
                     )
 
         if doc.layer == "evidence":
-            upstream_tracks = {
-                requirement
-                for upstream_id in doc.values("upstream")
-                for requirement in (by_id.get(upstream_id).values("tracks") if by_id.get(upstream_id) else [])
-            }
-            unexpected = set(doc.values("covers")) - upstream_tracks
-            if unexpected:
-                errors.append(
-                    f"{relative(doc.path)}: covers not tracked by upstream implementation: {', '.join(sorted(unexpected))}"
+            if status == "active":
+                for upstream in upstream_docs:
+                    if upstream.meta.get("status") == "retired":
+                        errors.append(
+                            f"{relative(doc.path)}: active evidence cannot reference retired {upstream.id}"
+                        )
+            historical_pointer = (
+                status == "superseded"
+                and bool(upstream_docs)
+                and all(
+                    upstream.meta.get("status") == "retired"
+                    for upstream in upstream_docs
                 )
-            for implementation_id in doc.values("upstream"):
-                implementation = by_id.get(implementation_id)
-                if implementation is not None and doc.id not in implementation.values("evidence"):
+            )
+            if not historical_pointer:
+                allowed = {
+                    requirement
+                    for upstream in upstream_docs
+                    for requirement in upstream.values("tracks")
+                }
+                unexpected = set(doc.values("covers")) - allowed
+                if unexpected:
                     errors.append(
-                        f"{relative(doc.path)}: implementation {implementation_id} does not link back to {doc.id}"
+                        f"{relative(doc.path)}: covers not tracked by upstream implementation: "
+                        f"{', '.join(sorted(unexpected))}"
                     )
+            for implementation in upstream_docs:
+                if doc.id not in implementation.values("evidence"):
+                    errors.append(
+                        f"{relative(doc.path)}: implementation {implementation.id} "
+                        f"does not link back to {doc.id}"
+                    )
+            commit = doc.meta.get("observed_commit")
+            if (
+                status == "active"
+                and doc.meta.get("result") == "passed"
+                and isinstance(commit, str)
+                and COMMIT_RE.fullmatch(commit)
+                and _commit_is_ancestor(commit)
+            ):
+                for implementation in upstream_docs:
+                    code_paths = [
+                        raw
+                        for raw in implementation.values("code_paths")
+                        if raw.strip()
+                        and not Path(raw).is_absolute()
+                        and ".." not in Path(raw).parts
+                    ]
+                    if not code_paths:
+                        continue
+                    changed_paths, comparison_error = _changed_paths_since(
+                        commit, code_paths
+                    )
+                    if comparison_error:
+                        errors.append(
+                            f"{relative(doc.path)}: could not compare {implementation.id} "
+                            f"code_paths at {commit}: {comparison_error}"
+                        )
+                    elif changed_paths:
+                        errors.append(
+                            f"{relative(doc.path)}: active passed evidence is stale for "
+                            f"{implementation.id}; code_paths changed after {commit}: "
+                            f"{', '.join(changed_paths)}"
+                        )
+
+    authority_rows: dict[str, list[tuple[Document, str, str, str]]] = {}
+    for doc in documents:
+        if doc.layer != "implementation" or doc.meta.get("status") == "retired":
+            continue
+        rows = _authority_rows(doc, errors)
+        row_requirements = [row[0] for row in rows]
+        duplicates = sorted(
+            requirement
+            for requirement, count in Counter(row_requirements).items()
+            if count > 1
+        )
+        if duplicates:
+            errors.append(
+                f"{relative(doc.path)}: duplicate authority rows: {', '.join(duplicates)}"
+            )
+        tracks = set(doc.values("tracks"))
+        missing_rows = tracks - set(row_requirements)
+        unexpected_rows = set(row_requirements) - tracks
+        if missing_rows:
+            errors.append(
+                f"{relative(doc.path)}: tracks without authority rows: "
+                f"{', '.join(sorted(missing_rows))}"
+            )
+        if unexpected_rows:
+            errors.append(
+                f"{relative(doc.path)}: authority rows not declared in tracks: "
+                f"{', '.join(sorted(unexpected_rows))}"
+            )
+
+        states = {row[2] for row in rows}
+        expected_status = (
+            "diverged"
+            if "diverged" in states
+            else "unknown"
+            if "unknown" in states
+            else "aligned"
+        )
+        if rows and doc.meta.get("status") != expected_status:
+            errors.append(
+                f"{relative(doc.path)}: status must be {expected_status} for its authority rows"
+            )
+
+        for requirement, design_id, state, support in rows:
+            authority_rows.setdefault(requirement, []).append(
+                (doc, design_id, state, support)
+            )
+            design = by_id.get(design_id)
+            if design_id not in doc.values("upstream"):
+                errors.append(
+                    f"{relative(doc.path)}: authority design {design_id} is not an upstream"
+                )
+            if design is None or design.layer != "design":
+                errors.append(
+                    f"{relative(doc.path)}: unknown authority design {design_id}"
+                )
+            elif design.meta.get("status") not in {
+                "active",
+                "blocked",
+            } or requirement not in design.values("tracks"):
+                errors.append(
+                    f"{relative(doc.path)}: authority design {design_id} does not currently track {requirement}"
+                )
+
+            evidence_ids = sorted(set(EVIDENCE_ID_RE.findall(support)))
+            if state == "aligned":
+                valid_support = []
+                for evidence_id in evidence_ids:
+                    evidence = by_id.get(evidence_id)
+                    if (
+                        evidence is not None
+                        and evidence.layer == "evidence"
+                        and evidence.meta.get("status") == "active"
+                        and evidence.meta.get("result") == "passed"
+                        and requirement in evidence.values("covers")
+                        and doc.id in evidence.values("upstream")
+                        and evidence_id in doc.values("evidence")
+                    ):
+                        valid_support.append(evidence_id)
+                if not valid_support:
+                    errors.append(
+                        f"{relative(doc.path)}: aligned authority {requirement} requires "
+                        "active passed evidence"
+                    )
+            elif not re.search(r"\bgap:\s*\S", support):
+                errors.append(
+                    f"{relative(doc.path)}: {state} authority {requirement} requires an explicit gap:"
+                )
+
+    authority_results: Counter[str] = Counter()
+    approved_requirements = {
+        requirement
+        for requirement, spec in requirements.items()
+        if spec.meta.get("status") == "approved"
+    }
+    for requirement in sorted(approved_requirements):
+        active_designs = [
+            doc
+            for doc in documents
+            if doc.layer == "design"
+            and doc.meta.get("status") in {"active", "blocked"}
+            and requirement in doc.values("tracks")
+        ]
+        if len(active_designs) != 1:
+            errors.append(
+                "approved requirement requires exactly one current design: "
+                f"{requirement} has {len(active_designs)}"
+            )
+
+        rows = authority_rows.get(requirement, [])
+        if len(rows) != 1:
+            errors.append(
+                f"approved requirement requires exactly one current authority row: "
+                f"{requirement} has {len(rows)}"
+            )
+            continue
+        authority_results[rows[0][2]] += 1
+    return requirements, authority_results
 
 
 def validate_links(errors: list[str]) -> int:
@@ -354,7 +906,9 @@ def validate_governance(errors: list[str]) -> None:
         text = path.read_text(encoding="utf-8")
         for needle in needles:
             if needle not in text:
-                errors.append(f"{relative(path)}: missing governance reference {needle!r}")
+                errors.append(
+                    f"{relative(path)}: missing governance reference {needle!r}"
+                )
 
 
 def check() -> int:
@@ -362,7 +916,8 @@ def check() -> int:
     validate_governance(errors)
     documents = formal_documents(errors)
     by_id = validate_metadata(documents, errors)
-    validate_graph(documents, by_id, errors)
+    validate_indexes(documents, errors)
+    requirements, authority_results = validate_graph(documents, by_id, errors)
     link_count = validate_links(errors)
 
     if errors:
@@ -371,14 +926,14 @@ def check() -> int:
             print(f"- {error}", file=sys.stderr)
         return 1
 
-    requirement_count = sum(
-        len(set(REQUIREMENT_RE.findall(doc.body)))
-        for doc in documents
-        if doc.layer == "spec"
+    result_summary = ", ".join(
+        f"{name}={authority_results[name]}"
+        for name in ("aligned", "diverged", "unknown")
     )
     print(
         "knowledge-check: OK "
-        f"({len(documents)} formal documents, {requirement_count} requirements, {link_count} local links)"
+        f"({len(documents)} formal documents, {len(requirements)} requirements, "
+        f"{link_count} local links; {result_summary})"
     )
     return 0
 

@@ -2,7 +2,8 @@
 id: EVD-auth-refresh-2026-08-21
 layer: evidence
 title: 双令牌被动刷新对齐 2026-08-21
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -10,8 +11,14 @@ covers:
   - FX-010
   - FQ-002
   - FQ-007
-updated_at: 2026-08-21
+scope:
+  - static
+  - unit
+commands:
+  - flutter test
+  - make knowledge-check
 observed_commit: cae6e7391126a16105dd07aee52a18f35c91358b
+updated_at: 2026-08-21
 ---
 
 # 双令牌被动刷新对齐 2026-08-21

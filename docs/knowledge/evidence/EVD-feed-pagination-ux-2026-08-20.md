@@ -2,7 +2,8 @@
 id: EVD-feed-pagination-ux-2026-08-20
 layer: evidence
 title: Feed 分页结束与加载更多失败 2026-08-20
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -10,8 +11,13 @@ covers:
   - FX-020
   - FX-021
   - FQ-006
-updated_at: 2026-08-20
+scope:
+  - static
+  - unit
+commands:
+  - flutter test test/features/feed
 observed_commit: bd2ebf158a086ebeecfc6dcc4f13bf112350c008
+updated_at: 2026-08-20
 ---
 
 # Feed 分页结束与加载更多失败 2026-08-20

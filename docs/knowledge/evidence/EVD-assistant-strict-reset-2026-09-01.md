@@ -2,15 +2,24 @@
 id: EVD-assistant-strict-reset-2026-09-01
 layer: evidence
 title: Assistant 严格丢弃 reset attempt 正文 2026-09-01
-status: partial
+status: superseded
+result: partial
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-059
   - FX-090
-updated_at: 2026-09-01
+scope:
+  - static
+  - unit
+commands:
+  - flutter test test/features/assistant
+  - make analyze
+  - make test
+  - make knowledge-check
 observed_commit: 47062ba91e1f07ed6923320389d5877be53e1578
+updated_at: 2026-09-01
 ---
 
 # Assistant 严格丢弃 reset attempt 正文 2026-09-01

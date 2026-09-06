@@ -2,7 +2,8 @@
 id: EVD-client-api-followup-2026-08-18
 layer: evidence
 title: 前端跟进后端契约与断点版式 2026-08-18
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -32,8 +33,14 @@ covers:
   - FQ-006
   - FQ-007
   - FQ-008
+scope:
+  - static
+  - unit
+commands:
+  - flutter test
+  - make knowledge-check
+observed_commit: c4b0b75797859be77bd1e92b8b7772369a3ffa3d
 updated_at: 2026-08-18
-observed_commit: f97bb47eb43ef9a3eba0e1c2b72407deef668880
 ---
 
 # 前端跟进后端契约与断点版式 2026-08-18
@@ -78,3 +85,8 @@ make knowledge-check
 - 未跑真实网关（CORS、鉴权、SSE 代理、生产推荐）。
 - 视频/语音发送不能在当前 HTTP 契约上证明。
 - 浏览器端到端未在本证据中记录。
+
+## 历史提交映射
+
+frontmatter 原记录 `f97bb47eb43ef9a3eba0e1c2b72407deef668880`；主线重放后的等价提交为 `c4b0b75797859be77bd1e92b8b7772369a3ffa3d`。
+迁移时以 `git range-diff` 核对，差异仅为提交内自引用 SHA/知识说明。

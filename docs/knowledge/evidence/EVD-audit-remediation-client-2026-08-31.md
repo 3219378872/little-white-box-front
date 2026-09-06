@@ -2,10 +2,14 @@
 id: EVD-audit-remediation-client-2026-08-31
 layer: evidence
 title: 客户端会话隔离与 Assistant 写入并发整改 2026-08-31
-status: partial
+status: active
+result: partial
 owner: agent
 upstream:
-  - IMP-flutter-client
+  - IMP-client-platform
+  - IMP-community-client
+  - IMP-messaging-client
+  - IMP-assistant-client
 covers:
   - FX-002
   - FX-010
@@ -21,8 +25,19 @@ covers:
   - FQ-006
   - FQ-007
   - FQ-008
-updated_at: 2026-08-31
+scope:
+  - static
+  - unit
+  - integration
+  - e2e
+  - browser
+commands:
+  - make analyze
+  - make test
+  - make test-coverage
+  - flutter test test/features/assistant/data/assistant_repository_test.dart
 observed_commit: 97dc5909f797b8a498b3011cdb0bc482c85afa52
+updated_at: 2026-08-31
 ---
 
 # 客户端会话隔离与 Assistant 写入并发整改 2026-08-31

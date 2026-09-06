@@ -2,15 +2,23 @@
 id: EVD-family-provider-autodispose-2026-08-25
 layer: evidence
 title: family provider 随监听生命周期释放 2026-08-25
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FQ-006
   - FX-031
+scope:
+  - static
+  - unit
+commands:
+  - make analyze
+  - make test
+  - make test-coverage
+observed_commit: 5d298c14ce0abfb713358b8e7cb283d1c7732954
 updated_at: 2026-08-25
-observed_commit: 5d298c1
 ---
 
 # family provider 随监听生命周期释放 2026-08-25

@@ -2,15 +2,21 @@
 id: EVD-favorites-reload-2026-08-20
 layer: evidence
 title: 收藏列表进入时重新拉取 2026-08-20
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-031
   - FQ-006
-updated_at: 2026-08-20
+scope:
+  - static
+  - unit
+commands:
+  - flutter test test/features/profile
 observed_commit: ccfb538003128c8e5ca953a547a3598252de4fd6
+updated_at: 2026-08-20
 ---
 
 # 收藏列表进入时重新拉取 2026-08-20

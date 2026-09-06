@@ -2,15 +2,23 @@
 id: EVD-client-login-home-redirect-2026-08-20
 layer: evidence
 title: 登录成功进入内容流 2026-08-20
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-002
   - FQ-007
-updated_at: 2026-08-20
+scope:
+  - static
+  - unit
+commands:
+  - flutter test test/core/router/app_router_test.dart test/features/auth/presentation/login_page_test.dart
+  - make knowledge-check
+  - flutter test
 observed_commit: 74fcaa3c397b6cbb1671e27fc4dff4962fa94020
+updated_at: 2026-08-20
 ---
 
 # 登录成功进入内容流 2026-08-20

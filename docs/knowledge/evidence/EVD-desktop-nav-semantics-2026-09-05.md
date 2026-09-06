@@ -2,17 +2,27 @@
 id: EVD-desktop-nav-semantics-2026-09-05
 layer: evidence
 title: 桌面导航与中文辅助语义验证 2026-09-05
-status: partial
+status: active
+result: partial
 owner: agent
 upstream:
-  - IMP-flutter-client
+  - IMP-client-platform
+  - IMP-presentation-client
 covers:
   - FQ-004
   - FQ-005
   - FQ-007
   - FQ-008
-updated_at: 2026-09-05
+scope:
+  - static
+  - unit
+  - browser
+commands:
+  - make analyze
+  - make test
+  - make knowledge-check
 observed_commit: b8c309cc9608eb8c32a43e69c35ba1932bf6e70c
+updated_at: 2026-09-05
 ---
 
 # 桌面导航与中文辅助语义验证 2026-09-05

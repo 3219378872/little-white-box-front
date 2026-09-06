@@ -3,6 +3,7 @@ id: EVD-assistant-agent-mode-2026-08-26
 layer: evidence
 title: Assistant Agent 模式前端闭环 2026-08-26
 status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -14,8 +15,14 @@ covers:
   - FX-056
   - FX-057
   - FX-058
+scope:
+  - static
+  - unit
+commands:
+  - make analyze
+  - make test
+observed_commit: 45e767cec3c4f512c770043bec8029e3403a7564
 updated_at: 2026-08-29
-observed_commit: 45e767c
 ---
 
 # Assistant Agent 模式前端闭环 2026-08-26

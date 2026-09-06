@@ -2,14 +2,21 @@
 id: EVD-assistant-source-display-2026-08-22
 layer: evidence
 title: Assistant 引用标记隐藏与来源 ID 展示 2026-08-22
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-051
-updated_at: 2026-08-22
+scope:
+  - static
+  - unit
+commands:
+  - flutter test
+  - make knowledge-check
 observed_commit: c359c573027fd865cf64a968f47364d168f3ce70
+updated_at: 2026-08-22
 ---
 
 # Assistant 引用标记隐藏与来源 ID 展示 2026-08-22

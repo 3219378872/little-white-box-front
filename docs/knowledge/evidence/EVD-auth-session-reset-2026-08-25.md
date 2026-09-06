@@ -2,14 +2,22 @@
 id: EVD-auth-session-reset-2026-08-25
 layer: evidence
 title: 传输层认证失败同步内存会话态 2026-08-25
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-010
+scope:
+  - static
+  - unit
+commands:
+  - make analyze
+  - make test
+  - make test-coverage
+observed_commit: 113503827bddc220d96ad9fab1c9f4b3c6ff4d36
 updated_at: 2026-08-25
-observed_commit: 1135038
 ---
 
 # 传输层认证失败同步内存会话态 2026-08-25

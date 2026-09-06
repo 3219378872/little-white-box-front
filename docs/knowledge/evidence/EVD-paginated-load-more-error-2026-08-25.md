@@ -2,15 +2,23 @@
 id: EVD-paginated-load-more-error-2026-08-25
 layer: evidence
 title: 加载更多失败可见且可重试 2026-08-25
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
 covers:
   - FX-031
   - FX-040
+scope:
+  - static
+  - unit
+commands:
+  - make analyze
+  - make test
+  - make test-coverage
+observed_commit: af4aa7b381f32d072137d9f0c7a4d0f7094dbe46
 updated_at: 2026-08-25
-observed_commit: af4aa7b
 ---
 
 # 加载更多失败可见且可重试 2026-08-25

@@ -2,7 +2,8 @@
 id: EVD-client-relative-api-2026-08-18
 layer: evidence
 title: 前端 API 改为相对路径 2026-08-18
-status: verified
+status: superseded
+result: passed
 owner: agent
 upstream:
   - IMP-flutter-client
@@ -11,8 +12,15 @@ covers:
   - FQ-002
   - FQ-007
   - FQ-008
-updated_at: 2026-08-18
+scope:
+  - static
+  - unit
+commands:
+  - flutter test test/sdk/vars/api_uri_test.dart test/features/assistant/data/assistant_repository_test.dart
+  - flutter test
+  - make knowledge-check
 observed_commit: b3a10ff065d5bb8269781636e3ebba84e44ea76b
+updated_at: 2026-08-18
 ---
 
 # 前端 API 改为相对路径 2026-08-18

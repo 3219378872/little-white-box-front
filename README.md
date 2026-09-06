@@ -38,7 +38,11 @@ This repository is app-centric:
 make setup
 make analyze
 make test
+make test-coverage
+make knowledge-test
 make knowledge-check
+make sdk-check BACKEND_API=/absolute/path/to/verified/gateway.api
+make check BACKEND_API=/absolute/path/to/verified/gateway.api
 ```
 
 ## Web Development
@@ -104,7 +108,8 @@ intent -> specification -> design -> implementation <-> evidence
 ```
 
 - Start at the [knowledge router](docs/knowledge/README.md).
-- Forui integration guidance lives in the [implementation layer](docs/knowledge/implementation/IMP-forui-ui.md).
+- Forui and presentation rules live in the [presentation design](docs/knowledge/design/DES-presentation-client.md).
 - Historical MVP plans, repository-migration records, and backend coordination snapshots live in the
   [non-authoritative archive](docs/knowledge/archive/README.md).
-- Run `make knowledge-check` after changing governed knowledge or tracked behavior.
+- Run `make knowledge-check` after changing governed knowledge, and use `make check` with an explicitly verified
+  backend API when changing tracked behavior or the generated contract.
