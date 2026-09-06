@@ -46,8 +46,10 @@ commands:
   - make test
   - make test-coverage
   - make check BACKEND_API=/home/dev/projects/little/little-white-box-content-community/app/gateway/gateway.api
+  - ruff check tools/knowledge_base.py tools/test_knowledge_base.py
+  - make knowledge-check
   - git diff --check
-observed_commit: da1e3d4b0240fa035526966f4a2d2f4c5f84d152
+observed_commit: 3b2158f1eb3f4debc4e3757f9e6ca54657c9b95d
 updated_at: 2026-09-06
 ---
 
@@ -55,7 +57,7 @@ updated_at: 2026-09-06
 
 ## 范围与环境
 
-本证据观察前端提交 `da1e3d4b0240fa035526966f4a2d2f4c5f84d152`。SDK 漂移检查显式使用后端
+本证据观察前端提交 `3b2158f1eb3f4debc4e3757f9e6ca54657c9b95d`。SDK 漂移检查显式使用后端
 提交 `f706309f860621e7d9079333cf33e81557253b73` 工作树中的 `app/gateway/gateway.api`，没有依赖
 未核验的相邻仓自动发现。执行环境为 Flutter 3.44.7、Dart 3.12.2。
 
@@ -68,8 +70,10 @@ updated_at: 2026-09-06
 | --- | --- |
 | `make analyze` | exit 0，`No issues found` |
 | `make test` | exit 0，496 项 Flutter 测试全部通过 |
-| `make test-coverage` | exit 0，496 项 Flutter 测试与 45 项工具测试（含 34 项 knowledge fixtures）通过；7786/9546 行，81.6%，高于 70% 门槛 |
-| `make check BACKEND_API=.../app/gateway/gateway.api` | exit 0；静态分析、496 项 Flutter 测试、45 项工具测试（含 34 项 knowledge fixtures）、知识图谱和 SDK 非写入重生成比较全部通过 |
+| `make test-coverage` | exit 0，496 项 Flutter 测试与 51 项工具测试（含 40 项 knowledge fixtures）通过；7786/9546 行，81.6%，高于 70% 门槛 |
+| `make check BACKEND_API=.../app/gateway/gateway.api` | exit 0；静态分析、496 项 Flutter 测试、51 项工具测试（含 40 项 knowledge fixtures）、知识图谱和 SDK 非写入重生成比较全部通过 |
+| `ruff check tools/knowledge_base.py tools/test_knowledge_base.py` | exit 0，`All checks passed` |
+| `make knowledge-check` | exit 0，58 份正式文档、54 条 approved 条款、114 个本地链接通过闭环校验 |
 | `git diff --check` | exit 0，无空白错误 |
 
 组合门禁中的知识校验报告 58 份正式文档、54 条 approved 条款、114 个本地链接，迁移状态为
