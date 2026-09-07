@@ -19,4 +19,4 @@ updated_at: 2026-09-07
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
 | FX-040 | DES-messaging-client | diverged | gap: backend gateway has no video or voice upload contract, so those media sends cannot complete |
-| FX-041 | DES-messaging-client | aligned | EVD-dart-format-gate-2026-09-07 |
+| FX-041 | DES-messaging-client | aligned | EVD-dependency-major-upgrades-2026-09-07 |

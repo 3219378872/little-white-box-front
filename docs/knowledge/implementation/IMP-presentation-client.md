@@ -22,6 +22,6 @@ updated_at: 2026-09-07
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FQ-004 | DES-presentation-client | aligned | EVD-dart-format-gate-2026-09-07 |
+| FQ-004 | DES-presentation-client | aligned | EVD-dependency-major-upgrades-2026-09-07 |
 | FQ-005 | DES-presentation-client | unknown | gap: current native-platform evidence is temporary and does not cover physical devices or iOS |
 | FQ-009 | DES-presentation-client | unknown | gap: visual artifacts exist only in temporary paths and no durable acceptance bundle or formal human review exists |

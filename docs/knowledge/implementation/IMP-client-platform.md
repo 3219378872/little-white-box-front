@@ -38,13 +38,13 @@ repository。Riverpod 3 的 `StateNotifier` 经 `package:flutter_riverpod/legacy
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FX-001 | DES-client-platform | aligned | EVD-dart-format-gate-2026-09-07 |
-| FX-002 | DES-client-platform | aligned | EVD-dart-format-gate-2026-09-07 |
-| FX-010 | DES-client-platform | aligned | EVD-dart-format-gate-2026-09-07 |
-| FX-070 | DES-client-platform | aligned | EVD-dart-format-gate-2026-09-07 |
-| FQ-001 | DES-client-platform | aligned | EVD-dart-format-gate-2026-09-07 |
-| FQ-002 | DES-client-platform | aligned | EVD-dart-format-gate-2026-09-07 |
-| FQ-003 | DES-client-platform | aligned | EVD-dart-format-gate-2026-09-07 |
-| FQ-006 | DES-client-platform | aligned | EVD-dart-format-gate-2026-09-07 |
+| FX-001 | DES-client-platform | aligned | EVD-dependency-major-upgrades-2026-09-07 |
+| FX-002 | DES-client-platform | aligned | EVD-dependency-major-upgrades-2026-09-07 |
+| FX-010 | DES-client-platform | aligned | EVD-dependency-major-upgrades-2026-09-07 |
+| FX-070 | DES-client-platform | aligned | EVD-dependency-major-upgrades-2026-09-07 |
+| FQ-001 | DES-client-platform | aligned | EVD-dependency-major-upgrades-2026-09-07 |
+| FQ-002 | DES-client-platform | aligned | EVD-dependency-major-upgrades-2026-09-07 |
+| FQ-003 | DES-client-platform | aligned | EVD-dependency-major-upgrades-2026-09-07 |
+| FQ-006 | DES-client-platform | aligned | EVD-dependency-major-upgrades-2026-09-07 |
 | FQ-007 | DES-client-platform | unknown | gap: current evidence lacks the real-interface and browser validation required by the spec |
-| FQ-008 | DES-client-platform | aligned | EVD-dart-format-gate-2026-09-07 |
+| FQ-008 | DES-client-platform | aligned | EVD-dependency-major-upgrades-2026-09-07 |
