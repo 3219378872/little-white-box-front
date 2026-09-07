@@ -1,0 +1,2166 @@
+{
+  "browser": "151.0.7922.34",
+  "mode": "isolated-mock-release",
+  "pages": [
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "feed",
+      "file": "mobile-light-feed.png",
+      "deviation": 20347.2,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- group:\n  - tablist:\n    - tab \"关注\"\n    - tab \"推荐\" [selected]\n- button \"搜索\"\n- button \"消息\"\n- tabpanel:\n  - group:\n    - button \"萌萌哒小兔 1小时前 探店｜藏在巷子里的宝藏面馆 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。 2 张图片 美食 探店 52\":\n      - button \"萌\"\n      - img\n      - img\n      - button \"取消点赞，当前 89 赞 89\"\n    - button \"科技宅小明 2小时前 2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 1 张图片 科技 数码 手机 3\":\n      - button \"科\"\n      - button \"点赞，当前 234 赞 234\"\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img\n      - button \"点赞，当前 56 赞 56\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "feed-push-post",
+      "file": "mobile-light-feed-push-post.png",
+      "deviation": 21773.8,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n  - text: 美食 探店 1234 次浏览\n  - button \"盯作者\"\n  - button \"盯本帖修订\"\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "feed-return",
+      "file": "mobile-light-feed-return.png",
+      "deviation": 20347.2,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- group:\n  - tablist:\n    - tab \"关注\"\n    - tab \"推荐\" [selected]\n- button \"搜索\"\n- button \"消息\"\n- tabpanel:\n  - group:\n    - button \"萌萌哒小兔 1小时前 探店｜藏在巷子里的宝藏面馆 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。 2 张图片 美食 探店 52\":\n      - button \"萌\"\n      - img\n      - img\n      - button \"取消点赞，当前 89 赞 89\"\n    - button \"科技宅小明 2小时前 2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 1 张图片 科技 数码 手机 3\":\n      - button \"科\"\n      - button \"点赞，当前 234 赞 234\"\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img\n      - button \"点赞，当前 56 赞 56\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "post",
+      "file": "mobile-light-post.png",
+      "deviation": 21773.8,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n  - text: 美食 探店 1234 次浏览\n  - button \"盯作者\"\n  - button \"盯本帖修订\"\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "comments",
+      "file": "mobile-light-comments.png",
+      "deviation": 7695.29,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 评论\n  - button \"最新\"\n  - button \"最热\"\n  - 'group \"科 科技宅小明 19分钟前 压测评论 #14 —— 滚动到底后会自动加载下一页\"':\n    - button \"4\" [disabled]\n    - button \"回复\"\n  - 'group \"小 小白鸽 19分钟前 压测评论 #15 —— 滚动到底后会自动加载下一页\"':\n    - button \"5\" [disabled]\n    - button \"回复\"\n  - 'group \"萌 萌萌哒小兔 19分钟前 压测评论 #16 —— 滚动到底后会自动加载下一页\"':\n    - button \"6\" [disabled]\n    - button \"回复\"\n  - 'group \"科 科技宅小明 19分钟前 压测评论 #17 —— 滚动到底后会自动加载下一页\"':\n    - button \"7\" [disabled]\n    - button \"回复\"\n  - 'group \"小 小白鸽 19分钟前 压测评论 #18 —— 滚动到底后会自动加载下一页\"':\n    - button \"8\" [disabled]\n    - button \"回复\"\n  - 'group \"萌 萌萌哒小兔 19分钟前 压测评论 #19 —— 滚动到底后会自动加载下一页\"':\n    - button \"9\" [disabled]\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "comment-compose",
+      "file": "mobile-light-comment-compose.png",
+      "deviation": 21739.4,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n  - text: 美食 探店 1234 次浏览\n  - button \"盯作者\"\n  - button \"盯本帖修订\"\n- textbox \"评论内容\": 这是一条尚未发送的评论\n- button \"发送评论\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "search",
+      "file": "mobile-light-search.png",
+      "deviation": 4501.73,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- textbox \"搜索词 搜索内容\"\n- button \"搜索\"\n- tablist:\n  - tab \"综合\" [selected]\n  - tab \"用户\"\n  - tab \"标签\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "search-results",
+      "file": "mobile-light-search-results.png",
+      "deviation": 9506.52,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- textbox \"搜索词\": 手机\n- button \"搜索\"\n- tablist:\n  - tab \"综合\" [selected]\n  - tab \"用户\"\n  - tab \"标签\"\n- group:\n  - text: 帖子\n  - button \"2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 234 赞 · 3 评论\":\n    - button \"科 科技宅小明\"\n  - button \"入门摄影必看：手机拍照技巧大全 很多人觉得拍好照片一定要用相机，其实现在手机的拍照能力已经非常强了。今天分享几个我常用的手机摄影技巧：构图法则、光线运用、后期调色。掌握这些，你也能用手机拍出大片感！ 267 赞 · 0 评论\":\n    - button \"科 科技宅小明\"\n  - text: 相关标签\n  - button \"手机 2 篇帖子\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "messages",
+      "file": "mobile-light-messages.png",
+      "deviation": 7610.74,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- heading \"消息\" [level=2]\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:39 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:44\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "assistant",
+      "file": "mobile-light-assistant.png",
+      "deviation": 5492.58,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"小白盒 Agent\":\n  - button \"返回\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - button \"更多操作\"\n- text: 暂无消息 Agent 已授权 v2\n- button \"添加图片附件\"\n- textbox \"消息 输入消息\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "assistant-menu",
+      "file": "mobile-light-assistant-menu.png",
+      "deviation": 5830.43,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"小白盒 Agent\":\n  - button \"返回\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - button \"更多操作\"\n  - group:\n    - button \"清除历史\"\n    - button \"撤销 Agent 授权\"\n- text: 暂无消息 Agent 已授权 v2\n- button \"添加图片附件\"\n- textbox \"消息 输入消息\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "memory",
+      "file": "mobile-light-memory.png",
+      "deviation": 3536.48,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"记忆\":\n  - button \"返回\"\n  - button \"新增记忆\"\n- text: memory 6/2200 user 6/1375\n- group:\n  - group \"MEMORY v1 喜欢美食探店\":\n    - button \"修改\"\n    - button \"删除\"\n  - group \"USER v1 常用中文交流\":\n    - button \"修改\"\n    - button \"删除\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "memory-dialog",
+      "file": "mobile-light-memory-dialog.png",
+      "deviation": 5493.36,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 新增记忆\n- button \"MEMORY\"\n- button \"USER\"\n- text: 内容\n- textbox\n- button \"取消\"\n- button \"保存\"\n- button \"纱罩\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "watch",
+      "file": "mobile-light-watch.png",
+      "deviation": 3897.86,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"追踪\":\n  - button \"返回\"\n  - button \"创建追踪\"\n- group:\n  - text: 任务\n  - group \"盯作者新帖 author:2 · 启用 停用追踪\":\n    - switch [checked]\n    - button \"删除\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "watch-dialog",
+      "file": "mobile-light-watch-dialog.png",
+      "deviation": 5904.88,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 创建追踪\n- button \"盯作者新帖\"\n- button \"盯标签新帖\"\n- button \"盯关键词\"\n- button \"盯帖子修订\"\n- text: 目标 ID\n- textbox\n- button \"取消\"\n- button \"创建\"\n- button \"纱罩\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "thread",
+      "file": "mobile-light-thread.png",
+      "deviation": 3680.67,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"测试用户\":\n  - button \"返回\"\n- text: 资源不存在\n- button \"重试\"\n- textbox \"消息 输入消息\"\n- button \"发送图片\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "thread-compose",
+      "file": "mobile-light-thread-compose.png",
+      "deviation": 4210.08,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"测试用户\":\n  - button \"返回\"\n- text: 资源不存在\n- button \"重试\"\n- textbox \"消息\": 这是一条尚未发送的私信\n- button \"发送图片\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "editor",
+      "file": "mobile-light-editor.png",
+      "deviation": 5190.59,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"发帖\":\n  - button \"返回\"\n  - button \"存草稿\"\n  - button \"发布\"\n- group:\n  - textbox \"帖子标题 标题\"\n  - textbox \"正文 分享你的想法...\"\n  - textbox \"帖子标签 标签\"\n  - button \"添加标签\"\n  - text: 图片 0/9\n  - button \"添加图片\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "editor-draft",
+      "file": "mobile-light-editor-draft.png",
+      "deviation": 9234.93,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"发帖\":\n  - button \"返回\"\n  - button \"存草稿\"\n  - button \"发布\"\n- group:\n  - textbox \"帖子标题\": 标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题\n  - textbox \"正文\": 正文内容与多行输入 保留当前业务的标题、正文和图片限制。\n  - textbox \"帖子标签 标签\"\n  - button \"添加标签\"\n  - text: 图片 0/9\n  - button \"添加图片\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "edit-profile",
+      "file": "mobile-light-edit-profile.png",
+      "deviation": 6325.94,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"编辑资料\":\n  - button \"返回\"\n  - button \"保存\"\n- group:\n  - text: 小\n  - textbox \"昵称\"\n  - textbox \"个人简介\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "profile",
+      "file": "mobile-light-profile.png",
+      "deviation": 16702.8,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"个人中心\":\n  - button \"退出登录\"\n- group:\n  - text: 小 小白鸽 热爱分享生活的小白，喜欢探索新事物~ 12 128 56 帖子 粉丝 关注\n  - button \"编辑资料\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - table \"个性化推荐\"\n  - tablist:\n    - tab \"我的帖子\" [selected]\n    - tab \"我的收藏\"\n  - group:\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img\n      - button \"点赞，当前 56 赞 56\"\n    - button \"小白鸽 1天前 分享我的极简主义房间改造 花了一个月时间把自己的房间改造成了极简风格。扔掉了一半以上的东西，重新规划了收纳空间。现在每天回到家心情都特别好，整洁的环境真的能影响人的状态。分享一下改造前后的对比~ 2 张图片 生活 极简 家居 0\":\n      - button \"小\"\n      - img\n      - img\n      - button \"点赞，当前 123 赞 123\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "login",
+      "file": "mobile-light-login.png",
+      "deviation": 13951.1,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n- text: 小白盒\n- tablist:\n  - tab \"密码登录\" [selected]\n  - tab \"验证码登录\"\n- tabpanel:\n  - group:\n    - textbox \"用户名\"\n    - textbox \"密码\"\n    - button \"显示密码\"\n    - button \"登录\"\n    - button \"没有账号？去注册\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "code-login",
+      "file": "mobile-light-code-login.png",
+      "deviation": 14071,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n- text: 小白盒\n- tablist:\n  - tab \"密码登录\"\n  - tab \"验证码登录\" [selected]\n- tabpanel:\n  - group:\n    - textbox \"手机号\"\n    - textbox \"验证码\"\n    - button \"获取验证码\"\n    - button \"登录\"\n    - button \"没有账号？去注册\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-light",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "light"
+      },
+      "page": "register",
+      "file": "mobile-light-register.png",
+      "deviation": 12646.8,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"注册\":\n  - button \"返回\"\n- group:\n  - textbox \"用户名\"\n  - textbox \"密码\"\n  - button \"显示密码\"\n  - textbox \"确认密码\"\n  - button \"显示密码\"\n  - textbox \"手机号\"\n  - textbox \"验证码\"\n  - button \"获取验证码\"\n  - button \"注册\"\n  - button \"已有账号？去登录\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "feed",
+      "file": "mobile-dark-feed.png",
+      "deviation": 14570.6,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- group:\n  - tablist:\n    - tab \"关注\"\n    - tab \"推荐\" [selected]\n- button \"搜索\"\n- button \"消息\"\n- tabpanel:\n  - group:\n    - button \"萌萌哒小兔 1小时前 探店｜藏在巷子里的宝藏面馆 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。 2 张图片 美食 探店 52\":\n      - button \"萌\"\n      - img\n      - img\n      - button \"取消点赞，当前 89 赞 89\"\n    - button \"科技宅小明 2小时前 2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 1 张图片 科技 数码 手机 3\":\n      - button \"科\"\n      - button \"点赞，当前 234 赞 234\"\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img\n      - button \"点赞，当前 56 赞 56\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "feed-push-post",
+      "file": "mobile-dark-feed-push-post.png",
+      "deviation": 14990,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n  - text: 美食 探店 1234 次浏览\n  - button \"盯作者\"\n  - button \"盯本帖修订\"\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "feed-return",
+      "file": "mobile-dark-feed-return.png",
+      "deviation": 14570.6,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- group:\n  - tablist:\n    - tab \"关注\"\n    - tab \"推荐\" [selected]\n- button \"搜索\"\n- button \"消息\"\n- tabpanel:\n  - group:\n    - button \"萌萌哒小兔 1小时前 探店｜藏在巷子里的宝藏面馆 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。 2 张图片 美食 探店 52\":\n      - button \"萌\"\n      - img\n      - img\n      - button \"取消点赞，当前 89 赞 89\"\n    - button \"科技宅小明 2小时前 2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 1 张图片 科技 数码 手机 3\":\n      - button \"科\"\n      - button \"点赞，当前 234 赞 234\"\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img\n      - button \"点赞，当前 56 赞 56\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "post",
+      "file": "mobile-dark-post.png",
+      "deviation": 14990,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n  - text: 美食 探店 1234 次浏览\n  - button \"盯作者\"\n  - button \"盯本帖修订\"\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "comments",
+      "file": "mobile-dark-comments.png",
+      "deviation": 9341.19,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 评论\n  - button \"最新\"\n  - button \"最热\"\n  - 'group \"科 科技宅小明 19分钟前 压测评论 #14 —— 滚动到底后会自动加载下一页\"':\n    - button \"4\" [disabled]\n    - button \"回复\"\n  - 'group \"小 小白鸽 19分钟前 压测评论 #15 —— 滚动到底后会自动加载下一页\"':\n    - button \"5\" [disabled]\n    - button \"回复\"\n  - 'group \"萌 萌萌哒小兔 19分钟前 压测评论 #16 —— 滚动到底后会自动加载下一页\"':\n    - button \"6\" [disabled]\n    - button \"回复\"\n  - 'group \"科 科技宅小明 19分钟前 压测评论 #17 —— 滚动到底后会自动加载下一页\"':\n    - button \"7\" [disabled]\n    - button \"回复\"\n  - 'group \"小 小白鸽 19分钟前 压测评论 #18 —— 滚动到底后会自动加载下一页\"':\n    - button \"8\" [disabled]\n    - button \"回复\"\n  - 'group \"萌 萌萌哒小兔 19分钟前 压测评论 #19 —— 滚动到底后会自动加载下一页\"':\n    - button \"9\" [disabled]\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "comment-compose",
+      "file": "mobile-dark-comment-compose.png",
+      "deviation": 15025.7,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n  - text: 美食 探店 1234 次浏览\n  - button \"盯作者\"\n  - button \"盯本帖修订\"\n- textbox \"评论内容\": 这是一条尚未发送的评论\n- button \"发送评论\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "search",
+      "file": "mobile-dark-search.png",
+      "deviation": 4766.41,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- textbox \"搜索词 搜索内容\"\n- button \"搜索\"\n- tablist:\n  - tab \"综合\" [selected]\n  - tab \"用户\"\n  - tab \"标签\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "search-results",
+      "file": "mobile-dark-search-results.png",
+      "deviation": 10738.9,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- textbox \"搜索词\": 手机\n- button \"搜索\"\n- tablist:\n  - tab \"综合\" [selected]\n  - tab \"用户\"\n  - tab \"标签\"\n- group:\n  - text: 帖子\n  - button \"2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 234 赞 · 3 评论\":\n    - button \"科 科技宅小明\"\n  - button \"入门摄影必看：手机拍照技巧大全 很多人觉得拍好照片一定要用相机，其实现在手机的拍照能力已经非常强了。今天分享几个我常用的手机摄影技巧：构图法则、光线运用、后期调色。掌握这些，你也能用手机拍出大片感！ 267 赞 · 0 评论\":\n    - button \"科 科技宅小明\"\n  - text: 相关标签\n  - button \"手机 2 篇帖子\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "messages",
+      "file": "mobile-dark-messages.png",
+      "deviation": 7873.05,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- heading \"消息\" [level=2]\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:40 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:45\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "assistant",
+      "file": "mobile-dark-assistant.png",
+      "deviation": 5733.32,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"小白盒 Agent\":\n  - button \"返回\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - button \"更多操作\"\n- text: 暂无消息 Agent 已授权 v2\n- button \"添加图片附件\"\n- textbox \"消息 输入消息\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "assistant-menu",
+      "file": "mobile-dark-assistant-menu.png",
+      "deviation": 6220.86,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"小白盒 Agent\":\n  - button \"返回\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - button \"更多操作\"\n  - group:\n    - button \"清除历史\"\n    - button \"撤销 Agent 授权\"\n- text: 暂无消息 Agent 已授权 v2\n- button \"添加图片附件\"\n- textbox \"消息 输入消息\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "memory",
+      "file": "mobile-dark-memory.png",
+      "deviation": 4322.76,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"记忆\":\n  - button \"返回\"\n  - button \"新增记忆\"\n- text: memory 6/2200 user 6/1375\n- group:\n  - group \"MEMORY v1 喜欢美食探店\":\n    - button \"修改\"\n    - button \"删除\"\n  - group \"USER v1 常用中文交流\":\n    - button \"修改\"\n    - button \"删除\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "memory-dialog",
+      "file": "mobile-dark-memory-dialog.png",
+      "deviation": 5903.21,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 新增记忆\n- button \"MEMORY\"\n- button \"USER\"\n- text: 内容\n- textbox\n- button \"取消\"\n- button \"保存\"\n- button \"纱罩\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "watch",
+      "file": "mobile-dark-watch.png",
+      "deviation": 4683.07,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"追踪\":\n  - button \"返回\"\n  - button \"创建追踪\"\n- group:\n  - text: 任务\n  - group \"盯作者新帖 author:2 · 启用 停用追踪\":\n    - switch [checked]\n    - button \"删除\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "watch-dialog",
+      "file": "mobile-dark-watch-dialog.png",
+      "deviation": 6480.8,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 创建追踪\n- button \"盯作者新帖\"\n- button \"盯标签新帖\"\n- button \"盯关键词\"\n- button \"盯帖子修订\"\n- text: 目标 ID\n- textbox\n- button \"取消\"\n- button \"创建\"\n- button \"纱罩\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "thread",
+      "file": "mobile-dark-thread.png",
+      "deviation": 3989.86,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"测试用户\":\n  - button \"返回\"\n- text: 资源不存在\n- button \"重试\"\n- textbox \"消息 输入消息\"\n- button \"发送图片\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "thread-compose",
+      "file": "mobile-dark-thread-compose.png",
+      "deviation": 4778.06,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"测试用户\":\n  - button \"返回\"\n- text: 资源不存在\n- button \"重试\"\n- textbox \"消息\": 这是一条尚未发送的私信\n- button \"发送图片\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "editor",
+      "file": "mobile-dark-editor.png",
+      "deviation": 5291.36,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"发帖\":\n  - button \"返回\"\n  - button \"存草稿\"\n  - button \"发布\"\n- group:\n  - textbox \"帖子标题 标题\"\n  - textbox \"正文 分享你的想法...\"\n  - textbox \"帖子标签 标签\"\n  - button \"添加标签\"\n  - text: 图片 0/9\n  - button \"添加图片\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "editor-draft",
+      "file": "mobile-dark-editor-draft.png",
+      "deviation": 10037.9,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"发帖\":\n  - button \"返回\"\n  - button \"存草稿\"\n  - button \"发布\"\n- group:\n  - textbox \"帖子标题\": 标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题\n  - textbox \"正文\": 正文内容与多行输入 保留当前业务的标题、正文和图片限制。\n  - textbox \"帖子标签 标签\"\n  - button \"添加标签\"\n  - text: 图片 0/9\n  - button \"添加图片\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "edit-profile",
+      "file": "mobile-dark-edit-profile.png",
+      "deviation": 7014.07,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"编辑资料\":\n  - button \"返回\"\n  - button \"保存\"\n- group:\n  - text: 小\n  - textbox \"昵称\"\n  - textbox \"个人简介\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "profile",
+      "file": "mobile-dark-profile.png",
+      "deviation": 13113,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"个人中心\":\n  - button \"退出登录\"\n- group:\n  - text: 小 小白鸽 热爱分享生活的小白，喜欢探索新事物~ 12 128 56 帖子 粉丝 关注\n  - button \"编辑资料\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - table \"个性化推荐\"\n  - tablist:\n    - tab \"我的帖子\" [selected]\n    - tab \"我的收藏\"\n  - group:\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img\n      - button \"点赞，当前 56 赞 56\"\n    - button \"小白鸽 1天前 分享我的极简主义房间改造 花了一个月时间把自己的房间改造成了极简风格。扔掉了一半以上的东西，重新规划了收纳空间。现在每天回到家心情都特别好，整洁的环境真的能影响人的状态。分享一下改造前后的对比~ 2 张图片 生活 极简 家居 0\":\n      - button \"小\"\n      - img\n      - img\n      - button \"点赞，当前 123 赞 123\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "login",
+      "file": "mobile-dark-login.png",
+      "deviation": 12906.4,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n- text: 小白盒\n- tablist:\n  - tab \"密码登录\" [selected]\n  - tab \"验证码登录\"\n- tabpanel:\n  - group:\n    - textbox \"用户名\"\n    - textbox \"密码\"\n    - button \"显示密码\"\n    - button \"登录\"\n    - button \"没有账号？去注册\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "code-login",
+      "file": "mobile-dark-code-login.png",
+      "deviation": 13048.9,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n- text: 小白盒\n- tablist:\n  - tab \"密码登录\"\n  - tab \"验证码登录\" [selected]\n- tabpanel:\n  - group:\n    - textbox \"手机号\"\n    - textbox \"验证码\"\n    - button \"获取验证码\"\n    - button \"登录\"\n    - button \"没有账号？去注册\""
+    },
+    {
+      "viewport": {
+        "name": "mobile-dark",
+        "width": 390,
+        "height": 844,
+        "colorScheme": "dark"
+      },
+      "page": "register",
+      "file": "mobile-dark-register.png",
+      "deviation": 11730.9,
+      "size": {
+        "width": 390,
+        "viewport": 390
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"注册\":\n  - button \"返回\"\n- group:\n  - textbox \"用户名\"\n  - textbox \"密码\"\n  - button \"显示密码\"\n  - textbox \"确认密码\"\n  - button \"显示密码\"\n  - textbox \"手机号\"\n  - textbox \"验证码\"\n  - button \"获取验证码\"\n  - button \"注册\"\n  - button \"已有账号？去登录\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "feed",
+      "file": "desktop-light-feed.png",
+      "deviation": 18395.6,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- group:\n  - tablist:\n    - tab \"关注\"\n    - tab \"推荐\" [selected]\n- tabpanel:\n  - group:\n    - button \"萌萌哒小兔 1小时前 探店｜藏在巷子里的宝藏面馆 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。 2 张图片 美食 探店 52\":\n      - button \"萌\"\n      - img\n      - img\n      - button \"取消点赞，当前 89 赞 89\"\n    - button \"科技宅小明 2小时前 2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 1 张图片 科技 数码 手机 3\":\n      - button \"科\"\n      - button \"点赞，当前 234 赞 234\"\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img"
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "feed-push-post",
+      "file": "desktop-light-feed-push-post.png",
+      "deviation": 20049.5,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "feed-return",
+      "file": "desktop-light-feed-return.png",
+      "deviation": 18395.6,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- group:\n  - tablist:\n    - tab \"关注\"\n    - tab \"推荐\" [selected]\n- tabpanel:\n  - group:\n    - button \"萌萌哒小兔 1小时前 探店｜藏在巷子里的宝藏面馆 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。 2 张图片 美食 探店 52\":\n      - button \"萌\"\n      - img\n      - img\n      - button \"取消点赞，当前 89 赞 89\"\n    - button \"科技宅小明 2小时前 2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 1 张图片 科技 数码 手机 3\":\n      - button \"科\"\n      - button \"点赞，当前 234 赞 234\"\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img"
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "post",
+      "file": "desktop-light-post.png",
+      "deviation": 20049.5,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "comments",
+      "file": "desktop-light-comments.png",
+      "deviation": 4748.08,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 评论\n  - button \"最新\"\n  - button \"最热\"\n  - 'group \"科 科技宅小明 19分钟前 压测评论 #14 —— 滚动到底后会自动加载下一页\"':\n    - button \"4\" [disabled]\n    - button \"回复\"\n  - 'group \"小 小白鸽 19分钟前 压测评论 #15 —— 滚动到底后会自动加载下一页\"':\n    - button \"5\" [disabled]\n    - button \"回复\"\n  - 'group \"萌 萌萌哒小兔 19分钟前 压测评论 #16 —— 滚动到底后会自动加载下一页\"':\n    - button \"6\" [disabled]\n    - button \"回复\"\n  - 'group \"科 科技宅小明 19分钟前 压测评论 #17 —— 滚动到底后会自动加载下一页\"':\n    - button \"7\" [disabled]\n    - button \"回复\"\n  - 'group \"小 小白鸽 19分钟前 压测评论 #18 —— 滚动到底后会自动加载下一页\"':\n    - button \"8\" [disabled]\n    - button \"回复\"\n  - 'group \"萌 萌萌哒小兔 19分钟前 压测评论 #19 —— 滚动到底后会自动加载下一页\"':\n    - button \"9\" [disabled]\n    - button \"回复\"\n  - 'group \"科 科技宅小明 20分钟前 压测评论 #20 —— 滚动到底后会自动加载下一页\"':\n    - button \"0\" [disabled]\n    - button \"回复\"\n  - 'group \"小 小白鸽 20分钟前 压测评论 #21 —— 滚动到底后会自动加载下一页\"':\n    - button \"1\" [disabled]\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "comment-compose",
+      "file": "desktop-light-comment-compose.png",
+      "deviation": 20090.1,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n- textbox \"评论内容\": 这是一条尚未发送的评论\n- button \"发送评论\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "search",
+      "file": "desktop-light-search.png",
+      "deviation": 2044.86,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- textbox \"搜索词 搜索内容\"\n- button \"搜索\"\n- tablist:\n  - tab \"综合\" [selected]\n  - tab \"用户\"\n  - tab \"标签\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "search-results",
+      "file": "desktop-light-search-results.png",
+      "deviation": 5245.17,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- textbox \"搜索词\": 手机\n- button \"搜索\"\n- tablist:\n  - tab \"综合\" [selected]\n  - tab \"用户\"\n  - tab \"标签\"\n- group:\n  - text: 帖子\n  - button \"2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 234 赞 · 3 评论\":\n    - button \"科 科技宅小明\"\n  - button \"入门摄影必看：手机拍照技巧大全 很多人觉得拍好照片一定要用相机，其实现在手机的拍照能力已经非常强了。今天分享几个我常用的手机摄影技巧：构图法则、光线运用、后期调色。掌握这些，你也能用手机拍出大片感！ 267 赞 · 0 评论\":\n    - button \"科 科技宅小明\"\n  - text: 相关标签\n  - button \"手机 2 篇帖子\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "messages",
+      "file": "desktop-light-messages.png",
+      "deviation": 3681.68,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:41 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:46\"\n- text: 选择一个会话开始聊天"
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "assistant",
+      "file": "desktop-light-assistant.png",
+      "deviation": 4241.24,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- banner \"小白盒 Agent\":\n  - button \"返回\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - button \"更多操作\"\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:41 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:46\"\n- text: 暂无消息 Agent 已授权 v2\n- button \"添加图片附件\"\n- textbox \"消息 输入消息\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "assistant-menu",
+      "file": "desktop-light-assistant-menu.png",
+      "deviation": 4355.99,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- banner \"小白盒 Agent\":\n  - button \"返回\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - button \"更多操作\"\n  - group:\n    - button \"清除历史\"\n    - button \"撤销 Agent 授权\"\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:41 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:46\"\n- text: 暂无消息 Agent 已授权 v2\n- button \"添加图片附件\"\n- textbox \"消息 输入消息\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "memory",
+      "file": "desktop-light-memory.png",
+      "deviation": 3926.03,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- banner \"记忆\":\n  - button \"返回\"\n  - button \"新增记忆\"\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:41 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:46\"\n- text: memory 6/2200 user 6/1375\n- group:\n  - group \"MEMORY v1 喜欢美食探店\":\n    - button \"修改\"\n    - button \"删除\"\n  - group \"USER v1 常用中文交流\":\n    - button \"修改\"\n    - button \"删除\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "memory-dialog",
+      "file": "desktop-light-memory-dialog.png",
+      "deviation": 6445.89,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- text: 新增记忆\n- button \"MEMORY\"\n- button \"USER\"\n- text: 内容\n- textbox\n- button \"取消\"\n- button \"保存\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "watch",
+      "file": "desktop-light-watch.png",
+      "deviation": 4007.35,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- banner \"追踪\":\n  - button \"返回\"\n  - button \"创建追踪\"\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:41 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:46\"\n- group:\n  - text: 任务\n  - group \"盯作者新帖 author:2 · 启用 停用追踪\":\n    - switch [checked]\n    - button \"删除\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "watch-dialog",
+      "file": "desktop-light-watch-dialog.png",
+      "deviation": 6604.3,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- text: 创建追踪\n- button \"盯作者新帖\"\n- button \"盯标签新帖\"\n- button \"盯关键词\"\n- button \"盯帖子修订\"\n- text: 目标 ID\n- textbox\n- button \"取消\"\n- button \"创建\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "thread",
+      "file": "desktop-light-thread.png",
+      "deviation": 3964.44,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- banner \"测试用户\":\n  - button \"返回\"\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:41 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:46\"\n- text: 资源不存在\n- button \"重试\"\n- textbox \"消息 输入消息\"\n- button \"发送图片\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "thread-compose",
+      "file": "desktop-light-thread-compose.png",
+      "deviation": 4134.83,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- banner \"测试用户\":\n  - button \"返回\"\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:41 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:46\"\n- text: 资源不存在\n- button \"重试\"\n- textbox \"消息\": 这是一条尚未发送的私信\n- button \"发送图片\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "editor",
+      "file": "desktop-light-editor.png",
+      "deviation": 2745.65,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner \"发帖\":\n  - button \"返回\"\n  - button \"存草稿\"\n  - button \"发布\"\n- group:\n  - textbox \"帖子标题 标题\"\n  - textbox \"正文 分享你的想法...\"\n  - textbox \"帖子标签 标签\"\n  - button \"添加标签\"\n  - text: 图片 0/9\n  - button \"添加图片\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "editor-draft",
+      "file": "desktop-light-editor-draft.png",
+      "deviation": 6149.82,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner \"发帖\":\n  - button \"返回\"\n  - button \"存草稿\"\n  - button \"发布\"\n- group:\n  - textbox \"帖子标题\": 标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题\n  - textbox \"正文\": 正文内容与多行输入 保留当前业务的标题、正文和图片限制。\n  - textbox \"帖子标签 标签\"\n  - button \"添加标签\"\n  - text: 图片 0/9\n  - button \"添加图片\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "edit-profile",
+      "file": "desktop-light-edit-profile.png",
+      "deviation": 3274.97,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner \"编辑资料\":\n  - button \"返回\"\n  - button \"保存\"\n- group:\n  - text: 小\n  - textbox \"昵称\"\n  - textbox \"个人简介\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "profile",
+      "file": "desktop-light-profile.png",
+      "deviation": 14538.9,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner \"个人中心\":\n  - button \"退出登录\"\n- group:\n  - text: 小 小白鸽 热爱分享生活的小白，喜欢探索新事物~ 12 128 56 帖子 粉丝 关注\n  - button \"编辑资料\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - table \"个性化推荐\"\n  - tablist:\n    - tab \"我的帖子\" [selected]\n    - tab \"我的收藏\"\n  - group:\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img\n      - button \"点赞，当前 56 赞 56\"\n    - button \"小白鸽 1天前 分享我的极简主义房间改造 花了一个月时间把自己的房间改造成了极简风格。扔掉了一半以上的东西，重新规划了收纳空间。现在每天回到家心情都特别好，整洁的环境真的能影响人的状态。分享一下改造前后的对比~ 2 张图片 生活 极简 家居 0\":\n      - button \"小\"\n      - img\n      - img\n      - button \"点赞，当前 123 赞 123\"\n    - text: — 没有更多了 —"
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "login",
+      "file": "desktop-light-login.png",
+      "deviation": 6705.55,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n- text: 小白盒\n- tablist:\n  - tab \"密码登录\" [selected]\n  - tab \"验证码登录\"\n- tabpanel:\n  - group:\n    - textbox \"用户名\"\n    - textbox \"密码\"\n    - button \"显示密码\"\n    - button \"登录\"\n    - button \"没有账号？去注册\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "code-login",
+      "file": "desktop-light-code-login.png",
+      "deviation": 6766.36,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n- text: 小白盒\n- tablist:\n  - tab \"密码登录\"\n  - tab \"验证码登录\" [selected]\n- tabpanel:\n  - group:\n    - textbox \"手机号\"\n    - textbox \"验证码\"\n    - button \"获取验证码\"\n    - button \"登录\"\n    - button \"没有账号？去注册\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-light",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "light"
+      },
+      "page": "register",
+      "file": "desktop-light-register.png",
+      "deviation": 6046.81,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"注册\":\n  - button \"返回\"\n- group:\n  - textbox \"用户名\"\n  - textbox \"密码\"\n  - button \"显示密码\"\n  - textbox \"确认密码\"\n  - button \"显示密码\"\n  - textbox \"手机号\"\n  - textbox \"验证码\"\n  - button \"获取验证码\"\n  - button \"注册\"\n  - button \"已有账号？去登录\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "feed",
+      "file": "desktop-dark-feed.png",
+      "deviation": 11767.8,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- group:\n  - tablist:\n    - tab \"关注\"\n    - tab \"推荐\" [selected]\n- tabpanel:\n  - group:\n    - button \"萌萌哒小兔 1小时前 探店｜藏在巷子里的宝藏面馆 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。 2 张图片 美食 探店 52\":\n      - button \"萌\"\n      - img\n      - img\n      - button \"取消点赞，当前 89 赞 89\"\n    - button \"科技宅小明 2小时前 2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 1 张图片 科技 数码 手机 3\":\n      - button \"科\"\n      - button \"点赞，当前 234 赞 234\"\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img"
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "feed-push-post",
+      "file": "desktop-dark-feed-push-post.png",
+      "deviation": 12683.1,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "feed-return",
+      "file": "desktop-dark-feed-return.png",
+      "deviation": 11767.8,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- group:\n  - tablist:\n    - tab \"关注\"\n    - tab \"推荐\" [selected]\n- tabpanel:\n  - group:\n    - button \"萌萌哒小兔 1小时前 探店｜藏在巷子里的宝藏面馆 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。 2 张图片 美食 探店 52\":\n      - button \"萌\"\n      - img\n      - img\n      - button \"取消点赞，当前 89 赞 89\"\n    - button \"科技宅小明 2小时前 2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 1 张图片 科技 数码 手机 3\":\n      - button \"科\"\n      - button \"点赞，当前 234 赞 234\"\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img"
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "post",
+      "file": "desktop-dark-post.png",
+      "deviation": 12683.1,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "comments",
+      "file": "desktop-dark-comments.png",
+      "deviation": 5770.1,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 评论\n  - button \"最新\"\n  - button \"最热\"\n  - 'group \"科 科技宅小明 19分钟前 压测评论 #14 —— 滚动到底后会自动加载下一页\"':\n    - button \"4\" [disabled]\n    - button \"回复\"\n  - 'group \"小 小白鸽 19分钟前 压测评论 #15 —— 滚动到底后会自动加载下一页\"':\n    - button \"5\" [disabled]\n    - button \"回复\"\n  - 'group \"萌 萌萌哒小兔 19分钟前 压测评论 #16 —— 滚动到底后会自动加载下一页\"':\n    - button \"6\" [disabled]\n    - button \"回复\"\n  - 'group \"科 科技宅小明 19分钟前 压测评论 #17 —— 滚动到底后会自动加载下一页\"':\n    - button \"7\" [disabled]\n    - button \"回复\"\n  - 'group \"小 小白鸽 19分钟前 压测评论 #18 —— 滚动到底后会自动加载下一页\"':\n    - button \"8\" [disabled]\n    - button \"回复\"\n  - 'group \"萌 萌萌哒小兔 19分钟前 压测评论 #19 —— 滚动到底后会自动加载下一页\"':\n    - button \"9\" [disabled]\n    - button \"回复\"\n  - 'group \"科 科技宅小明 20分钟前 压测评论 #20 —— 滚动到底后会自动加载下一页\"':\n    - button \"0\" [disabled]\n    - button \"回复\"\n  - 'group \"小 小白鸽 20分钟前 压测评论 #21 —— 滚动到底后会自动加载下一页\"':\n    - button \"1\" [disabled]\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "comment-compose",
+      "file": "desktop-dark-comment-compose.png",
+      "deviation": 12766.3,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n- textbox \"评论内容\": 这是一条尚未发送的评论\n- button \"发送评论\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "search",
+      "file": "desktop-dark-search.png",
+      "deviation": 2430.72,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- textbox \"搜索词 搜索内容\"\n- button \"搜索\"\n- tablist:\n  - tab \"综合\" [selected]\n  - tab \"用户\"\n  - tab \"标签\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "search-results",
+      "file": "desktop-dark-search-results.png",
+      "deviation": 6203.2,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- textbox \"搜索词\": 手机\n- button \"搜索\"\n- tablist:\n  - tab \"综合\" [selected]\n  - tab \"用户\"\n  - tab \"标签\"\n- group:\n  - text: 帖子\n  - button \"2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 234 赞 · 3 评论\":\n    - button \"科 科技宅小明\"\n  - button \"入门摄影必看：手机拍照技巧大全 很多人觉得拍好照片一定要用相机，其实现在手机的拍照能力已经非常强了。今天分享几个我常用的手机摄影技巧：构图法则、光线运用、后期调色。掌握这些，你也能用手机拍出大片感！ 267 赞 · 0 评论\":\n    - button \"科 科技宅小明\"\n  - text: 相关标签\n  - button \"手机 2 篇帖子\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "messages",
+      "file": "desktop-dark-messages.png",
+      "deviation": 4029.74,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:42 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:47\"\n- text: 选择一个会话开始聊天"
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "assistant",
+      "file": "desktop-dark-assistant.png",
+      "deviation": 4579.25,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- banner \"小白盒 Agent\":\n  - button \"返回\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - button \"更多操作\"\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:42 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:47\"\n- text: 暂无消息 Agent 已授权 v2\n- button \"添加图片附件\"\n- textbox \"消息 输入消息\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "assistant-menu",
+      "file": "desktop-dark-assistant-menu.png",
+      "deviation": 4752.54,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- banner \"小白盒 Agent\":\n  - button \"返回\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - button \"更多操作\"\n  - group:\n    - button \"清除历史\"\n    - button \"撤销 Agent 授权\"\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:42 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:47\"\n- text: 暂无消息 Agent 已授权 v2\n- button \"添加图片附件\"\n- textbox \"消息 输入消息\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "memory",
+      "file": "desktop-dark-memory.png",
+      "deviation": 4343.61,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- banner \"记忆\":\n  - button \"返回\"\n  - button \"新增记忆\"\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:42 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:47\"\n- text: memory 6/2200 user 6/1375\n- group:\n  - group \"MEMORY v1 喜欢美食探店\":\n    - button \"修改\"\n    - button \"删除\"\n  - group \"USER v1 常用中文交流\":\n    - button \"修改\"\n    - button \"删除\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "memory-dialog",
+      "file": "desktop-dark-memory-dialog.png",
+      "deviation": 3563.88,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- text: 新增记忆\n- button \"MEMORY\"\n- button \"USER\"\n- text: 内容\n- textbox\n- button \"取消\"\n- button \"保存\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "watch",
+      "file": "desktop-dark-watch.png",
+      "deviation": 4428.13,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- banner \"追踪\":\n  - button \"返回\"\n  - button \"创建追踪\"\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:42 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:47\"\n- group:\n  - text: 任务\n  - group \"盯作者新帖 author:2 · 启用 停用追踪\":\n    - switch [checked]\n    - button \"删除\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "watch-dialog",
+      "file": "desktop-dark-watch-dialog.png",
+      "deviation": 3876.68,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- text: 创建追踪\n- button \"盯作者新帖\"\n- button \"盯标签新帖\"\n- button \"盯关键词\"\n- button \"盯帖子修订\"\n- text: 目标 ID\n- textbox\n- button \"取消\"\n- button \"创建\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "thread",
+      "file": "desktop-dark-thread.png",
+      "deviation": 4301.15,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- banner \"测试用户\":\n  - button \"返回\"\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:42 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:47\"\n- text: 资源不存在\n- button \"重试\"\n- textbox \"消息 输入消息\"\n- button \"发送图片\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "thread-compose",
+      "file": "desktop-dark-thread-compose.png",
+      "deviation": 4560.23,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- heading \"消息\" [level=2]\n- banner \"测试用户\":\n  - button \"返回\"\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:42 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:47\"\n- text: 资源不存在\n- button \"重试\"\n- textbox \"消息\": 这是一条尚未发送的私信\n- button \"发送图片\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "editor",
+      "file": "desktop-dark-editor.png",
+      "deviation": 3044.84,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner \"发帖\":\n  - button \"返回\"\n  - button \"存草稿\"\n  - button \"发布\"\n- group:\n  - textbox \"帖子标题 标题\"\n  - textbox \"正文 分享你的想法...\"\n  - textbox \"帖子标签 标签\"\n  - button \"添加标签\"\n  - text: 图片 0/9\n  - button \"添加图片\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "editor-draft",
+      "file": "desktop-dark-editor-draft.png",
+      "deviation": 6824.98,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner \"发帖\":\n  - button \"返回\"\n  - button \"存草稿\"\n  - button \"发布\"\n- group:\n  - textbox \"帖子标题\": 标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题\n  - textbox \"正文\": 正文内容与多行输入 保留当前业务的标题、正文和图片限制。\n  - textbox \"帖子标签 标签\"\n  - button \"添加标签\"\n  - text: 图片 0/9\n  - button \"添加图片\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "edit-profile",
+      "file": "desktop-dark-edit-profile.png",
+      "deviation": 3778.59,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner \"编辑资料\":\n  - button \"返回\"\n  - button \"保存\"\n- group:\n  - text: 小\n  - textbox \"昵称\"\n  - textbox \"个人简介\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "profile",
+      "file": "desktop-dark-profile.png",
+      "deviation": 11371.2,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 小白盒\n- group:\n  - button \"首页\"\n  - button \"搜索\"\n  - button \"消息\"\n  - button \"发布\"\n  - button \"我的\"\n- banner \"个人中心\":\n  - button \"退出登录\"\n- group:\n  - text: 小 小白鸽 热爱分享生活的小白，喜欢探索新事物~ 12 128 56 帖子 粉丝 关注\n  - button \"编辑资料\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - table \"个性化推荐\"\n  - tablist:\n    - tab \"我的帖子\" [selected]\n    - tab \"我的收藏\"\n  - group:\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img\n      - button \"点赞，当前 56 赞 56\"\n    - button \"小白鸽 1天前 分享我的极简主义房间改造 花了一个月时间把自己的房间改造成了极简风格。扔掉了一半以上的东西，重新规划了收纳空间。现在每天回到家心情都特别好，整洁的环境真的能影响人的状态。分享一下改造前后的对比~ 2 张图片 生活 极简 家居 0\":\n      - button \"小\"\n      - img\n      - img\n      - button \"点赞，当前 123 赞 123\"\n    - text: — 没有更多了 —"
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "login",
+      "file": "desktop-dark-login.png",
+      "deviation": 27604.4,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n- text: 小白盒\n- tablist:\n  - tab \"密码登录\" [selected]\n  - tab \"验证码登录\"\n- tabpanel:\n  - group:\n    - textbox \"用户名\"\n    - textbox \"密码\"\n    - button \"显示密码\"\n    - button \"登录\"\n    - button \"没有账号？去注册\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "code-login",
+      "file": "desktop-dark-code-login.png",
+      "deviation": 27592,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n- text: 小白盒\n- tablist:\n  - tab \"密码登录\"\n  - tab \"验证码登录\" [selected]\n- tabpanel:\n  - group:\n    - textbox \"手机号\"\n    - textbox \"验证码\"\n    - button \"获取验证码\"\n    - button \"登录\"\n    - button \"没有账号？去注册\""
+    },
+    {
+      "viewport": {
+        "name": "desktop-dark",
+        "width": 1440,
+        "height": 1000,
+        "colorScheme": "dark"
+      },
+      "page": "register",
+      "file": "desktop-dark-register.png",
+      "deviation": 27519,
+      "size": {
+        "width": 1440,
+        "viewport": 1440
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"注册\":\n  - button \"返回\"\n- group:\n  - textbox \"用户名\"\n  - textbox \"密码\"\n  - button \"显示密码\"\n  - textbox \"确认密码\"\n  - button \"显示密码\"\n  - textbox \"手机号\"\n  - textbox \"验证码\"\n  - button \"获取验证码\"\n  - button \"注册\"\n  - button \"已有账号？去登录\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "feed",
+      "file": "narrow-light-feed.png",
+      "deviation": 20062.5,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- group:\n  - tablist:\n    - tab \"关注\"\n    - tab \"推荐\" [selected]\n- button \"搜索\"\n- button \"消息\"\n- tabpanel:\n  - group:\n    - button \"萌萌哒小兔 1小时前 探店｜藏在巷子里的宝藏面馆 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。 2 张图片 美食 探店 52\":\n      - button \"萌\"\n      - img\n      - img\n      - button \"取消点赞，当前 89 赞 89\"\n    - button \"科技宅小明 2小时前 2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 1 张图片 科技 数码 手机 3\":\n      - button \"科\"\n      - button \"点赞，当前 234 赞 234\"\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img\n      - button \"点赞，当前 56 赞 56\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "feed-push-post",
+      "file": "narrow-light-feed-push-post.png",
+      "deviation": 21269.7,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n  - text: 美食 探店 1234 次浏览\n  - button \"盯作者\"\n  - button \"盯本帖修订\"\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "feed-return",
+      "file": "narrow-light-feed-return.png",
+      "deviation": 20062.5,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- group:\n  - tablist:\n    - tab \"关注\"\n    - tab \"推荐\" [selected]\n- button \"搜索\"\n- button \"消息\"\n- tabpanel:\n  - group:\n    - button \"萌萌哒小兔 1小时前 探店｜藏在巷子里的宝藏面馆 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。 2 张图片 美食 探店 52\":\n      - button \"萌\"\n      - img\n      - img\n      - button \"取消点赞，当前 89 赞 89\"\n    - button \"科技宅小明 2小时前 2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 1 张图片 科技 数码 手机 3\":\n      - button \"科\"\n      - button \"点赞，当前 234 赞 234\"\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img\n      - button \"点赞，当前 56 赞 56\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "post",
+      "file": "narrow-light-post.png",
+      "deviation": 21269.7,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n  - text: 美食 探店 1234 次浏览\n  - button \"盯作者\"\n  - button \"盯本帖修订\"\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "comments",
+      "file": "narrow-light-comments.png",
+      "deviation": 8422.74,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 评论\n  - button \"最新\"\n  - button \"最热\"\n  - 'group \"科 科技宅小明 19分钟前 压测评论 #14 —— 滚动到底后会自动加载下一页\"':\n    - button \"4\" [disabled]\n    - button \"回复\"\n  - 'group \"小 小白鸽 19分钟前 压测评论 #15 —— 滚动到底后会自动加载下一页\"':\n    - button \"5\" [disabled]\n    - button \"回复\"\n  - 'group \"萌 萌萌哒小兔 19分钟前 压测评论 #16 —— 滚动到底后会自动加载下一页\"':\n    - button \"6\" [disabled]\n    - button \"回复\"\n  - 'group \"科 科技宅小明 19分钟前 压测评论 #17 —— 滚动到底后会自动加载下一页\"':\n    - button \"7\" [disabled]\n    - button \"回复\"\n  - 'group \"小 小白鸽 19分钟前 压测评论 #18 —— 滚动到底后会自动加载下一页\"':\n    - button \"8\" [disabled]\n    - button \"回复\"\n- textbox \"评论内容 写评论...\"\n- button \"点赞 89 89\"\n- button \"收藏 45 45\"\n- button \"查看评论 52 52\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "comment-compose",
+      "file": "narrow-light-comment-compose.png",
+      "deviation": 21276.9,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n  - button \"正文\"\n  - button \"评论\"\n- group:\n  - text: 探店｜藏在巷子里的宝藏面馆\n  - button \"萌 萌萌哒小兔 1小时前\"\n  - text: 今天发现了一家超级好吃的面馆！藏在老城区的小巷子里，门面不大但味道绝了。招牌牛肉面汤头浓郁，面条劲道，牛肉大块又入味。老板说汤底要熬8个小时，难怪这么香！人均才25块，性价比超高，强烈推荐大家去试试。\n  - img\n  - img\n  - text: 美食 探店 1234 次浏览\n  - button \"盯作者\"\n  - button \"盯本帖修订\"\n- textbox \"评论内容\": 这是一条尚未发送的评论\n- button \"发送评论\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "search",
+      "file": "narrow-light-search.png",
+      "deviation": 5296.99,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- textbox \"搜索词 搜索内容\"\n- button \"搜索\"\n- tablist:\n  - tab \"综合\" [selected]\n  - tab \"用户\"\n  - tab \"标签\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "search-results",
+      "file": "narrow-light-search-results.png",
+      "deviation": 10656.5,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- textbox \"搜索词\": 手机\n- button \"搜索\"\n- tablist:\n  - tab \"综合\" [selected]\n  - tab \"用户\"\n  - tab \"标签\"\n- group:\n  - text: 帖子\n  - button \"2026年最值得入手的三款手机 最近各大厂商都发布了新机，我整理了三款最值得购买的手机。从处理器性能、拍照效果、续航能力三个维度来对比，帮大家做个参考。从旗舰到中端都有覆盖，详细评测请看正文。 234 赞 · 3 评论\":\n    - button \"科 科技宅小明\"\n  - button \"入门摄影必看：手机拍照技巧大全 很多人觉得拍好照片一定要用相机，其实现在手机的拍照能力已经非常强了。今天分享几个我常用的手机摄影技巧：构图法则、光线运用、后期调色。掌握这些，你也能用手机拍出大片感！ 267 赞 · 0 评论\":\n    - button \"科 科技宅小明\"\n  - text: 相关标签\n  - button \"手机 2 篇帖子\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "messages",
+      "file": "narrow-light-messages.png",
+      "deviation": 8914.04,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- heading \"消息\" [level=2]\n- button \"小白盒 Agent 有新的作者动态 1\"\n- group:\n  - button \"萌 萌萌哒小兔 周末一起去探店吗？ 14:42 2\"\n  - button \"科 科技宅小明 评测文章已经更新啦 13:47\"\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "assistant",
+      "file": "narrow-light-assistant.png",
+      "deviation": 6473.49,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"小白盒 Agent\":\n  - button \"返回\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - button \"更多操作\"\n- text: 暂无消息 Agent 已授权 v2\n- button \"添加图片附件\"\n- textbox \"消息 输入消息\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "assistant-menu",
+      "file": "narrow-light-assistant-menu.png",
+      "deviation": 6865.78,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"小白盒 Agent\":\n  - button \"返回\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - button \"更多操作\"\n  - group:\n    - button \"清除历史\"\n    - button \"撤销 Agent 授权\"\n- text: 暂无消息 Agent 已授权 v2\n- button \"添加图片附件\"\n- textbox \"消息 输入消息\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "memory",
+      "file": "narrow-light-memory.png",
+      "deviation": 4159.33,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"记忆\":\n  - button \"返回\"\n  - button \"新增记忆\"\n- text: memory 6/2200 user 6/1375\n- group:\n  - group \"MEMORY v1 喜欢美食探店\":\n    - button \"修改\"\n    - button \"删除\"\n  - group \"USER v1 常用中文交流\":\n    - button \"修改\"\n    - button \"删除\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "memory-dialog",
+      "file": "narrow-light-memory-dialog.png",
+      "deviation": 6301.11,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 新增记忆\n- button \"MEMORY\"\n- button \"USER\"\n- text: 内容\n- textbox\n- button \"取消\"\n- button \"保存\"\n- button \"纱罩\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "watch",
+      "file": "narrow-light-watch.png",
+      "deviation": 4588.84,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"追踪\":\n  - button \"返回\"\n  - button \"创建追踪\"\n- group:\n  - text: 任务\n  - group \"盯作者新帖 author:2 · 启用 停用追踪\":\n    - switch [checked]\n    - button \"删除\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "watch-dialog",
+      "file": "narrow-light-watch-dialog.png",
+      "deviation": 6767.1,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- text: 创建追踪\n- button \"盯作者新帖\"\n- button \"盯标签新帖\"\n- button \"盯关键词\"\n- button \"盯帖子修订\"\n- text: 目标 ID\n- textbox\n- button \"取消\"\n- button \"创建\"\n- button \"纱罩\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "thread",
+      "file": "narrow-light-thread.png",
+      "deviation": 4316.67,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"测试用户\":\n  - button \"返回\"\n- text: 资源不存在\n- button \"重试\"\n- textbox \"消息 输入消息\"\n- button \"发送图片\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "thread-compose",
+      "file": "narrow-light-thread-compose.png",
+      "deviation": 4893.24,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"测试用户\":\n  - button \"返回\"\n- text: 资源不存在\n- button \"重试\"\n- textbox \"消息\": 这是一条尚未发送的私信\n- button \"发送图片\"\n- button \"发送\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "editor",
+      "file": "narrow-light-editor.png",
+      "deviation": 6096.24,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"发帖\":\n  - button \"返回\"\n  - button \"存草稿\"\n  - button \"发布\"\n- group:\n  - textbox \"帖子标题 标题\"\n  - textbox \"正文 分享你的想法...\"\n  - textbox \"帖子标签 标签\"\n  - button \"添加标签\"\n  - text: 图片 0/9\n  - button \"添加图片\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "editor-draft",
+      "file": "narrow-light-editor-draft.png",
+      "deviation": 10868.2,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"发帖\":\n  - button \"返回\"\n  - button \"存草稿\"\n  - button \"发布\"\n- group:\n  - textbox \"帖子标题\": 标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题标题\n  - textbox \"正文\": 正文内容与多行输入 保留当前业务的标题、正文和图片限制。\n  - textbox \"帖子标签 标签\"\n  - button \"添加标签\"\n  - text: 图片 0/9\n  - button \"添加图片\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "edit-profile",
+      "file": "narrow-light-edit-profile.png",
+      "deviation": 7414.26,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"编辑资料\":\n  - button \"返回\"\n  - button \"保存\"\n- group:\n  - text: 小\n  - textbox \"昵称\"\n  - textbox \"个人简介\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "profile",
+      "file": "narrow-light-profile.png",
+      "deviation": 16703.3,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"个人中心\":\n  - button \"退出登录\"\n- group:\n  - text: 小 小白鸽 热爱分享生活的小白，喜欢探索新事物~ 12 128 56 帖子 粉丝 关注\n  - button \"编辑资料\"\n  - button \"记忆\"\n  - button \"追踪\"\n  - table \"个性化推荐\"\n  - tablist:\n    - tab \"我的帖子\" [selected]\n    - tab \"我的收藏\"\n  - group:\n    - button \"小白鸽 4小时前 周末去了趟西湖，太美了 趁着周末天气好，和朋友去了趟杭州西湖。春天的西湖真的太美了，断桥边的柳树刚发了新芽，湖面上波光粼粼。我们租了一条小船在湖上划了一圈，感觉整个人都放松了下来。 3 张图片 旅行 杭州 周末 2\":\n      - button \"小\"\n      - img\n      - img\n      - img\n      - button \"点赞，当前 56 赞 56\"\n    - button \"小白鸽 1天前 分享我的极简主义房间改造 花了一个月时间把自己的房间改造成了极简风格。扔掉了一半以上的东西，重新规划了收纳空间。现在每天回到家心情都特别好，整洁的环境真的能影响人的状态。分享一下改造前后的对比~ 2 张图片 生活 极简 家居 0\":\n      - button \"小\"\n      - img\n      - img\n- button \"首页 第 1 个标签，共 5 个\"\n- button \"搜索 第 2 个标签，共 5 个\"\n- button \"发布 第 3 个标签，共 5 个\"\n- button \"消息 第 4 个标签，共 5 个\"\n- button \"我的 第 5 个标签，共 5 个\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "login",
+      "file": "narrow-light-login.png",
+      "deviation": 15005.6,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n- text: 小白盒\n- tablist:\n  - tab \"密码登录\" [selected]\n  - tab \"验证码登录\"\n- tabpanel:\n  - group:\n    - textbox \"用户名\"\n    - textbox \"密码\"\n    - button \"显示密码\"\n    - button \"登录\"\n    - button \"没有账号？去注册\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "code-login",
+      "file": "narrow-light-code-login.png",
+      "deviation": 15143,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner:\n  - button \"返回\"\n- text: 小白盒\n- tablist:\n  - tab \"密码登录\"\n  - tab \"验证码登录\" [selected]\n- tabpanel:\n  - group:\n    - textbox \"手机号\"\n    - textbox \"验证码\"\n    - button \"获取验证码\"\n    - button \"登录\"\n    - button \"没有账号？去注册\""
+    },
+    {
+      "viewport": {
+        "name": "narrow-light",
+        "width": 320,
+        "height": 740,
+        "colorScheme": "light"
+      },
+      "page": "register",
+      "file": "narrow-light-register.png",
+      "deviation": 13341.2,
+      "size": {
+        "width": 320,
+        "viewport": 320
+      },
+      "errors": [],
+      "failures": [],
+      "snapshot": "- banner \"注册\":\n  - button \"返回\"\n- group:\n  - textbox \"用户名\"\n  - textbox \"密码\"\n  - button \"显示密码\"\n  - textbox \"确认密码\"\n  - button \"显示密码\"\n  - textbox \"手机号\"\n  - textbox \"验证码\"\n  - button \"获取验证码\"\n  - button \"注册\"\n  - button \"已有账号？去登录\""
+    }
+  ]
+}

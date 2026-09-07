@@ -1,0 +1,26 @@
+[
+  {
+    "viewport": "desktop-light",
+    "sourceCards": 2,
+    "question": "answered",
+    "sourceNavigation": "passed",
+    "historyReturn": "passed",
+    "pageErrors": []
+  },
+  {
+    "viewport": "mobile-light",
+    "sourceCards": 2,
+    "question": "answered",
+    "sourceNavigation": "passed",
+    "historyReturn": "passed",
+    "pageErrors": []
+  },
+  {
+    "viewport": "mobile-dark",
+    "sourceCards": 2,
+    "question": "answered",
+    "sourceNavigation": "passed",
+    "historyReturn": "passed",
+    "pageErrors": []
+  }
+]
