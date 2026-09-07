@@ -57,13 +57,17 @@ docs/superpowers/plans/2026-04-22-app-centric-repo-organization-finish-plan.md
 **/generated_plugins.cmake
 **/GeneratedPluginRegistrant.*
 
-# Documentation is opt-in. The governed knowledge tree is the only active
-# project documentation surface; historical material lives under its archive.
+# Documentation is opt-in. Formal knowledge lives in the governed tree;
+# README screenshot assets and provenance are kept separately.
 docs
 !docs/
 docs/*
 !docs/knowledge/
 !docs/knowledge/**
+!docs/assets/
+docs/assets/*
+!docs/assets/screenshots/
+!docs/assets/screenshots/**
 CLAUDE.md
 .worktree/
 .worktrees/

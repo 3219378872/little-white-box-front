@@ -7,7 +7,26 @@
 本仓库 `little-white-box-front` 的 Flutter 应用位于仓库根目录。既可独立运行仓库内 Mock API，
 也可连接真实 Gateway；完整联调由 [根编排仓](https://github.com/3219378872/little-white-box)统一管理。
 
-[技术与目录](#技术与目录) · [快速开始](#快速开始) · [真实 API 联调](#真实-api-联调) · [SDK 工作流](#sdk-工作流) · [检查与文档](#检查与文档)
+[界面预览](#界面预览) · [技术与目录](#技术与目录) · [快速开始](#快速开始) · [真实 API 联调](#真实-api-联调) · [SDK 工作流](#sdk-工作流) · [检查与文档](#检查与文档)
+
+## 界面预览
+
+以下复用 2026-09-06 上一轮浏览器截图。Mock 使用演示数据，真实联调图来自本地测试栈；均不是生产
+数据或当前版本的完整验收结论。[截图来源与说明](docs/assets/screenshots/README.md)。
+
+### 桌面内容流 · Mock
+
+![桌面亮色内容流，Mock 演示数据，2026-09-06](docs/assets/screenshots/mock-desktop-feed.png)
+
+### 移动端
+
+依次为：暗色搜索结果（Mock）、Agent 澄清问答（Mock）、帖子详情（真实联调）。窄屏下图片依次换行。
+
+<p>
+  <img src="docs/assets/screenshots/mock-mobile-search-dark.png" alt="暗色搜索结果，Mock 演示数据，2026-09-06" title="暗色搜索结果 · Mock" width="260">
+  <img src="docs/assets/screenshots/mock-mobile-clarification.png" alt="Agent 澄清问答，Mock 演示数据，2026-09-06" title="Agent 澄清问答 · Mock" width="260">
+  <img src="docs/assets/screenshots/real-mobile-post.png" alt="帖子详情，真实本地联调测试数据，2026-09-06" title="帖子详情 · 真实联调" width="260">
+</p>
 
 ## 定位与界面能力
 
