@@ -40,7 +40,7 @@ tracks:
 - FX-097
 - FX-098
 - FX-099
-updated_at: 2026-09-06
+updated_at: 2026-09-07
 ---
 
 # Assistant 虚拟线程与研究交互设计
@@ -57,6 +57,15 @@ Assistant 是消息页固定的「小白盒 Agent」虚拟线程，不是主导�
 provider 都以 session identity 为边界，换号销毁旧缓存和 SSE。
 
 ## 命令、附件与异步 run
+
+`AssistantNotifier` 保留公开方法、生命周期和唯一 UI 状态；同一 library 内的私有 parts 分别承接
+commands、connection、history、messages 与纯 reconciliation。它们共享 notifier 的字段，不复制状态、
+generation 或 requestId。状态模型、consent notifier、公共 repository/identity provider 独立成文件，
+旧 `assistant_notifier.dart` 通过 export 保留导入兼容，每个 provider 仍只定义一次。
+
+展示层按消息气泡、页面控制区拆分；正文、评论和帖子互动构建分别定位到对应部分。控件树、key、
+回调及 scroll controller 的所有者不变。Mock 延续 `part` 结构，路由分派留在入口，状态与 reset 统一，
+处理函数按认证、内容、发现、私信和 Assistant 等领域定位，不改变先后匹配与错误/SSE 语义。
 
 发送命令包含 message、requestId、attachments 和可选 contextPostId。图片在发送前校验、上传、预览和
 移除，失败命令保留完整参数与 requestId。服务端返回 runId 与 started/redirected/steered/queued 后即
