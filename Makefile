@@ -14,12 +14,13 @@ BACKEND_API ?=
 PID_FILE ?= .dart_tool/web-server-$(PORT).pid
 LOG_FILE ?= .dart_tool/web-server-$(PORT).log
 
-.PHONY: help setup analyze test test-coverage tools-test knowledge-setup knowledge-ready knowledge-test knowledge-check knowledge-index knowledge-export require-backend-api sdk-check check dev dev-real build-web serve start stop restart status
+.PHONY: help setup analyze format-check test test-coverage tools-test knowledge-setup knowledge-ready knowledge-test knowledge-check knowledge-index knowledge-export require-backend-api sdk-check check dev dev-real build-web serve start stop restart status
 
 help:
 	@printf '%s\n' \
 		'make setup       Resolve Flutter dependencies' \
 		'make analyze     Run Flutter static analysis' \
+		'make format-check  Verify Dart formatting without writing files' \
 		'make test        Run the test suite' \
 		'make test-coverage  Run tests with coverage; fails below COVERAGE_MIN (default 70)' \
 		'make tools-test   Run repository maintenance tests' \
@@ -29,7 +30,7 @@ help:
 		'make knowledge-export REF=HEAD  Export Git snapshot as JSON' \
 		'make knowledge-check  Validate five-layer project knowledge' \
 		'make sdk-check BACKEND_API=/path/to/gateway.api  Verify generated SDK copies without writing' \
-		'make check BACKEND_API=/path/to/gateway.api  Run analyze, tests, knowledge, and SDK gates' \
+		'make check BACKEND_API=/path/to/gateway.api  Run format, analyze, tests, knowledge, and SDK gates' \
 		'make dev         Start Mock Web in foreground with hot reload' \
 		'make dev-real    Start Web with relative /api paths (optional SERVER_HOST)' \
 		'make build-web   Build the Mock Web release artifact' \
@@ -43,6 +44,9 @@ setup:
 
 analyze:
 	$(FLUTTER) analyze
+
+format-check:
+	dart format --output=none --set-exit-if-changed lib test
 
 test:
 	$(FLUTTER) test
@@ -83,7 +87,7 @@ require-backend-api:
 sdk-check: require-backend-api
 	$(PYTHON) tools/sync_gateway_sdk.py --check --api "$(BACKEND_API)"
 
-check: knowledge-ready require-backend-api analyze test tools-test knowledge-check sdk-check
+check: knowledge-ready require-backend-api format-check analyze test tools-test knowledge-check sdk-check
 
 dev:
 	$(FLUTTER) run -d web-server \

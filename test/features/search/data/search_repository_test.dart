@@ -57,27 +57,30 @@ void main() {
     expect(tags.tags.single.name, 'dart');
   });
 
-  test('treats omitted result lists as empty and keeps degradation flags', () async {
-    final client = _StubV2ApiClient([
-      {
-        'posts': [postJson(1)],
-        'degraded': true,
-        'unavailableTypes': ['user', 'tag'],
-      },
-    ]);
-    final repository = SearchRepository(client: client);
+  test(
+    'treats omitted result lists as empty and keeps degradation flags',
+    () async {
+      final client = _StubV2ApiClient([
+        {
+          'posts': [postJson(1)],
+          'degraded': true,
+          'unavailableTypes': ['user', 'tag'],
+        },
+      ]);
+      final repository = SearchRepository(client: client);
 
-    final results = await repository.search(
-      scope: SearchScope.all,
-      keyword: 'query',
-    );
+      final results = await repository.search(
+        scope: SearchScope.all,
+        keyword: 'query',
+      );
 
-    expect(results.posts, hasLength(1));
-    expect(results.users, isEmpty);
-    expect(results.tags, isEmpty);
-    expect(results.degraded, isTrue);
-    expect(results.unavailableTypes, ['user', 'tag']);
-  });
+      expect(results.posts, hasLength(1));
+      expect(results.users, isEmpty);
+      expect(results.tags, isEmpty);
+      expect(results.degraded, isTrue);
+      expect(results.unavailableTypes, ['user', 'tag']);
+    },
+  );
 }
 
 Map<String, dynamic> postJson(int id) => {

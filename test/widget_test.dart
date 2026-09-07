@@ -37,8 +37,8 @@ class _StubHttpClient implements HttpClient {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnsupportedError(
-        'smoke test does not support ${invocation.memberName}',
-      );
+    'smoke test does not support ${invocation.memberName}',
+  );
 }
 
 class _StubHttpRequest implements HttpClientRequest {
@@ -52,8 +52,8 @@ class _StubHttpRequest implements HttpClientRequest {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnsupportedError(
-        'smoke test does not support ${invocation.memberName}',
-      );
+    'smoke test does not support ${invocation.memberName}',
+  );
 }
 
 class _StubHttpResponse implements HttpClientResponse {
@@ -84,8 +84,8 @@ class _StubHttpResponse implements HttpClientResponse {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnsupportedError(
-        'smoke test does not support ${invocation.memberName}',
-      );
+    'smoke test does not support ${invocation.memberName}',
+  );
 }
 
 class _StubHttpHeaders implements HttpHeaders {
@@ -97,11 +97,11 @@ class _StubHttpHeaders implements HttpHeaders {
 }
 
 void main() {
-
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('boots the real app shell against the in-repo mock gateway',
-      (tester) async {
+  testWidgets('boots the real app shell against the in-repo mock gateway', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     HttpOverrides.global = _StubImageOverrides();
     addTearDown(() => HttpOverrides.global = null);
@@ -109,10 +109,12 @@ void main() {
     addTearDown(removeTokens);
 
     setApiClient(MockHttpClient());
-    await setTokens(buildStoredTokens(
-      accessToken: mock_router.mockAccessTokenForUser(1),
-      refreshToken: mock_router.mockRefreshTokenForUser(1),
-    ));
+    await setTokens(
+      buildStoredTokens(
+        accessToken: mock_router.mockAccessTokenForUser(1),
+        refreshToken: mock_router.mockRefreshTokenForUser(1),
+      ),
+    );
 
     await tester.pumpWidget(const ProviderScope(child: XiaobaiheApp()));
     await tester.pump();

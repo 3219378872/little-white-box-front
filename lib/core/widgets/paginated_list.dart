@@ -2,7 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
 import '../api/api_exceptions.dart';
-import 'error_view.dart';import 'forui_pull_to_refresh.dart';
+import 'error_view.dart';
+import 'forui_pull_to_refresh.dart';
 
 class PaginatedListView<T> extends StatefulWidget {
   final List<T> items;
@@ -80,9 +81,8 @@ class _PaginatedListViewState<T> extends State<PaginatedListView<T>> {
       );
     }
 
-    final showTail = widget.hasMore ||
-        widget.isLoadingMore ||
-        (widget.error != null);
+    final showTail =
+        widget.hasMore || widget.isLoadingMore || (widget.error != null);
     return ForuiPullToRefresh(
       onRefresh: () async => widget.onRefresh(),
       child: ListView.builder(

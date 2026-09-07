@@ -54,8 +54,7 @@ class MessageRepository implements MessageDataSource {
     Object lastId = 0,
     int pageSize = 20,
   }) async {
-    if (!jsonInt64IsPositive(conversationId) ||
-        (lastId is num && lastId < 0)) {
+    if (!jsonInt64IsPositive(conversationId) || (lastId is num && lastId < 0)) {
       throw const ApiException('会话参数无效');
     }
     _validatePage(1, pageSize);

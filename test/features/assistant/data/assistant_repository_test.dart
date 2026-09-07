@@ -317,7 +317,10 @@ void main() {
     expect(requests[0].body, contains('"targetId":1'));
     expect(requests[0].body, isNot(contains('"targetId":"1"')));
     expect(requests[1].body, contains('"targetId":348206251022356480'));
-    expect(requests[1].body, isNot(contains('"targetId":"348206251022356480"')));
+    expect(
+      requests[1].body,
+      isNot(contains('"targetId":"348206251022356480"')),
+    );
   });
 
   test(

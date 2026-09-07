@@ -40,12 +40,8 @@ class CommentRepository {
 
   Future<CreateCommentResp> createNewComment(CreateCommentReq req) {
     return apiCall<CreateCommentResp>(
-      (ok, fail, eventually) => gw.createComment(
-        req,
-        ok: ok,
-        fail: fail,
-        eventually: eventually,
-      ),
+      (ok, fail, eventually) =>
+          gw.createComment(req, ok: ok, fail: fail, eventually: eventually),
     );
   }
 

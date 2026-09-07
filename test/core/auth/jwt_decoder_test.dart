@@ -40,9 +40,7 @@ void main() {
     });
 
     test('payload 是 JSON 数组返回 null', () {
-      final arr = base64Url
-          .encode(utf8.encode('[1,2,3]'))
-          .replaceAll('=', '');
+      final arr = base64Url.encode(utf8.encode('[1,2,3]')).replaceAll('=', '');
       expect(decodeJwtPayload('header.$arr.sig'), isNull);
     });
 

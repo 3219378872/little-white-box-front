@@ -25,8 +25,9 @@ void main() {
     expect(retried, 1);
   });
 
-  testWidgets('ErrorView omits the retry button without a callback',
-      (tester) async {
+  testWidgets('ErrorView omits the retry button without a callback', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         builder: foruiTestBuilder,

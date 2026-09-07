@@ -21,18 +21,21 @@ String _jwtWithUser(int userId) {
   return '${part({'alg': 'HS256'})}.${part({'userId': userId, 'exp': 1893456000})}.sig';
 }
 
-Map<String, dynamic> _messageJson(int id, int senderId, String content,
-        {int msgType = 1}) =>
-    {
-      'id': id,
-      'conversationId': 8,
-      'senderId': senderId,
-      'receiverId': 9,
-      'content': content,
-      'msgType': msgType,
-      'status': 0,
-      'createdAt': 1700000000,
-    };
+Map<String, dynamic> _messageJson(
+  int id,
+  int senderId,
+  String content, {
+  int msgType = 1,
+}) => {
+  'id': id,
+  'conversationId': 8,
+  'senderId': senderId,
+  'receiverId': 9,
+  'content': content,
+  'msgType': msgType,
+  'status': 0,
+  'createdAt': 1700000000,
+};
 
 class _Harness {
   late final ScriptedGatewayClient client;
@@ -50,14 +53,16 @@ class _Harness {
         return jsonResponse({'code': 500, 'message': '消息服务不可用'}, 500);
       }
       final lastId = request.url.queryParameters['lastId'];
-      return jsonResponse(okEnvelope({
-        'messages': [
-          lastId == null
-              ? _messageJson(30, 7, '自己说的话')
-              : _messageJson(20, 9, '更早的消息'),
-        ],
-        'hasMore': lastId == null ? hasMore : false,
-      }));
+      return jsonResponse(
+        okEnvelope({
+          'messages': [
+            lastId == null
+                ? _messageJson(30, 7, '自己说的话')
+                : _messageJson(20, 9, '更早的消息'),
+          ],
+          'hasMore': lastId == null ? hasMore : false,
+        }),
+      );
     }
     if (path == '/api/v2/messages/conversations/8/read') {
       return jsonResponse(okEnvelope(<String, dynamic>{}));
@@ -97,15 +102,18 @@ void main() {
   tearDown(() => setApiClient(http.Client()));
 
   Future<void> loginAsCurrentUser() async {
-    await setTokens(buildStoredTokens(
-      accessToken: _jwtWithUser(7),
-      refreshToken: 'refresh-token',
-    ));
+    await setTokens(
+      buildStoredTokens(
+        accessToken: _jwtWithUser(7),
+        refreshToken: 'refresh-token',
+      ),
+    );
     addTearDown(removeTokens);
   }
 
-  testWidgets('renders both sides of the conversation and marks read',
-      (tester) async {
+  testWidgets('renders both sides of the conversation and marks read', (
+    tester,
+  ) async {
     await loginAsCurrentUser();
     final harness = _Harness();
     setApiClient(harness.client);
@@ -117,9 +125,7 @@ void main() {
     expect(find.text('自己说的话'), findsOneWidget);
     // 消息拉取成功后自动标记已读。
     expect(
-      harness.client.requests
-          .where((r) => r.url.path.endsWith('/read'))
-          .length,
+      harness.client.requests.where((r) => r.url.path.endsWith('/read')).length,
       greaterThanOrEqualTo(1),
     );
   });
@@ -136,23 +142,24 @@ void main() {
     await tester.tap(find.bySemanticsLabel('发送'));
     await tester.pumpAndSettle();
 
-    final send = harness.client.requests.lastWhere(
-      (r) => r.url.path == '/api/v2/messages',
-    ) as http.Request;
+    final send =
+        harness.client.requests.lastWhere(
+              (r) => r.url.path == '/api/v2/messages',
+            )
+            as http.Request;
     final body = jsonBodyOf(send);
     expect(body['content'], '你好呀');
     expect(body['msgType'], 1);
     expect((body['idempotencyKey'] as String), isNotEmpty);
     // 发送成功后消息上屏、输入框被清空。
     expect(find.text('你好呀'), findsOneWidget);
-    final input = tester.widget<EditableText>(
-      find.byType(EditableText).first,
-    );
+    final input = tester.widget<EditableText>(find.byType(EditableText).first);
     expect(input.controller.text, isEmpty);
   });
 
-  testWidgets('falls back to an error view and recovers on retry',
-      (tester) async {
+  testWidgets('falls back to an error view and recovers on retry', (
+    tester,
+  ) async {
     await loginAsCurrentUser();
     final harness = _Harness()..threadOk = false;
     setApiClient(harness.client);
@@ -182,9 +189,11 @@ void main() {
     await tester.pumpAndSettle();
 
     final older = harness.client.requests
-        .where((r) =>
-            r.url.path == '/api/v2/messages/conversations/8' &&
-            r.url.queryParameters.containsKey('lastId'))
+        .where(
+          (r) =>
+              r.url.path == '/api/v2/messages/conversations/8' &&
+              r.url.queryParameters.containsKey('lastId'),
+        )
         .toList();
     expect(older, hasLength(1));
     expect(find.text('更早的消息'), findsOneWidget);

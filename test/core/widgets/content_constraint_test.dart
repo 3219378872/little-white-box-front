@@ -33,27 +33,20 @@ void main() {
   }
 
   testWidgets('caps the inner width on wide screens', (tester) async {
-    final width = await builtWidth(
-      tester,
-      surfaceWidth: 1200,
-      maxWidth: 600,
-    );
+    final width = await builtWidth(tester, surfaceWidth: 1200, maxWidth: 600);
 
     expect(width, 600);
   });
 
   testWidgets('keeps the full width on narrow screens', (tester) async {
-    final width = await builtWidth(
-      tester,
-      surfaceWidth: 360,
-      maxWidth: 600,
-    );
+    final width = await builtWidth(tester, surfaceWidth: 360, maxWidth: 600);
 
     expect(width, 360);
   });
 
-  testWidgets('applies horizontal padding inside the constraint',
-      (tester) async {
+  testWidgets('applies horizontal padding inside the constraint', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Align(

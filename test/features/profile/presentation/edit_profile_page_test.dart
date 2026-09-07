@@ -72,12 +72,12 @@ void main() {
     removeTokens();
   });
 
-  testWidgets('prefills the form from the current user profile',
-      (tester) async {
-    await setTokens(buildStoredTokens(
-      accessToken: _jwtWithUser(7),
-      refreshToken: 'r',
-    ));
+  testWidgets('prefills the form from the current user profile', (
+    tester,
+  ) async {
+    await setTokens(
+      buildStoredTokens(accessToken: _jwtWithUser(7), refreshToken: 'r'),
+    );
     final client = ScriptedGatewayClient.always({
       'id': 7,
       'username': 'admin',
@@ -96,32 +96,29 @@ void main() {
 
     expect(find.text('编辑资料'), findsOneWidget);
     expect(find.text('管'), findsOneWidget); // 头像兜底取昵称首字符
-    final fields = tester.widgetList<EditableText>(
-      find.byType(EditableText),
-    );
+    final fields = tester.widgetList<EditableText>(find.byType(EditableText));
     expect(fields.first.controller.text, '管理员昵称');
     expect(fields.elementAt(1).controller.text, '一句话简介');
-    expect(
-      client.requests.single.url.path,
-      '/api/v1/user/7',
-    );
+    expect(client.requests.single.url.path, '/api/v1/user/7');
   });
 
-  testWidgets('saves trimmed values and returns to the previous page',
-      (tester) async {
-    await setTokens(buildStoredTokens(
-      accessToken: _jwtWithUser(7),
-      refreshToken: 'r',
-    ));
+  testWidgets('saves trimmed values and returns to the previous page', (
+    tester,
+  ) async {
+    await setTokens(
+      buildStoredTokens(accessToken: _jwtWithUser(7), refreshToken: 'r'),
+    );
     final client = ScriptedGatewayClient((request) async {
       if (request.url.path == '/api/v1/user/7') {
-        return jsonResponse(okEnvelope({
-          'id': 7,
-          'username': 'admin',
-          'nickname': '旧昵称',
-          'avatarUrl': '',
-          'bio': '',
-        }));
+        return jsonResponse(
+          okEnvelope({
+            'id': 7,
+            'username': 'admin',
+            'nickname': '旧昵称',
+            'avatarUrl': '',
+            'bio': '',
+          }),
+        );
       }
       if (request.url.path == '/api/v1/user/profile') {
         return jsonResponse(okEnvelope(<String, dynamic>{}));
@@ -138,30 +135,26 @@ void main() {
 
     final put = client.requests.last as http.Request;
     expect(put.method, 'PUT');
-    expect(jsonBodyOf(put), {
-      'nickname': '新昵称',
-      'avatarUrl': '',
-      'bio': '',
-    });
+    expect(jsonBodyOf(put), {'nickname': '新昵称', 'avatarUrl': '', 'bio': ''});
     // 保存成功后返回上一页。
     expect(find.text('打开编辑资料'), findsOneWidget);
   });
 
-  testWidgets('keeps the page open and toasts on save failure',
-      (tester) async {
-    await setTokens(buildStoredTokens(
-      accessToken: _jwtWithUser(7),
-      refreshToken: 'r',
-    ));
+  testWidgets('keeps the page open and toasts on save failure', (tester) async {
+    await setTokens(
+      buildStoredTokens(accessToken: _jwtWithUser(7), refreshToken: 'r'),
+    );
     final client = ScriptedGatewayClient((request) async {
       if (request.url.path == '/api/v1/user/7') {
-        return jsonResponse(okEnvelope({
-          'id': 7,
-          'username': 'admin',
-          'nickname': '旧昵称',
-          'avatarUrl': '',
-          'bio': '',
-        }));
+        return jsonResponse(
+          okEnvelope({
+            'id': 7,
+            'username': 'admin',
+            'nickname': '旧昵称',
+            'avatarUrl': '',
+            'bio': '',
+          }),
+        );
       }
       if (request.url.path == '/api/v1/user/profile') {
         return jsonResponse({'code': 500, 'message': '服务器错误'}, 500);
@@ -182,13 +175,13 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('cold-start deep link waits for auth and still prefills',
-      (tester) async {
+  testWidgets('cold-start deep link waits for auth and still prefills', (
+    tester,
+  ) async {
     // 回归：不经过宿主页预热 auth，直接以编辑页为初始路由进入。
-    await setTokens(buildStoredTokens(
-      accessToken: _jwtWithUser(7),
-      refreshToken: 'r',
-    ));
+    await setTokens(
+      buildStoredTokens(accessToken: _jwtWithUser(7), refreshToken: 'r'),
+    );
     final client = ScriptedGatewayClient.always({
       'id': 7,
       'username': 'admin',
@@ -219,31 +212,31 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pumpAndSettle();
 
-    final fields = tester.widgetList<EditableText>(
-      find.byType(EditableText),
-    );
+    final fields = tester.widgetList<EditableText>(find.byType(EditableText));
     expect(fields, isNotEmpty);
     expect(fields.first.controller.text, '管理员昵称');
     expect(client.requests.single.url.path, '/api/v1/user/7');
   });
 
-  testWidgets('shows a retryable error view when the profile fetch fails',
-      (tester) async {
-    await setTokens(buildStoredTokens(
-      accessToken: _jwtWithUser(7),
-      refreshToken: 'r',
-    ));
+  testWidgets('shows a retryable error view when the profile fetch fails', (
+    tester,
+  ) async {
+    await setTokens(
+      buildStoredTokens(accessToken: _jwtWithUser(7), refreshToken: 'r'),
+    );
     var profileOk = false;
     final client = ScriptedGatewayClient((request) async {
       if (request.url.path == '/api/v1/user/7') {
         return profileOk
-            ? jsonResponse(okEnvelope({
-                'id': 7,
-                'username': 'admin',
-                'nickname': '恢复昵称',
-                'avatarUrl': '',
-                'bio': '',
-              }))
+            ? jsonResponse(
+                okEnvelope({
+                  'id': 7,
+                  'username': 'admin',
+                  'nickname': '恢复昵称',
+                  'avatarUrl': '',
+                  'bio': '',
+                }),
+              )
             : jsonResponse({'code': 500, 'message': '服务器错误'}, 500);
       }
       fail('unexpected request: ${request.method} ${request.url.path}');
@@ -260,9 +253,7 @@ void main() {
     await tester.tap(find.text('重试'));
     await tester.pumpAndSettle();
 
-    final fields = tester.widgetList<EditableText>(
-      find.byType(EditableText),
-    );
+    final fields = tester.widgetList<EditableText>(find.byType(EditableText));
     expect(fields.first.controller.text, '恢复昵称');
   });
 }

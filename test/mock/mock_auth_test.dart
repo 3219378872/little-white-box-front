@@ -103,17 +103,21 @@ void main() {
   });
 
   test('refresh 轮换新令牌对，重放旧 refreshToken 被拒绝', () {
-    final login = jsonDecode(mock_router
-        .dispatchResponse(
-          'POST',
-          '/api/v1/auth/login',
-          jsonEncode({
-            'username': 'xiaobaige',
-            'password': mock_router.mockDevPassword,
-            'loginType': 1,
-          }),
-        )
-        .body) as Map<String, dynamic>;
+    final login =
+        jsonDecode(
+              mock_router
+                  .dispatchResponse(
+                    'POST',
+                    '/api/v1/auth/login',
+                    jsonEncode({
+                      'username': 'xiaobaige',
+                      'password': mock_router.mockDevPassword,
+                      'loginType': 1,
+                    }),
+                  )
+                  .body,
+            )
+            as Map<String, dynamic>;
     final firstRefresh = login['refreshToken'] as String;
 
     final rotated = mock_router.dispatchResponse(
@@ -127,10 +131,7 @@ void main() {
     expect(rotatedBody['refreshToken'], isA<String>());
     expect(rotatedBody['refreshToken'], isNot(firstRefresh));
     expect(extractUserIdFromToken(login['token'] as String), 1);
-    expect(
-      extractUserIdFromToken(rotatedBody['token'] as String),
-      1,
-    );
+    expect(extractUserIdFromToken(rotatedBody['token'] as String), 1);
 
     final replay = mock_router.dispatchResponse(
       'POST',

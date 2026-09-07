@@ -10,8 +10,7 @@ String jwtWithExp(int exp) {
 }
 
 void main() {
-  test('builds a persisted session with expiries decoded from both JWTs',
-      () {
+  test('builds a persisted session with expiries decoded from both JWTs', () {
     final tokens = buildStoredTokens(
       accessToken: jwtWithExp(1700000100),
       refreshToken: jwtWithExp(1700009900),

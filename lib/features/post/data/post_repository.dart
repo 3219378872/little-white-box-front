@@ -29,7 +29,10 @@ class PostRepository {
     );
   }
 
-  Future<UpdatePostResp> updateExistingPost(Object postId, UpdatePostV2Req req) {
+  Future<UpdatePostResp> updateExistingPost(
+    Object postId,
+    UpdatePostV2Req req,
+  ) {
     return apiCall<UpdatePostResp>(
       (ok, fail, eventually) => gw.updatePostV2(
         postId,
@@ -41,7 +44,10 @@ class PostRepository {
     );
   }
 
-  Future<void> deleteExistingPost(Object postId, {required int expectedRevision}) {
+  Future<void> deleteExistingPost(
+    Object postId, {
+    required int expectedRevision,
+  }) {
     return apiCall<DeletePostResp>(
       (ok, fail, eventually) => gw.deletePostV2(
         postId,

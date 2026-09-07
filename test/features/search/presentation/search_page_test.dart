@@ -70,10 +70,7 @@ void main() {
         overrides: [
           searchRepositoryProvider.overrideWithValue(_DegradedEmptySource()),
         ],
-        child: MaterialApp(
-          builder: foruiTestBuilder,
-          home: const SearchPage(),
-        ),
+        child: MaterialApp(builder: foruiTestBuilder, home: const SearchPage()),
       ),
     );
 
@@ -97,10 +94,7 @@ class _DegradedEmptySource implements SearchDataSource {
     int page = 1,
     int pageSize = 20,
   }) async {
-    return const SearchResults(
-      degraded: true,
-      unavailableTypes: ['user'],
-    );
+    return const SearchResults(degraded: true, unavailableTypes: ['user']);
   }
 }
 

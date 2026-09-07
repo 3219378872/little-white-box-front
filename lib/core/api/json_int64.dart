@@ -227,10 +227,10 @@ String unquoteLargeJsonIntStrings(String source) {
         lastKey != null && (lastKey.endsWith('Id') || lastKey.endsWith('Ids'));
     final isLargeInt =
         keyQualifies &&
-            !content.startsWith('0') &&
-            !content.startsWith('-0') &&
-            _digitsOnly.hasMatch(content) &&
-            content.replaceFirst('-', '').length >= jsonInt64DigitThreshold;
+        !content.startsWith('0') &&
+        !content.startsWith('-0') &&
+        _digitsOnly.hasMatch(content) &&
+        content.replaceFirst('-', '').length >= jsonInt64DigitThreshold;
     if (isLargeInt) {
       out.write(content);
     } else {

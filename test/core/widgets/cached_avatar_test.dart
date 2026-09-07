@@ -8,7 +8,10 @@ import '../../helpers/forui_test_builder.dart';
 void main() {
   Future<FAvatar> pumpAvatar(WidgetTester tester, CachedAvatar avatar) async {
     await tester.pumpWidget(
-      MaterialApp(builder: foruiTestBuilder, home: Center(child: avatar)),
+      MaterialApp(
+        builder: foruiTestBuilder,
+        home: Center(child: avatar),
+      ),
     );
     await tester.pump();
     return tester.widget<FAvatar>(find.byType(FAvatar));
@@ -23,8 +26,7 @@ void main() {
     expect(find.text('小'), findsOneWidget);
   });
 
-  testWidgets('shows a person icon when no name is available',
-      (tester) async {
+  testWidgets('shows a person icon when no name is available', (tester) async {
     await pumpAvatar(tester, const CachedAvatar());
 
     expect(find.byIcon(FLucideIcons.userRound), findsOneWidget);
@@ -36,11 +38,11 @@ void main() {
     expect(find.byIcon(FLucideIcons.userRound), findsOneWidget);
   });
 
-  testWidgets('assigns deterministic fallback colors from the name',
-      (tester) async {
+  testWidgets('assigns deterministic fallback colors from the name', (
+    tester,
+  ) async {
     final ming = await pumpAvatar(tester, const CachedAvatar(name: '小明'));
-    final mingAgain =
-        await pumpAvatar(tester, const CachedAvatar(name: '小明'));
+    final mingAgain = await pumpAvatar(tester, const CachedAvatar(name: '小明'));
     final qiang = await pumpAvatar(tester, const CachedAvatar(name: '强子'));
 
     expect(fallbackBackground(ming), isNotNull);
@@ -48,14 +50,12 @@ void main() {
     expect(fallbackBackground(qiang), isNot(fallbackBackground(ming)));
   });
 
-  testWidgets('uses an anonymous gray when the name is missing',
-      (tester) async {
+  testWidgets('uses an anonymous gray when the name is missing', (
+    tester,
+  ) async {
     final anonymous = await pumpAvatar(tester, const CachedAvatar());
 
-    expect(
-      fallbackBackground(anonymous),
-      const Color(0xFFE5E7EB),
-    );
+    expect(fallbackBackground(anonymous), const Color(0xFFE5E7EB));
   });
 
   testWidgets('sizes the avatar from the radius', (tester) async {

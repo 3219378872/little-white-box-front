@@ -87,20 +87,23 @@ void main() {
     });
   });
 
-  test('business failures surface as ApiException with the gateway code',
-      () async {
-    final client = ScriptedGatewayClient((request) async => jsonResponse(
-          {'code': 1003, 'message': '密码错误'},
-          401,
-        ));
-    setApiClient(client);
-    final repository = AuthRepository();
+  test(
+    'business failures surface as ApiException with the gateway code',
+    () async {
+      final client = ScriptedGatewayClient(
+        (request) async => jsonResponse({'code': 1003, 'message': '密码错误'}, 401),
+      );
+      setApiClient(client);
+      final repository = AuthRepository();
 
-    await expectLater(
-      repository.loginWithPassword('admin', 'wrong'),
-      throwsA(isA<ApiException>()
-          .having((error) => error.code, 'code', 1003)
-          .having((error) => error.message, 'message', '密码错误')),
-    );
-  });
+      await expectLater(
+        repository.loginWithPassword('admin', 'wrong'),
+        throwsA(
+          isA<ApiException>()
+              .having((error) => error.code, 'code', 1003)
+              .having((error) => error.message, 'message', '密码错误'),
+        ),
+      );
+    },
+  );
 }

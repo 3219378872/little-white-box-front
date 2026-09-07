@@ -2501,8 +2501,7 @@ Map<String, dynamic> _createWatch(int userId, Map<String, dynamic> body) {
         }
       }
     }
-    if (post != null &&
-        jsonInt64Id(post['authorId']) == jsonInt64Id(userId)) {
+    if (post != null && jsonInt64Id(post['authorId']) == jsonInt64Id(userId)) {
       throw const _MockBiz(400, 6005, '不能关注自己的动态');
     }
   }

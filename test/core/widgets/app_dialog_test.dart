@@ -6,8 +6,9 @@ import 'package:xiaobaihe_app/core/widgets/app_dialog.dart';
 import '../../helpers/forui_test_builder.dart';
 
 void main() {
-  testWidgets('showAppAlert opens a dialog and closes it via the action',
-      (tester) async {
+  testWidgets('showAppAlert opens a dialog and closes it via the action', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         builder: foruiTestBuilder,

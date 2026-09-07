@@ -10,12 +10,8 @@ class V2ApiClient {
   }) async {
     final requestPath = _withQuery(path, query);
     return apiCall<Map<String, dynamic>>(
-      (ok, fail, eventually) => apiGet(
-        requestPath,
-        ok: ok,
-        fail: fail,
-        eventually: eventually,
-      ),
+      (ok, fail, eventually) =>
+          apiGet(requestPath, ok: ok, fail: fail, eventually: eventually),
     );
   }
 
@@ -24,13 +20,8 @@ class V2ApiClient {
     Map<String, dynamic> body,
   ) async {
     return apiCall<Map<String, dynamic>>(
-      (ok, fail, eventually) => apiPost(
-        path,
-        body,
-        ok: ok,
-        fail: fail,
-        eventually: eventually,
-      ),
+      (ok, fail, eventually) =>
+          apiPost(path, body, ok: ok, fail: fail, eventually: eventually),
     );
   }
 
@@ -39,13 +30,8 @@ class V2ApiClient {
     Map<String, dynamic> body,
   ) async {
     return apiCall<Map<String, dynamic>>(
-      (ok, fail, eventually) => apiPatch(
-        path,
-        body,
-        ok: ok,
-        fail: fail,
-        eventually: eventually,
-      ),
+      (ok, fail, eventually) =>
+          apiPatch(path, body, ok: ok, fail: fail, eventually: eventually),
     );
   }
 

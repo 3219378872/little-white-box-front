@@ -17,10 +17,9 @@ class ScriptedGatewayClient extends http.BaseClient {
   factory ScriptedGatewayClient.always(
     Map<String, dynamic> data, {
     int statusCode = 200,
-  }) =>
-      ScriptedGatewayClient(
-        (_) async => jsonResponse(okEnvelope(data), statusCode),
-      );
+  }) => ScriptedGatewayClient(
+    (_) async => jsonResponse(okEnvelope(data), statusCode),
+  );
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
@@ -38,8 +37,11 @@ class ScriptedGatewayClient extends http.BaseClient {
 }
 
 /// 网关统一成功信封；apiResponseData 会剥出 data 字段。
-Map<String, dynamic> okEnvelope(Map<String, dynamic> data) =>
-    {'code': 0, 'message': 'ok', 'data': data};
+Map<String, dynamic> okEnvelope(Map<String, dynamic> data) => {
+  'code': 0,
+  'message': 'ok',
+  'data': data,
+};
 
 http.Response jsonResponse(Map<String, dynamic> body, [int statusCode = 200]) =>
     http.Response(

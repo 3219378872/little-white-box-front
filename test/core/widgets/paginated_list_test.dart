@@ -31,8 +31,9 @@ void main() {
     expect(refreshes, 1);
   });
 
-  testWidgets('shows an error footer with retry when load-more fails',
-      (tester) async {
+  testWidgets('shows an error footer with retry when load-more fails', (
+    tester,
+  ) async {
     var loadMoreCalls = 0;
     await tester.pumpWidget(
       MaterialApp(
@@ -58,8 +59,9 @@ void main() {
     expect(loadMoreCalls, 1);
   });
 
-  testWidgets('does not auto trigger load-more while an error is visible',
-      (tester) async {
+  testWidgets('does not auto trigger load-more while an error is visible', (
+    tester,
+  ) async {
     var loadMoreCalls = 0;
     await tester.pumpWidget(
       MaterialApp(
@@ -70,7 +72,8 @@ void main() {
           isLoading: false,
           isLoadingMore: false,
           error: '网络开小差了',
-          itemBuilder: (_, item) => Text(item, textDirection: TextDirection.ltr),
+          itemBuilder: (_, item) =>
+              Text(item, textDirection: TextDirection.ltr),
           onLoadMore: () => loadMoreCalls++,
           onRefresh: () {},
         ),
@@ -84,8 +87,9 @@ void main() {
     expect(loadMoreCalls, callsBefore);
   });
 
-  testWidgets('empty list with error shows ErrorView instead of empty hint',
-      (tester) async {
+  testWidgets('empty list with error shows ErrorView instead of empty hint', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         builder: foruiTestBuilder,

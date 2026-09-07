@@ -48,20 +48,25 @@ void main() {
   });
 
   test('createNewPost posts the v2 draft contract', () async {
-    final client =
-        ScriptedGatewayClient.always({'postId': 7, 'status': 1, 'revision': 1});
+    final client = ScriptedGatewayClient.always({
+      'postId': 7,
+      'status': 1,
+      'revision': 1,
+    });
     setApiClient(client);
     final repository = PostRepository();
 
-    final resp = await repository.createNewPost(CreatePostReq(
-      title: '标题',
-      content: '正文',
-      images: <String>['https://img/1.png'],
-      tags: <String>['flutter'],
-      status: 1,
-      idempotencyKey: 'post-key-1',
-      mediaIds: <Object>[11],
-    ));
+    final resp = await repository.createNewPost(
+      CreatePostReq(
+        title: '标题',
+        content: '正文',
+        images: <String>['https://img/1.png'],
+        tags: <String>['flutter'],
+        status: 1,
+        idempotencyKey: 'post-key-1',
+        mediaIds: <Object>[11],
+      ),
+    );
 
     final request = client.requests.single as http.Request;
     expect(request.method, 'POST');
@@ -77,38 +82,39 @@ void main() {
     expect(resp.revision, 1);
   });
 
-  test('updateExistingPost sends expectedRevision for optimistic locking',
-      () async {
-    final client = ScriptedGatewayClient.always({'status': 1, 'revision': 4});
-    setApiClient(client);
-    final repository = PostRepository();
+  test(
+    'updateExistingPost sends expectedRevision for optimistic locking',
+    () async {
+      final client = ScriptedGatewayClient.always({'status': 1, 'revision': 4});
+      setApiClient(client);
+      final repository = PostRepository();
 
-    final resp = await repository.updateExistingPost(
-      '7',
-      UpdatePostV2Req(
-        postId: '7',
-        title: '新标题',
-        content: '新正文',
-        images: <String>[],
-        tags: <String>[],
-        status: 1,
-        expectedRevision: 3,
-        mediaIds: <Object>[],
-      ),
-    );
+      final resp = await repository.updateExistingPost(
+        '7',
+        UpdatePostV2Req(
+          postId: '7',
+          title: '新标题',
+          content: '新正文',
+          images: <String>[],
+          tags: <String>[],
+          status: 1,
+          expectedRevision: 3,
+          mediaIds: <Object>[],
+        ),
+      );
 
-    final request = client.requests.single as http.Request;
-    expect(request.method, 'PUT');
-    expect(request.url.path, '/api/v2/post/7');
-    final body = jsonBodyOf(request);
-    expect(body['expectedRevision'], 3);
-    expect(body['title'], '新标题');
-    expect(resp.status, 1);
-    expect(resp.revision, 4);
-  });
+      final request = client.requests.single as http.Request;
+      expect(request.method, 'PUT');
+      expect(request.url.path, '/api/v2/post/7');
+      final body = jsonBodyOf(request);
+      expect(body['expectedRevision'], 3);
+      expect(body['title'], '新标题');
+      expect(resp.status, 1);
+      expect(resp.revision, 4);
+    },
+  );
 
-  test('deleteExistingPost passes the expected revision in the body',
-      () async {
+  test('deleteExistingPost passes the expected revision in the body', () async {
     final client = ScriptedGatewayClient.always(<String, dynamic>{});
     setApiClient(client);
     final repository = PostRepository();
@@ -118,10 +124,7 @@ void main() {
     final request = client.requests.single as http.Request;
     expect(request.method, 'DELETE');
     expect(request.url.path, '/api/v2/post/7');
-    expect(jsonBodyOf(request), {
-      'postId': '7',
-      'expectedRevision': 3,
-    });
+    expect(jsonBodyOf(request), {'postId': '7', 'expectedRevision': 3});
   });
 
   group('uploadImageMultipart', () {
@@ -175,9 +178,9 @@ void main() {
       final repository = PostRepository();
 
       Future<void> upload(List<int> bytes) => repository.uploadImageMultipart(
-            bytes: bytes,
-            filename: 'unknown.bin',
-          );
+        bytes: bytes,
+        filename: 'unknown.bin',
+      );
 
       await upload([0xFF, 0xD8, 0xFF, 0xE0]);
       await upload([
@@ -199,10 +202,9 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final client = clientWithPayload();
       setApiClient(client);
-      await setTokens(buildStoredTokens(
-        accessToken: 'access-1',
-        refreshToken: 'refresh-1',
-      ));
+      await setTokens(
+        buildStoredTokens(accessToken: 'access-1', refreshToken: 'refresh-1'),
+      );
       addTearDown(() async {
         await removeTokens();
       });
@@ -223,15 +225,14 @@ void main() {
       setApiClient(client);
 
       await expectLater(
-        PostRepository().uploadImageMultipart(
-          bytes: [0],
-          filename: 'a.jpg',
+        PostRepository().uploadImageMultipart(bytes: [0], filename: 'a.jpg'),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            contains('missing url'),
+          ),
         ),
-        throwsA(isA<ApiException>().having(
-          (error) => error.message,
-          'message',
-          contains('missing url'),
-        )),
       );
     });
   });

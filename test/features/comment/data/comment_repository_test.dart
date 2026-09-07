@@ -101,13 +101,15 @@ void main() {
     setApiClient(client);
     final repository = CommentRepository();
 
-    final resp = await repository.createNewComment(CreateCommentReq(
-      postId: '9',
-      parentId: 0,
-      replyUserId: 0,
-      content: '  沙发  ',
-      idempotencyKey: 'comment-key-1',
-    ));
+    final resp = await repository.createNewComment(
+      CreateCommentReq(
+        postId: '9',
+        parentId: 0,
+        replyUserId: 0,
+        content: '  沙发  ',
+        idempotencyKey: 'comment-key-1',
+      ),
+    );
 
     final request = client.requests.single as http.Request;
     expect(request.method, 'POST');

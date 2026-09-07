@@ -8,23 +8,15 @@ import '../application/user_posts_notifier.dart';
 class UserRepository implements UserPostsRepository {
   Future<GetUserResp> getUserProfile(Object userId) {
     return apiCall<GetUserResp>(
-      (ok, fail, eventually) => gw.getUser(
-        userId,
-        ok: ok,
-        fail: fail,
-        eventually: eventually,
-      ),
+      (ok, fail, eventually) =>
+          gw.getUser(userId, ok: ok, fail: fail, eventually: eventually),
     );
   }
 
   Future<void> updateUserProfile(UpdateProfileReq req) {
     return apiCall<UpdateProfileResp>(
-      (ok, fail, eventually) => gw.updateProfile(
-        req,
-        ok: ok,
-        fail: fail,
-        eventually: eventually,
-      ),
+      (ok, fail, eventually) =>
+          gw.updateProfile(req, ok: ok, fail: fail, eventually: eventually),
     );
   }
 

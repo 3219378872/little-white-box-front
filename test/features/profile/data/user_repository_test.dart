@@ -44,11 +44,13 @@ void main() {
     setApiClient(client);
     final repository = UserRepository();
 
-    await repository.updateUserProfile(UpdateProfileReq(
-      nickname: '新昵称',
-      avatarUrl: 'https://avatar/new.png',
-      bio: '新签名',
-    ));
+    await repository.updateUserProfile(
+      UpdateProfileReq(
+        nickname: '新昵称',
+        avatarUrl: 'https://avatar/new.png',
+        bio: '新签名',
+      ),
+    );
 
     final request = client.requests.single as http.Request;
     expect(request.method, 'PUT');
@@ -70,16 +72,14 @@ void main() {
 
     expect(client.requests[0].method, 'POST');
     expect(client.requests[0].url.path, '/api/v1/user/follow');
-    expect(
-      jsonBodyOf(client.requests[0] as http.Request),
-      {'targetUserId': '8'},
-    );
+    expect(jsonBodyOf(client.requests[0] as http.Request), {
+      'targetUserId': '8',
+    });
     expect(client.requests[1].method, 'DELETE');
     expect(client.requests[1].url.path, '/api/v1/user/follow');
-    expect(
-      jsonBodyOf(client.requests[1] as http.Request),
-      {'targetUserId': '8'},
-    );
+    expect(jsonBodyOf(client.requests[1] as http.Request), {
+      'targetUserId': '8',
+    });
   });
 
   test('fetchUserPosts and favorites keep the hand-built query', () async {

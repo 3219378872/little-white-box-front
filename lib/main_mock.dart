@@ -16,10 +16,12 @@ Future<void> main() async {
   setApiClient(MockHttpClient());
 
   // Mock web development starts as user 1, matching seedUsers['1'].
-  await setTokens(buildStoredTokens(
-    accessToken: mock_router.mockAccessTokenForUser(1),
-    refreshToken: mock_router.mockRefreshTokenForUser(1),
-  ));
+  await setTokens(
+    buildStoredTokens(
+      accessToken: mock_router.mockAccessTokenForUser(1),
+      refreshToken: mock_router.mockRefreshTokenForUser(1),
+    ),
+  );
 
   debugPrint('========================================');
   debugPrint('  Mock 模式已启动（默认登录：小白鸽）');

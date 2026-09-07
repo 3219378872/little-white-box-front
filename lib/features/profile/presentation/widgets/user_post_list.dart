@@ -132,10 +132,9 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
             )
           else
             SliverList.builder(
-              itemCount: state.items.length +
-                  ((state.isLoading ||
-                          state.error != null ||
-                          !state.hasMore)
+              itemCount:
+                  state.items.length +
+                  ((state.isLoading || state.error != null || !state.hasMore)
                       ? 1
                       : 0),
               itemBuilder: (context, index) {
