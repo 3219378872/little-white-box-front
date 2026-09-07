@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/formatters/time_formatter.dart';
@@ -384,9 +385,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                       : FButtonVariant.ghost,
                                   onPress: () => ref
                                       .read(
-                                        commentNotifierProvider(
-                                          widget.postId,
-                                        ).notifier,
+                                        commentNotifierProvider(widget.postId)
+                                            .notifier,
                                       )
                                       .selectSort(1),
                                   child: const Text('最新'),
@@ -400,9 +400,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                       : FButtonVariant.ghost,
                                   onPress: () => ref
                                       .read(
-                                        commentNotifierProvider(
-                                          widget.postId,
-                                        ).notifier,
+                                        commentNotifierProvider(widget.postId)
+                                            .notifier,
                                       )
                                       .selectSort(2),
                                   child: const Text('最热'),
@@ -421,9 +420,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                 message: '评论加载失败',
                                 onRetry: () => ref
                                     .read(
-                                      commentNotifierProvider(
-                                        widget.postId,
-                                      ).notifier,
+                                      commentNotifierProvider(widget.postId)
+                                          .notifier,
                                     )
                                     .retry(),
                               )
@@ -453,9 +451,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                                     mainAxisSize: MainAxisSize.min,
                                     onPress: () => ref
                                         .read(
-                                          commentNotifierProvider(
-                                            widget.postId,
-                                          ).notifier,
+                                          commentNotifierProvider(widget.postId)
+                                              .notifier,
                                         )
                                         .retry(),
                                     child: const Text('评论加载失败，重试'),
@@ -505,9 +502,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                             onReply: () {
                               ref
                                   .read(
-                                    commentNotifierProvider(
-                                      widget.postId,
-                                    ).notifier,
+                                    commentNotifierProvider(widget.postId)
+                                        .notifier,
                                   )
                                   .setReplyTarget(
                                     userName: comment.userName,
@@ -519,9 +515,8 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                               // 楼中楼扁平化：仍挂在同一顶级评论下，@被回复用户
                               ref
                                   .read(
-                                    commentNotifierProvider(
-                                      widget.postId,
-                                    ).notifier,
+                                    commentNotifierProvider(widget.postId)
+                                        .notifier,
                                   )
                                   .setReplyTarget(
                                     userName: target.userName,

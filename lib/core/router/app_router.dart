@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../features/assistant/application/assistant_thread_notifier.dart';
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/auth/presentation/login_page.dart';

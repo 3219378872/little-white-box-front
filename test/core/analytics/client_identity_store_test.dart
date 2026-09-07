@@ -14,9 +14,8 @@ void main() {
       final firstStore = ClientIdentityStore(generateId: generate);
       final first = await firstStore.loadOrCreate();
       final cached = await firstStore.loadOrCreate();
-      final restored = await ClientIdentityStore(
-        generateId: generate,
-      ).loadOrCreate();
+      final restored = await ClientIdentityStore(generateId: generate)
+          .loadOrCreate();
 
       expect(first.anonymousId, 'anonymous-1');
       expect(first.sessionId, 'session-2');

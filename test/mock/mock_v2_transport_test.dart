@@ -35,59 +35,62 @@ void main() {
     'Authorization': 'Bearer ${mock_router.mockAccessTokenForUser(userId)}',
   };
 
-  test('recommend feed is a flat Gateway item with opaque cursor pagination', () {
-    final first = mock_router.dispatchResponse(
-      'GET',
-      '/api/v2/feed/recommend?anonymousId=device-1&requestId=request-1&pageSize=2',
-      '',
-    );
-    final firstBody = decodeBody(first);
-    final firstItems = firstBody['items'] as List<dynamic>;
+  test(
+    'recommend feed is a flat Gateway item with opaque cursor pagination',
+    () {
+      final first = mock_router.dispatchResponse(
+        'GET',
+        '/api/v2/feed/recommend?anonymousId=device-1&requestId=request-1&pageSize=2',
+        '',
+      );
+      final firstBody = decodeBody(first);
+      final firstItems = firstBody['items'] as List<dynamic>;
 
-    expect(first.statusCode, 200);
-    expect(first.headers['x-auth-state'], 'anonymous');
-    expect(firstBody['requestId'], 'request-1');
-    expect(firstBody['hasMore'], isTrue);
-    expect(firstBody['nextCursor'], isNotEmpty);
-    expect(firstItems, hasLength(2));
+      expect(first.statusCode, 200);
+      expect(first.headers['x-auth-state'], 'anonymous');
+      expect(firstBody['requestId'], 'request-1');
+      expect(firstBody['hasMore'], isTrue);
+      expect(firstBody['nextCursor'], isNotEmpty);
+      expect(firstItems, hasLength(2));
 
-    final firstItem = firstItems.first as Map<String, dynamic>;
-    expect(firstItem.keys, containsAll(feedItemFields));
-    expect(firstItem.containsKey('post'), isFalse);
-    expect(
-      firstItem.keys,
-      containsAll([
-        'score',
-        'reason',
-        'recallSource',
-        'modelVersion',
-        'experimentId',
-        'position',
-      ]),
-    );
-    expect(firstItem['position'], 1);
+      final firstItem = firstItems.first as Map<String, dynamic>;
+      expect(firstItem.keys, containsAll(feedItemFields));
+      expect(firstItem.containsKey('post'), isFalse);
+      expect(
+        firstItem.keys,
+        containsAll([
+          'score',
+          'reason',
+          'recallSource',
+          'modelVersion',
+          'experimentId',
+          'position',
+        ]),
+      );
+      expect(firstItem['position'], 1);
 
-    final cursor = firstBody['nextCursor'] as String;
-    final secondPath = Uri(
-      path: '/api/v2/feed/recommend',
-      queryParameters: {
-        'anonymousId': 'device-1',
-        'requestId': 'request-1',
-        'pageSize': '2',
-        'cursor': cursor,
-      },
-    ).toString();
-    final second = decodeBody(
-      mock_router.dispatchResponse('GET', secondPath, ''),
-    );
-    final secondItems = second['items'] as List<dynamic>;
+      final cursor = firstBody['nextCursor'] as String;
+      final secondPath = Uri(
+        path: '/api/v2/feed/recommend',
+        queryParameters: {
+          'anonymousId': 'device-1',
+          'requestId': 'request-1',
+          'pageSize': '2',
+          'cursor': cursor,
+        },
+      ).toString();
+      final second = decodeBody(
+        mock_router.dispatchResponse('GET', secondPath, ''),
+      );
+      final secondItems = second['items'] as List<dynamic>;
 
-    expect((secondItems.first as Map<String, dynamic>)['position'], 3);
-    expect(
-      (secondItems.first as Map<String, dynamic>)['postId'],
-      isNot(firstItem['postId']),
-    );
-  });
+      expect((secondItems.first as Map<String, dynamic>)['position'], 3);
+      expect(
+        (secondItems.first as Map<String, dynamic>)['postId'],
+        isNot(firstItem['postId']),
+      );
+    },
+  );
 
   test('recommend accepts Bearer identity without anonymous id', () {
     final response = mock_router.dispatchResponse(
@@ -517,21 +520,19 @@ void main() {
       final client = MockHttpClient();
       addTearDown(client.close);
       final token = mock_router.mockAccessTokenForUser(1);
-      final posted =
-          jsonDecode(
-                (await client.post(
-                  Uri.parse('http://mock/api/v2/assistant/messages'),
-                  headers: {
-                    'Authorization': 'Bearer $token',
-                    'content-type': 'application/json',
-                  },
-                  body: jsonEncode({
-                    'message': '推荐一篇探店帖子',
-                    'requestId': 'assistant-sse-chunks',
-                  }),
-                )).body,
-              )
-              as Map<String, dynamic>;
+      final posted = jsonDecode(
+        (await client.post(
+          Uri.parse('http://mock/api/v2/assistant/messages'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'content-type': 'application/json',
+          },
+          body: jsonEncode({
+            'message': '推荐一篇探店帖子',
+            'requestId': 'assistant-sse-chunks',
+          }),
+        )).body,
+      ) as Map<String, dynamic>;
 
       final streamed = await client.send(
         http.Request(

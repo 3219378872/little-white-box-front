@@ -9,17 +9,18 @@ tracks:
 - FQ-004
 - FQ-005
 - FQ-009
-updated_at: 2026-09-06
+updated_at: 2026-09-07
 ---
 
 # 客户端展示系统与视觉迁移设计
 
 ## 设计系统边界
 
-Forui 是新建与迁移界面的首选组件库，当前依赖版本以 `pubspec.lock` 为准（现为 0.24.2）。Material 可
-继续承担应用壳、无等价 Forui 能力和未纳入任务的既有界面。`AppTheme` 是颜色、排版和控件样式的唯一
-所有者；`lib/app.dart` 统一装配 Forui 本地化、`FTheme`、`FToaster` 和 `FTooltipGroup`。页面不得复制
-主题或嵌套另一套全局 overlay。
+Forui 是新建与迁移界面的首选组件库，当前依赖版本以 `pubspec.lock` 为准（现为 0.26.0）。图标来自
+`forui_lucide`（由 `package:forui/forui.dart` 再导出）；已停用的 `forui_assets` 不得再引入。
+Material 可继续承担应用壳、无等价 Forui 能力和未纳入任务的既有界面。`AppTheme` 是颜色、排版和
+控件样式的唯一所有者；`lib/app.dart` 统一装配 Forui 本地化、`FTheme`、`FToaster` 和
+`FTooltipGroup`。页面不得复制主题或嵌套另一套全局 overlay。
 
 组件选型先查 <https://forui.dev/docs/llms.txt>，需要完整 API 时再查
 <https://forui.dev/docs/llms-full.txt>。在线文档可能领先锁定版本；冲突时以锁文件、当前可编译 API 和

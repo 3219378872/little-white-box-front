@@ -961,9 +961,9 @@ Map<String, dynamic> _commentList(int postId, Map<String, String> query) {
   );
   final sortBy = _queryInt(query, 'sortBy', defaultValue: 1);
   final all =
-      [
-          ...(_comments[postId] ?? const <Map<String, dynamic>>[]),
-        ].where((c) => (c['parentId'] as num).toInt() == 0).toList()
+      [...(_comments[postId] ?? const <Map<String, dynamic>>[])]
+          .where((c) => (c['parentId'] as num).toInt() == 0)
+          .toList()
         ..sort((a, b) {
           if (sortBy == 2) {
             return (b['likeCount'] as num).compareTo(a['likeCount'] as num);

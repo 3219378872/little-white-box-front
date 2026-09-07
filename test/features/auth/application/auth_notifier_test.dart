@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
@@ -12,7 +12,7 @@ void main() {
   tearDown(() => sdk_api.onSessionInvalid = null);
 
   test('onLoginSuccess 持久化双令牌并解出有效期', () async {
-    final container = ProviderContainer();
+    final container = createAppProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(authNotifierProvider.notifier);
     await pumpEventQueue();
@@ -39,7 +39,7 @@ void main() {
   });
 
   test('onLoginSuccess 兼容缺失 refreshToken 的旧网关响应', () async {
-    final container = ProviderContainer();
+    final container = createAppProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(authNotifierProvider.notifier);
     await pumpEventQueue();
@@ -53,7 +53,7 @@ void main() {
   });
 
   test('onSessionExpired 清空内存态与持久化令牌并通知监听', () async {
-    final container = ProviderContainer();
+    final container = createAppProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(authNotifierProvider.notifier);
     await pumpEventQueue();
@@ -80,7 +80,7 @@ void main() {
   });
 
   test('传输层按请求快照绑定会话重置（无 refreshToken 路径）', () async {
-    final container = ProviderContainer();
+    final container = createAppProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(authNotifierProvider.notifier);
     container.read(authTransportBindingProvider);
@@ -99,7 +99,7 @@ void main() {
   });
 
   test('迟到的旧会话失效通知不能清除后来登录的账号', () async {
-    final container = ProviderContainer();
+    final container = createAppProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(authNotifierProvider.notifier);
     container.read(authTransportBindingProvider);
@@ -138,7 +138,7 @@ void main() {
       }),
       'tokens.session_revision': 4,
     });
-    final container = ProviderContainer();
+    final container = createAppProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(authNotifierProvider.notifier);
 
@@ -156,7 +156,7 @@ void main() {
   });
 
   test('未等待登录完成就登出时，调用顺序决定最终为匿名会话', () async {
-    final container = ProviderContainer();
+    final container = createAppProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(authNotifierProvider.notifier);
 

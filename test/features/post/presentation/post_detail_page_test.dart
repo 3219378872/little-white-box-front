@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -186,7 +187,7 @@ Future<void> _pumpPage(
   GoRouter? router,
 }) async {
   await tester.pumpWidget(
-    ProviderScope(
+    AppProviderScope(
       child: router == null
           ? MaterialApp(builder: foruiTestBuilder, home: page)
           : MaterialApp.router(routerConfig: router, builder: foruiTestBuilder),
@@ -449,7 +450,7 @@ void main() {
       ..currentVersion = 2;
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [assistantRepositoryProvider.overrideWithValue(source)],
         child: MaterialApp(
           builder: foruiTestBuilder,
@@ -491,7 +492,7 @@ void main() {
       ..currentVersion = 2;
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [assistantRepositoryProvider.overrideWithValue(source)],
         child: MaterialApp(
           builder: foruiTestBuilder,
@@ -519,7 +520,7 @@ void main() {
     (tester) async {
       final harness = _AccountSwitchHarness();
       setApiClient(harness.client);
-      final container = ProviderContainer();
+      final container = createAppProviderContainer();
       addTearDown(container.dispose);
 
       await tester.pumpWidget(

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
@@ -56,7 +57,7 @@ void main() {
         ),
       );
     }
-    final container = ProviderContainer(
+    final container = createAppProviderContainer(
       overrides: [
         postCardInteractionRepositoryProvider.overrideWithValue(repository),
       ],

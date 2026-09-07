@@ -14,14 +14,13 @@ void main() {
 
     Map<String, dynamic> request(String method, String path, [Object? body]) {
       return jsonDecode(
-            mock_router.dispatch(
-              method,
-              path,
-              body == null ? '' : jsonEncode(body),
-              headers: headers,
-            ),
-          )
-          as Map<String, dynamic>;
+        mock_router.dispatch(
+          method,
+          path,
+          body == null ? '' : jsonEncode(body),
+          headers: headers,
+        ),
+      ) as Map<String, dynamic>;
     }
 
     PostItem firstPost() {

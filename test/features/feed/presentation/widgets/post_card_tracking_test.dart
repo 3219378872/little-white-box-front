@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -36,7 +37,7 @@ void main() {
     late StateSetter updateHost;
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [behaviorTrackerProvider.overrideWithValue(tracker)],
         child: MaterialApp(
           builder: foruiTestBuilder,
@@ -83,7 +84,7 @@ void main() {
     late StateSetter updateHost;
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [behaviorTrackerProvider.overrideWithValue(tracker)],
         child: MaterialApp(
           builder: foruiTestBuilder,
@@ -124,7 +125,7 @@ void main() {
     final tracker = _RecordingTracker();
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [behaviorTrackerProvider.overrideWithValue(tracker)],
         child: MaterialApp(
           builder: foruiTestBuilder,
@@ -166,7 +167,7 @@ void main() {
     addTearDown(router.dispose);
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [behaviorTrackerProvider.overrideWithValue(tracker)],
         child: MaterialApp.router(
           routerConfig: router,
@@ -197,7 +198,7 @@ void main() {
     );
     final tracker = _RecordingTracker();
     final interactions = _RecordingInteractionRepository();
-    final container = ProviderContainer(
+    final container = createAppProviderContainer(
       overrides: [
         behaviorTrackerProvider.overrideWithValue(tracker),
         postCardInteractionRepositoryProvider.overrideWithValue(interactions),

@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide InputBorder, OutlineInputBorder;
 import 'package:forui/forui.dart';
+import 'package:material_ui/material_ui.dart'
+    show InputBorder, OutlineInputBorder;
 
 class AppTheme {
   static const pageInset = 12.0;

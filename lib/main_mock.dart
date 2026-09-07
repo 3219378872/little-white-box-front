@@ -1,7 +1,8 @@
 import 'package:flutter/widgets.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'app.dart';
 import 'core/auth/session_tokens.dart';
+import 'core/state/app_provider_scope.dart';
 import 'sdk/api/api.dart';
 import 'mock/mock_http.dart';
 import 'mock/mock_router.dart' as mock_router;
@@ -27,5 +28,5 @@ Future<void> main() async {
   debugPrint('  Mock 模式已启动（默认登录：小白鸽）');
   debugPrint('  所有 API 请求将返回 Mock 数据');
   debugPrint('========================================');
-  runApp(const ProviderScope(child: XiaobaiheApp()));
+  runApp(const AppProviderScope(child: XiaobaiheApp()));
 }

@@ -11,12 +11,11 @@ import '../../../core/theme/app_theme.dart';
 import '../../../sdk/vars/vars.dart';
 import '../data/assistant_models.dart';
 
-typedef AnswerQuestion =
-    Future<bool> Function(
-      AssistantQuestionRequest question,
-      List<AssistantQuestionAnswer> answers,
-      bool continueExpired,
-    );
+typedef AnswerQuestion = Future<bool> Function(
+  AssistantQuestionRequest question,
+  List<AssistantQuestionAnswer> answers,
+  bool continueExpired,
+);
 
 class AssistantQuestionCard extends StatefulWidget {
   final AssistantQuestionRequest question;

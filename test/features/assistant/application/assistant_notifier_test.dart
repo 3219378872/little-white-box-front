@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
@@ -146,13 +146,12 @@ void main() {
     expect(notifier.state.hasMoreHistory, isTrue);
 
     final olderPage = Completer<AssistantMessagePage>();
-    source.listMessagesHandler =
-        ({
-          required sessionId,
-          required afterId,
-          required beforeId,
-          required limit,
-        }) => olderPage.future;
+    source.listMessagesHandler = ({
+      required sessionId,
+      required afterId,
+      required beforeId,
+      required limit,
+    }) => olderPage.future;
     final older = notifier.loadOlderMessages();
     await pumpEventQueue();
     expect(notifier.state.isLoadingOlder, isTrue);
@@ -171,13 +170,12 @@ void main() {
   test('session-changing refresh waits for an in-flight send', () async {
     final response = Completer<AssistantPostResult>();
     final source = FakeAssistantSource()
-      ..postHandler =
-          ({
-            required message,
-            required requestId,
-            required attachments,
-            required contextPostId,
-          }) => response.future;
+      ..postHandler = ({
+        required message,
+        required requestId,
+        required attachments,
+        required contextPostId,
+      }) => response.future;
     final notifier = AssistantNotifier(repository: source);
     addTearDown(notifier.dispose);
     await notifier.load();
@@ -221,13 +219,12 @@ void main() {
   test('same-session refresh merges safely while send is in flight', () async {
     final response = Completer<AssistantPostResult>();
     final source = FakeAssistantSource()
-      ..postHandler =
-          ({
-            required message,
-            required requestId,
-            required attachments,
-            required contextPostId,
-          }) => response.future;
+      ..postHandler = ({
+        required message,
+        required requestId,
+        required attachments,
+        required contextPostId,
+      }) => response.future;
     final notifier = AssistantNotifier(repository: source);
     addTearDown(notifier.dispose);
     await notifier.load();
@@ -304,23 +301,21 @@ void main() {
       final page = Completer<AssistantMessagePage>();
       final response = Completer<AssistantPostResult>();
       final source = FakeAssistantSource()
-        ..postHandler =
-            ({
-              required message,
-              required requestId,
-              required attachments,
-              required contextPostId,
-            }) => response.future;
+        ..postHandler = ({
+          required message,
+          required requestId,
+          required attachments,
+          required contextPostId,
+        }) => response.future;
       final notifier = AssistantNotifier(repository: source);
       addTearDown(notifier.dispose);
       await notifier.load();
-      source.listMessagesHandler =
-          ({
-            required sessionId,
-            required afterId,
-            required beforeId,
-            required limit,
-          }) => page.future;
+      source.listMessagesHandler = ({
+        required sessionId,
+        required afterId,
+        required beforeId,
+        required limit,
+      }) => page.future;
 
       final refresh = notifier.refreshForThread(
         const AssistantThreadSummary(sessionId: 1, lastMessageId: 11),
@@ -374,13 +369,12 @@ void main() {
     final notifier = AssistantNotifier(repository: source);
     addTearDown(notifier.dispose);
     await notifier.load();
-    source.listMessagesHandler =
-        ({
-          required sessionId,
-          required afterId,
-          required beforeId,
-          required limit,
-        }) => page.future;
+    source.listMessagesHandler = ({
+      required sessionId,
+      required afterId,
+      required beforeId,
+      required limit,
+    }) => page.future;
     source.postHandler =
         ({
           required message,
@@ -437,13 +431,12 @@ void main() {
     final notifier = AssistantNotifier(repository: source);
     addTearDown(notifier.dispose);
     await notifier.load();
-    source.listMessagesHandler =
-        ({
-          required sessionId,
-          required afterId,
-          required beforeId,
-          required limit,
-        }) => pendingPage.future;
+    source.listMessagesHandler = ({
+      required sessionId,
+      required afterId,
+      required beforeId,
+      required limit,
+    }) => pendingPage.future;
     source.postHandler =
         ({
           required message,
@@ -624,13 +617,12 @@ void main() {
     () async {
       final response = Completer<AssistantPostResult>();
       final source = FakeAssistantSource()
-        ..postHandler =
-            ({
-              required message,
-              required requestId,
-              required attachments,
-              required contextPostId,
-            }) => response.future;
+        ..postHandler = ({
+          required message,
+          required requestId,
+          required attachments,
+          required contextPostId,
+        }) => response.future;
       final notifier = AssistantNotifier(
         repository: source,
         createRequestId: () => 'request-1',
@@ -719,13 +711,12 @@ void main() {
       ];
     source.eventsHandler = ({required runId, required afterSeq}) =>
         events.stream;
-    source.postHandler =
-        ({
-          required message,
-          required requestId,
-          required attachments,
-          required contextPostId,
-        }) => response.future;
+    source.postHandler = ({
+      required message,
+      required requestId,
+      required attachments,
+      required contextPostId,
+    }) => response.future;
     final notifier = AssistantNotifier(
       repository: source,
       createRequestId: () => 'request-2',
@@ -787,13 +778,12 @@ void main() {
       ];
     source.eventsHandler = ({required runId, required afterSeq}) =>
         events.stream;
-    source.postHandler =
-        ({
-          required message,
-          required requestId,
-          required attachments,
-          required contextPostId,
-        }) => response.future;
+    source.postHandler = ({
+      required message,
+      required requestId,
+      required attachments,
+      required contextPostId,
+    }) => response.future;
     final notifier = AssistantNotifier(
       repository: source,
       createRequestId: () => 'request-2',
@@ -852,13 +842,12 @@ void main() {
       ];
     source.eventsHandler = ({required runId, required afterSeq}) =>
         oldEvents.stream;
-    source.postHandler =
-        ({
-          required message,
-          required requestId,
-          required attachments,
-          required contextPostId,
-        }) => response.future;
+    source.postHandler = ({
+      required message,
+      required requestId,
+      required attachments,
+      required contextPostId,
+    }) => response.future;
     final notifier = AssistantNotifier(
       repository: source,
       createRequestId: () => 'request-2',
@@ -1341,13 +1330,12 @@ void main() {
     final notifier = AssistantNotifier(repository: source);
     addTearDown(notifier.dispose);
     await notifier.load();
-    source.listMessagesHandler =
-        ({
-          required sessionId,
-          required afterId,
-          required beforeId,
-          required limit,
-        }) async => throw const ApiException('history unavailable');
+    source.listMessagesHandler = ({
+      required sessionId,
+      required afterId,
+      required beforeId,
+      required limit,
+    }) async => throw const ApiException('history unavailable');
 
     expect(
       await notifier.refreshForThread(
@@ -1392,13 +1380,12 @@ void main() {
     final notifier = AssistantNotifier(repository: source);
     addTearDown(notifier.dispose);
     await notifier.load();
-    source.listMessagesHandler =
-        ({
-          required sessionId,
-          required afterId,
-          required beforeId,
-          required limit,
-        }) async => throw const ApiException('history unavailable');
+    source.listMessagesHandler = ({
+      required sessionId,
+      required afterId,
+      required beforeId,
+      required limit,
+    }) async => throw const ApiException('history unavailable');
 
     const updatedThread = AssistantThreadSummary(
       sessionId: 1,
@@ -1446,13 +1433,12 @@ void main() {
       final notifier = AssistantNotifier(repository: source);
       addTearDown(notifier.dispose);
       await notifier.load();
-      source.listMessagesHandler =
-          ({
-            required sessionId,
-            required afterId,
-            required beforeId,
-            required limit,
-          }) async => throw const ApiException('history unavailable');
+      source.listMessagesHandler = ({
+        required sessionId,
+        required afterId,
+        required beforeId,
+        required limit,
+      }) async => throw const ApiException('history unavailable');
 
       const updatedThread = AssistantThreadSummary(
         sessionId: 1,
@@ -1461,13 +1447,12 @@ void main() {
       expect(await notifier.refreshForThread(updatedThread), isFalse);
       expect(notifier.state.connectionError, 'history unavailable');
 
-      source.listMessagesHandler =
-          ({
-            required sessionId,
-            required afterId,
-            required beforeId,
-            required limit,
-          }) async => const AssistantMessagePage();
+      source.listMessagesHandler = ({
+        required sessionId,
+        required afterId,
+        required beforeId,
+        required limit,
+      }) async => const AssistantMessagePage();
 
       expect(await notifier.refreshForThread(updatedThread), isTrue);
       expect(notifier.state.connectionError, isNull);
@@ -2332,7 +2317,7 @@ void main() {
       final source = FakeAssistantSource()
         ..eventsHandler = ({required runId, required afterSeq}) =>
             controller.stream;
-      final container = ProviderContainer(
+      final container = createAppProviderContainer(
         overrides: [assistantRepositoryProvider.overrideWithValue(source)],
       );
       addTearDown(container.dispose);
@@ -2390,7 +2375,7 @@ void main() {
       final delayedThread = Completer<AssistantThreadSummary>();
       final source = FakeAssistantSource()
         ..threadHandler = () => delayedThread.future;
-      final container = ProviderContainer(
+      final container = createAppProviderContainer(
         overrides: [assistantRepositoryProvider.overrideWithValue(source)],
       );
       addTearDown(container.dispose);

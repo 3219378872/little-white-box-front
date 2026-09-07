@@ -507,12 +507,14 @@ class AssistantRepository implements AssistantDataSource {
     required int version,
     String requestId = '',
   }) async {
-    final response = await _api
-        .patch('/api/v2/assistant/memory/${jsonInt64Id(id)}', {
-          'content': content,
-          'version': version,
-          if (requestId.isNotEmpty) 'requestId': requestId,
-        });
+    final response = await _api.patch(
+      '/api/v2/assistant/memory/${jsonInt64Id(id)}',
+      {
+        'content': content,
+        'version': version,
+        if (requestId.isNotEmpty) 'requestId': requestId,
+      },
+    );
     return _memoryWrite(response);
   }
 

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
@@ -47,7 +48,7 @@ void main() {
     addTearDown(router.dispose);
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           userPostsRepositoryProvider.overrideWithValue(
             repo ?? _TestUserPostsRepository(),
@@ -192,7 +193,7 @@ void main() {
     addTearDown(router.dispose);
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           appRouteObserverProvider.overrideWithValue(observer),
           userPostsRepositoryProvider.overrideWithValue(repo),
@@ -261,7 +262,7 @@ void main() {
     addTearDown(router.dispose);
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           appRouteObserverProvider.overrideWithValue(observer),
           userPostsRepositoryProvider.overrideWithValue(repo),
@@ -294,7 +295,7 @@ void main() {
     (tester) async {
       final harness = _AccountSwitchProfileHarness();
       setApiClient(harness.client);
-      final container = ProviderContainer(
+      final container = createAppProviderContainer(
         overrides: [
           userPostsRepositoryProvider.overrideWithValue(
             _TestUserPostsRepository(),
@@ -388,7 +389,7 @@ void main() {
 Future<_FollowProfileHarness> _pumpFollowProfile(WidgetTester tester) async {
   final harness = _FollowProfileHarness();
   setApiClient(harness.client);
-  final container = ProviderContainer(
+  final container = createAppProviderContainer(
     overrides: [
       userPostsRepositoryProvider.overrideWithValue(_TestUserPostsRepository()),
     ],

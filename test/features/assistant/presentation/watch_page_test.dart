@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
@@ -20,7 +22,7 @@ FakeAssistantSource _grantedSource() => FakeAssistantSource()
 
 Future<void> _pumpWatch(WidgetTester tester, FakeAssistantSource source) async {
   await tester.pumpWidget(
-    ProviderScope(
+    AppProviderScope(
       overrides: [
         assistantUserKeyProvider.overrideWithValue('test-user'),
         assistantRepositoryProvider.overrideWithValue(source),
@@ -37,7 +39,7 @@ Future<ProviderContainer> _pumpSwitchableWatch(
   FakeAssistantSource accountA,
   FakeAssistantSource accountB,
 ) async {
-  final container = ProviderContainer(
+  final container = createAppProviderContainer(
     overrides: [
       assistantUserKeyProvider.overrideWith(
         (ref) => ref.watch(_watchIdentityProvider),

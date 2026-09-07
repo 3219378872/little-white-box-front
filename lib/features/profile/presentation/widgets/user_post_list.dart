@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+
 import '../../../../core/api/api_exceptions.dart';
 import '../../../../core/router/app_route_observer.dart';
 import '../../../../core/widgets/error_view.dart';

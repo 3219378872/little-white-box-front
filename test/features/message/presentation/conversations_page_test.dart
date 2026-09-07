@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/features/message/application/message_notifiers.dart';
 import 'package:xiaobaihe_app/features/message/data/message_models.dart';
@@ -13,7 +13,7 @@ void main() {
     ConversationSummary? opened;
     final source = _ConversationSource();
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           messageRepositoryProvider.overrideWithValue(source),
           conversationListProvider.overrideWith(

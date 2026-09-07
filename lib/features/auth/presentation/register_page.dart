@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/widgets/app_toast.dart';
 import '../application/auth_notifier.dart';
 import '../data/auth_repository.dart';

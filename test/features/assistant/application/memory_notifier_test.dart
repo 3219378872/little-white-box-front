@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/features/assistant/application/assistant_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/application/memory_notifier.dart';
@@ -14,7 +15,7 @@ void main() {
     () async {
       final source = FakeAssistantSource()
         ..addMemoryError = Exception('offline');
-      final container = ProviderContainer(
+      final container = createAppProviderContainer(
         overrides: [
           assistantRepositoryProvider.overrideWithValue(source),
           assistantUserKeyProvider.overrideWithValue('user:7:1'),
@@ -54,7 +55,7 @@ void main() {
   test('provider drops a failed command after an account switch', () async {
     final source = FakeAssistantSource()..addMemoryError = Exception('offline');
     final identityProvider = StateProvider<String>((_) => 'user:7:1');
-    final container = ProviderContainer(
+    final container = createAppProviderContainer(
       overrides: [
         assistantRepositoryProvider.overrideWithValue(source),
         assistantUserKeyProvider.overrideWith(
@@ -219,9 +220,11 @@ void main() {
         loadCalls++;
         return loadCalls == 1 ? staleLoad.future : freshLoad.future;
       }
-      ..addMemoryHandler =
-          ({required target, required content, required requestId}) async =>
-              const MemoryWriteResult(entry: freshRecord, changeId: 2);
+      ..addMemoryHandler = ({
+        required target,
+        required content,
+        required requestId,
+      }) async => const MemoryWriteResult(entry: freshRecord, changeId: 2);
     final notifier = MemoryListNotifier(repository: source);
 
     final oldLoad = notifier.load();

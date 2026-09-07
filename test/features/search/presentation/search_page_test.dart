@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/core/widgets/cached_avatar.dart';
 import 'package:xiaobaihe_app/features/search/application/search_notifier.dart';
@@ -13,7 +13,7 @@ void main() {
   testWidgets('shows all-search results and opens a post', (tester) async {
     var openedPost = 0;
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           searchRepositoryProvider.overrideWithValue(_PageSearchSource()),
         ],
@@ -41,7 +41,7 @@ void main() {
   ) async {
     var openedUser = 0;
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           searchRepositoryProvider.overrideWithValue(_PageSearchSource()),
         ],
@@ -66,7 +66,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           searchRepositoryProvider.overrideWithValue(_DegradedEmptySource()),
         ],

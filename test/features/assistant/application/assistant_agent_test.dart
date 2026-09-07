@@ -382,52 +382,49 @@ void main() {
     },
   );
 
-  test(
-    'failed send retry reuses request id attachments and context without a duplicate bubble',
-    () async {
-      var attempts = 0;
-      final source = FakeAssistantSource()
-        ..postHandler =
-            ({
-              required message,
-              required requestId,
-              required attachments,
-              required contextPostId,
-            }) async {
-              attempts++;
-              if (attempts == 1) throw const ApiException('network down');
-              return const AssistantPostResult(
-                messageId: 11,
-                sessionId: 1,
-                runId: 21,
-                disposition: AssistantDisposition.started,
-              );
-            }
-        ..eventsHandler = ({required runId, required afterSeq}) =>
-            const Stream.empty();
-      final notifier =
-          AssistantNotifier(
-            repository: source,
-            createRequestId: () => 'stable-request',
-          )..addPendingAttachment(
-            const PendingChatImage(mediaId: 7, url: 'https://media/7'),
-          );
+  test('failed send retry reuses request id attachments and context without a duplicate bubble', () async {
+    var attempts = 0;
+    final source = FakeAssistantSource()
+      ..postHandler =
+          ({
+            required message,
+            required requestId,
+            required attachments,
+            required contextPostId,
+          }) async {
+            attempts++;
+            if (attempts == 1) throw const ApiException('network down');
+            return const AssistantPostResult(
+              messageId: 11,
+              sessionId: 1,
+              runId: 21,
+              disposition: AssistantDisposition.started,
+            );
+          }
+      ..eventsHandler = ({required runId, required afterSeq}) =>
+          const Stream.empty();
+    final notifier =
+        AssistantNotifier(
+          repository: source,
+          createRequestId: () => 'stable-request',
+        )..addPendingAttachment(
+          const PendingChatImage(mediaId: 7, url: 'https://media/7'),
+        );
 
-      expect(await notifier.send('retry me', contextPostId: '99'), isFalse);
-      expect(await notifier.retryPending(), isTrue);
+    expect(await notifier.send('retry me', contextPostId: '99'), isFalse);
+    expect(await notifier.retryPending(), isTrue);
 
-      expect(source.postedRequestIds, ['stable-request', 'stable-request']);
-      expect(source.postedContextPostIds, ['99', '99']);
-      expect(source.lastAttachments.single.mediaId, 7);
-      expect(
-        notifier.state.messages.where(
-          (item) => item.role == AssistantMessageRole.user,
-        ),
-        hasLength(1),
-      );
-      expect(notifier.state.messages.first.attachments.single.mediaId, 7);
-    },
-  );
+    expect(source.postedRequestIds, ['stable-request', 'stable-request']);
+    expect(source.postedContextPostIds, ['99', '99']);
+    expect(source.lastAttachments.single.mediaId, 7);
+    expect(
+      notifier.state.messages.where(
+        (item) => item.role == AssistantMessageRole.user,
+      ),
+      hasLength(1),
+    );
+    expect(notifier.state.messages.first.attachments.single.mediaId, 7);
+  });
 
   test('cancel and confirm failures keep truthful retryable state', () async {
     final controller = StreamController<AssistantRunEvent>.broadcast();

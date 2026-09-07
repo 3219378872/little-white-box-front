@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -116,7 +116,7 @@ void main() {
       ),
     );
 
-    await tester.pumpWidget(const ProviderScope(child: XiaobaiheApp()));
+    await tester.pumpWidget(const AppProviderScope(child: XiaobaiheApp()));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 

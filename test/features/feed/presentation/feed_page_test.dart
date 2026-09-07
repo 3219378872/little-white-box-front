@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/features/feed/application/feed_notifier.dart';
@@ -26,7 +26,7 @@ void main() {
 
   Future<void> pumpFeed(WidgetTester tester) async {
     await tester.pumpWidget(
-      const ProviderScope(
+      const AppProviderScope(
         child: MaterialApp(builder: foruiTestBuilder, home: FeedPage()),
       ),
     );
@@ -81,7 +81,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           feedRepositoryProvider.overrideWithValue(
             _QueueFeedRepository([
@@ -110,7 +110,7 @@ void main() {
 
     final nextPage = Completer<FeedPageResult>();
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           feedRepositoryProvider.overrideWithValue(
             _QueueFeedRepository([
@@ -149,7 +149,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           feedRepositoryProvider.overrideWithValue(
             _QueueFeedRepository([

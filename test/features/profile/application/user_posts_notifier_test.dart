@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
@@ -257,7 +257,7 @@ void main() {
       'account switch replaces profile posts and ignores the old response',
       () async {
         final queued = _QueuedUserPostsRepo();
-        final container = ProviderContainer(
+        final container = createAppProviderContainer(
           overrides: [userPostsRepositoryProvider.overrideWithValue(queued)],
         );
         addTearDown(container.dispose);

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
@@ -80,7 +80,7 @@ Future<void> _expectLateEditResponseIgnored(
   addTearDown(router.dispose);
 
   await tester.pumpWidget(
-    ProviderScope(
+    AppProviderScope(
       child: MaterialApp.router(
         routerConfig: router,
         builder: foruiTestBuilder,
@@ -109,7 +109,7 @@ void main() {
     setApiClient(ScriptedGatewayClient.always(<String, dynamic>{}));
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         child: MaterialApp.router(
           routerConfig: _routerWith(
             const Scaffold(body: Text('首页占位')),
@@ -133,7 +133,7 @@ void main() {
     setApiClient(ScriptedGatewayClient.always(<String, dynamic>{}));
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         child: MaterialApp.router(
           routerConfig: _routerWith(
             const Scaffold(body: Text('首页占位')),
@@ -171,7 +171,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         child: MaterialApp.router(
           routerConfig: router,
           builder: foruiTestBuilder,
@@ -209,7 +209,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         child: MaterialApp.router(
           routerConfig: router,
           builder: foruiTestBuilder,
@@ -246,7 +246,7 @@ void main() {
       initial: '/create',
     );
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         child: MaterialApp.router(
           routerConfig: router,
           builder: foruiTestBuilder,
@@ -288,7 +288,7 @@ void main() {
     setApiClient(client);
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         child: MaterialApp.router(
           routerConfig: _routerWith(const _EditorHome(Text('打开编辑器'))),
           builder: foruiTestBuilder,
@@ -355,7 +355,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         child: MaterialApp.router(
           routerConfig: router,
           builder: foruiTestBuilder,

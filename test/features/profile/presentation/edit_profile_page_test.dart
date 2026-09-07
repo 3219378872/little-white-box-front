@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
@@ -42,7 +43,7 @@ class _EditorEntry extends ConsumerWidget {
 
 Future<void> _pumpEditor(WidgetTester tester) async {
   await tester.pumpWidget(
-    ProviderScope(
+    AppProviderScope(
       child: MaterialApp.router(
         routerConfig: GoRouter(
           initialLocation: '/',
@@ -192,7 +193,7 @@ void main() {
     setApiClient(client);
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         child: MaterialApp.router(
           routerConfig: GoRouter(
             initialLocation: '/me/edit',

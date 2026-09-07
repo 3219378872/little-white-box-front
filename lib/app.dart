@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/application/auth_notifier.dart';
@@ -21,7 +23,14 @@ class XiaobaiheApp extends ConsumerWidget {
       darkTheme: AppTheme.dark(),
       locale: const Locale('zh'),
       supportedLocales: FLocalizations.supportedLocales,
-      localizationsDelegates: const [...FLocalizations.localizationsDelegates],
+      localizationsDelegates: const [
+        ...FLocalizations.localizationsDelegates,
+        // Forui 0.26 supplies material_ui/cupertino_ui delegates; MaterialApp
+        // still needs Flutter's Material/Cupertino localizations for locale zh.
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ],
       routerConfig: router,
       debugShowCheckedModeBanner: false,
       builder: (context, child) => FTheme(

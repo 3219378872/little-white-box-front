@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+
 import '../vars/kv.dart';
 import '../vars/vars.dart';
 
@@ -197,7 +199,8 @@ Future _apiRequest(
 (int?, String) _extractError(dynamic decoded, String body, int statusCode) {
   if (decoded is Map<String, dynamic>) {
     final code = decoded['code'];
-    final errMsg = decoded['message'] ??
+    final errMsg =
+        decoded['message'] ??
         decoded['msg'] ??
         decoded['desc'] ??
         decoded['error'];

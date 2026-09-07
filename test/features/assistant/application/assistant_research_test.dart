@@ -58,42 +58,38 @@ const presentation = AssistantAnswerPresentation(
 );
 
 void main() {
-  test(
-    'waiting response preserves question and failed answers reuse command identity',
-    () async {
-      final events = StreamController<AssistantRunEvent>.broadcast();
-      addTearDown(events.close);
-      final source = FakeAssistantSource()
-        ..eventsHandler = ({required runId, required afterSeq}) =>
-            events.stream;
-      var attempts = 0;
-      source.answerHandler = (requestId, value) async {
-        if (attempts++ == 0) throw const ApiException('网络暂时不可用');
-        return resolved;
-      };
-      final notifier = AssistantNotifier(repository: source);
-      addTearDown(notifier.dispose);
-      await notifier.send('比较方案');
-      events.add(
-        const AssistantRunEvent(
-          type: AssistantEventType.questionsRequired,
-          runId: 21,
-          seq: 1,
-          questionRequest: pending,
-        ),
-      );
-      await Future<void>.delayed(Duration.zero);
-      expect(notifier.state.activeRunPhase, 'waiting_input');
-      expect(notifier.state.isStreaming, isFalse);
-      expect(
-        notifier.state.messages.where((item) => item.questionRequest != null),
-        hasLength(1),
-      );
-      expect(await notifier.answerQuestion(pending, answers), isFalse);
-      expect(await notifier.answerQuestion(pending, answers), isTrue);
-      expect(source.answerRequestIds[0], source.answerRequestIds[1]);
-    },
-  );
+  test('waiting response preserves question and failed answers reuse command identity', () async {
+    final events = StreamController<AssistantRunEvent>.broadcast();
+    addTearDown(events.close);
+    final source = FakeAssistantSource()
+      ..eventsHandler = ({required runId, required afterSeq}) => events.stream;
+    var attempts = 0;
+    source.answerHandler = (requestId, value) async {
+      if (attempts++ == 0) throw const ApiException('网络暂时不可用');
+      return resolved;
+    };
+    final notifier = AssistantNotifier(repository: source);
+    addTearDown(notifier.dispose);
+    await notifier.send('比较方案');
+    events.add(
+      const AssistantRunEvent(
+        type: AssistantEventType.questionsRequired,
+        runId: 21,
+        seq: 1,
+        questionRequest: pending,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(notifier.state.activeRunPhase, 'waiting_input');
+    expect(notifier.state.isStreaming, isFalse);
+    expect(
+      notifier.state.messages.where((item) => item.questionRequest != null),
+      hasLength(1),
+    );
+    expect(await notifier.answerQuestion(pending, answers), isFalse);
+    expect(await notifier.answerQuestion(pending, answers), isTrue);
+    expect(source.answerRequestIds[0], source.answerRequestIds[1]);
+  });
 
   test('late answer acknowledgement never reopens a completed run', () async {
     final events = StreamController<AssistantRunEvent>.broadcast();

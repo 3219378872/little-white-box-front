@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+
 import '../../../sdk/vars/kv.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/auth/jwt_decoder.dart';

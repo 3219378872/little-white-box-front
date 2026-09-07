@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';

@@ -16,9 +16,8 @@ Widget _host({
     builder: (context, child) {
       final themed = foruiTestBuilder(context, child);
       return MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(disableAnimations: disableAnimations),
+        data: MediaQuery.of(context)
+            .copyWith(disableAnimations: disableAnimations),
         child: themed,
       );
     },

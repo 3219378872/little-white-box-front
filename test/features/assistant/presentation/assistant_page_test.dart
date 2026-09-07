@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
@@ -33,7 +35,7 @@ void main() {
     final thread = Completer<AssistantThreadSummary>();
     final source = FakeAssistantSource()..threadHandler = () => thread.future;
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(source),
@@ -96,7 +98,7 @@ void main() {
     final source = FakeAssistantSource()
       ..lastError = const ApiException('首次加载失败');
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(source),
@@ -128,7 +130,7 @@ void main() {
       final source = FakeAssistantSource()
         ..loadConsentHandler = () => consent.future;
       await tester.pumpWidget(
-        ProviderScope(
+        AppProviderScope(
           overrides: [
             assistantUserKeyProvider.overrideWithValue('test-user'),
             assistantRepositoryProvider.overrideWithValue(source),
@@ -172,15 +174,14 @@ void main() {
   ) async {
     final response = Completer<AssistantPostResult>();
     final source = FakeAssistantSource()
-      ..postHandler =
-          ({
-            required message,
-            required requestId,
-            required attachments,
-            required contextPostId,
-          }) => response.future;
+      ..postHandler = ({
+        required message,
+        required requestId,
+        required attachments,
+        required contextPostId,
+      }) => response.future;
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(source),
@@ -221,17 +222,16 @@ void main() {
   ) async {
     final response = Completer<AssistantPostResult>();
     final source = FakeAssistantSource()
-      ..postHandler =
-          ({
-            required message,
-            required requestId,
-            required attachments,
-            required contextPostId,
-          }) => response.future;
+      ..postHandler = ({
+        required message,
+        required requestId,
+        required attachments,
+        required contextPostId,
+      }) => response.future;
     final showPage = ValueNotifier(true);
     addTearDown(showPage.dispose);
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(source),
@@ -287,7 +287,7 @@ void main() {
     final showPage = ValueNotifier(true);
     addTearDown(showPage.dispose);
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(source),
@@ -326,7 +326,7 @@ void main() {
   ) async {
     final source = _DeferredConsentAssistantSource()..granted = false;
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [assistantRepositoryProvider.overrideWithValue(source)],
         child: const MaterialApp(
           builder: foruiTestBuilder,
@@ -368,7 +368,7 @@ void main() {
     final source = FakeAssistantSource();
     final uploadRepository = _DeferredUploadRepository();
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantRepositoryProvider.overrideWithValue(source),
           assistantImagePickerProvider.overrideWithValue(
@@ -420,7 +420,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWith(
             (ref) => ref.watch(_testAssistantIdentityProvider),
@@ -459,7 +459,7 @@ void main() {
     AssistantSourceCard? opened;
     final source = _PageAssistantSource();
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(source),
@@ -500,7 +500,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(
@@ -545,7 +545,7 @@ void main() {
           ]);
 
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(source),
@@ -598,7 +598,7 @@ void main() {
         };
       };
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(source),
@@ -658,7 +658,7 @@ void main() {
   ) async {
     final source = _DeferredFeedbackAssistantSource();
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWith(
             (ref) => ref.watch(_testAssistantIdentityProvider),
@@ -694,7 +694,7 @@ void main() {
   testWidgets('revoke consent waits for server success', (tester) async {
     final source = FakeAssistantSource();
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(source),
@@ -745,7 +745,7 @@ void main() {
             AssistantRunEvent(type: AssistantEventType.done, seq: 2),
           ]);
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(source),
@@ -787,7 +787,7 @@ void main() {
         ),
       ];
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(source),
@@ -825,9 +825,9 @@ void main() {
         ),
       ];
     final context = tester.element(find.byType(AssistantPage));
-    await ProviderScope.containerOf(
-      context,
-    ).read(assistantThreadProvider.notifier).refresh();
+    await ProviderScope.containerOf(context)
+        .read(assistantThreadProvider.notifier)
+        .refresh();
     await tester.pumpAndSettle();
 
     expect(find.text('Watch found a new post'), findsOneWidget);
@@ -847,15 +847,14 @@ void main() {
           content: 'old session message',
         ),
       ];
-    source.postHandler =
-        ({
-          required message,
-          required requestId,
-          required attachments,
-          required contextPostId,
-        }) => response.future;
+    source.postHandler = ({
+      required message,
+      required requestId,
+      required attachments,
+      required contextPostId,
+    }) => response.future;
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(source),
@@ -910,7 +909,7 @@ void main() {
     (tester) async {
       final source = FakeAssistantSource();
       await tester.pumpWidget(
-        ProviderScope(
+        AppProviderScope(
           overrides: [assistantRepositoryProvider.overrideWithValue(source)],
           child: const MaterialApp(
             builder: foruiTestBuilder,
@@ -966,7 +965,7 @@ void main() {
 
   testWidgets('has clear history and no new session action', (tester) async {
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         overrides: [
           assistantUserKeyProvider.overrideWithValue('test-user'),
           assistantRepositoryProvider.overrideWithValue(FakeAssistantSource()),

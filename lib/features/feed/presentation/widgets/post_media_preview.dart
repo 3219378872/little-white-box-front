@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+
 import '../../../../core/theme/app_theme.dart';
 
 class PostMediaPreview extends StatelessWidget {

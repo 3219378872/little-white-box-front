@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+
 import '../../sdk/vars/kv.dart';
 import '../../sdk/vars/vars.dart';
 import '../../sdk/api/api.dart' as sdk_api;
@@ -47,9 +49,8 @@ Future<T> apiCallWithTimeout<T>(
   caller, {
   Duration timeout = const Duration(seconds: 15),
 }) {
-  return apiCall<T>(
-    caller,
-  ).timeout(timeout, onTimeout: () => throw const ApiException('请求超时'));
+  return apiCall<T>(caller)
+      .timeout(timeout, onTimeout: () => throw const ApiException('请求超时'));
 }
 
 /// Multipart POST 上传，用于文件上传场景。

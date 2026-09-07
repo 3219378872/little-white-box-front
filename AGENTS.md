@@ -6,7 +6,7 @@
 ## 项目事实
 
 - 应用使用 Flutter、Riverpod 和 GoRouter；日常 Flutter 命令均从仓库根目录运行。
-- 当前选定的组件库是 Forui，`pubspec.yaml` 声明 `forui: ^0.24.2`，实际解析版本以 `pubspec.lock` 为准。
+- 当前选定的组件库是 Forui，`pubspec.yaml` 声明 `forui: ^0.26.0`，实际解析版本以 `pubspec.lock` 为准。图标由 Forui 再导出的 `forui_lucide` 提供；已停用的 `forui_assets` 不得再引入。
 - 应用允许 Material 与 Forui 共存。现有 `MaterialApp.router` 负责 Flutter 应用壳，Forui 主题、组件和 overlay 能力由全局 builder 注入。
 - `vendor/sdk_source/` 是生成 SDK 的来源，`lib/sdk/` 是应用使用的副本；应用适配应优先放在 `lib/core/api/` 或 feature repository 中。
 

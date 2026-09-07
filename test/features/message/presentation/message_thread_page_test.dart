@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -76,7 +76,7 @@ class _Harness {
 
 Future<void> _pumpThread(WidgetTester tester) async {
   await tester.pumpWidget(
-    ProviderScope(
+    AppProviderScope(
       child: MaterialApp.router(
         routerConfig: GoRouter(
           initialLocation: '/thread',
@@ -142,11 +142,9 @@ void main() {
     await tester.tap(find.bySemanticsLabel('发送'));
     await tester.pumpAndSettle();
 
-    final send =
-        harness.client.requests.lastWhere(
-              (r) => r.url.path == '/api/v2/messages',
-            )
-            as http.Request;
+    final send = harness.client.requests.lastWhere(
+      (r) => r.url.path == '/api/v2/messages',
+    ) as http.Request;
     final body = jsonBodyOf(send);
     expect(body['content'], '你好呀');
     expect(body['msgType'], 1);

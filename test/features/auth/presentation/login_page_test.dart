@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
@@ -25,7 +26,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const ProviderScope(
+      const AppProviderScope(
         child: MaterialApp(builder: foruiTestBuilder, home: LoginPage()),
       ),
     );
@@ -56,7 +57,7 @@ void main() {
     final semantics = tester.ensureSemantics();
     try {
       await tester.pumpWidget(
-        ProviderScope(
+        AppProviderScope(
           overrides: [routerProvider.overrideWithValue(router)],
           child: const XiaobaiheApp(),
         ),
@@ -80,7 +81,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const ProviderScope(
+      const AppProviderScope(
         child: MaterialApp(builder: foruiTestBuilder, home: LoginPage()),
       ),
     );
@@ -128,7 +129,7 @@ void main() {
     );
     addTearDown(router.dispose);
     await tester.pumpWidget(
-      ProviderScope(
+      AppProviderScope(
         child: MaterialApp.router(
           routerConfig: router,
           builder: foruiTestBuilder,
@@ -159,7 +160,7 @@ void main() {
       final response = Completer<http.Response>();
       final client = ScriptedGatewayClient((_) => response.future);
       setApiClient(client);
-      final container = ProviderContainer();
+      final container = createAppProviderContainer();
       addTearDown(container.dispose);
       final router = GoRouter(
         initialLocation: '/auth/login',
