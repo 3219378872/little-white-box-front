@@ -69,6 +69,8 @@ try {
     await click(page, original.first());
     const back = page.getByRole('button', { name: /^(Back|返回)$/ }).first();
     await back.waitFor();
+    await page.getByRole('button', { name: '盯本帖修订', exact: true }).waitFor({ timeout: 20000 });
+    await page.waitForLoadState('networkidle');
     await page.screenshot({ path: `${output}/${variant.name}-post.png` });
     await click(page, back);
     await page.getByRole('button', { name: '查看原文', exact: true }).first().waitFor();
