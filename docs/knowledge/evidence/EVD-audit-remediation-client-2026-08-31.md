@@ -5,39 +5,42 @@ title: 客户端会话隔离与 Assistant 写入并发整改 2026-08-31
 status: active
 result: partial
 owner: agent
-upstream:
-  - IMP-client-platform
-  - IMP-community-client
-  - IMP-messaging-client
-  - IMP-assistant-client
-covers:
+scope:
+- static
+- unit
+- integration
+- e2e
+- browser
+commands:
+- make analyze
+- make test
+- make test-coverage
+- flutter test test/features/assistant/data/assistant_repository_test.dart
+observed_commit: 97dc5909f797b8a498b3011cdb0bc482c85afa52
+updated_at: 2026-08-31
+coverage:
+- requirements:
   - FX-002
   - FX-010
-  - FX-020
-  - FX-040
-  - FX-041
-  - FX-050
-  - FX-081
-  - FX-082
-  - FX-085
   - FQ-002
   - FQ-003
   - FQ-006
   - FQ-007
   - FQ-008
-scope:
-  - static
-  - unit
-  - integration
-  - e2e
-  - browser
-commands:
-  - make analyze
-  - make test
-  - make test-coverage
-  - flutter test test/features/assistant/data/assistant_repository_test.dart
-observed_commit: 97dc5909f797b8a498b3011cdb0bc482c85afa52
-updated_at: 2026-08-31
+  paths: []
+- requirements:
+  - FX-020
+  paths: []
+- requirements:
+  - FX-040
+  - FX-041
+  paths: []
+- requirements:
+  - FX-050
+  - FX-081
+  - FX-082
+  - FX-085
+  paths: []
 ---
 
 # 客户端会话隔离与 Assistant 写入并发整改 2026-08-31
@@ -124,3 +127,7 @@ Playwright 1.62.1 与本机 Chromium 实际观察：
   SSE 客户端不能代替 Flutter 浏览器或真机消费端。
 - 未覆盖真机图片选择上传、外部 live provider、production profile、真实生产迁移或生产流量。
 - 因上述范围及客户端私信视频/语音契约缺口，本页保持 `partial`，不扩大为整体发布就绪结论。
+
+## 覆盖元数据迁移
+
+观察提交未保存完整输入路径；空的 `coverage.paths` 表示未知，不可用作当前 `aligned` 证明。原观察提交、命令及结果未改写。

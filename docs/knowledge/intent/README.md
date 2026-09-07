@@ -1,8 +1,11 @@
 # 意图层
 
-意图定义产品目的、目标用户、成功结果和明确非目标，不描述页面、类或接口。意图由人类拥有语义；
-未经明确批准的整理结果保持 `draft`，停用时使用 `retired`。
+本页清单由 `make knowledge-index` 生成；治理规则见[知识总路由](../README.md)。
 
-当前页面：
+<!-- knowledge-index:start -->
 
-- [INT-content-community-client](INT-content-community-client.md)
+| Page | State | Related |
+| --- | --- | --- |
+| [INT-content-community-client](INT-content-community-client.md) | approved | - |
+
+<!-- knowledge-index:end -->

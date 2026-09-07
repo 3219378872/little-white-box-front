@@ -2,32 +2,15 @@
 id: IMP-community-client
 layer: implementation
 title: 社区发现与内容实现映射
-status: aligned
+status: active
 owner: agent
-upstream:
-  - DES-community-client
-tracks:
-  - FX-020
-  - FX-021
-  - FX-022
-  - FX-030
-  - FX-031
-  - FX-032
-  - FX-060
-  - FX-061
-  - FX-062
 code_paths:
-  - lib/features/feed
-  - lib/features/search
-  - lib/features/post
-  - lib/features/comment
-  - lib/features/profile
-  - lib/features/behavior
-evidence:
-  - EVD-knowledge-graph-refactor-2026-09-06
-  - EVD-audit-remediation-client-2026-08-31
-  - EVD-code-quality-hardening-2026-09-05
-  - EVD-heybox-presentation-2026-09-06
+- lib/features/feed
+- lib/features/search
+- lib/features/post
+- lib/features/comment
+- lib/features/profile
+- lib/features/behavior
 updated_at: 2026-09-06
 ---
 

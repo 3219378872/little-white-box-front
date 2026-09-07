@@ -1,54 +1,48 @@
 #!/usr/bin/env python3
-"""Validate the repository's five-layer knowledge graph."""
+"""Repository knowledge: one authority matrix, scoped evidence, Git snapshots."""
 
 from __future__ import annotations
 
+import argparse
+from collections import Counter
+from datetime import date
+import hashlib
+import json
 import os
+from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import sys
-from collections import Counter
-from dataclasses import dataclass
-from datetime import date
-from pathlib import Path
-from urllib.parse import unquote
 
+try:
+    from markdown_it import MarkdownIt
+    import yaml
+except ImportError as exc:
+    raise SystemExit(
+        "Knowledge dependencies missing; run make knowledge-setup"
+    ) from exc
 
-DEFAULT_ROOT = Path(__file__).resolve().parents[1]
-ROOT = Path(os.environ.get("KNOWLEDGE_ROOT", DEFAULT_ROOT)).resolve()
-DOCS = ROOT / "docs"
-KNOWLEDGE = DOCS / "knowledge"
-
-LAYER_DIRS = {
-    "intent": KNOWLEDGE / "intent",
-    "spec": KNOWLEDGE / "spec",
-    "design": KNOWLEDGE / "design",
-    "implementation": KNOWLEDGE / "implementation",
-    "evidence": KNOWLEDGE / "evidence",
+ROOT = Path(
+    os.environ.get("KNOWLEDGE_ROOT", Path(__file__).resolve().parents[1])
+).resolve()
+REPOSITORY = "little-white-box-front"
+REQUIREMENT = re.compile(r"(?:FX|FQ)-\d{3}\Z")
+REPOSITORIES = {
+    "little-white-box",
+    "little-white-box-content-community",
+    "little-white-box-front",
 }
-PREFIXES = {
-    "intent": "INT-",
-    "spec": "SPEC-",
-    "design": "DES-",
-    "implementation": "IMP-",
-    "evidence": "EVD-",
-}
-UPSTREAM_LAYER = {
-    "intent": None,
-    "spec": "intent",
-    "design": "spec",
-    "implementation": "design",
-    "evidence": "implementation",
-}
-ALLOWED_STATUS = {
+LAYERS = dict(
+    intent="INT", spec="SPEC", design="DES", implementation="IMP", evidence="EVD"
+)
+STATUSES = {
     "intent": {"draft", "approved", "retired"},
     "spec": {"draft", "approved", "retired"},
     "design": {"draft", "active", "blocked", "superseded"},
-    "implementation": {"unknown", "aligned", "diverged", "retired"},
+    "implementation": {"active", "retired"},
     "evidence": {"active", "superseded"},
 }
-EVIDENCE_RESULTS = {"passed", "partial", "failed", "blocked"}
-EVIDENCE_SCOPES = {
+SCOPES = {
     "static",
     "unit",
     "integration",
@@ -60,1347 +54,821 @@ EVIDENCE_SCOPES = {
     "live-provider",
     "production",
 }
-EXTERNAL_REPOS = {
-    "little-white-box",
-    "little-white-box-content-community",
-    "little-white-box-front",
-}
-CONTROLLED_LIST_KEYS = {
-    "upstream",
-    "tracks",
-    "code_paths",
-    "evidence",
-    "covers",
-    "scope",
-    "commands",
-    "external_upstream",
+RESULTS = {"passed", "partial", "failed", "blocked"}
+FORMAL_ID = re.compile(r"(?:INT|SPEC|DES|IMP|EVD)-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+SHA = re.compile(r"[0-9a-f]{40}\Z")
+MD = MarkdownIt("commonmark").enable("table")
+INDEX_START = "<!-- knowledge-index:start -->"
+INDEX_END = "<!-- knowledge-index:end -->"
+AUTHORITY_HEADERS = {
+    ("requirement", "design", "status", "evidence/gap"),
+    ("requirement", "design", "state", "evidence or gap"),
 }
 
-ID_RE = re.compile(r"^(?:INT|SPEC|DES|IMP|EVD)-[a-z0-9]+(?:-[a-z0-9]+)*$")
-REQUIREMENT_BULLET_RE = re.compile(
-    r"^ {0,3}[-*][ \t]+`(?P<requirement>(?:FX|FQ)-\d{3})`[：:]"
-    r"[ \t]*\S"
-)
-REQUIREMENT_ID_RE = re.compile(r"^(?:FX|FQ)-\d{3}$")
-REQUIREMENT_TABLE_HEADERS = {"requirement", "条款", "id"}
-EXTERNAL_REQUIREMENT_ID_RE = re.compile(
-    r"^[A-Z][A-Z0-9]*-(?:A[0-9]{2}|[0-9]{3}(?:-[0-9]{2})?)$"
-)
-LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
-DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
-EXTERNAL_UPSTREAM_RE = re.compile(r"^([^@]+)@([0-9a-f]{40}):(.+)$")
-FENCE_OPEN_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
-ATX_HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:[ \t]+|$)")
-SETEXT_HEADING_RE = re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$")
-LIST_MARKER_RE = re.compile(r"(?:[-+*]|\d{1,9}[.)])")
-INLINE_SPAN_SENTINEL = "x"
-AUTHORITY_HEADER = ("requirement", "design", "state", "evidence or gap")
-AUTHORITY_SEPARATOR_RE = re.compile(r"^:?-{3,}:?$")
-EVIDENCE_ID_RE = re.compile(r"EVD-[a-z0-9]+(?:-[a-z0-9]+)*")
+
+class KnowledgeError(ValueError):
+    pass
 
 
-@dataclass(frozen=True)
-class Document:
-    path: Path
-    layer: str
-    body: str
-    meta: dict[str, str | list[str]]
-
-    @property
-    def id(self) -> str:
-        value = self.meta.get("id", "")
-        return value if isinstance(value, str) else ""
-
-    def values(self, key: str) -> list[str]:
-        value = self.meta.get(key, [])
-        if isinstance(value, list):
-            return value
-        return [value] if value else []
+class UniqueLoader(yaml.SafeLoader):
+    pass
 
 
-@dataclass(frozen=True)
-class ContainerScope:
-    quote_depth: int = 0
-    list_marker_indent: int | None = None
-    list_content_indent: int | None = None
-
-    @property
-    def is_container(self) -> bool:
-        return self.quote_depth > 0 or self.list_content_indent is not None
-
-
-@dataclass(frozen=True)
-class ListItem:
-    marker_indent: int
-    content_indent: int
-    content_start: int
+def _mapping(loader, node, deep=False):
+    result = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if not isinstance(key, str) or key in result:
+            raise KnowledgeError(f"duplicate or non-text YAML key: {key!r}")
+        result[key] = loader.construct_object(value_node, deep=deep)
+    return result
 
 
-@dataclass(frozen=True)
-class FenceState:
-    character: str
-    length: int
-    container: ContainerScope
+UniqueLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _mapping)
 
 
-def relative(path: Path) -> str:
-    try:
-        return path.relative_to(ROOT).as_posix()
-    except ValueError:
-        return str(path)
-
-
-def _frontmatter_body(text: str) -> str:
-    lines = text.splitlines()
+def frontmatter(text: str) -> tuple[dict, str]:
+    lines = text.splitlines(keepends=True)
     if not lines or lines[0].strip() != "---":
-        return text
-    for index, line in enumerate(lines[1:], start=1):
-        if line.strip() == "---":
-            return "\n".join(lines[index + 1 :])
-    return ""
-
-
-def _backtick_run_end(line: str, start: int) -> int:
-    end = start
-    while end < len(line) and line[end] == "`":
-        end += 1
-    return end
-
-
-def _next_visual_column(column: int, character: str) -> int:
-    if character == "\t":
-        return column + (4 - column % 4)
-    return column + 1
-
-
-def _leading_indent(text: str, start_column: int = 0) -> tuple[int, int]:
-    cursor = 0
-    column = start_column
-    while cursor < len(text) and text[cursor] in " \t":
-        column = _next_visual_column(column, text[cursor])
-        cursor += 1
-    return cursor, column - start_column
-
-
-def _strip_indent(text: str, width: int) -> str | None:
-    cursor, actual = _leading_indent(text)
-    if actual < width:
-        return None
-    return " " * (actual - width) + text[cursor:]
-
-
-def _strip_blockquote_prefixes(line: str) -> tuple[str, int, int]:
-    cursor = 0
-    depth = 0
-    while cursor < len(line):
-        indentation_end, indentation = _leading_indent(line[cursor:])
-        if indentation > 3:
-            break
-        marker = cursor + indentation_end
-        if marker >= len(line) or line[marker] != ">":
-            break
-        cursor = marker + 1
-        if cursor < len(line) and line[cursor] in " \t":
-            cursor += 1
-        depth += 1
-    return line[cursor:], depth, cursor
-
-
-def _parse_list_item(text: str, base_column: int = 0) -> ListItem | None:
-    indentation_end, indentation = _leading_indent(text, base_column)
-    if indentation > 3:
-        return None
-    marker = LIST_MARKER_RE.match(text, indentation_end)
-    if marker is None:
-        return None
-    marker_end = marker.end()
-    marker_column = base_column + indentation + len(marker.group())
-    if marker_end == len(text):
-        spacing_end = 0
-        spacing = 1
-    elif text[marker_end] not in " \t":
-        return None
-    else:
-        spacing_end, spacing = _leading_indent(text[marker_end:], marker_column)
-        if not 1 <= spacing <= 4:
-            return None
-    return ListItem(
-        marker_indent=base_column + indentation,
-        content_indent=marker_column + spacing,
-        content_start=marker_end + spacing_end,
-    )
-
-
-def _container_candidates(line: str) -> list[tuple[str, ContainerScope]]:
-    content, quote_depth, _ = _strip_blockquote_prefixes(line)
-    candidates = [(content, ContainerScope(quote_depth=quote_depth))]
-    remaining = content
-    base_column = 0
-    while True:
-        item = _parse_list_item(remaining, base_column)
-        if item is None:
-            break
-        remaining = remaining[item.content_start :]
-        base_column = item.content_indent
-        candidates.append(
-            (
-                remaining,
-                ContainerScope(
-                    quote_depth=quote_depth,
-                    list_marker_indent=item.marker_indent,
-                    list_content_indent=item.content_indent,
-                ),
-            )
-        )
-    return candidates
-
-
-def _fence_candidates(
-    line: str, active_container: ContainerScope | None = None
-) -> list[tuple[str, ContainerScope]]:
-    candidates: list[tuple[str, ContainerScope]] = []
-    if active_container is not None and active_container.list_content_indent is not None:
-        content, quote_depth, _ = _strip_blockquote_prefixes(line)
-        if quote_depth == active_container.quote_depth:
-            continuation = _strip_indent(
-                content, active_container.list_content_indent
-            )
-            if continuation is not None:
-                candidates.append((continuation, active_container))
-    candidates.extend(_container_candidates(line))
-    return candidates
-
-
-def _fence_opening(
-    line: str, active_container: ContainerScope | None = None
-) -> FenceState | None:
-    for candidate, container in _fence_candidates(line, active_container):
-        opening = FENCE_OPEN_RE.fullmatch(candidate)
-        if opening is None:
-            continue
-        marker, remainder = opening.groups()
-        if marker[0] != "`" or "`" not in remainder:
-            return FenceState(marker[0], len(marker), container)
-    return None
-
-
-def _is_invalid_backtick_fence(
-    line: str, active_container: ContainerScope | None = None
-) -> bool:
-    for candidate, _ in _fence_candidates(line, active_container):
-        opening = FENCE_OPEN_RE.fullmatch(candidate)
-        if opening is not None:
-            marker, remainder = opening.groups()
-            if marker[0] == "`" and "`" in remainder:
-                return True
-    return False
-
-
-def _plain_block_boundary(line: str) -> bool:
-    return (
-        not line.strip()
-        or ATX_HEADING_RE.match(line) is not None
-        or SETEXT_HEADING_RE.fullmatch(line) is not None
-        or _fence_opening(line) is not None
-    )
-
-
-def _inline_line_crosses_boundary(line: str, scope: ContainerScope) -> bool:
-    if not line.strip():
-        return True
-    content, quote_depth, _ = _strip_blockquote_prefixes(line)
-    if quote_depth != scope.quote_depth:
-        return True
-    if scope.list_content_indent is not None:
-        content = _strip_indent(content, scope.list_content_indent)
-        if content is None:
-            return True
-    elif not scope.is_container and quote_depth > 0:
-        return True
-    if _parse_list_item(content) is not None:
-        return True
-    return _plain_block_boundary(content)
-
-
-def _inline_code_span_end(
-    lines: list[str], line_index: int, start: int, scope: ContainerScope
-) -> tuple[int, int] | None:
-    opening_end = _backtick_run_end(lines[line_index], start)
-    opening_length = opening_end - start
-    single_line_only = _is_invalid_backtick_fence(lines[line_index], scope)
-    for candidate_line_index in range(line_index, len(lines)):
-        line = lines[candidate_line_index]
-        if candidate_line_index > line_index:
-            if single_line_only or _inline_line_crosses_boundary(line, scope):
-                return None
-        cursor = opening_end if candidate_line_index == line_index else 0
-        while cursor < len(line):
-            candidate = line.find("`", cursor)
-            if candidate < 0:
-                break
-            candidate_end = _backtick_run_end(line, candidate)
-            if candidate_end - candidate == opening_length:
-                return candidate_line_index, candidate_end
-            cursor = candidate_end
-    return None
-
-
-def _update_list_context(
-    line: str, stack: list[ContainerScope]
-) -> ContainerScope:
-    content, quote_depth, _ = _strip_blockquote_prefixes(line)
-    if line.strip() and any(item.quote_depth != quote_depth for item in stack):
-        stack.clear()
-
-    list_scopes = [
-        scope
-        for _, scope in _container_candidates(line)
-        if scope.list_content_indent is not None
-    ]
-    if list_scopes:
-        first_marker_indent = list_scopes[0].list_marker_indent
-        assert first_marker_indent is not None
-        while (
-            stack
-            and stack[-1].list_content_indent is not None
-            and first_marker_indent < stack[-1].list_content_indent
-        ):
-            stack.pop()
-        for scope in list_scopes:
-            marker_indent = scope.list_marker_indent
-            assert marker_indent is not None
-            if stack:
-                content_indent = stack[-1].list_content_indent
-                assert content_indent is not None
-                if marker_indent < content_indent:
-                    break
-            elif marker_indent > 3:
-                break
-            stack.append(scope)
-    elif line.strip():
-        _, indentation = _leading_indent(content)
-        while (
-            stack
-            and stack[-1].list_content_indent is not None
-            and indentation < stack[-1].list_content_indent
-        ):
-            stack.pop()
-
-    if stack and stack[-1].quote_depth == quote_depth:
-        return stack[-1]
-    return ContainerScope(quote_depth=quote_depth)
-
-
-def _fence_line(
-    line: str, state: FenceState
-) -> tuple[str | None, bool]:
-    if not state.container.is_container:
-        return line, False
-    if not line.strip():
-        return "", False
-    content, quote_depth, _ = _strip_blockquote_prefixes(line)
-    if quote_depth != state.container.quote_depth:
-        return None, True
-    if state.container.list_content_indent is not None:
-        content = _strip_indent(content, state.container.list_content_indent)
-        if content is None:
-            return None, True
-    return content, False
-
-
-def _is_fence_closing(line: str, state: FenceState) -> bool:
-    indentation_end, indentation = _leading_indent(line)
-    if indentation > 3:
-        return False
-    candidate = line[indentation_end:]
-    return (
-        re.fullmatch(
-            rf"{re.escape(state.character)}{{{state.length},}}[ \t]*",
-            candidate,
-        )
-        is not None
-    )
-
-
-def semantic_markdown(text: str) -> str:
-    """Remove content that Markdown renders as comments or fenced code."""
-    lines = text.splitlines()
-    semantic_lines: list[str] = []
-    fence_state: FenceState | None = None
-    in_comment = False
-    multiline_span_end: tuple[int, int] | None = None
-    list_stack: list[ContainerScope] = []
-    for line_index, line in enumerate(lines):
-        if fence_state is not None:
-            candidate, boundary = _fence_line(line, fence_state)
-            if not boundary:
-                if candidate is not None and _is_fence_closing(candidate, fence_state):
-                    fence_state = None
-                continue
-            fence_state = None
-
-        active_container = _update_list_context(line, list_stack)
-        visible_parts: list[str] = []
-        cursor = 0
-        if multiline_span_end is not None:
-            closing_line, closing_end = multiline_span_end
-            if line_index < closing_line:
-                semantic_lines.append(INLINE_SPAN_SENTINEL)
-                continue
-            # Keep a non-whitespace prefix so a closing-line suffix cannot
-            # become a block-level definition after the span is removed.
-            visible_parts.append(INLINE_SPAN_SENTINEL)
-            cursor = closing_end
-            multiline_span_end = None
-        elif not in_comment:
-            opening = _fence_opening(line, active_container)
-            if opening is not None:
-                fence_state = opening
-                continue
-
-        while cursor < len(line):
-            if in_comment:
-                end = line.find("-->", cursor)
-                if end < 0:
-                    cursor = len(line)
-                    break
-                in_comment = False
-                cursor = end + 3
-                continue
-            if line.startswith("<!--", cursor):
-                in_comment = True
-                cursor += 4
-                continue
-            if line[cursor] == "`":
-                opening_end = _backtick_run_end(line, cursor)
-                span_end = _inline_code_span_end(
-                    lines, line_index, cursor, active_container
-                )
-                if span_end is not None:
-                    closing_line, closing_end = span_end
-                    if closing_line == line_index:
-                        visible_parts.append(line[cursor:closing_end])
-                        cursor = closing_end
-                    else:
-                        visible_parts.append(INLINE_SPAN_SENTINEL)
-                        multiline_span_end = span_end
-                        cursor = len(line)
-                else:
-                    visible_parts.append(line[cursor:opening_end])
-                    cursor = opening_end
-                continue
-            visible_parts.append(line[cursor])
-            cursor += 1
-        semantic_lines.append("".join(visible_parts))
-    return "\n".join(semantic_lines)
-
-
-def _split_requirement_table_row(line: str) -> list[str] | None:
-    leading_spaces = len(line) - len(line.lstrip(" "))
-    if leading_spaces > 3 or line[leading_spaces:].startswith("\t"):
-        return None
-    stripped = line.strip()
-    cells: list[str] = []
-    current: list[str] = []
-    separators = 0
-    for character in stripped:
-        if character == "|":
-            backslashes = 0
-            for previous in reversed(current):
-                if previous != "\\":
-                    break
-                backslashes += 1
-            if backslashes % 2 == 0:
-                cells.append("".join(current).strip())
-                current = []
-                separators += 1
-                continue
-        current.append(character)
-    if separators == 0:
-        return None
-    cells.append("".join(current).strip())
-    if cells and not cells[0]:
-        cells.pop(0)
-    if cells and not cells[-1]:
-        cells.pop()
-    return cells
-
-
-def requirement_definitions(text: str) -> list[str]:
-    lines = semantic_markdown(_frontmatter_body(text)).splitlines()
-    definitions: list[str] = []
-    index = 0
-    while index < len(lines):
-        bullet = REQUIREMENT_BULLET_RE.match(lines[index])
-        if bullet is not None:
-            definitions.append(bullet.group("requirement"))
-
-        header = _split_requirement_table_row(lines[index])
-        if (
-            header is None
-            or len(header) < 2
-            or _normalized_requirement_header(header[0])
-            not in REQUIREMENT_TABLE_HEADERS
-            or not all(cell.strip() for cell in header)
-            or index + 1 >= len(lines)
-        ):
-            index += 1
-            continue
-
-        separator = _split_requirement_table_row(lines[index + 1])
-        if (
-            separator is None
-            or len(separator) != len(header)
-            or not all(AUTHORITY_SEPARATOR_RE.fullmatch(cell) for cell in separator)
-        ):
-            index += 1
-            continue
-
-        index += 2
-        while index < len(lines):
-            row = _split_requirement_table_row(lines[index])
-            if row is None or len(row) != len(header):
-                break
-            requirement = _requirement_table_id(row[0])
-            if requirement is not None and any(cell.strip() for cell in row[1:]):
-                definitions.append(requirement)
-            index += 1
-    return definitions
-
-
-def _normalized_requirement_header(cell: str) -> str:
-    normalized = cell.strip()
-    if normalized.startswith("`") and normalized.endswith("`"):
-        normalized = normalized[1:-1]
-    return " ".join(normalized.lower().split())
-
-
-def _requirement_table_id(cell: str) -> str | None:
-    candidate = cell.strip()
-    if candidate.startswith("`") and candidate.endswith("`"):
-        candidate = candidate[1:-1].strip()
-    return candidate if REQUIREMENT_ID_RE.fullmatch(candidate) else None
-
-
-def _parse_frontmatter_text(
-    text: str, label: str, errors: list[str]
-) -> tuple[dict[str, str | list[str]], str]:
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        errors.append(f"{label}: missing frontmatter")
-        return {}, text
+        raise KnowledgeError("missing YAML frontmatter")
+    end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+    if end is None:
+        raise KnowledgeError("unclosed YAML frontmatter")
     try:
-        end = next(
-            index
-            for index, line in enumerate(lines[1:], start=1)
-            if line.strip() == "---"
-        )
-    except StopIteration:
-        errors.append(f"{label}: unclosed frontmatter")
-        return {}, text
-
-    meta: dict[str, str | list[str]] = {}
-    active_list: str | None = None
-    for number, line in enumerate(lines[1:end], start=2):
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        if line.startswith("  - "):
-            if active_list is None:
-                errors.append(f"{label}:{number}: list item has no key")
-                continue
-            value = line[4:].strip().strip("\"'")
-            current = meta.setdefault(active_list, [])
-            if not isinstance(current, list):
-                errors.append(f"{label}:{number}: {active_list} is not a list")
-                continue
-            current.append(value)
-            continue
-        match = re.fullmatch(r"([a-z_][a-z0-9_]*):(?:\s*(.*))?", line)
-        if match is None:
-            errors.append(f"{label}:{number}: unsupported frontmatter syntax")
-            active_list = None
-            continue
-        key, raw = match.groups()
-        raw = (raw or "").strip()
-        if key in meta:
-            errors.append(f"{label}:{number}: duplicate frontmatter key {key}")
-        if raw in {"", "[]"}:
-            meta[key] = []
-            active_list = key if raw == "" else None
-        else:
-            meta[key] = raw.strip("\"'")
-            active_list = None
-    return meta, "\n".join(lines[end + 1 :])
+        meta = yaml.load("".join(lines[1:end]), Loader=UniqueLoader)
+    except yaml.YAMLError as exc:
+        raise KnowledgeError(f"invalid YAML: {exc}") from exc
+    if not isinstance(meta, dict):
+        raise KnowledgeError("frontmatter must be a mapping")
+    return meta, "".join(lines[end + 1 :])
 
 
-def parse_frontmatter(
-    path: Path, errors: list[str]
-) -> tuple[dict[str, str | list[str]], str]:
-    return _parse_frontmatter_text(
-        path.read_text(encoding="utf-8"), relative(path), errors
-    )
-
-
-def formal_documents(errors: list[str]) -> list[Document]:
-    documents: list[Document] = []
-    for layer, directory in LAYER_DIRS.items():
-        if not directory.is_dir():
-            errors.append(f"{relative(directory)}: required layer directory is missing")
-            continue
-        readme = directory / "README.md"
-        if not readme.is_file():
-            errors.append(f"{relative(readme)}: required layer index is missing")
-        for path in sorted(directory.rglob("*.md")):
-            if path == readme:
-                continue
-            meta, body = parse_frontmatter(path, errors)
-            documents.append(Document(path=path, layer=layer, body=body, meta=meta))
-    return documents
-
-
-def _require_list(
-    doc: Document, key: str, errors: list[str], *, nonempty: bool = False
-) -> list[str]:
-    value = doc.meta.get(key)
-    if not isinstance(value, list):
-        errors.append(f"{relative(doc.path)}: {key} must be a YAML list")
+def texts(value, name: str, *, empty=False) -> list[str]:
+    if empty and value is None:
         return []
-    if nonempty and not value:
-        errors.append(f"{relative(doc.path)}: {key} must not be empty")
+    if not isinstance(value, list) or (not empty and not value):
+        raise KnowledgeError(
+            f"{name} must be a {'non-empty ' if not empty else ''}list"
+        )
+    if any(not isinstance(item, str) or not item.strip() for item in value):
+        raise KnowledgeError(f"{name} items must be non-blank text")
+    if len(set(value)) != len(value):
+        raise KnowledgeError(f"{name} has duplicate items")
     return value
 
 
-def _require_controlled_list(
-    doc: Document, key: str, errors: list[str], *, nonempty: bool = False
-) -> list[str]:
-    if key not in CONTROLLED_LIST_KEYS:
-        raise ValueError(f"uncontrolled list key: {key}")
-    values = _require_list(doc, key, errors, nonempty=nonempty)
-    seen: set[str] = set()
-    for value in values:
-        if not isinstance(value, str) or not value.strip():
-            errors.append(
-                f"{relative(doc.path)}: {key} items must be non-blank strings"
-            )
-            continue
-        normalized = value.strip()
-        if normalized in seen:
-            errors.append(f"{relative(doc.path)}: duplicate {key} item {normalized!r}")
-        seen.add(normalized)
-    return values
+def inline_text(token) -> str:
+    return "".join(
+        (child.attrGet("href") or "")
+        if child.type == "link_open"
+        else " "
+        if child.type in {"softbreak", "hardbreak"}
+        else child.content
+        if child.type in {"text", "code_inline", "image"}
+        else ""
+        for child in (token.children or [])
+    ).strip()
 
 
-def _commit_is_ancestor(commit: str) -> bool:
-    exists = subprocess.run(
-        ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
-        cwd=ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
-    if exists.returncode != 0:
-        return False
-    ancestor = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", commit, "HEAD"],
-        cwd=ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
-    return ancestor.returncode == 0
+def tables(body: str) -> list[list[list[str]]]:
+    result, table, row = [], None, None
+    for token in MD.parse(body):
+        if token.type == "table_open":
+            table = []
+        elif token.type == "tr_open" and table is not None:
+            row = []
+        elif token.type == "inline" and row is not None:
+            row.append(inline_text(token))
+        elif token.type == "tr_close" and table is not None:
+            table.append(row)
+            row = None
+        elif token.type == "table_close":
+            result.append(table)
+            table = None
+    return result
 
 
-def _code_paths_at_commit(
-    commit: str, implementation: Document
-) -> tuple[list[str], str]:
-    path = implementation.path.relative_to(ROOT).as_posix()
-    object_name = f"{commit}:{path}"
-    exists = subprocess.run(
-        ["git", "cat-file", "-e", object_name],
-        cwd=ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
-    if exists.returncode != 0:
-        return implementation.values("code_paths"), ""
+def definitions(body: str) -> list[tuple[str, str]]:
+    result, stack = [], []
+    for token in MD.parse(body):
+        if token.nesting == 1:
+            stack.append(token.type.removesuffix("_open"))
+        elif token.nesting == -1:
+            stack.pop()
+        elif token.type == "inline" and stack[-3:] == [
+            "bullet_list",
+            "list_item",
+            "paragraph",
+        ]:
+            children = token.children or []
+            if (
+                children
+                and children[0].type == "code_inline"
+                and REQUIREMENT.fullmatch(children[0].content)
+            ):
+                rest = "".join(
+                    "\n"
+                    if c.type in {"softbreak", "hardbreak"}
+                    else c.content
+                    if c.type in {"text", "code_inline", "image"}
+                    else ""
+                    for c in children[1:]
+                )
+                if re.match(r"[：:]\s*\S", rest.splitlines()[0]):
+                    result.append((children[0].content, inline_text(token)))
+    for table in tables(body):
+        if len(table[0]) >= 2 and table[0][0].lower() in {"id", "requirement", "条款"}:
+            for row in table[1:]:
+                if REQUIREMENT.fullmatch(row[0]) and any(
+                    cell.strip() for cell in row[1:]
+                ):
+                    result.append((row[0], " ".join(row)))
+    return [(key, " ".join(value.split())) for key, value in result]
 
-    historical = subprocess.run(
-        ["git", "show", object_name],
-        cwd=ROOT,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
-    if historical.returncode != 0:
-        return [], historical.stderr.strip() or f"could not read {object_name}"
-    history_errors: list[str] = []
-    meta, _ = _parse_frontmatter_text(
-        historical.stdout, f"{path}@{commit}", history_errors
-    )
-    value = meta.get("code_paths")
-    if not isinstance(value, list):
-        history_errors.append(f"{path}@{commit}: code_paths must be a YAML list")
-        value = []
-    return value, "; ".join(history_errors)
 
-
-def _changed_paths_since(commit: str, paths: list[str]) -> tuple[list[str], str]:
-    commands = [
-        ["git", "diff", "--no-ext-diff", "--name-only", f"{commit}..HEAD"],
-        ["git", "diff", "--no-ext-diff", "--name-only"],
-        ["git", "diff", "--no-ext-diff", "--cached", "--name-only"],
-        ["git", "ls-files", "--others", "--exclude-standard"],
+def authority(body: str) -> list[tuple[str, str, str, str]]:
+    found = [
+        t for t in tables(body) if tuple(c.lower() for c in t[0]) in AUTHORITY_HEADERS
     ]
-    changed: set[str] = set()
-    failures: list[str] = []
-    for command in commands:
-        comparison = subprocess.run(
-            [*command, "--", *paths],
-            cwd=ROOT,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
-        if comparison.returncode != 0:
-            failures.append(comparison.stderr.strip() or "git comparison failed")
-            continue
-        changed.update(line for line in comparison.stdout.splitlines() if line)
-    return sorted(changed), "; ".join(failures)
-
-
-def _validate_code_paths(doc: Document, paths: list[str], errors: list[str]) -> None:
-    for raw in paths:
-        candidate = Path(raw)
-        if candidate.is_absolute() or ".." in candidate.parts:
-            errors.append(
-                f"{relative(doc.path)}: code_path must be root-relative: {raw}"
-            )
-            continue
-        if not (ROOT / candidate).exists():
-            errors.append(f"{relative(doc.path)}: code_path does not exist: {raw}")
-
-
-def _validate_external_upstream(doc: Document, errors: list[str]) -> None:
-    if "external_upstream" not in doc.meta:
-        return
-    for value in _require_controlled_list(
-        doc, "external_upstream", errors, nonempty=True
-    ):
-        match = EXTERNAL_UPSTREAM_RE.fullmatch(value)
-        target = match.group(3) if match is not None else ""
+    if len(found) != 1:
+        raise KnowledgeError("requires exactly one authoritative requirement table")
+    rows = []
+    for row in found[0][1:]:
         if (
-            match is None
-            or match.group(1) not in EXTERNAL_REPOS
-            or not (
-                ID_RE.fullmatch(target) or EXTERNAL_REQUIREMENT_ID_RE.fullmatch(target)
-            )
+            len(row) != 4
+            or not REQUIREMENT.fullmatch(row[0])
+            or not FORMAL_ID.fullmatch(row[1])
+            or not row[1].startswith("DES-")
         ):
-            errors.append(
-                f"{relative(doc.path)}: invalid external_upstream {value!r}; "
-                "expected repo@40hex:formal-or-requirement-ID"
-            )
-
-
-def validate_metadata(
-    documents: list[Document], errors: list[str]
-) -> dict[str, Document]:
-    by_id: dict[str, Document] = {}
-    required = {"id", "layer", "title", "status", "owner", "upstream", "updated_at"}
-    for doc in documents:
-        label = relative(doc.path)
-        missing = sorted(required - doc.meta.keys())
-        if missing:
-            errors.append(f"{label}: missing frontmatter keys: {', '.join(missing)}")
-
-        title = doc.meta.get("title")
-        if not isinstance(title, str) or not title.strip():
-            errors.append(f"{label}: title must be a non-blank string")
-
-        if doc.meta.get("layer") != doc.layer:
-            errors.append(f"{label}: layer must be {doc.layer}")
-        if not doc.id.startswith(PREFIXES[doc.layer]) or not ID_RE.fullmatch(doc.id):
-            errors.append(f"{label}: invalid {doc.layer} id {doc.id!r}")
-        elif doc.id in by_id:
-            errors.append(
-                f"{label}: duplicate id {doc.id} (also {relative(by_id[doc.id].path)})"
-            )
-        else:
-            by_id[doc.id] = doc
-        if doc.path.stem != doc.id:
-            errors.append(f"{label}: filename must match id {doc.id!r}")
-
-        status = doc.meta.get("status")
-        if status not in ALLOWED_STATUS[doc.layer]:
-            errors.append(f"{label}: invalid status {status!r} for {doc.layer}")
-        owner = doc.meta.get("owner")
-        if owner not in {"human", "agent"}:
-            errors.append(f"{label}: owner must be human or agent")
-        if doc.layer in {"intent", "spec"} and owner != "human":
-            errors.append(f"{label}: intent/spec semantic owner must be human")
-
-        role = doc.meta.get("role")
-        if role is not None and role != "baseline":
-            errors.append(f"{label}: role must be baseline when present")
-
-        updated = doc.meta.get("updated_at")
-        if not isinstance(updated, str) or not DATE_RE.fullmatch(updated):
-            errors.append(f"{label}: updated_at must be YYYY-MM-DD")
-        else:
-            try:
-                date.fromisoformat(updated)
-            except ValueError:
-                errors.append(f"{label}: updated_at is not a valid date")
-
-        upstream = _require_controlled_list(doc, "upstream", errors)
-        if doc.layer == "intent" and upstream:
-            errors.append(f"{label}: intent must not have upstream references")
-        if doc.layer != "intent" and not upstream:
-            errors.append(
-                f"{label}: {doc.layer} requires at least one upstream reference"
-            )
-
-        _validate_external_upstream(doc, errors)
-
-        if doc.layer in {"design", "implementation"}:
-            inactive = status in {"superseded", "retired"}
-            tracks = _require_controlled_list(
-                doc, "tracks", errors, nonempty=not inactive
-            )
-            for requirement in tracks:
-                if not REQUIREMENT_ID_RE.fullmatch(requirement):
-                    errors.append(
-                        f"{label}: invalid requirement in tracks: {requirement}"
-                    )
-
-        if doc.layer == "implementation":
-            if "observed_commit" in doc.meta or "verified_commit" in doc.meta:
-                errors.append(
-                    f"{label}: implementation must not store commit observations"
-                )
-            inactive = status == "retired"
-            code_paths = _require_controlled_list(
-                doc, "code_paths", errors, nonempty=not inactive
-            )
-            _require_controlled_list(doc, "evidence", errors, nonempty=not inactive)
-            _validate_code_paths(doc, code_paths, errors)
-
-        if doc.layer == "evidence":
-            covers = _require_controlled_list(doc, "covers", errors, nonempty=True)
-            scopes = _require_controlled_list(doc, "scope", errors, nonempty=True)
-            _require_controlled_list(doc, "commands", errors, nonempty=True)
-            unexpected_scopes = set(scopes) - EVIDENCE_SCOPES
-            if unexpected_scopes:
-                errors.append(
-                    f"{label}: invalid evidence scope: "
-                    f"{', '.join(sorted(unexpected_scopes))}"
-                )
-            for requirement in covers:
-                if not REQUIREMENT_ID_RE.fullmatch(requirement):
-                    errors.append(
-                        f"{label}: invalid requirement in covers: {requirement}"
-                    )
-            result = doc.meta.get("result")
-            if result not in EVIDENCE_RESULTS:
-                errors.append(f"{label}: invalid evidence result {result!r}")
-            commit = doc.meta.get("observed_commit")
-            if not isinstance(commit, str) or not COMMIT_RE.fullmatch(commit):
-                errors.append(
-                    f"{label}: observed_commit must be a full 40-character SHA"
-                )
-            elif not _commit_is_ancestor(commit):
-                errors.append(
-                    f"{label}: observed_commit is not an ancestor of HEAD: {commit}"
-                )
-            artifacts = []
-            if "artifacts" in doc.meta:
-                artifacts = _require_list(doc, "artifacts", errors)
-            only_temporary = bool(artifacts) and all(
-                item == "/tmp" or item.startswith("/tmp/") for item in artifacts
-            )
-            if status == "active" and result == "passed" and only_temporary:
-                errors.append(
-                    f"{label}: active passed evidence must not rely only on /tmp artifacts"
-                )
-    return by_id
-
-
-def validate_indexes(documents: list[Document], errors: list[str]) -> None:
-    for layer, directory in LAYER_DIRS.items():
-        readme = directory / "README.md"
-        if not readme.is_file():
-            continue
-        links = []
-        index_body = semantic_markdown(readme.read_text(encoding="utf-8"))
-        for raw_target in LINK_RE.findall(index_body):
-            target = raw_target.strip().split(maxsplit=1)[0].strip("<>")
-            target = unquote(target.split("#", maxsplit=1)[0])
-            resolved = (readme.parent / target).resolve()
-            if resolved.parent == directory.resolve() and resolved.suffix == ".md":
-                links.append(resolved)
-        counts = Counter(links)
-        expected = {doc.path.resolve() for doc in documents if doc.layer == layer}
-        for path in sorted(expected):
-            count = counts[path]
-            if count == 0:
-                errors.append(
-                    f"{relative(readme)}: missing formal document {path.name}"
-                )
-            elif count > 1:
-                errors.append(
-                    f"{relative(readme)}: duplicate formal document {path.name}"
-                )
-
-
-def _split_table_row(line: str) -> list[str] | None:
-    stripped = line.strip()
-    if not stripped.startswith("|") or not stripped.endswith("|"):
-        return None
-    return [cell.strip() for cell in stripped[1:-1].split("|")]
-
-
-def _normalized_header(cells: list[str]) -> tuple[str, ...]:
-    return tuple(" ".join(cell.lower().split()) for cell in cells)
-
-
-def _authority_rows(
-    doc: Document, errors: list[str]
-) -> list[tuple[str, str, str, str]]:
-    lines = semantic_markdown(doc.body).splitlines()
-    header_indexes = []
-    for index, line in enumerate(lines):
-        cells = _split_table_row(line)
-        if cells is not None and _normalized_header(cells) == AUTHORITY_HEADER:
-            header_indexes.append(index)
-
-    if len(header_indexes) != 1:
-        errors.append(
-            f"{relative(doc.path)}: requires exactly one authority table header; "
-            f"found {len(header_indexes)}"
-        )
-    if not header_indexes:
-        return []
-
-    header_index = header_indexes[0]
-    if header_index + 1 >= len(lines):
-        errors.append(
-            f"{relative(doc.path)}: authority table header must be followed by "
-            "a valid Markdown separator"
-        )
-        return []
-    separator = _split_table_row(lines[header_index + 1])
-    if (
-        separator is None
-        or len(separator) != len(AUTHORITY_HEADER)
-        or not all(AUTHORITY_SEPARATOR_RE.fullmatch(cell) for cell in separator)
-    ):
-        errors.append(
-            f"{relative(doc.path)}: authority table header must be followed by "
-            "a valid Markdown separator"
-        )
-        return []
-
-    rows: list[tuple[str, str, str, str]] = []
-    for number, line in enumerate(lines[header_index + 2 :], start=header_index + 3):
-        cells = _split_table_row(line)
-        if cells is None:
-            break
-        if len(cells) != len(AUTHORITY_HEADER):
-            errors.append(
-                f"{relative(doc.path)}:{number}: authority row must have four columns"
-            )
-            continue
-        requirement, design_id, state, support = cells
-        if requirement.startswith("`") and requirement.endswith("`"):
-            requirement = requirement[1:-1].strip()
-        if design_id.startswith("`") and design_id.endswith("`"):
-            design_id = design_id[1:-1].strip()
-        if (
-            not REQUIREMENT_ID_RE.fullmatch(requirement)
-            or not design_id.startswith("DES-")
-            or not ID_RE.fullmatch(design_id)
-            or state not in {"aligned", "diverged", "unknown"}
-        ):
-            errors.append(f"{relative(doc.path)}:{number}: invalid authority row")
-            continue
-        rows.append((requirement, design_id, state, support))
+            raise KnowledgeError("invalid authority row: " + " | ".join(row))
+        if row[2] not in {"aligned", "unknown", "diverged"}:
+            raise KnowledgeError(f"invalid requirement state: {row[2]}")
+        if row[2] != "aligned" and not re.fullmatch(r"gap:\s+\S.*", row[3], re.DOTALL):
+            raise KnowledgeError(f"{row[0]} requires a non-empty gap: explanation")
+        rows.append(tuple(row))
+    if not rows or len({row[0] for row in rows}) != len(rows):
+        raise KnowledgeError("authority rows must be non-empty and unique")
     return rows
 
 
-def validate_graph(
-    documents: list[Document], by_id: dict[str, Document], errors: list[str]
-) -> tuple[dict[str, Document], Counter[str]]:
-    requirements: dict[str, Document] = {}
-    for doc in documents:
-        if doc.layer != "spec":
-            continue
-        for requirement in requirement_definitions(doc.body):
-            previous = requirements.get(requirement)
-            if previous is None:
-                requirements[requirement] = doc
-            elif previous.path == doc.path:
-                errors.append(
-                    f"{relative(doc.path)}: duplicate requirement {requirement} "
-                    "in the same spec"
-                )
-            else:
-                errors.append(
-                    f"{relative(doc.path)}: requirement {requirement} also belongs to "
-                    f"{relative(previous.path)}"
-                )
+def aggregate(rows) -> str:
+    states = {row[2] for row in rows}
+    return (
+        "diverged"
+        if "diverged" in states
+        else "unknown"
+        if "unknown" in states
+        else "aligned"
+    )
 
-    for doc in documents:
-        expected = UPSTREAM_LAYER[doc.layer]
-        upstream_docs: list[Document] = []
-        for upstream_id in doc.values("upstream"):
-            upstream = by_id.get(upstream_id)
-            if upstream is None:
-                errors.append(
-                    f"{relative(doc.path)}: unknown upstream id {upstream_id}"
-                )
-                continue
-            if upstream.layer != expected:
-                errors.append(
-                    f"{relative(doc.path)}: upstream {upstream_id} must be in "
-                    f"{expected}, not {upstream.layer}"
-                )
-                continue
-            upstream_docs.append(upstream)
 
-        status = doc.meta.get("status")
-        if doc.layer == "spec" and status == "approved":
-            for upstream in upstream_docs:
-                if upstream.meta.get("status") != "approved":
-                    errors.append(
-                        f"{relative(doc.path)}: approved spec requires approved intent {upstream.id}"
-                    )
-
-        if doc.layer == "design":
-            allowed = {
-                requirement
-                for upstream in upstream_docs
-                for requirement in requirement_definitions(upstream.body)
-            }
-            unexpected = set(doc.values("tracks")) - allowed
-            if unexpected:
-                errors.append(
-                    f"{relative(doc.path)}: tracks not declared by upstream specs: "
-                    f"{', '.join(sorted(unexpected))}"
-                )
-
-        if doc.layer == "implementation":
-            allowed = {
-                requirement
-                for upstream in upstream_docs
-                for requirement in upstream.values("tracks")
-            }
-            unexpected = set(doc.values("tracks")) - allowed
-            if unexpected:
-                errors.append(
-                    f"{relative(doc.path)}: tracks not covered by upstream design: "
-                    f"{', '.join(sorted(unexpected))}"
-                )
-            for evidence_id in doc.values("evidence"):
-                evidence = by_id.get(evidence_id)
-                if evidence is None or evidence.layer != "evidence":
-                    errors.append(
-                        f"{relative(doc.path)}: unknown evidence id {evidence_id}"
-                    )
-                elif doc.id not in evidence.values("upstream"):
-                    errors.append(
-                        f"{relative(doc.path)}: evidence {evidence_id} does not link back to {doc.id}"
-                    )
-
-        if doc.layer == "evidence":
-            if status == "active":
-                for upstream in upstream_docs:
-                    if upstream.meta.get("status") == "retired":
-                        errors.append(
-                            f"{relative(doc.path)}: active evidence cannot reference retired {upstream.id}"
-                        )
-            historical_pointer = (
-                status == "superseded"
-                and bool(upstream_docs)
-                and all(
-                    upstream.meta.get("status") == "retired"
-                    for upstream in upstream_docs
-                )
-            )
-            if not historical_pointer:
-                allowed = {
-                    requirement
-                    for upstream in upstream_docs
-                    for requirement in upstream.values("tracks")
-                }
-                unexpected = set(doc.values("covers")) - allowed
-                if unexpected:
-                    errors.append(
-                        f"{relative(doc.path)}: covers not tracked by upstream implementation: "
-                        f"{', '.join(sorted(unexpected))}"
-                    )
-            for implementation in upstream_docs:
-                if doc.id not in implementation.values("evidence"):
-                    errors.append(
-                        f"{relative(doc.path)}: implementation {implementation.id} "
-                        f"does not link back to {doc.id}"
-                    )
-            commit = doc.meta.get("observed_commit")
-            if (
-                status == "active"
-                and doc.meta.get("result") == "passed"
-                and isinstance(commit, str)
-                and COMMIT_RE.fullmatch(commit)
-                and _commit_is_ancestor(commit)
-            ):
-                for implementation in upstream_docs:
-                    observed_paths, history_error = _code_paths_at_commit(
-                        commit, implementation
-                    )
-                    if history_error:
-                        errors.append(
-                            f"{relative(doc.path)}: could not load {implementation.id} "
-                            f"code_paths at {commit}: {history_error}"
-                        )
-                        continue
-                    code_paths = [
-                        raw
-                        for raw in observed_paths
-                        if raw.strip()
-                        and not Path(raw).is_absolute()
-                        and ".." not in Path(raw).parts
-                    ]
-                    if not code_paths:
-                        continue
-                    changed_paths, comparison_error = _changed_paths_since(
-                        commit, code_paths
-                    )
-                    if comparison_error:
-                        errors.append(
-                            f"{relative(doc.path)}: could not compare {implementation.id} "
-                            f"code_paths at {commit}: {comparison_error}"
-                        )
-                    elif changed_paths:
-                        errors.append(
-                            f"{relative(doc.path)}: active passed evidence is stale for "
-                            f"{implementation.id}; code_paths changed after {commit}: "
-                            f"{', '.join(changed_paths)}"
-                        )
-
-    authority_rows: dict[str, list[tuple[Document, str, str, str]]] = {}
-    for doc in documents:
-        if doc.layer != "implementation" or doc.meta.get("status") == "retired":
-            continue
-        rows = _authority_rows(doc, errors)
-        row_requirements = [row[0] for row in rows]
-        duplicates = sorted(
-            requirement
-            for requirement, count in Counter(row_requirements).items()
-            if count > 1
+def git(root: Path, *args: str, optional=False) -> bytes:
+    env = dict(os.environ, GIT_LITERAL_PATHSPECS="1")
+    process = subprocess.run(
+        ["git", "-C", str(root), *args], capture_output=True, env=env
+    )
+    if process.returncode and not optional:
+        raise KnowledgeError(
+            process.stderr.decode(errors="replace").strip() or f"git {args[0]} failed"
         )
-        if duplicates:
-            errors.append(
-                f"{relative(doc.path)}: duplicate authority rows: {', '.join(duplicates)}"
-            )
-        tracks = set(doc.values("tracks"))
-        missing_rows = tracks - set(row_requirements)
-        unexpected_rows = set(row_requirements) - tracks
-        if missing_rows:
-            errors.append(
-                f"{relative(doc.path)}: tracks without authority rows: "
-                f"{', '.join(sorted(missing_rows))}"
-            )
-        if unexpected_rows:
-            errors.append(
-                f"{relative(doc.path)}: authority rows not declared in tracks: "
-                f"{', '.join(sorted(unexpected_rows))}"
-            )
+    return process.stdout if not process.returncode else b""
 
-        states = {row[2] for row in rows}
-        expected_status = (
-            "diverged"
-            if "diverged" in states
-            else "unknown"
-            if "unknown" in states
-            else "aligned"
+
+def safe_path(raw: str) -> str:
+    path = PurePosixPath(raw)
+    if (
+        not raw.strip()
+        or path.is_absolute()
+        or ".." in path.parts
+        or path.as_posix() != raw
+        or raw == "."
+    ):
+        raise KnowledgeError(f"unsafe repository path: {raw!r}")
+    return raw
+
+
+def external(meta: dict, source: str) -> list[dict]:
+    if "external_upstream" not in meta:
+        return []
+    result = []
+    for ref in texts(meta["external_upstream"], "external_upstream"):
+        match = re.fullmatch(r"([^@]+)@([0-9a-f]{40}):(.+)", ref)
+        if not match or match[1] not in REPOSITORIES:
+            raise KnowledgeError(f"invalid external_upstream: {ref}")
+        target = match[3]
+        grammar = (
+            r"(?:FX|FQ)-\d{3}"
+            if match[1] == "little-white-box-front"
+            else r"[A-Z][A-Z0-9]*-(?:A\d{2}|\d{3}(?:-\d{2})?)"
         )
-        if rows and doc.meta.get("status") != expected_status:
-            errors.append(
-                f"{relative(doc.path)}: status must be {expected_status} for its authority rows"
+        if not FORMAL_ID.fullmatch(target) and not re.fullmatch(grammar, target):
+            raise KnowledgeError(f"invalid external target: {target}")
+        result.append(
+            dict(
+                source_id=source,
+                repository=match[1],
+                revision=match[2],
+                target_id=target,
             )
+        )
+    return result
 
-        for requirement, design_id, state, support in rows:
-            authority_rows.setdefault(requirement, []).append(
-                (doc, design_id, state, support)
+
+class Snapshot:
+    def __init__(self, root: Path, ref: str | None = None):
+        self.root = root.resolve()
+        self.revision = (
+            git(root, "rev-parse", "--verify", f"{ref}^{{commit}}").decode().strip()
+            if ref
+            else None
+        )
+        self.documents = {}
+        self.requirements = {}
+        self.references = []
+        if self.revision:
+            paths = (
+                git(
+                    root,
+                    "ls-tree",
+                    "-r",
+                    "--name-only",
+                    "-z",
+                    self.revision,
+                    "--",
+                    "docs/knowledge",
+                )
+                .decode()
+                .split("\0")
             )
-            design = by_id.get(design_id)
-            if design_id not in doc.values("upstream"):
-                errors.append(
-                    f"{relative(doc.path)}: authority design {design_id} is not an upstream"
-                )
-            if design is None or design.layer != "design":
-                errors.append(
-                    f"{relative(doc.path)}: unknown authority design {design_id}"
-                )
-            elif design.meta.get("status") not in {
-                "active",
-                "blocked",
-            } or requirement not in design.values("tracks"):
-                errors.append(
-                    f"{relative(doc.path)}: authority design {design_id} does not currently track {requirement}"
-                )
-
-            evidence_ids = sorted(set(EVIDENCE_ID_RE.findall(support)))
-            if state == "aligned":
-                valid_support = []
-                for evidence_id in evidence_ids:
-                    evidence = by_id.get(evidence_id)
-                    if (
-                        evidence is not None
-                        and evidence.layer == "evidence"
-                        and evidence.meta.get("status") == "active"
-                        and evidence.meta.get("result") == "passed"
-                        and requirement in evidence.values("covers")
-                        and doc.id in evidence.values("upstream")
-                        and evidence_id in doc.values("evidence")
+        else:
+            paths = [
+                p.relative_to(root).as_posix()
+                for layer in LAYERS
+                for p in (root / "docs/knowledge" / layer).glob("*.md")
+            ]
+            for layer in LAYERS:
+                base = root / "docs/knowledge" / layer
+                for candidate in base.rglob("*.md"):
+                    relative = candidate.relative_to(base)
+                    if len(relative.parts) > 1 and not (
+                        layer == "implementation" and relative.parts[0] == "evidence"
                     ):
-                        valid_support.append(evidence_id)
-                if not valid_support:
-                    errors.append(
-                        f"{relative(doc.path)}: aligned authority {requirement} requires "
-                        "active passed evidence"
-                    )
-            elif not re.search(r"\bgap:\s*\S", support):
-                errors.append(
-                    f"{relative(doc.path)}: {state} authority {requirement} requires an explicit gap:"
+                        raise KnowledgeError(
+                            f"formal pages must be direct layer children: {candidate}"
+                        )
+        for raw in sorted(paths):
+            path = PurePosixPath(raw)
+            if (
+                len(path.parts) > 4
+                and path.parts[:2] == ("docs", "knowledge")
+                and path.parts[2] in LAYERS
+                and path.suffix == ".md"
+                and path.parts[2:4] != ("implementation", "evidence")
+            ):
+                raise KnowledgeError(
+                    f"formal pages must be direct layer children: {raw}"
                 )
-
-    authority_results: Counter[str] = Counter()
-    approved_requirements = {
-        requirement
-        for requirement, spec in requirements.items()
-        if spec.meta.get("status") == "approved"
-    }
-    for requirement in sorted(approved_requirements):
-        active_designs = [
-            doc
-            for doc in documents
-            if doc.layer == "design"
-            and doc.meta.get("status") in {"active", "blocked"}
-            and requirement in doc.values("tracks")
-        ]
-        if len(active_designs) != 1:
-            errors.append(
-                "approved requirement requires exactly one current design: "
-                f"{requirement} has {len(active_designs)}"
-            )
-
-        rows = authority_rows.get(requirement, [])
-        if len(rows) != 1:
-            errors.append(
-                f"approved requirement requires exactly one current authority row: "
-                f"{requirement} has {len(rows)}"
-            )
-            continue
-        authority_results[rows[0][2]] += 1
-    return requirements, authority_results
-
-
-def validate_links(errors: list[str]) -> int:
-    paths = [ROOT / "AGENTS.md", ROOT / "README.md"]
-    paths.extend(sorted(KNOWLEDGE.rglob("*.md")))
-    checked = 0
-    for path in paths:
-        if not path.is_file() or "templates" in path.parts:
-            continue
-        text = path.read_text(encoding="utf-8")
-        for raw_target in LINK_RE.findall(text):
-            target = raw_target.strip().split(maxsplit=1)[0].strip("<>")
-            if not target or target.startswith(("#", "http://", "https://", "mailto:")):
+            if (
+                len(path.parts) != 4
+                or path.parts[:2] != ("docs", "knowledge")
+                or path.parts[2] not in LAYERS
+                or path.suffix != ".md"
+                or path.name == "README.md"
+            ):
                 continue
-            if re.match(r"^[A-Za-z]:[\\/]", target):
-                continue
-            target = unquote(target.split("#", maxsplit=1)[0])
-            resolved = (path.parent / target).resolve()
-            checked += 1
-            if not resolved.exists():
-                errors.append(f"{relative(path)}: broken local link {raw_target}")
-    return checked
+            meta, body = frontmatter(self.read(raw))
+            identity = meta.get("id", "")
+            layer = path.parts[2]
+            if (
+                not isinstance(identity, str)
+                or not FORMAL_ID.fullmatch(identity)
+                or not identity.startswith(LAYERS[layer] + "-")
+                or path.stem != identity
+                or meta.get("layer") != layer
+            ):
+                raise KnowledgeError(f"{raw}: filename, id and layer must agree")
+            if identity in self.documents:
+                raise KnowledgeError(f"duplicate formal id: {identity}")
+            statuses = STATUSES[layer] | (
+                {"aligned", "unknown", "diverged"}
+                if layer == "implementation"
+                else set()
+            )
+            if (
+                not isinstance(meta.get("status"), str)
+                or meta["status"] not in statuses
+            ):
+                raise KnowledgeError(f"{raw}: invalid lifecycle")
+            self.documents[identity] = dict(
+                id=identity, layer=layer, path=raw, meta=meta, body=body
+            )
+            self.references.extend(external(meta, identity))
+            if layer == "spec" and meta.get("status") == "approved":
+                for requirement, definition in definitions(body):
+                    if requirement in self.requirements:
+                        raise KnowledgeError(
+                            f"duplicate approved requirement: {requirement}"
+                        )
+                    self.requirements[requirement] = dict(
+                        id=requirement,
+                        spec_id=identity,
+                        path=raw,
+                        definition=definition,
+                        text_sha256=hashlib.sha256(definition.encode()).hexdigest(),
+                    )
 
+    def read(self, path: str) -> str:
+        if self.revision:
+            return git(self.root, "show", f"{self.revision}:{path}").decode()
+        local = (self.root / safe_path(path)).resolve()
+        if not local.is_relative_to(self.root):
+            raise KnowledgeError(f"document escapes repository: {path}")
+        return local.read_text(encoding="utf-8")
 
-def validate_governance(errors: list[str]) -> None:
-    required = [
-        KNOWLEDGE / "README.md",
-        KNOWLEDGE / "archive" / "README.md",
-        KNOWLEDGE / "templates" / "README.md",
-    ]
-    for path in required:
-        if not path.is_file():
-            errors.append(f"{relative(path)}: required knowledge entry is missing")
-
-    outside = [
-        path
-        for path in DOCS.rglob("*.md")
-        if KNOWLEDGE not in path.parents and path != KNOWLEDGE
-    ]
-    if outside:
-        errors.append(
-            "markdown files outside docs/knowledge: "
-            + ", ".join(relative(path) for path in sorted(outside))
+    def export(self) -> dict:
+        return dict(
+            schema_version=1,
+            repository=REPOSITORY,
+            revision=self.revision
+            or git(self.root, "rev-parse", "HEAD").decode().strip(),
+            documents=[
+                dict(
+                    id=d["id"],
+                    layer=d["layer"],
+                    path=d["path"],
+                    status=d["meta"].get("status"),
+                )
+                for d in self.documents.values()
+            ],
+            requirements=list(self.requirements.values()),
+            external_upstream=self.references,
         )
 
-    required_text = {
-        ROOT / "AGENTS.md": ["docs/knowledge/README.md", "make knowledge-check"],
-        ROOT / "README.md": ["docs/knowledge/README.md", "make knowledge-check"],
-        ROOT / "Makefile": ["knowledge-check:"],
-    }
-    for path, needles in required_text.items():
-        if not path.is_file():
-            errors.append(f"{relative(path)}: required governance file is missing")
-            continue
-        text = path.read_text(encoding="utf-8")
-        for needle in needles:
-            if needle not in text:
-                errors.append(
-                    f"{relative(path)}: missing governance reference {needle!r}"
+
+class Knowledge:
+    def __init__(self, root: Path = ROOT):
+        self.root = root.resolve()
+        self.snapshot = Snapshot(self.root)
+        self.rows = {}
+        self.owners = {}
+        self.snapshots = {}
+        self.freshness = {}
+
+    def historical(self, commit: str) -> Snapshot:
+        if commit not in self.snapshots:
+            self.snapshots[commit] = Snapshot(self.root, commit)
+        return self.snapshots[commit]
+
+    def validate(self, *, indexes=True, evidence=True) -> None:
+        self.rows, self.owners, self.freshness = {}, {}, {}
+        docs, requirements = self.snapshot.documents, self.snapshot.requirements
+        for doc in docs.values():
+            meta, layer = doc["meta"], doc["layer"]
+            label = doc["id"]
+            if meta.get("status") not in STATUSES[layer]:
+                raise KnowledgeError(
+                    f"{label}: invalid {layer} lifecycle {meta.get('status')}"
+                )
+            if meta.get("owner") != (
+                "human" if layer in {"intent", "spec"} else "agent"
+            ):
+                raise KnowledgeError(f"{label}: invalid semantic owner")
+            if not isinstance(meta.get("title"), str) or not meta["title"].strip():
+                raise KnowledgeError(f"{label}: title must be non-blank text")
+            updated = str(meta.get("updated_at", ""))
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", updated):
+                raise KnowledgeError(
+                    f"{label}: updated_at must be an ISO calendar date"
+                )
+            try:
+                date.fromisoformat(updated)
+            except ValueError as exc:
+                raise KnowledgeError(f"{label}: invalid calendar date") from exc
+            if "role" in meta and meta["role"] != "baseline":
+                raise KnowledgeError(f"{label}: unsupported role")
+            status = meta["status"]
+            if layer == "intent" and texts(
+                meta.get("upstream"), "upstream", empty=True
+            ):
+                raise KnowledgeError(f"{label}: intent upstream must be empty")
+            if layer == "spec":
+                for upstream in texts(meta.get("upstream"), "spec upstream"):
+                    target = docs.get(upstream)
+                    if (
+                        not target
+                        or target["layer"] != "intent"
+                        or (
+                            status == "approved"
+                            and target["meta"]["status"] != "approved"
+                        )
+                    ):
+                        raise KnowledgeError(
+                            f"{label}: spec requires an approved INT upstream"
+                        )
+            if layer == "design" and status in {"active", "blocked"}:
+                if "upstream" in meta:
+                    raise KnowledgeError(
+                        f"{label}: design upstream is derived from tracks"
+                    )
+                for requirement in texts(meta.get("tracks"), "tracks"):
+                    if requirement not in requirements:
+                        raise KnowledgeError(
+                            f"{label}: tracks unknown approved requirement {requirement}"
+                        )
+            if layer == "implementation" and status == "active":
+                if {
+                    "tracks",
+                    "upstream",
+                    "evidence",
+                    "verified_commit",
+                    "verified_at",
+                    "observed_commit",
+                } & meta.keys():
+                    raise KnowledgeError(
+                        f"{label}: derived IMP fields must not be stored"
+                    )
+                for path in texts(meta.get("code_paths"), "code_paths"):
+                    local = (self.root / safe_path(path)).resolve()
+                    if not local.is_relative_to(self.root) or not local.exists():
+                        raise KnowledgeError(
+                            f"{label}: code path missing or outside repository: {path}"
+                        )
+                self.rows[label] = authority(doc["body"])
+                for requirement, design, state, detail in self.rows[label]:
+                    if requirement not in requirements or requirement in self.owners:
+                        raise KnowledgeError(
+                            f"{label}: unknown requirement or duplicate IMP owner: {requirement}"
+                        )
+                    target = docs.get(design)
+                    if (
+                        not target
+                        or target["layer"] != "design"
+                        or target["meta"]["status"] not in {"active", "blocked"}
+                        or requirement not in target["meta"].get("tracks", [])
+                    ):
+                        raise KnowledgeError(
+                            f"{label}: row design does not track {requirement}"
+                        )
+                    self.owners[requirement] = label
+            if layer == "evidence":
+                if (
+                    meta.get("result") not in RESULTS
+                    or not set(texts(meta.get("scope"), "scope")) <= SCOPES
+                ):
+                    raise KnowledgeError(f"{label}: invalid evidence result or scope")
+                texts(meta.get("commands"), "commands")
+                commit = meta.get("observed_commit", "")
+                if not isinstance(commit, str) or not SHA.fullmatch(commit):
+                    raise KnowledgeError(f"{label}: observed_commit must be a full SHA")
+                if not git(
+                    self.root,
+                    "rev-parse",
+                    "--verify",
+                    f"{commit}^{{commit}}",
+                    optional=True,
+                ):
+                    raise KnowledgeError(f"{label}: observed_commit is unavailable")
+                process = subprocess.run(
+                    [
+                        "git",
+                        "-C",
+                        str(self.root),
+                        "merge-base",
+                        "--is-ancestor",
+                        commit,
+                        "HEAD",
+                    ],
+                    capture_output=True,
+                )
+                if process.returncode:
+                    raise KnowledgeError(
+                        f"{label}: observed_commit is not an ancestor of HEAD"
+                    )
+                if status == "active":
+                    if {"upstream", "covers"} & meta.keys():
+                        raise KnowledgeError(
+                            f"{label}: EVD upstream/covers are derived from coverage"
+                        )
+                    groups = meta.get("coverage")
+                    if not isinstance(groups, list) or not groups:
+                        raise KnowledgeError(
+                            f"{label}: coverage must be a non-empty list"
+                        )
+                    seen = set()
+                    for group in groups:
+                        if not isinstance(group, dict) or set(group) != {
+                            "requirements",
+                            "paths",
+                        }:
+                            raise KnowledgeError(
+                                f"{label}: coverage group requires requirements and paths"
+                            )
+                        for requirement in texts(
+                            group["requirements"], "coverage requirements"
+                        ):
+                            if requirement not in requirements or requirement in seen:
+                                raise KnowledgeError(
+                                    f"{label}: unknown or duplicate covered requirement: {requirement}"
+                                )
+                            seen.add(requirement)
+                        for path in texts(
+                            group["paths"],
+                            "coverage paths",
+                            empty=meta["result"] != "passed",
+                        ):
+                            safe_path(path)
+                            exists = subprocess.run(
+                                [
+                                    "git",
+                                    "-C",
+                                    str(self.root),
+                                    "cat-file",
+                                    "-e",
+                                    f"{commit}:{path}",
+                                ],
+                                capture_output=True,
+                            )
+                            if exists.returncode:
+                                raise KnowledgeError(
+                                    f"{label}: input did not exist at observation: {path}"
+                                )
+                artifacts = texts(meta.get("artifacts"), "artifacts", empty=True)
+                for path in artifacts:
+                    if (
+                        not path.startswith(("https://", "http://", "/tmp/"))
+                        and not (self.root / safe_path(path)).is_file()
+                    ):
+                        raise KnowledgeError(
+                            f"{label}: artifact is not durable: {path}"
+                        )
+                if (
+                    status == "active"
+                    and meta["result"] == "passed"
+                    and artifacts
+                    and all(p.startswith("/tmp/") for p in artifacts)
+                ):
+                    raise KnowledgeError(
+                        f"{label}: passed evidence cannot use only /tmp artifacts"
+                    )
+        for requirement in requirements:
+            if requirement not in self.owners:
+                raise KnowledgeError(
+                    f"approved requirement has no current IMP owner: {requirement}"
+                )
+        if evidence:
+            for rows in self.rows.values():
+                for requirement, design, state, detail in rows:
+                    if state != "aligned":
+                        continue
+                    candidates = re.findall(r"EVD-[a-z0-9]+(?:-[a-z0-9]+)*", detail)
+                    failures = [
+                        self.support(requirement, candidate) for candidate in candidates
+                    ]
+                    if not failures or all(failures):
+                        raise KnowledgeError(
+                            f"{requirement}: aligned requires current passed coverage; {'; '.join(failures) or 'no EVD reference'}"
+                        )
+        if indexes:
+            self.indexes(write=False)
+        self.links()
+
+    def support(self, requirement: str, evidence_id: str) -> str:
+        evidence = self.snapshot.documents.get(evidence_id)
+        if not evidence or evidence["layer"] != "evidence":
+            return f"missing EVD {evidence_id}"
+        meta = evidence["meta"]
+        if meta["status"] != "active" or meta["result"] != "passed":
+            return f"{evidence_id} is not active/passed"
+        for index, group in enumerate(meta.get("coverage", [])):
+            if requirement not in group["requirements"]:
+                continue
+            key = (evidence_id, index)
+            if key not in self.freshness:
+                self.freshness[key] = self.group_changes(meta, group)
+            return self.freshness[key]
+        return f"{evidence_id} does not cover {requirement}"
+
+    def group_changes(self, meta: dict, group: dict) -> str:
+        commit, paths = meta["observed_commit"], group["paths"]
+        previous = self.historical(commit)
+        for requirement in group["requirements"]:
+            before = previous.requirements.get(requirement)
+            now = self.snapshot.requirements.get(requirement)
+            if (
+                not before
+                or not now
+                or before["text_sha256"] != now["text_sha256"]
+                or before["spec_id"] != now["spec_id"]
+            ):
+                return f"stale requirement definition: {requirement}"
+            staged = git(self.root, "show", f":{now['path']}", optional=True)
+            if not staged:
+                return f"staged requirement unavailable: {requirement}"
+            staged_meta, staged_body = frontmatter(staged.decode())
+            staged_definitions = dict(definitions(staged_body))
+            if (
+                staged_meta.get("status") != "approved"
+                or staged_meta.get("id") != now["spec_id"]
+                or staged_definitions.get(requirement) != now["definition"]
+            ):
+                return f"stale staged requirement definition: {requirement}"
+            implementation = self.snapshot.documents[self.owners[requirement]]
+            needed = list(implementation["meta"]["code_paths"])
+            historical_inputs = False
+            for doc in previous.documents.values():
+                if (
+                    doc["layer"] != "implementation"
+                    or doc["meta"].get("status") == "retired"
+                ):
+                    continue
+                try:
+                    tracked = [r[0] for r in authority(doc["body"])]
+                except KnowledgeError:
+                    tracked = doc["meta"].get("tracks", [])
+                if requirement in tracked:
+                    needed.extend(doc["meta"].get("code_paths", []))
+                    historical_inputs |= bool(doc["meta"].get("code_paths"))
+            if not historical_inputs:
+                return f"historical implementation inputs unknown: {requirement}"
+            if any(
+                not any(PurePosixPath(path).is_relative_to(prefix) for prefix in paths)
+                for path in needed
+            ):
+                return f"coverage paths narrowed or new implementation input: {requirement}"
+        changed = git(self.root, "diff", "--name-only", "-z", commit, "--", *paths)
+        changed += git(
+            self.root, "diff", "--cached", "--name-only", "-z", commit, "--", *paths
+        )
+        changed += git(
+            self.root, "ls-files", "--others", "--exclude-standard", "-z", "--", *paths
+        )
+        return (
+            f"stale input: {changed.split(bytes([0]))[0].decode()}" if changed else ""
+        )
+
+    def indexes(self, *, write: bool) -> None:
+        docs_by_id = self.snapshot.documents
+        owners = {
+            row[0]: identity for identity, rows in self.rows.items() for row in rows
+        }
+        evidence_owners = {
+            doc["id"]: {
+                owners[r]
+                for group in doc["meta"].get("coverage", [])
+                for r in group["requirements"]
+                if r in owners
+            }
+            for doc in docs_by_id.values()
+            if doc["layer"] == "evidence"
+        }
+        for layer in LAYERS:
+            path = self.root / "docs/knowledge" / layer / "README.md"
+            if not path.is_file():
+                raise KnowledgeError(f"missing layer index: {path}")
+            original = path.read_text(encoding="utf-8")
+            generated = [
+                INDEX_START,
+                "",
+                "| Page | State | Related |",
+                "| --- | --- | --- |",
+            ]
+            docs = [d for d in self.snapshot.documents.values() if d["layer"] == layer]
+            current = [
+                d
+                for d in docs
+                if d["meta"].get("status") not in {"retired", "superseded"}
+            ]
+            history = [d for d in docs if d not in current]
+            for doc in current:
+                state = doc["meta"]["status"]
+                if doc["id"] in self.rows:
+                    state += " / " + aggregate(self.rows[doc["id"]])
+                if layer == "evidence":
+                    state += " / " + doc["meta"]["result"]
+                related = set()
+                if layer == "spec":
+                    related.update(doc["meta"].get("upstream", []))
+                elif layer == "design":
+                    related.update(
+                        self.snapshot.requirements[r]["spec_id"]
+                        for r in doc["meta"].get("tracks", [])
+                        if r in self.snapshot.requirements
+                    )
+                elif layer == "implementation":
+                    related.update(row[1] for row in self.rows.get(doc["id"], []))
+                    related.update(
+                        identity
+                        for identity, consumers in evidence_owners.items()
+                        if doc["id"] in consumers
+                    )
+                elif layer == "evidence":
+                    related.update(evidence_owners[doc["id"]])
+                links = (
+                    ", ".join(
+                        f"[{identity}](../{docs_by_id[identity]['layer']}/{identity}.md)"
+                        for identity in sorted(related)
+                        if identity in docs_by_id
+                    )
+                    or "-"
+                )
+                generated.append(
+                    f"| [{doc['id']}]({doc['id']}.md) | {state} | {links} |"
+                )
+            if history:
+                generated += ["", "### History", ""]
+                generated += [f"- [{d['id']}]({d['id']}.md)" for d in history]
+            generated += ["", INDEX_END]
+            block = "\n".join(generated)
+            if original.count(INDEX_START) != 1 or original.count(INDEX_END) != 1:
+                raise KnowledgeError(f"{path}: requires one generated index block")
+            start, end = (
+                original.index(INDEX_START),
+                original.index(INDEX_END) + len(INDEX_END),
+            )
+            expected = original[:start] + block + original[end:]
+            if write:
+                path.write_text(expected, encoding="utf-8")
+            elif expected != original:
+                raise KnowledgeError(
+                    f"{path}: generated index drift; run make knowledge-index"
                 )
 
+    def links(self) -> None:
+        base = self.root / "docs/knowledge"
+        for path in base.rglob("*.md"):
+            relative = path.relative_to(base)
+            if relative.parts[0] == "archive" or relative.parts[:2] == (
+                "implementation",
+                "evidence",
+            ):
+                continue
+            if not path.resolve().is_relative_to(self.root):
+                raise KnowledgeError(f"document escapes repository: {path}")
+            text = path.read_text(encoding="utf-8")
+            body = frontmatter(text)[1] if text.startswith("---\n") else text
+            for token in MD.parse(body):
+                for child in token.children or []:
+                    if child.type not in {"link_open", "image"}:
+                        continue
+                    link = (
+                        child.attrGet("href" if child.type == "link_open" else "src")
+                        or ""
+                    )
+                    if not link or link.startswith(
+                        ("#", "https://", "http://", "mailto:", "/")
+                    ):
+                        continue
+                    from urllib.parse import unquote
 
-def check() -> int:
-    errors: list[str] = []
-    validate_governance(errors)
-    documents = formal_documents(errors)
-    by_id = validate_metadata(documents, errors)
-    validate_indexes(documents, errors)
-    requirements, authority_results = validate_graph(documents, by_id, errors)
-    link_count = validate_links(errors)
+                    target = unquote(link.split("#", 1)[0])
+                    if (
+                        not (path.parent / target).exists()
+                        and not (self.root / target).exists()
+                    ):
+                        raise KnowledgeError(f"{path}: broken local link: {link}")
 
-    if errors:
-        print("knowledge-check: FAILED", file=sys.stderr)
-        for error in errors:
-            print(f"- {error}", file=sys.stderr)
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=["check", "index", "export", "baseline"])
+    parser.add_argument("--root", type=Path, default=ROOT)
+    parser.add_argument("--ref", default="HEAD")
+    args = parser.parse_args(argv)
+    try:
+        if args.command in {"export", "baseline"}:
+            snapshot = Snapshot(args.root.resolve(), args.ref)
+            result = snapshot.export()
+            if args.command == "baseline":
+                result["implementation_rows"] = {
+                    d["id"]: authority(d["body"])
+                    for d in snapshot.documents.values()
+                    if d["layer"] == "implementation"
+                    and d["meta"].get("status") != "retired"
+                }
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
+        else:
+            knowledge = Knowledge(args.root.resolve())
+            if args.command == "index":
+                knowledge.rows = {
+                    d["id"]: authority(d["body"])
+                    for d in knowledge.snapshot.documents.values()
+                    if d["layer"] == "implementation"
+                    and d["meta"]["status"] == "active"
+                }
+                knowledge.indexes(write=True)
+            else:
+                knowledge.validate()
+                counts = Counter(
+                    row[2] for rows in knowledge.rows.values() for row in rows
+                )
+                print(
+                    f"knowledge-check: OK ({len(knowledge.snapshot.documents)} documents, {len(knowledge.owners)} requirements; {dict(counts)})"
+                )
+        return 0
+    except (KnowledgeError, OSError) as exc:
+        print(f"knowledge-check: {exc}", file=sys.stderr)
         return 1
-
-    result_summary = ", ".join(
-        f"{name}={authority_results[name]}"
-        for name in ("aligned", "diverged", "unknown")
-    )
-    print(
-        "knowledge-check: OK "
-        f"({len(documents)} formal documents, {len(requirements)} requirements, "
-        f"{link_count} local links; {result_summary})"
-    )
-    return 0
-
-
-def main(argv: list[str]) -> int:
-    if argv != ["check"]:
-        print("usage: python3 tools/knowledge_base.py check", file=sys.stderr)
-        return 2
-    return check()
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    raise SystemExit(main())

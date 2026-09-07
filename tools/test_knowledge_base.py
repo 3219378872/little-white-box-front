@@ -1,1085 +1,528 @@
-import os
-import subprocess
-import sys
-import unittest
 from pathlib import Path
-from tempfile import TemporaryDirectory
+import subprocess
+import tempfile
+import unittest
 
-from knowledge_base import requirement_definitions
+import knowledge_base as k
 
 
-CHECKER = Path(__file__).with_name("knowledge_base.py")
+class MarkdownTest(unittest.TestCase):
+    def test_ast_definitions_and_tables(self):
+        cases = [
+            ("- `FX-001`: Defined.", ["FX-001"]),
+            ("* `FX-001`：Defined.", ["FX-001"]),
+            ("id | definition\n--- | ---\nFX-001 | Defined.", ["FX-001"]),
+            (
+                "| `requirement` | definition |\n| --- | --- |\n| `FX-001` | Defined. |",
+                ["FX-001"],
+            ),
+            ("A reference to `FX-001`.", []),
+            ("| FX-001 | orphan |", []),
+            ("- `FX-001`:", []),
+            ("- `FX-001`： <!-- only a comment -->", []),
+            ("    - `FX-001`: Indented code.", []),
+            ("```md\n- `FX-001`: example\n```", []),
+            ("- ```md\n  - `FX-001`: example\n  ```", []),
+            ("> ```md\n> - `FX-001`: example\n> ```", []),
+            ("<!--\n- `FX-001`: comment\n-->", []),
+            ("<!-- unclosed\n- `FX-001`: comment", []),
+            ("`<!--`\n\n- `FX-001`: visible", ["FX-001"]),
+            ("```\n<!--\n```\n\n- `FX-001`: visible", ["FX-001"]),
+            (
+                "- Example\n\n  ~~~\n  - `FX-001`: hidden\n  ~~~\n\n- `FX-002`: visible",
+                ["FX-002"],
+            ),
+            ("- `example\n  FX-001: hidden`\n- `FX-002`: visible", ["FX-002"]),
+        ]
+        for body, expected in cases:
+            with self.subTest(body=body):
+                self.assertEqual([key for key, _ in k.definitions(body)], expected)
+
+    def test_duplicate_yaml_keys_are_rejected_at_any_depth(self):
+        for text in [
+            "id: a\nid: b",
+            "coverage:\n  - paths: []\n    paths: []",
+            "? [a, b]\n: value",
+        ]:
+            with self.subTest(text=text), self.assertRaises(k.KnowledgeError):
+                k.frontmatter("---\n" + text + "\n---\n")
+
+    def test_yaml_cannot_construct_python_objects(self):
+        with self.assertRaises(k.KnowledgeError):
+            k.frontmatter("---\na: !!python/object:object {}\n---\n")
+
+    def test_authority_uses_ast_not_examples(self):
+        table = "| requirement | design | state | evidence or gap |\n| --- | --- | --- | --- |\n| FX-001 | DES-a | unknown | gap: missing |"
+        self.assertEqual(
+            k.authority("```\n" + table + "\n```\n\n" + table)[0][0], "FX-001"
+        )
+        for bad in [
+            table + "\n\n" + table,
+            table.replace("gap: missing", ""),
+            table.replace("FX-001", "FX-001/FX-002"),
+            table.replace("DES-a", "`DES-a"),
+        ]:
+            with self.subTest(bad=bad), self.assertRaises(k.KnowledgeError):
+                k.authority(bad)
 
 
-class KnowledgeBaseFixtureTest(unittest.TestCase):
+class KnowledgeTest(unittest.TestCase):
     def setUp(self):
-        self.temporary = TemporaryDirectory()
-        self.root = Path(self.temporary.name)
-        self._write("AGENTS.md", "docs/knowledge/README.md\nmake knowledge-check\n")
-        self._write("README.md", "docs/knowledge/README.md\nmake knowledge-check\n")
-        self._write(
-            "Makefile", "knowledge-check:\n\tpython3 tools/knowledge_base.py check\n"
-        )
-        self._write("docs/knowledge/README.md", "# Router\n")
-        self._write("docs/knowledge/archive/README.md", "# Archive\n")
-        self._write("docs/knowledge/templates/README.md", "# Templates\n")
-        self._write("lib/app.dart", "void main() {}\n")
-        self._git("init")
-        self._git("config", "user.name", "Knowledge Test")
-        self._git("config", "user.email", "knowledge@example.test")
-        self._git("add", "lib/app.dart")
-        self._git("commit", "-m", "fixture source")
-        self.commit = self._git("rev-parse", "HEAD").stdout.strip()
-        self._write_valid_graph()
-
-    def tearDown(self):
-        self.temporary.cleanup()
-
-    def _write(self, relative: str, contents: str):
-        path = self.root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(contents, encoding="utf-8")
-
-    def _git(self, *args: str):
-        return subprocess.run(
-            ["git", *args],
-            cwd=self.root,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=True,
-        )
-
-    def _write_valid_graph(self):
-        docs = {
-            "intent/INT-client.md": """---
-id: INT-client
-layer: intent
-title: Client
-status: approved
-owner: human
-upstream: []
-updated_at: 2026-09-06
----
-# Client
-""",
-            "spec/SPEC-client.md": """---
-id: SPEC-client
-layer: spec
-title: Client spec
-status: approved
-owner: human
-upstream:
-  - INT-client
-updated_at: 2026-09-06
----
-# Client spec
-
-- `FX-001`: Works.
-""",
-            "design/DES-client.md": """---
-id: DES-client
-layer: design
-title: Client design
-status: active
-role: baseline
-owner: agent
-upstream:
-  - SPEC-client
-tracks:
-  - FX-001
-updated_at: 2026-09-06
----
-# Client design
-""",
-            "implementation/IMP-client.md": """---
-id: IMP-client
-layer: implementation
-title: Client implementation
-status: aligned
-owner: agent
-upstream:
-  - DES-client
-tracks:
-  - FX-001
-code_paths:
-  - lib/app.dart
-evidence:
-  - EVD-client-2026-09-06
-updated_at: 2026-09-06
----
-# Client implementation
-
-| requirement | design | state | evidence or gap |
-| --- | --- | --- | --- |
-| FX-001 | DES-client | aligned | EVD-client-2026-09-06 |
-""",
-            "evidence/EVD-client-2026-09-06.md": f"""---
-id: EVD-client-2026-09-06
-layer: evidence
-title: Client evidence
-status: active
-result: passed
-owner: agent
-upstream:
-  - IMP-client
-covers:
-  - FX-001
-scope:
-  - unit
-commands:
-  - make test
-observed_commit: {self.commit}
-updated_at: 2026-09-06
----
-# Client evidence
-""",
-        }
-        for relative, contents in docs.items():
-            self._write(f"docs/knowledge/{relative}", contents)
-        for layer in ("intent", "spec", "design", "implementation", "evidence"):
-            files = sorted((self.root / "docs/knowledge" / layer).glob("*.md"))
-            links = "\n".join(
-                f"- [{path.stem}]({path.name})"
-                for path in files
-                if path.name != "README.md"
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.run_git("init", "-q")
+        self.run_git("config", "user.name", "Knowledge tests")
+        self.run_git("config", "user.email", "knowledge@example.invalid")
+        for layer in k.LAYERS:
+            self.write(
+                "docs/knowledge/" + layer + "/README.md",
+                "# Index\n\n" + k.INDEX_START + "\n" + k.INDEX_END + "\n",
             )
-            self._write(f"docs/knowledge/{layer}/README.md", f"# {layer}\n\n{links}\n")
+        self.write("src/a.py", "a = 1\n")
+        self.write("src/b.py", "b = 1\n")
+        self.write("src/shared.py", "shared = 1\n")
+        self.document("INT-product", "intent", "approved", upstream=[])
+        self.document(
+            "SPEC-product",
+            "spec",
+            "approved",
+            upstream=["INT-product"],
+            body="- `FX-001`: Alpha.\n- `FX-002`: Beta.\n",
+        )
+        for name, requirement in [("a", "FX-001"), ("b", "FX-002")]:
+            self.document("DES-" + name, "design", "active", tracks=[requirement])
+            self.document(
+                "IMP-" + name,
+                "implementation",
+                "active",
+                code_paths=["src/" + name + ".py", "src/shared.py"],
+                body=self.row(requirement, "DES-" + name),
+            )
+        self.observed = self.commit("source and mappings")
+        self.document(
+            "EVD-proof",
+            "evidence",
+            "active",
+            observed_commit=self.observed,
+            result="passed",
+            scope=["unit"],
+            commands=["test fixture"],
+            coverage=[
+                dict(requirements=["FX-001"], paths=["src/a.py", "src/shared.py"]),
+                dict(requirements=["FX-002"], paths=["src/b.py", "src/shared.py"]),
+            ],
+        )
+        self.index()
+        self.commit("record result")
 
-    def _run(self):
-        env = dict(os.environ)
-        env["KNOWLEDGE_ROOT"] = str(self.root)
+    def write(self, path, text):
+        target = self.root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text)
+        return target
+
+    def run_git(self, *args):
         return subprocess.run(
-            [sys.executable, str(CHECKER), "check"],
-            cwd=self.root,
-            env=env,
+            ["git", "-C", str(self.root), *args],
+            check=True,
+            capture_output=True,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
+        ).stdout.strip()
+
+    def commit(self, message):
+        self.run_git("add", ".")
+        self.run_git("commit", "-qm", message)
+        return self.run_git("rev-parse", "HEAD")
+
+    def document(self, identity, layer, status, body="# Page\n", **fields):
+        meta = dict(
+            id=identity,
+            layer=layer,
+            title=identity,
+            status=status,
+            owner="human" if layer in {"intent", "spec"} else "agent",
+            updated_at="2026-09-07",
+            **fields,
+        )
+        return self.write(
+            "docs/knowledge/" + layer + "/" + identity + ".md",
+            "---\n" + k.yaml.safe_dump(meta, sort_keys=False) + "---\n" + body,
         )
 
-    def _replace(self, relative: str, old: str, new: str):
-        path = self.root / relative
-        path.write_text(
-            path.read_text(encoding="utf-8").replace(old, new), encoding="utf-8"
+    def change(self, identity, update):
+        doc = k.Snapshot(self.root).documents[identity]
+        meta = doc["meta"]
+        update(meta)
+        self.write(
+            doc["path"],
+            "---\n" + k.yaml.safe_dump(meta, sort_keys=False) + "---\n" + doc["body"],
         )
 
-    def _append(self, relative: str, contents: str):
-        path = self.root / relative
-        path.write_text(path.read_text(encoding="utf-8") + contents, encoding="utf-8")
-
-    def test_accepts_complete_graph_and_baseline_role(self):
-        result = self._run()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("aligned=1", result.stdout)
-
-    def test_rejects_missing_layer_index_entry(self):
-        self._write("docs/knowledge/design/README.md", "# design\n")
-        result = self._run()
-        self.assertIn("missing formal document DES-client.md", result.stderr)
-
-    def test_rejects_nested_readme_as_an_unindexed_formal_document(self):
-        self._write(
-            "docs/knowledge/evidence/nested/README.md",
-            f"""---
-id: EVD-hidden-2026-09-06
-layer: evidence
-title: Hidden evidence
-status: active
-result: passed
-owner: agent
-upstream:
-  - IMP-client
-covers:
-  - FX-001
-scope:
-  - unit
-commands:
-  - make test
-observed_commit: {self.commit}
-updated_at: 2026-09-06
----
-# Hidden evidence
-""",
+    def row(self, requirement, design, state="aligned"):
+        detail = "EVD-proof" if state == "aligned" else "gap: validation pending"
+        return (
+            "| requirement | design | state | evidence or gap |\n| --- | --- | --- | --- |\n"
+            + f"| {requirement} | {design} | {state} | {detail} |\n"
         )
 
-        result = self._run()
-
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn(
-            "docs/knowledge/evidence/nested/README.md: filename must match id "
-            "'EVD-hidden-2026-09-06'",
-            result.stderr,
+    def state(self, name, state):
+        doc = k.Snapshot(self.root).documents["IMP-" + name]
+        meta = doc["meta"]
+        self.write(
+            doc["path"],
+            "---\n"
+            + k.yaml.safe_dump(meta, sort_keys=False)
+            + "---\n"
+            + self.row("FX-001" if name == "a" else "FX-002", "DES-" + name, state),
         )
-        self.assertIn("missing formal document README.md", result.stderr)
-
-    def test_rejects_superseded_only_coverage(self):
-        self._replace(
-            "docs/knowledge/evidence/EVD-client-2026-09-06.md",
-            "status: active",
-            "status: superseded",
-        )
-        result = self._run()
-        self.assertIn(
-            "aligned authority FX-001 requires active passed evidence", result.stderr
-        )
-
-    def test_rejects_short_or_unknown_observed_commit(self):
-        path = "docs/knowledge/evidence/EVD-client-2026-09-06.md"
-        self._replace(path, self.commit, self.commit[:7])
-        result = self._run()
-        self.assertIn("full 40-character SHA", result.stderr)
-
-        self._replace(path, self.commit[:7], "f" * 40)
-        result = self._run()
-        self.assertIn("not an ancestor of HEAD", result.stderr)
-
-    def test_rejects_missing_evidence_scope_and_result(self):
-        path = "docs/knowledge/evidence/EVD-client-2026-09-06.md"
-        self._replace(path, "result: passed\n", "")
-        self._replace(path, "scope:\n  - unit\n", "")
-        result = self._run()
-        self.assertIn("scope must be a YAML list", result.stderr)
-        self.assertIn("invalid evidence result", result.stderr)
-
-    def test_validates_external_upstream_shape(self):
-        path = "docs/knowledge/design/DES-client.md"
-        formal = (
-            "external_upstream:\n"
-            f"  - little-white-box-content-community@{self.commit}:SPEC-community-core\n"
-        )
-        self._replace(path, "tracks:\n", formal + "tracks:\n")
-        self.assertEqual(self._run().returncode, 0)
-
-        self._replace(path, ":SPEC-community-core", ":AGENT-A01")
-        self.assertEqual(self._run().returncode, 0)
-
-        self._replace(path, ":AGENT-A01", ":REL-054-01")
-        self.assertEqual(self._run().returncode, 0)
-
-        self._replace(path, ":REL-054-01", ":not-a-contract-id")
-        result = self._run()
-        self.assertIn("invalid external_upstream", result.stderr)
-
-        self._replace(path, ":not-a-contract-id", ":SPEC-community-core")
-        self._replace(path, "little-white-box-content-community@", "backend@")
-        result = self._run()
-        self.assertIn("invalid external_upstream", result.stderr)
-
-        self._replace(
-            path,
-            f"external_upstream:\n  - backend@{self.commit}:SPEC-community-core\n",
-            "external_upstream: []\n",
-        )
-        result = self._run()
-        self.assertIn("external_upstream must not be empty", result.stderr)
-
-    def test_allows_superseded_evidence_on_retired_pointer(self):
-        self._write(
-            "docs/knowledge/implementation/IMP-history.md",
-            """---
-id: IMP-history
-layer: implementation
-title: Historical pointer
-status: retired
-owner: agent
-upstream:
-  - DES-client
-tracks: []
-code_paths: []
-evidence:
-  - EVD-history-2026-09-06
-updated_at: 2026-09-06
----
-# Historical pointer
-""",
-        )
-        self._write(
-            "docs/knowledge/evidence/EVD-history-2026-09-06.md",
-            f"""---
-id: EVD-history-2026-09-06
-layer: evidence
-title: Historical evidence
-status: superseded
-result: passed
-owner: agent
-upstream:
-  - IMP-history
-covers:
-  - FX-001
-scope:
-  - unit
-commands:
-  - make test
-observed_commit: {self.commit}
-updated_at: 2026-09-06
----
-# Historical evidence
-""",
-        )
-        self._write(
-            "docs/knowledge/implementation/README.md",
-            "# implementation\n\n"
-            "- [IMP-client](IMP-client.md)\n"
-            "- [IMP-history](IMP-history.md)\n",
-        )
-        self._write(
-            "docs/knowledge/evidence/README.md",
-            "# evidence\n\n"
-            "- [EVD-client-2026-09-06](EVD-client-2026-09-06.md)\n"
-            "- [EVD-history-2026-09-06](EVD-history-2026-09-06.md)\n",
-        )
-        self.assertEqual(self._run().returncode, 0)
-
-    def test_rejects_duplicate_current_implementation_authority(self):
-        original = self.root / "docs/knowledge/implementation/IMP-client.md"
-        duplicate = original.read_text(encoding="utf-8").replace(
-            "IMP-client", "IMP-client-copy"
-        )
-        self._write("docs/knowledge/implementation/IMP-client-copy.md", duplicate)
-        self._write(
-            "docs/knowledge/implementation/README.md",
-            "# implementation\n\n"
-            "- [IMP-client](IMP-client.md)\n"
-            "- [IMP-client-copy](IMP-client-copy.md)\n",
-        )
-        result = self._run()
-        self.assertIn("FX-001 has 2", result.stderr)
-
-    def test_rejects_duplicate_requirement_in_one_spec(self):
-        self._replace(
-            "docs/knowledge/spec/SPEC-client.md",
-            "- `FX-001`: Works.",
-            "- `FX-001`: Works.\n- `FX-001`: Declared twice.",
-        )
-
-        result = self._run()
-
-        self.assertIn("duplicate requirement FX-001 in the same spec", result.stderr)
-
-    def test_rejects_duplicate_current_design_for_approved_requirement(self):
-        original = self.root / "docs/knowledge/design/DES-client.md"
-        duplicate = original.read_text(encoding="utf-8").replace(
-            "DES-client", "DES-client-copy"
-        )
-        self._write("docs/knowledge/design/DES-client-copy.md", duplicate)
-        self._write(
-            "docs/knowledge/design/README.md",
-            "# design\n\n"
-            "- [DES-client](DES-client.md)\n"
-            "- [DES-client-copy](DES-client-copy.md)\n",
-        )
-
-        result = self._run()
-
-        self.assertIn(
-            "approved requirement requires exactly one current design: FX-001 has 2",
-            result.stderr,
-        )
-
-    def test_requires_explicit_gap_for_unknown_or_diverged_authority(self):
-        path = "docs/knowledge/implementation/IMP-client.md"
-        self._replace(path, "status: aligned", "status: unknown")
-        self._replace(
-            path,
-            "| FX-001 | DES-client | aligned | EVD-client-2026-09-06 |",
-            "| FX-001 | DES-client | unknown | no current evidence |",
-        )
-        result = self._run()
-        self.assertIn(
-            "unknown authority FX-001 requires an explicit gap:", result.stderr
-        )
-
-        self._replace(path, "no current evidence", "gap: live provider not run")
-        self.assertEqual(self._run().returncode, 0)
-
-    def test_rejects_active_passed_evidence_with_only_tmp_artifacts(self):
-        path = "docs/knowledge/evidence/EVD-client-2026-09-06.md"
-        self._replace(
-            path,
-            "commands:\n  - make test\n",
-            "commands:\n  - make test\nartifacts:\n  - /tmp/result.json\n",
-        )
-        result = self._run()
-        self.assertIn("must not rely only on /tmp artifacts", result.stderr)
-
-    def test_rejects_active_passed_evidence_after_covered_code_changes(self):
-        self._write("lib/app.dart", "void main() { print('changed'); }\n")
-        self._git("add", "lib/app.dart")
-        self._git("commit", "-m", "change covered source")
-
-        result = self._run()
-
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("stale", result.stderr)
-        self.assertIn("code_paths", result.stderr)
-        self.assertIn("lib/app.dart", result.stderr)
-
-    def test_rejects_dirty_tracked_code_path(self):
-        self._write("lib/app.dart", "void main() { print('dirty'); }\n")
-
-        result = self._run()
-
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("stale", result.stderr)
-        self.assertIn("code_paths", result.stderr)
-        self.assertIn("lib/app.dart", result.stderr)
-
-    def test_rejects_staged_code_path(self):
-        self._write("lib/app.dart", "void main() { print('staged'); }\n")
-        self._git("add", "lib/app.dart")
-
-        result = self._run()
-
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("stale", result.stderr)
-        self.assertIn("code_paths", result.stderr)
-        self.assertIn("lib/app.dart", result.stderr)
-
-    def test_rejects_untracked_file_under_code_path(self):
-        self._replace(
-            "docs/knowledge/implementation/IMP-client.md",
-            "code_paths:\n  - lib/app.dart",
-            "code_paths:\n  - lib",
-        )
-        self._write("lib/new_feature.dart", "void newFeature() {}\n")
-
-        result = self._run()
-
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("stale", result.stderr)
-        self.assertIn("code_paths", result.stderr)
-        self.assertIn("lib/new_feature.dart", result.stderr)
-
-    def test_allows_knowledge_only_changes_after_observed_commit(self):
-        self._git(
-            "add",
-            "docs/knowledge/implementation/IMP-client.md",
-            "docs/knowledge/evidence/EVD-client-2026-09-06.md",
-        )
-        self._git("commit", "-m", "record implementation and evidence")
-
-        result = self._run()
-
-        self.assertEqual(result.returncode, 0, result.stderr)
-
-    def test_freshness_uses_code_paths_declared_at_the_observed_commit(self):
-        implementation = "docs/knowledge/implementation/IMP-client.md"
-        evidence = "docs/knowledge/evidence/EVD-client-2026-09-06.md"
-        self._git("add", implementation)
-        self._git("commit", "-m", "record historical implementation paths")
-        historical_commit = self._git("rev-parse", "HEAD").stdout.strip()
-        self._replace(evidence, self.commit, historical_commit)
-
-        self._write("tools/new_guard.py", "VALUE = 1\n")
-        self._replace(
-            implementation,
-            "code_paths:\n  - lib/app.dart",
-            "code_paths:\n  - lib/app.dart\n  - tools/new_guard.py",
-        )
-        result = self._run()
-        self.assertEqual(result.returncode, 0, result.stderr)
-
-        self._git("add", implementation, "tools/new_guard.py")
-        self._git("commit", "-m", "expand implementation paths")
-        expanded_commit = self._git("rev-parse", "HEAD").stdout.strip()
-        self._replace(evidence, historical_commit, expanded_commit)
-        self._write("tools/new_guard.py", "VALUE = 2\n")
-
-        result = self._run()
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("stale", result.stderr)
-        self.assertIn("tools/new_guard.py", result.stderr)
-
-    def test_allows_dirty_implementation_and_evidence_docs(self):
-        implementation = "docs/knowledge/implementation/IMP-client.md"
-        evidence = "docs/knowledge/evidence/EVD-client-2026-09-06.md"
-        self._git("add", implementation, evidence)
-        self._git("commit", "-m", "record knowledge docs")
-        self._append(implementation, "\nImplementation note.\n")
-        self._append(evidence, "\nEvidence note.\n")
-        self._git("add", implementation)
-
-        result = self._run()
-
-        self.assertEqual(result.returncode, 0, result.stderr)
-
-    def test_rejects_blank_title_commands_and_code_paths(self):
-        cases = (
-            (
-                "title",
-                "docs/knowledge/evidence/EVD-client-2026-09-06.md",
-                "title: Client evidence",
-                'title: ""',
-            ),
-            (
-                "commands",
-                "docs/knowledge/evidence/EVD-client-2026-09-06.md",
-                "commands:\n  - make test",
-                "commands:\n  - '   '",
-            ),
-            (
-                "code_paths",
-                "docs/knowledge/implementation/IMP-client.md",
-                "code_paths:\n  - lib/app.dart",
-                "code_paths:\n  - '   '",
-            ),
-        )
-        for field, path, original, invalid in cases:
-            with self.subTest(field=field):
-                self._replace(path, original, invalid)
-                try:
-                    result = self._run()
-                    self.assertNotEqual(result.returncode, 0)
-                    self.assertIn(field, result.stderr)
-                finally:
-                    self._replace(path, invalid, original)
-
-    def test_rejects_duplicate_items_in_controlled_lists(self):
-        external = (
-            f"little-white-box-content-community@{self.commit}:SPEC-community-core"
-        )
-        cases = (
-            (
-                "upstream",
-                "docs/knowledge/design/DES-client.md",
-                "upstream:\n  - SPEC-client",
-                "upstream:\n  - SPEC-client\n  - SPEC-client",
-            ),
-            (
-                "tracks",
-                "docs/knowledge/design/DES-client.md",
-                "tracks:\n  - FX-001",
-                "tracks:\n  - FX-001\n  - FX-001",
-            ),
-            (
-                "code_paths",
-                "docs/knowledge/implementation/IMP-client.md",
-                "code_paths:\n  - lib/app.dart",
-                "code_paths:\n  - lib/app.dart\n  - lib/app.dart",
-            ),
-            (
-                "evidence",
-                "docs/knowledge/implementation/IMP-client.md",
-                "evidence:\n  - EVD-client-2026-09-06",
-                "evidence:\n  - EVD-client-2026-09-06\n  - EVD-client-2026-09-06",
-            ),
-            (
-                "covers",
-                "docs/knowledge/evidence/EVD-client-2026-09-06.md",
-                "covers:\n  - FX-001",
-                "covers:\n  - FX-001\n  - FX-001",
-            ),
-            (
-                "scope",
-                "docs/knowledge/evidence/EVD-client-2026-09-06.md",
-                "scope:\n  - unit",
-                "scope:\n  - unit\n  - unit",
-            ),
-            (
-                "commands",
-                "docs/knowledge/evidence/EVD-client-2026-09-06.md",
-                "commands:\n  - make test",
-                "commands:\n  - make test\n  - make test",
-            ),
-            (
-                "external_upstream",
-                "docs/knowledge/design/DES-client.md",
-                "tracks:",
-                f"external_upstream:\n  - {external}\n  - {external}\ntracks:",
-            ),
-        )
-        for field, path, original, invalid in cases:
-            with self.subTest(field=field):
-                self._replace(path, original, invalid)
-                try:
-                    result = self._run()
-                    self.assertNotEqual(result.returncode, 0)
-                    self.assertIn(field, result.stderr)
-                finally:
-                    self._replace(path, invalid, original)
-
-    def test_ignores_requirements_in_fences_and_html_comments(self):
-        self._append(
-            "docs/knowledge/spec/SPEC-client.md",
-            """
-
-```markdown
-- `FX-001`: Fenced example.
-```
-
-~~~markdown
-- `FX-001`: Alternate fenced example.
-~~~
-
-<!--
-- `FX-001`: Commented example.
--->
-""",
-        )
-
-        result = self._run()
-
-        self.assertEqual(result.returncode, 0, result.stderr)
-
-    def test_unclosed_comment_hides_index_entries_to_end_of_file(self):
-        self._write(
-            "docs/knowledge/design/README.md",
-            "# design\n\n<!--\n- [DES-client](DES-client.md)\n",
-        )
-
-        result = self._run()
-
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("missing formal document DES-client.md", result.stderr)
-
-    def test_fenced_comment_literal_does_not_hide_visible_requirements(self):
-        self._append(
-            "docs/knowledge/spec/SPEC-client.md",
-            """
-
-```markdown
-<!-- literal comment opener
-```
-
-- `FX-001`: Visible duplicate requirement.
--->
-""",
-        )
-
-        result = self._run()
-
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("duplicate requirement FX-001", result.stderr)
-
-    def test_prose_requirement_reference_is_not_a_definition(self):
-        self._replace(
-            "docs/knowledge/spec/SPEC-client.md",
-            "- `FX-001`: Works.",
-            "This prose merely refers to `FX-001`.",
-        )
-
-        result = self._run()
-
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("tracks not declared by upstream specs: FX-001", result.stderr)
-
-    def test_frontmatter_requirement_example_is_not_a_definition(self):
-        raw = """---
-id: SPEC-client
-examples:
-  - "- `FX-001`: Frontmatter example."
----
-# No requirements
-"""
-        self.assertEqual(requirement_definitions(raw), [])
-
-        path = "docs/knowledge/spec/SPEC-client.md"
-        self._replace(
-            path,
-            "updated_at: 2026-09-06\n---",
-            "updated_at: 2026-09-06\n"
-            "examples:\n"
-            '  - "- `FX-001`: Frontmatter example."\n'
-            "---",
-        )
-        self._replace(path, "- `FX-001`: Works.", "No formal requirements.")
-
-        result = self._run()
-
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("tracks not declared by upstream specs: FX-001", result.stderr)
-
-    def test_isolated_or_malformed_table_rows_are_not_definitions(self):
-        path = "docs/knowledge/spec/SPEC-client.md"
-        original = "- `FX-001`: Works."
-        cases = {
-            "isolated row": "| `FX-001` | Incidental reference |",
-            "unrelated header": (
-                "| reference | note |\n"
-                "| --- | --- |\n"
-                "| `FX-001` | Incidental reference |"
-            ),
-            "malformed separator": (
-                "| requirement | acceptance |\n| -- | --- |\n| `FX-001` | Works. |"
-            ),
-            "mismatched columns": (
-                "| requirement | acceptance |\n| --- |\n| `FX-001` | Works. |"
-            ),
-            "four-space indented code": (
-                "    | requirement | acceptance |\n"
-                "    | --- | --- |\n"
-                "    | `FX-001` | Code example. |"
-            ),
-            "tab-indented code": (
-                "\t| requirement | acceptance |\n"
-                "\t| --- | --- |\n"
-                "\t| `FX-001` | Code example. |"
-            ),
-            "spaces-before-tab indented code": (
-                "   \t| requirement | acceptance |\n"
-                "   \t| --- | --- |\n"
-                "   \t| `FX-001` | Code example. |"
-            ),
+        self.index()
+
+    def index(self):
+        graph = k.Knowledge(self.root)
+        graph.rows = {
+            d["id"]: k.authority(d["body"])
+            for d in graph.snapshot.documents.values()
+            if d["layer"] == "implementation" and d["meta"]["status"] == "active"
         }
-        for name, invalid in cases.items():
-            with self.subTest(case=name):
-                self._replace(path, original, invalid)
-                try:
-                    result = self._run()
-                    self.assertNotEqual(result.returncode, 0)
-                    self.assertIn(
-                        "tracks not declared by upstream specs: FX-001",
-                        result.stderr,
-                    )
-                finally:
-                    self._replace(path, invalid, original)
+        graph.indexes(write=True)
 
-    def test_valid_requirement_table_headers_define_requirements(self):
-        path = "docs/knowledge/spec/SPEC-client.md"
-        original = "- `FX-001`: Works."
-        tables = {
-            "requirement": (
-                "| requirement | acceptance |\n| --- | --- |\n| `FX-001` | Works. |"
-            ),
-            "条款": "| 条款 | 验收 |\n| --- | --- |\n| `FX-001` | Works. |",
-            "ID without outer pipes": (
-                "   ID | acceptance\n"
-                "   --- | ---\n"
-                r"   FX-001 | Works \| with an escaped pipe."
-            ),
-        }
-        for name, table in tables.items():
-            with self.subTest(case=name):
-                self._replace(path, original, table)
-                try:
-                    result = self._run()
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                finally:
-                    self._replace(path, table, original)
+    def check(self):
+        k.Knowledge(self.root).validate()
 
-    def test_rejects_malformed_requirement_bullets(self):
-        path = "docs/knowledge/spec/SPEC-client.md"
-        original = "- `FX-001`: Works."
-        cases = {
-            "unquoted id": "- FX-001: Works.",
-            "missing colon": "- `FX-001` Works.",
-            "missing definition": "- `FX-001`:",
-            "indented code": "    - `FX-001`: Code example.",
-        }
-        for name, invalid in cases.items():
-            with self.subTest(case=name):
-                self._replace(path, original, invalid)
-                try:
-                    result = self._run()
-                    self.assertNotEqual(result.returncode, 0)
-                    self.assertIn(
-                        "tracks not declared by upstream specs: FX-001",
-                        result.stderr,
-                    )
-                finally:
-                    self._replace(path, invalid, original)
-
-    def test_accepts_star_requirement_bullet(self):
-        self._replace(
-            "docs/knowledge/spec/SPEC-client.md",
-            "- `FX-001`: Works.",
-            "* `FX-001`: Works.",
+    def test_valid_graph_and_derived_indexes(self):
+        self.check()
+        self.assertIn(
+            "active / aligned",
+            (self.root / "docs/knowledge/implementation/README.md").read_text(),
         )
 
-        result = self._run()
+    def test_multiple_designs_can_track_one_requirement(self):
+        self.document("DES-other", "design", "active", tracks=["FX-001"])
+        self.index()
+        self.check()
 
-        self.assertEqual(result.returncode, 0, result.stderr)
+    def test_duplicate_implementation_owner_is_rejected(self):
+        self.document(
+            "IMP-other",
+            "implementation",
+            "active",
+            code_paths=["src/a.py"],
+            body=self.row("FX-001", "DES-a"),
+        )
+        with self.assertRaisesRegex(k.KnowledgeError, "duplicate IMP owner"):
+            self.check()
 
-    def test_inline_code_comment_literal_does_not_hide_visible_requirement(self):
-        path = "docs/knowledge/spec/SPEC-client.md"
-        original = (self.root / path).read_text(encoding="utf-8")
-        for delimiter in ("`", "``"):
-            with self.subTest(delimiter=delimiter):
-                self._append(
-                    path,
-                    f"\nThe literal {delimiter}<!--{delimiter} is not a comment.\n"
-                    "- `FX-001`: Visible duplicate requirement.\n",
+    def test_missing_implementation_owner_is_rejected(self):
+        self.change("IMP-a", lambda meta: meta.update(status="retired"))
+        with self.assertRaisesRegex(k.KnowledgeError, "no current IMP owner"):
+            self.check()
+
+    def test_design_must_track_approved_requirement(self):
+        self.change("DES-a", lambda meta: meta.update(tracks=["FX-999"]))
+        with self.assertRaisesRegex(k.KnowledgeError, "unknown approved requirement"):
+            self.check()
+
+    def test_spec_cannot_reference_design(self):
+        self.change("SPEC-product", lambda meta: meta.update(upstream=["DES-a"]))
+        with self.assertRaisesRegex(k.KnowledgeError, "INT upstream"):
+            self.check()
+
+    def test_approved_spec_cannot_use_draft_intent(self):
+        self.change("INT-product", lambda meta: meta.update(status="draft"))
+        with self.assertRaisesRegex(k.KnowledgeError, "approved INT"):
+            self.check()
+
+    def test_derived_fields_are_not_writable(self):
+        for key in ["tracks", "upstream", "evidence", "observed_commit"]:
+            with self.subTest(key=key):
+                self.change("IMP-a", lambda meta: meta.update({key: []}))
+                with self.assertRaisesRegex(k.KnowledgeError, "derived IMP"):
+                    self.check()
+                self.change("IMP-a", lambda meta: meta.pop(key))
+
+    def test_changed_group_does_not_invalidate_other_group(self):
+        self.write("src/a.py", "a = 2\n")
+        self.state("a", "unknown")
+        self.check()
+        self.state("a", "aligned")
+        with self.assertRaisesRegex(k.KnowledgeError, "FX-001.*stale input"):
+            self.check()
+
+    def test_unused_stale_evidence_does_not_block(self):
+        self.write("src/shared.py", "shared = 2\n")
+        self.state("a", "unknown")
+        self.state("b", "diverged")
+        self.check()
+
+    def test_shared_input_invalidates_each_consumer(self):
+        self.write("src/shared.py", "shared = 2\n")
+        self.state("a", "unknown")
+        with self.assertRaisesRegex(k.KnowledgeError, "FX-002.*stale input"):
+            self.check()
+
+    def test_committed_staged_and_deleted_inputs_invalidate(self):
+        self.write("src/a.py", "a = 2\n")
+        self.run_git("add", "src/a.py")
+        with self.assertRaisesRegex(k.KnowledgeError, "stale input"):
+            self.check()
+        self.commit("changed input")
+        with self.assertRaisesRegex(k.KnowledgeError, "stale input"):
+            self.check()
+        (self.root / "src/a.py").unlink()
+        with self.assertRaisesRegex(k.KnowledgeError, "code path missing"):
+            self.check()
+
+    def test_untracked_input_under_observed_directory_invalidates(self):
+        for identity in ["IMP-a", "IMP-b"]:
+            self.change(identity, lambda meta: meta.update(code_paths=["src"]))
+        self.observed = self.commit("directory inputs")
+        self.change(
+            "EVD-proof",
+            lambda meta: meta.update(
+                observed_commit=self.observed,
+                coverage=[dict(requirements=["FX-001", "FX-002"], paths=["src"])],
+            ),
+        )
+        self.index()
+        self.check()
+        self.write("src/untracked.py", "new = True\n")
+        with self.assertRaisesRegex(k.KnowledgeError, "stale input"):
+            self.check()
+
+    def test_staged_only_input_cannot_hide_behind_restored_worktree(self):
+        self.write("src/a.py", "a = 2\n")
+        self.run_git("add", "src/a.py")
+        self.write("src/a.py", "a = 1\n")
+        with self.assertRaisesRegex(k.KnowledgeError, "stale input"):
+            self.check()
+
+    def test_staged_only_requirement_change_invalidates(self):
+        path = self.root / "docs/knowledge/spec/SPEC-product.md"
+        original = path.read_text()
+        path.write_text(original.replace("Alpha.", "Changed Alpha."))
+        self.run_git("add", str(path))
+        path.write_text(original)
+        with self.assertRaisesRegex(k.KnowledgeError, "stale staged requirement"):
+            self.check()
+
+    def test_requirement_change_invalidates_only_its_group(self):
+        path = self.root / "docs/knowledge/spec/SPEC-product.md"
+        path.write_text(path.read_text().replace("Alpha.", "Changed Alpha."))
+        self.state("a", "unknown")
+        self.check()
+        self.state("a", "aligned")
+        with self.assertRaisesRegex(k.KnowledgeError, "stale requirement definition"):
+            self.check()
+
+    def test_metadata_only_changes_do_not_invalidate(self):
+        self.change("IMP-a", lambda meta: meta.update(title="Better title"))
+        self.write("docs/knowledge/README.md", "# Router\n")
+        self.check()
+
+    def test_narrowing_both_current_and_evidence_paths_is_rejected(self):
+        self.change("IMP-a", lambda meta: meta.update(code_paths=["src/a.py"]))
+        self.change(
+            "EVD-proof", lambda meta: meta["coverage"][0].update(paths=["src/a.py"])
+        )
+        with self.assertRaisesRegex(k.KnowledgeError, "paths narrowed"):
+            self.check()
+
+    def test_new_input_requires_new_evidence(self):
+        self.write("src/new.py", "new = True\n")
+        self.change("IMP-a", lambda meta: meta["code_paths"].append("src/new.py"))
+        with self.assertRaisesRegex(k.KnowledgeError, "new implementation input"):
+            self.check()
+
+    def test_partial_evidence_cannot_align_and_may_have_unknown_paths(self):
+        self.change(
+            "EVD-proof",
+            lambda meta: meta.update(
+                result="partial",
+                coverage=[dict(requirements=["FX-001", "FX-002"], paths=[])],
+            ),
+        )
+        with self.assertRaisesRegex(k.KnowledgeError, "not active/passed"):
+            self.check()
+        self.state("a", "unknown")
+        self.state("b", "unknown")
+        self.check()
+
+    def test_evidence_metadata_is_strict(self):
+        cases = [
+            ("commands", []),
+            ("scope", ["imaginary"]),
+            ("observed_commit", "HEAD"),
+            ("observed_commit", "f" * 40),
+            ("coverage", []),
+            ("artifacts", ["/tmp/result.png"]),
+        ]
+        original = k.Snapshot(self.root).documents["EVD-proof"]["meta"]
+        for key, value in cases:
+            with self.subTest(key=key, value=value):
+                self.change("EVD-proof", lambda meta: meta.update({key: value}))
+                with self.assertRaises(k.KnowledgeError):
+                    self.check()
+                self.change(
+                    "EVD-proof", lambda meta: (meta.clear(), meta.update(original))
                 )
-                try:
-                    result = self._run()
-                    self.assertNotEqual(result.returncode, 0)
-                    self.assertIn("duplicate requirement FX-001", result.stderr)
-                finally:
-                    self._write(path, original)
 
-    def test_multiline_code_span_hides_false_table_and_comment_literal(self):
-        raw = """
-Paragraph ``starts a code span
-| requirement | acceptance |
-| --- | --- |
-| FX-777 | False table definition. |
-single ` and triple ``` runs do not close it
-<!-- remains literal
-and this closes it``
-- `FX-001`: Visible requirement after the span.
-"""
+    def test_unreachable_evidence_commit_is_rejected(self):
+        blob = self.run_git("rev-parse", "HEAD^{tree}")
+        unreachable = self.run_git("commit-tree", blob, "-m", "unreachable")
+        self.change("EVD-proof", lambda meta: meta.update(observed_commit=unreachable))
+        with self.assertRaisesRegex(k.KnowledgeError, "ancestor"):
+            self.check()
 
-        self.assertEqual(requirement_definitions(raw), ["FX-001"])
+    def test_invalid_metadata_and_paths(self):
+        original = k.Snapshot(self.root).documents["IMP-a"]["meta"]
+        for values in [
+            dict(title=" "),
+            dict(owner="human"),
+            dict(updated_at="2026-02-30"),
+            dict(status="aligned"),
+            dict(code_paths=["../outside"]),
+            dict(code_paths=["src/a.py", "src/a.py"]),
+        ]:
+            with self.subTest(values=values):
+                self.change("IMP-a", lambda meta: meta.update(values))
+                with self.assertRaises(k.KnowledgeError):
+                    self.check()
+                self.change("IMP-a", lambda meta: (meta.clear(), meta.update(original)))
 
-    def test_multiline_code_span_requires_matching_delimiter_length(self):
-        cases = {
-            "`": "double `` and triple ``` runs stay literal",
-            "``": "single ` and triple ``` runs stay literal",
-            "```": "single ` and double `` runs stay literal",
+    def test_missing_observed_input_is_rejected(self):
+        self.change(
+            "EVD-proof",
+            lambda meta: meta["coverage"][0].update(paths=["src/nonexistent.py"]),
+        )
+        with self.assertRaisesRegex(k.KnowledgeError, "did not exist"):
+            self.check()
+
+    def test_index_check_never_rewrites_files(self):
+        path = self.root / "docs/knowledge/implementation/README.md"
+        path.write_text(path.read_text().replace("active / aligned", "wrong"))
+        before = path.read_bytes()
+        with self.assertRaisesRegex(k.KnowledgeError, "index drift"):
+            self.check()
+        self.assertEqual(before, path.read_bytes())
+        self.index()
+        self.check()
+
+    def test_hidden_links_do_not_need_to_exist(self):
+        self.write(
+            "docs/knowledge/README.md",
+            "# Router\n\n```\n[x](missing.md)\n```\n<!-- [x](missing.md) -->\n",
+        )
+        self.check()
+        self.write("docs/knowledge/README.md", "[x](missing.md)\n")
+        with self.assertRaisesRegex(k.KnowledgeError, "broken local link"):
+            self.check()
+
+    def test_snapshot_export_is_stable_and_ignores_worktree_changes(self):
+        first = k.Snapshot(self.root, self.observed).export()
+        self.write("docs/knowledge/spec/SPEC-product.md", "not valid current YAML\n")
+        second = k.Snapshot(self.root, self.observed).export()
+        self.assertEqual(first, second)
+        self.assertEqual(first["schema_version"], 1)
+        self.assertEqual(len(first["requirements"]), 2)
+
+    def test_nested_formal_pages_fail_in_working_and_historical_snapshots(self):
+        self.write("docs/knowledge/spec/nested/SPEC-hidden.md", "# hidden\n")
+        with self.assertRaisesRegex(k.KnowledgeError, "direct layer children"):
+            k.Snapshot(self.root)
+        commit = self.commit("nested page")
+        with self.assertRaisesRegex(k.KnowledgeError, "direct layer children"):
+            k.Snapshot(self.root, commit)
+
+    def test_legacy_nested_evidence_is_not_exported(self):
+        self.write("docs/knowledge/implementation/evidence/EVD-legacy.md", "# legacy\n")
+        commit = self.commit("legacy evidence")
+        self.assertNotIn("EVD-legacy", k.Snapshot(self.root, commit).documents)
+
+    def test_historical_inputs_unknown_cannot_support_aligned(self):
+        self.change("IMP-a", lambda meta: meta.pop("code_paths"))
+        observed = self.commit("historical inputs unavailable")
+        self.change(
+            "IMP-a", lambda meta: meta.update(code_paths=["src/a.py", "src/shared.py"])
+        )
+        self.change("EVD-proof", lambda meta: meta.update(observed_commit=observed))
+        with self.assertRaisesRegex(
+            k.KnowledgeError, "historical implementation inputs unknown"
+        ):
+            self.check()
+
+    def test_check_is_idempotent_and_read_only(self):
+        before = {
+            p.relative_to(self.root): p.read_bytes()
+            for p in (self.root / "docs").rglob("*.md")
         }
-        for delimiter, mismatched_runs in cases.items():
-            with self.subTest(delimiter=delimiter):
-                raw = f"""
-Paragraph {delimiter}starts a code span
-{mismatched_runs}
-<!-- remains literal
-and this closes it{delimiter}
-- `FX-001`: Visible requirement after the span.
-"""
-                self.assertEqual(requirement_definitions(raw), ["FX-001"])
+        self.check()
+        self.check()
+        after = {
+            p.relative_to(self.root): p.read_bytes()
+            for p in (self.root / "docs").rglob("*.md")
+        }
+        self.assertEqual(before, after)
+        self.assertEqual(self.run_git("status", "--porcelain"), "")
 
-    def test_multiline_code_span_can_close_in_the_same_list_item(self):
-        cases = {
-            "unordered": (
-                "- Context ``starts a code span\n"
-                "  <!-- remains literal on a continuation line\n"
-                "  and this closes it`` outside the span."
+    def test_source_and_formal_page_cannot_escape_through_symlink(self):
+        with tempfile.TemporaryDirectory() as outside:
+            external = Path(outside) / "file.md"
+            external.write_text("# outside\n")
+            (self.root / "src/escape").symlink_to(external)
+            self.change("IMP-a", lambda meta: meta.update(code_paths=["src/escape"]))
+            with self.assertRaisesRegex(k.KnowledgeError, "outside repository"):
+                self.check()
+            (self.root / "docs/knowledge/spec/SPEC-escape.md").symlink_to(external)
+            with self.assertRaisesRegex(k.KnowledgeError, "escapes repository"):
+                k.Snapshot(self.root)
+
+    def test_export_rejects_invalid_snapshot_metadata(self):
+        self.change("SPEC-product", lambda meta: meta.update(status=["approved"]))
+        observed = self.commit("malformed metadata")
+        with self.assertRaisesRegex(k.KnowledgeError, "invalid lifecycle"):
+            k.Snapshot(self.root, observed).export()
+
+    def test_generated_indexes_expose_both_directions(self):
+        implementation = (
+            self.root / "docs/knowledge/implementation/README.md"
+        ).read_text()
+        evidence = (self.root / "docs/knowledge/evidence/README.md").read_text()
+        design = (self.root / "docs/knowledge/design/README.md").read_text()
+        self.assertIn("[EVD-proof](../evidence/EVD-proof.md)", implementation)
+        self.assertIn("[IMP-a](../implementation/IMP-a.md)", evidence)
+        self.assertIn("[SPEC-product](../spec/SPEC-product.md)", design)
+
+    def test_historical_metadata_requires_no_current_schema_migration(self):
+        self.change(
+            "IMP-a",
+            lambda meta: meta.update(
+                status="aligned",
+                tracks=["FX-001"],
+                upstream=["DES-a"],
+                evidence=["EVD-proof"],
             ),
-            "ordered": (
-                "1. Context ``starts a code span\n"
-                "   <!-- remains literal on a continuation line\n"
-                "   and this closes it`` outside the span."
-            ),
-        }
-        for name, item in cases.items():
-            with self.subTest(container=name):
-                raw = f"{item}\n- `FX-001`: Visible requirement after the item.\n"
-                self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_multiline_span_does_not_promote_a_closing_line_suffix(self):
-        raw = """
-Paragraph ``starts a code span
-``- `FX-777`: This suffix is still paragraph text.
-- `FX-001`: Visible requirement on the next line.
-"""
-
-        self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_unclosed_multiline_span_stops_at_markdown_block_boundaries(self):
-        cases = {
-            "blank line": "",
-            "ATX heading": "# New section",
-            "Setext heading": "New section\n---",
-            "backtick fence": "```markdown\n<!-- literal in fence\n```",
-            "tilde fence": "~~~markdown\n<!-- literal in fence\n~~~",
-        }
-        for name, boundary in cases.items():
-            with self.subTest(boundary=name):
-                raw = f"""
-Paragraph ``has no close in this block
-{boundary}
-- `FX-001`: Visible requirement in a later block.
-The later `` delimiter cannot close the earlier opener.
-"""
-                self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_invalid_backtick_fence_line_cannot_start_a_multiline_span(self):
-        raw = """
-```markdown`invalid fence info
-- `FX-001`: Visible requirement after the invalid fence line.
-The later ``` run cannot close the invalid fence marker.
-"""
-
-        self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_ignores_definitions_in_unordered_and_ordered_list_fences(self):
-        cases = {
-            "unordered tilde": """- ~~~markdown
-  - `FX-777`: False bullet definition.
-  | requirement | acceptance |
-  | --- | --- |
-  | FX-778 | False table definition. |
-  ~~~""",
-            "ordered backtick": """1. ```markdown
-   - `FX-777`: False bullet definition.
-   | requirement | acceptance |
-   | --- | --- |
-   | FX-778 | False table definition. |
-   ```""",
-        }
-        for name, fenced_example in cases.items():
-            with self.subTest(container=name):
-                raw = f"{fenced_example}\n- `FX-001`: Visible requirement.\n"
-                self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_ignores_definitions_in_list_continuation_fences(self):
-        cases = {
-            "unordered tilde": """- Example:
-  ~~~markdown
-  - `FX-777`: False definition.
-  ~~~""",
-            "ordered backtick": """1. Example:
-   ```markdown
-   - `FX-777`: False definition.
-   ```""",
-            "quoted list": """> - Example:
->   ~~~markdown
->   - `FX-777`: False definition.
->   ~~~""",
-        }
-        for name, fenced_example in cases.items():
-            with self.subTest(container=name):
-                raw = f"{fenced_example}\n- `FX-001`: Visible requirement.\n"
-                self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_bare_list_marker_owns_a_continuation_fence(self):
-        raw = """-
-  ```markdown
-  - `FX-777`: False definition.
-  ```
-- `FX-001`: Visible requirement.
-"""
-
-        self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_list_backtick_fence_ignores_same_length_run_in_content(self):
-        raw = """1. ```markdown
-   A same-length ``` run in content is not a closing fence.
-   - `FX-777`: False bullet definition.
-   ```
-- `FX-001`: Visible requirement after the fence.
-"""
-
-        self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_unclosed_list_fence_stops_at_the_container_boundary(self):
-        cases = {
-            "unordered sibling": """- ~~~markdown
-  - `FX-777`: False definition.""",
-            "ordered sibling": """1. ~~~markdown
-   - `FX-777`: False definition.
-2. A sibling item ends the unclosed fence.""",
-        }
-        for name, fenced_example in cases.items():
-            with self.subTest(container=name):
-                raw = f"{fenced_example}\n- `FX-001`: Visible requirement.\n"
-                self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_unclosed_list_continuation_fence_stops_at_a_sibling(self):
-        cases = {
-            "unordered": """- Example:
-  ~~~markdown
-  - `FX-777`: False definition.""",
-            "ordered": """1. Example:
-   ```markdown
-   - `FX-777`: False definition.
-2. The sibling ends the fence.""",
-        }
-        for name, fenced_example in cases.items():
-            with self.subTest(container=name):
-                raw = f"{fenced_example}\n- `FX-001`: Visible requirement.\n"
-                self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_blockquote_container_fences_keep_comment_markers_literal(self):
-        cases = {
-            "closed quote": "> ~~~markdown\n> <!-- literal\n> ~~~",
-            "unclosed quote": "> ~~~markdown\n> <!-- literal",
-            "quoted list": "> - ~~~markdown\n>   <!-- literal\n>   ~~~",
-        }
-        for name, fenced_example in cases.items():
-            with self.subTest(container=name):
-                raw = f"{fenced_example}\n- `FX-001`: Visible requirement.\n"
-                self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_unclosed_list_item_span_stops_before_a_sibling_item(self):
-        cases = {
-            "unordered opener": "- Context ``has no close in this item",
-            "ordered opener": "1. Context ``has no close in this item",
-        }
-        for name, opener in cases.items():
-            with self.subTest(container=name):
-                raw = f"""{opener}
-- `FX-001`: Visible requirement in a sibling item.
-Paragraph with the later `` exact run.
-"""
-                self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_unclosed_top_level_span_stops_before_a_list_item(self):
-        raw = """Paragraph `has no close in this block
-- `FX-001`: Visible requirement in a new list.
-Paragraph with the later ` exact run.
-"""
-
-        self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_unclosed_list_item_span_stops_before_a_nested_item(self):
-        raw = """- Context `has no close in this item
-  - `FX-001`: Visible requirement in a nested item.
-Paragraph with the later ` exact run.
-"""
-
-        self.assertEqual(requirement_definitions(raw), ["FX-001"])
-
-    def test_ignores_authority_shaped_rows_outside_the_authority_table(self):
-        self._append(
-            "docs/knowledge/implementation/IMP-client.md",
-            """
-
-```markdown
-| FX-001 | DES-client | aligned | EVD-client-2026-09-06 |
-```
-
-<!-- | FX-001 | DES-client | aligned | EVD-client-2026-09-06 | -->
-
-| FX-001 | DES-client | aligned | EVD-client-2026-09-06 |
-""",
+        )
+        historical = self.commit("old shape")
+        self.assertIn(
+            "IMP-a",
+            {d["id"] for d in k.Snapshot(self.root, historical).export()["documents"]},
         )
 
-        result = self._run()
-
-        self.assertEqual(result.returncode, 0, result.stderr)
-
-    def test_ignores_index_links_in_fences_and_html_comments(self):
-        self._append(
-            "docs/knowledge/design/README.md",
-            """
-
-```markdown
-- [fenced duplicate](DES-client.md)
-```
-
-<!-- [commented duplicate](DES-client.md) -->
-""",
+    def test_external_references_are_versioned_and_repository_typed(self):
+        valid = f"little-white-box-front@{self.observed}:FX-001"
+        self.assertEqual(
+            k.external(dict(external_upstream=[valid]), "DES-a")[0]["target_id"],
+            "FX-001",
         )
-
-        result = self._run()
-
-        self.assertEqual(result.returncode, 0, result.stderr)
-
-    def test_rejects_missing_duplicate_or_malformed_authority_table(self):
-        path = "docs/knowledge/implementation/IMP-client.md"
-        header = "| requirement | design | state | evidence or gap |"
-        separator = "| --- | --- | --- | --- |"
-        table = (
-            f"{header}\n{separator}\n"
-            "| FX-001 | DES-client | aligned | EVD-client-2026-09-06 |"
-        )
-        cases = (
-            ("missing", header, "Authority matrix"),
-            ("duplicate", table, f"{table}\n\n{table}"),
-            ("malformed separator", separator, "| --- | -- | --- | --- |"),
-        )
-        for name, original, invalid in cases:
-            with self.subTest(case=name):
-                self._replace(path, original, invalid)
-                try:
-                    result = self._run()
-                    self.assertNotEqual(result.returncode, 0)
-                    self.assertIn("authority table", result.stderr)
-                finally:
-                    self._replace(path, invalid, original)
+        for value in [
+            [],
+            [valid, valid],
+            ["repo@HEAD:FX-001"],
+            [valid.replace("FX-001", "CORE-001")],
+        ]:
+            with self.subTest(value=value), self.assertRaises(k.KnowledgeError):
+                k.external(dict(external_upstream=value), "DES-a")
 
 
 if __name__ == "__main__":

@@ -5,12 +5,10 @@ title: 客户端展示系统与视觉迁移设计
 status: active
 role: baseline
 owner: agent
-upstream:
-  - SPEC-client-engineering
 tracks:
-  - FQ-004
-  - FQ-005
-  - FQ-009
+- FQ-004
+- FQ-005
+- FQ-009
 updated_at: 2026-09-06
 ---
 

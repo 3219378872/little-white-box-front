@@ -5,43 +5,41 @@ title: Assistant 虚拟线程与研究交互设计
 status: active
 role: baseline
 owner: agent
-upstream:
-  - SPEC-client-experience
 external_upstream:
-  - little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-assistant-agent
-  - little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-agent-memory
-  - little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-agent-watch
+- little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-assistant-agent
+- little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-agent-memory
+- little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-agent-watch
 tracks:
-  - FX-050
-  - FX-051
-  - FX-052
-  - FX-053
-  - FX-054
-  - FX-055
-  - FX-056
-  - FX-057
-  - FX-058
-  - FX-059
-  - FX-080
-  - FX-081
-  - FX-082
-  - FX-083
-  - FX-084
-  - FX-085
-  - FX-086
-  - FX-087
-  - FX-088
-  - FX-089
-  - FX-090
-  - FX-091
-  - FX-092
-  - FX-093
-  - FX-094
-  - FX-095
-  - FX-096
-  - FX-097
-  - FX-098
-  - FX-099
+- FX-050
+- FX-051
+- FX-052
+- FX-053
+- FX-054
+- FX-055
+- FX-056
+- FX-057
+- FX-058
+- FX-059
+- FX-080
+- FX-081
+- FX-082
+- FX-083
+- FX-084
+- FX-085
+- FX-086
+- FX-087
+- FX-088
+- FX-089
+- FX-090
+- FX-091
+- FX-092
+- FX-093
+- FX-094
+- FX-095
+- FX-096
+- FX-097
+- FX-098
+- FX-099
 updated_at: 2026-09-06
 ---
 

@@ -18,11 +18,11 @@
   `draft`，不得标为 `approved`；停用使用 `retired`。
 - 只有 `approved` 意图/规格及其 `active`/`blocked` 设计约束未来实现。`role: baseline` 只表示现状
   投影，不是 lifecycle。源码、配置、依赖锁、生成契约和测试是
-  当前事实；偏离设计时将实现标记 `diverged`，不得反向修改上层掩盖差异。
+  当前事实；偏离设计时将对应实现条款行标记 `diverged`，不得反向修改上层掩盖差异。
 - 修改行为时先定位规格条款，再读设计、实现和最近证据；完成后同步实现映射和带日期证据，保持实现与
   证据双向引用。先提交被验证变更，再在该提交运行声明命令，以后续证据提交记录结果，避免自指。
-- 历史 `passed` 证据不能自动证明当前 HEAD；`aligned` 必须引用当前 `active/passed` EVD，
-  `unknown/diverged` 必须登记明确 gap。
+- IMP 页头只记录 `active/retired`；引用、反向关系与聚合状态由工具推导。历史 `passed` 不证明当前 HEAD；
+  `aligned` 必须由仍有效的 EVD 覆盖组支持，`unknown/diverged` 必须登记 gap，无关组不连带失效。
 - `docs/knowledge/archive/` 仅为历史快照。涉及接口语义时还要重新核对同级后端仓库的当前意图、规格和
   生成契约，不能以归档联调文档代替。
 
@@ -46,6 +46,8 @@
 ## 命令入口
 
 - `make setup`：解析 Flutter 依赖。
+- `make knowledge-setup`：安装隔离的知识工具依赖；`make knowledge-index`：更新生成索引。
+- `make knowledge-export REF=<sha>`：只读导出指定 Git 快照的 JSON 清单。
 - `make analyze`：运行静态分析。
 - `make test`：运行测试套件。
 - `make tools-test`：运行仓库维护工具单测。

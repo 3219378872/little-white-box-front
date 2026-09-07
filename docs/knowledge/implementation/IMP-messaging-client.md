@@ -2,19 +2,11 @@
 id: IMP-messaging-client
 layer: implementation
 title: 一对一私信实现映射
-status: diverged
+status: active
 owner: agent
-upstream:
-  - DES-messaging-client
-tracks:
-  - FX-040
-  - FX-041
 code_paths:
-  - lib/features/message
-  - test/features/message
-evidence:
-  - EVD-knowledge-graph-refactor-2026-09-06
-  - EVD-audit-remediation-client-2026-08-31
+- lib/features/message
+- test/features/message
 updated_at: 2026-09-06
 ---
 

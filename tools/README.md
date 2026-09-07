@@ -40,40 +40,15 @@ for the writing sync command.
 
 ## Knowledge validation
 
-`knowledge_base.py` validates the five-layer knowledge graph, including formal
-IDs and lifecycle values, external reference syntax, complete layer indexes,
-requirement ownership, code paths, authority rows, evidence result/scope/SHA,
-reciprocal implementation/evidence references, and local Markdown links.
+Run `make knowledge-setup` once to install pinned YAML and Markdown parsers in
+`.venv-knowledge`. `make knowledge-check` is read-only; `make knowledge-index`
+explicitly updates generated index blocks. `make knowledge-export REF=<sha>` emits
+versioned JSON from Git blobs without executing historical scripts.
 
-Titles and every item in the controlled list fields (`upstream`, `tracks`,
-`code_paths`, `evidence`, `covers`, `scope`, `commands`, and optional
-`external_upstream`) must contain non-whitespace text; list items must be
-unique. Requirements, layer-index links, and implementation authority are read
-from semantic Markdown, so fenced examples, HTML comments, and definition-shaped
-lines inside multiline code spans do not contribute to the graph. Fences inside
-blockquotes and list items are bound to their quote depth and visual list-content
-indentation, including fences opened on a list continuation line; leaving that
-container ends an unclosed fence. Multiline code spans require an exact
-backtick-run match within the same Markdown block; blank lines, headings, fence
-openings, and nested or sibling list items stop the match as applicable.
-Backtick fence-shaped lines with invalid info strings cannot seed a multiline
-match. Each non-retired implementation must contain exactly one authority table
-with the canonical four-column header followed by a valid Markdown separator;
-only its consecutive data rows are authoritative.
+The implementation matrix is the sole hand-maintained ownership/state record.
+Evidence stores independent requirement/input groups; only changed groups stop
+supporting current aligned rows. Historical results and explicit gaps are retained.
+See [the knowledge contract](../docs/knowledge/README.md) for the authoring rules.
 
-For active passed evidence, the checker also diffs every upstream
-implementation's `code_paths` as declared at `observed_commit` through `HEAD`.
-For compatibility, it uses the current declaration only when that older commit
-predates the implementation page. A later committed, unstaged, staged, or
-untracked change under those paths makes the evidence stale, while implementation
-or evidence documentation-only changes do not.
-
-Run it through the repository command surface:
-
-```bash
-make knowledge-test
-make knowledge-check
-```
-
-`make check BACKEND_API=...` composes static analysis, Flutter and tool tests,
-the knowledge graph, and non-writing SDK drift detection.
+`make knowledge-test` exercises parsers, graph ownership, snapshots, and evidence
+invalidation. `make check BACKEND_API=...` retains the application and SDK gates.

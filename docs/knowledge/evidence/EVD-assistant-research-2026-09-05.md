@@ -5,15 +5,23 @@ title: Assistant 问答与原文卡片工程验收
 status: active
 result: partial
 owner: agent
-upstream:
-  - IMP-client-platform
-  - IMP-assistant-client
-  - IMP-presentation-client
-covers:
+scope:
+- static
+- unit
+- integration
+- e2e
+- browser
+- live-provider
+commands:
+- make analyze
+- make test
+observed_commit: 7ab3de27c0ec7ff0c86bb16de2ec752d66f5c280
+updated_at: 2026-09-05
+coverage:
+- requirements:
   - FX-051
   - FX-056
   - FX-059
-  - FX-070
   - FX-084
   - FX-089
   - FX-090
@@ -23,24 +31,18 @@ covers:
   - FX-097
   - FX-098
   - FX-099
+  paths: []
+- requirements:
+  - FX-070
   - FQ-002
-  - FQ-004
-  - FQ-005
   - FQ-006
   - FQ-007
   - FQ-008
-scope:
-  - static
-  - unit
-  - integration
-  - e2e
-  - browser
-  - live-provider
-commands:
-  - make analyze
-  - make test
-observed_commit: 7ab3de27c0ec7ff0c86bb16de2ec752d66f5c280
-updated_at: 2026-09-05
+  paths: []
+- requirements:
+  - FQ-004
+  - FQ-005
+  paths: []
 ---
 
 # Assistant 问答与原文卡片工程验收
@@ -90,3 +92,7 @@ updated_at: 2026-09-05
 已尝试 `flutter build linux --release -t lib/main_mock.dart`，因环境缺少 CMake 停止；原生外链与
 物理移动设备尚未验收，不能以 Web 结果替代。当前条款结论按领域 IMP 分别登记；本页保持
 `active/partial`，不再用整体状态覆盖局部差异。
+
+## 覆盖元数据迁移
+
+观察提交未保存完整输入路径；空的 `coverage.paths` 表示未知，不可用作当前 `aligned` 证明。原观察提交、命令及结果未改写。

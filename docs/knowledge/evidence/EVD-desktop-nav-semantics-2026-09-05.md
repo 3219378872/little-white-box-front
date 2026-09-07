@@ -5,24 +5,25 @@ title: 桌面导航与中文辅助语义验证 2026-09-05
 status: active
 result: partial
 owner: agent
-upstream:
-  - IMP-client-platform
-  - IMP-presentation-client
-covers:
-  - FQ-004
-  - FQ-005
-  - FQ-007
-  - FQ-008
 scope:
-  - static
-  - unit
-  - browser
+- static
+- unit
+- browser
 commands:
-  - make analyze
-  - make test
-  - make knowledge-check
+- make analyze
+- make test
+- make knowledge-check
 observed_commit: b8c309cc9608eb8c32a43e69c35ba1932bf6e70c
 updated_at: 2026-09-05
+coverage:
+- requirements:
+  - FQ-004
+  - FQ-005
+  paths: []
+- requirements:
+  - FQ-007
+  - FQ-008
+  paths: []
 ---
 
 # 桌面导航与中文辅助语义验证 2026-09-05
@@ -96,3 +97,7 @@ Chrome，主动启用 Flutter accessibility 后得到：
 - Mock release Web 证明本地路由与语义交互，不证明真实网关、外部 provider、production profile、
   数据迁移或生产流量行为；这些边界未因本次前端语义改动扩大。
 - 本轮未改变移动底部导航的现有语义结构；证据只覆盖本次修复的桌面侧栏和全局中文辅助语义。
+
+## 覆盖元数据迁移
+
+观察提交未保存完整输入路径；空的 `coverage.paths` 表示未知，不可用作当前 `aligned` 证明。原观察提交、命令及结果未改写。

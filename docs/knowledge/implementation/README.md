@@ -1,19 +1,21 @@
 # 实现层
 
-实现层把当前设计逐条映射到源码和证据。每条 approved requirement 在所有非 retired IMP 中必须恰好
-出现一行权威矩阵；`aligned` 需要当前 `active/passed` 证据，`unknown` 或 `diverged` 必须写明确 gap。
-提交观察只属于 EVD，不进入 IMP frontmatter。
+本页清单由 `make knowledge-index` 生成；治理规则见[知识总路由](../README.md)。
 
-当前实现：
+<!-- knowledge-index:start -->
 
-- [IMP-client-platform](IMP-client-platform.md)：应用壳、身份、传输、SDK 与通用状态。
-- [IMP-community-client](IMP-community-client.md)：发现、内容、互动与行为队列。
-- [IMP-messaging-client](IMP-messaging-client.md)：一对一私信。
-- [IMP-assistant-client](IMP-assistant-client.md)：Assistant、Memory、Watch 与研究交互。
-- [IMP-presentation-client](IMP-presentation-client.md)：主题、共享控件与全页面展示。
+| Page | State | Related |
+| --- | --- | --- |
+| [IMP-assistant-client](IMP-assistant-client.md) | active / unknown | [DES-assistant-client](../design/DES-assistant-client.md), [EVD-assistant-research-2026-09-05](../evidence/EVD-assistant-research-2026-09-05.md), [EVD-audit-remediation-client-2026-08-31](../evidence/EVD-audit-remediation-client-2026-08-31.md), [EVD-code-quality-hardening-2026-09-05](../evidence/EVD-code-quality-hardening-2026-09-05.md), [EVD-heybox-presentation-2026-09-06](../evidence/EVD-heybox-presentation-2026-09-06.md), [EVD-knowledge-graph-refactor-2026-09-06](../evidence/EVD-knowledge-graph-refactor-2026-09-06.md) |
+| [IMP-client-platform](IMP-client-platform.md) | active / unknown | [DES-client-platform](../design/DES-client-platform.md), [EVD-assistant-research-2026-09-05](../evidence/EVD-assistant-research-2026-09-05.md), [EVD-audit-remediation-client-2026-08-31](../evidence/EVD-audit-remediation-client-2026-08-31.md), [EVD-code-quality-hardening-2026-09-05](../evidence/EVD-code-quality-hardening-2026-09-05.md), [EVD-desktop-nav-semantics-2026-09-05](../evidence/EVD-desktop-nav-semantics-2026-09-05.md), [EVD-knowledge-graph-refactor-2026-09-06](../evidence/EVD-knowledge-graph-refactor-2026-09-06.md) |
+| [IMP-community-client](IMP-community-client.md) | active / aligned | [DES-community-client](../design/DES-community-client.md), [EVD-audit-remediation-client-2026-08-31](../evidence/EVD-audit-remediation-client-2026-08-31.md), [EVD-code-quality-hardening-2026-09-05](../evidence/EVD-code-quality-hardening-2026-09-05.md), [EVD-heybox-presentation-2026-09-06](../evidence/EVD-heybox-presentation-2026-09-06.md), [EVD-knowledge-graph-refactor-2026-09-06](../evidence/EVD-knowledge-graph-refactor-2026-09-06.md) |
+| [IMP-messaging-client](IMP-messaging-client.md) | active / diverged | [DES-messaging-client](../design/DES-messaging-client.md), [EVD-audit-remediation-client-2026-08-31](../evidence/EVD-audit-remediation-client-2026-08-31.md), [EVD-knowledge-graph-refactor-2026-09-06](../evidence/EVD-knowledge-graph-refactor-2026-09-06.md) |
+| [IMP-presentation-client](IMP-presentation-client.md) | active / unknown | [DES-presentation-client](../design/DES-presentation-client.md), [EVD-assistant-research-2026-09-05](../evidence/EVD-assistant-research-2026-09-05.md), [EVD-desktop-nav-semantics-2026-09-05](../evidence/EVD-desktop-nav-semantics-2026-09-05.md), [EVD-heybox-presentation-2026-09-06](../evidence/EVD-heybox-presentation-2026-09-06.md), [EVD-knowledge-graph-refactor-2026-09-06](../evidence/EVD-knowledge-graph-refactor-2026-09-06.md) |
 
-历史稳定 ID 指针：
+### History
 
 - [IMP-flutter-client](IMP-flutter-client.md)
 - [IMP-forui-ui](IMP-forui-ui.md)
 - [IMP-heybox-presentation](IMP-heybox-presentation.md)
+
+<!-- knowledge-index:end -->

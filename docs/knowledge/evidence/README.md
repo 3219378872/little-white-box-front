@@ -1,22 +1,19 @@
 # 证据层
 
-EVD 的 lifecycle 是 `active` 或 `superseded`，实际结果另记为 `passed/partial/failed/blocked`。证据必须
-记录完整祖先提交、实际命令和范围；历史 passed 不自动证明当前 HEAD，Mock、浏览器、设备、真实服务与
-生产观察也不能互相替代。
+本页清单由 `make knowledge-index` 生成；治理规则见[知识总路由](../README.md)。
 
-当前通过证据：
+<!-- knowledge-index:start -->
 
-- [EVD-knowledge-graph-refactor-2026-09-06](EVD-knowledge-graph-refactor-2026-09-06.md)
+| Page | State | Related |
+| --- | --- | --- |
+| [EVD-assistant-research-2026-09-05](EVD-assistant-research-2026-09-05.md) | active / partial | [IMP-assistant-client](../implementation/IMP-assistant-client.md), [IMP-client-platform](../implementation/IMP-client-platform.md), [IMP-presentation-client](../implementation/IMP-presentation-client.md) |
+| [EVD-audit-remediation-client-2026-08-31](EVD-audit-remediation-client-2026-08-31.md) | active / partial | [IMP-assistant-client](../implementation/IMP-assistant-client.md), [IMP-client-platform](../implementation/IMP-client-platform.md), [IMP-community-client](../implementation/IMP-community-client.md), [IMP-messaging-client](../implementation/IMP-messaging-client.md) |
+| [EVD-code-quality-hardening-2026-09-05](EVD-code-quality-hardening-2026-09-05.md) | active / partial | [IMP-assistant-client](../implementation/IMP-assistant-client.md), [IMP-client-platform](../implementation/IMP-client-platform.md), [IMP-community-client](../implementation/IMP-community-client.md) |
+| [EVD-desktop-nav-semantics-2026-09-05](EVD-desktop-nav-semantics-2026-09-05.md) | active / partial | [IMP-client-platform](../implementation/IMP-client-platform.md), [IMP-presentation-client](../implementation/IMP-presentation-client.md) |
+| [EVD-heybox-presentation-2026-09-06](EVD-heybox-presentation-2026-09-06.md) | active / partial | [IMP-assistant-client](../implementation/IMP-assistant-client.md), [IMP-community-client](../implementation/IMP-community-client.md), [IMP-presentation-client](../implementation/IMP-presentation-client.md) |
+| [EVD-knowledge-graph-refactor-2026-09-06](EVD-knowledge-graph-refactor-2026-09-06.md) | active / passed | [IMP-assistant-client](../implementation/IMP-assistant-client.md), [IMP-client-platform](../implementation/IMP-client-platform.md), [IMP-community-client](../implementation/IMP-community-client.md), [IMP-messaging-client](../implementation/IMP-messaging-client.md), [IMP-presentation-client](../implementation/IMP-presentation-client.md) |
 
-当前部分证据：
-
-- [EVD-assistant-research-2026-09-05](EVD-assistant-research-2026-09-05.md)
-- [EVD-audit-remediation-client-2026-08-31](EVD-audit-remediation-client-2026-08-31.md)
-- [EVD-code-quality-hardening-2026-09-05](EVD-code-quality-hardening-2026-09-05.md)
-- [EVD-desktop-nav-semantics-2026-09-05](EVD-desktop-nav-semantics-2026-09-05.md)
-- [EVD-heybox-presentation-2026-09-06](EVD-heybox-presentation-2026-09-06.md)
-
-历史与被替代证据：
+### History
 
 - [EVD-assistant-agent-mode-2026-08-26](EVD-assistant-agent-mode-2026-08-26.md)
 - [EVD-assistant-agent-runtime-2026-08-27](EVD-assistant-agent-runtime-2026-08-27.md)
@@ -51,3 +48,5 @@ EVD 的 lifecycle 是 `active` 或 `superseded`，实际结果另记为 `passed/
 - [EVD-search-post-author-2026-08-20](EVD-search-post-author-2026-08-20.md)
 - [EVD-watch-cannot-self-2026-09-06](EVD-watch-cannot-self-2026-09-06.md)
 - [EVD-web-json-int64-2026-08-20](EVD-web-json-int64-2026-08-20.md)
+
+<!-- knowledge-index:end -->

@@ -5,22 +5,20 @@ title: 社区发现与内容客户端设计
 status: active
 role: baseline
 owner: agent
-upstream:
-  - SPEC-client-experience
 external_upstream:
-  - little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-community-core
-  - little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-content-discovery
-  - little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-feedback-reliability
+- little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-community-core
+- little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-content-discovery
+- little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-feedback-reliability
 tracks:
-  - FX-020
-  - FX-021
-  - FX-022
-  - FX-030
-  - FX-031
-  - FX-032
-  - FX-060
-  - FX-061
-  - FX-062
+- FX-020
+- FX-021
+- FX-022
+- FX-030
+- FX-031
+- FX-032
+- FX-060
+- FX-061
+- FX-062
 updated_at: 2026-09-06
 ---
 

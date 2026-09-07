@@ -2,50 +2,11 @@
 id: IMP-assistant-client
 layer: implementation
 title: Assistant 虚拟线程与研究交互实现映射
-status: unknown
+status: active
 owner: agent
-upstream:
-  - DES-assistant-client
-tracks:
-  - FX-050
-  - FX-051
-  - FX-052
-  - FX-053
-  - FX-054
-  - FX-055
-  - FX-056
-  - FX-057
-  - FX-058
-  - FX-059
-  - FX-080
-  - FX-081
-  - FX-082
-  - FX-083
-  - FX-084
-  - FX-085
-  - FX-086
-  - FX-087
-  - FX-088
-  - FX-089
-  - FX-090
-  - FX-091
-  - FX-092
-  - FX-093
-  - FX-094
-  - FX-095
-  - FX-096
-  - FX-097
-  - FX-098
-  - FX-099
 code_paths:
-  - lib/features/assistant
-  - test/features/assistant
-evidence:
-  - EVD-knowledge-graph-refactor-2026-09-06
-  - EVD-assistant-research-2026-09-05
-  - EVD-audit-remediation-client-2026-08-31
-  - EVD-code-quality-hardening-2026-09-05
-  - EVD-heybox-presentation-2026-09-06
+- lib/features/assistant
+- test/features/assistant
 updated_at: 2026-09-06
 ---
 

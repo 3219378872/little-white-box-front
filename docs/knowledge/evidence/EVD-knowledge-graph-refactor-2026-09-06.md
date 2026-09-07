@@ -5,52 +5,82 @@ title: 客户端知识图谱重构验证 2026-09-06
 status: active
 result: passed
 owner: agent
-upstream:
-  - IMP-client-platform
-  - IMP-community-client
-  - IMP-messaging-client
-  - IMP-assistant-client
-  - IMP-presentation-client
-covers:
+scope:
+- static
+- unit
+- integration
+commands:
+- make analyze
+- make test
+- make test-coverage
+- make check BACKEND_API=/home/dev/projects/little/little-white-box-content-community/app/gateway/gateway.api
+- ruff check tools/knowledge_base.py tools/test_knowledge_base.py
+- make knowledge-check
+- git diff --check
+observed_commit: 07fb1ca160bfdbfb196a106edb1247b1c30e416a
+updated_at: 2026-09-06
+coverage:
+- requirements:
   - FX-001
   - FX-002
   - FX-010
+  - FX-070
+  - FQ-001
+  - FQ-002
+  - FQ-003
+  - FQ-006
+  - FQ-008
+  paths:
+  - lib/app.dart
+  - lib/core/api
+  - lib/core/auth
+  - lib/core/router
+  - lib/mock
+  - lib/sdk
+  - vendor/sdk_source
+  - tools/knowledge_base.py
+  - tools/sync_gateway_sdk.py
+  - tools/test_knowledge_base.py
+- requirements:
   - FX-020
   - FX-021
   - FX-022
   - FX-030
   - FX-031
   - FX-032
-  - FX-041
-  - FX-050
-  - FX-051
   - FX-060
   - FX-061
   - FX-062
-  - FX-070
+  paths:
+  - lib/features/feed
+  - lib/features/search
+  - lib/features/post
+  - lib/features/comment
+  - lib/features/profile
+  - lib/features/behavior
+- requirements:
+  - FX-041
+  paths:
+  - lib/features/message
+  - test/features/message
+- requirements:
+  - FX-050
+  - FX-051
   - FX-086
   - FX-091
   - FX-092
-  - FQ-001
-  - FQ-002
-  - FQ-003
+  paths:
+  - lib/features/assistant
+  - test/features/assistant
+- requirements:
   - FQ-004
-  - FQ-006
-  - FQ-008
-scope:
-  - static
-  - unit
-  - integration
-commands:
-  - make analyze
-  - make test
-  - make test-coverage
-  - make check BACKEND_API=/home/dev/projects/little/little-white-box-content-community/app/gateway/gateway.api
-  - ruff check tools/knowledge_base.py tools/test_knowledge_base.py
-  - make knowledge-check
-  - git diff --check
-observed_commit: 07fb1ca160bfdbfb196a106edb1247b1c30e416a
-updated_at: 2026-09-06
+  paths:
+  - lib/core/theme
+  - lib/core/widgets
+  - lib/core/router/app_router.dart
+  - test/helpers/forui_test_builder.dart
+  - tools/heybox_visual_check.mjs
+  - tools/heybox_android_check.py
 ---
 
 # 客户端知识图谱重构验证

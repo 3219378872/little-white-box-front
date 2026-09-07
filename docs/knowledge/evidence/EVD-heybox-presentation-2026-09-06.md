@@ -5,32 +5,34 @@ title: Heybox Android 视觉迁移验收
 status: active
 result: partial
 owner: agent
-upstream:
-  - IMP-community-client
-  - IMP-assistant-client
-  - IMP-presentation-client
-covers:
+scope:
+- static
+- unit
+- browser
+- device
+- synthetic
+commands:
+- flutter test --no-pub --reporter expanded
+- make knowledge-check
+artifacts:
+- /tmp/xbh-heybox-migration-20260906.4EhL6I
+- /tmp/heybox-android-baseline-20260906.YwszWV
+observed_commit: 9b3fba2004ad39275963ac512df3ebe6caa65c2a
+updated_at: 2026-09-06
+coverage:
+- requirements:
   - FQ-004
   - FQ-005
   - FQ-009
+  paths: []
+- requirements:
   - FX-030
   - FX-031
   - FX-032
+  paths: []
+- requirements:
   - FX-050
-scope:
-  - static
-  - unit
-  - browser
-  - device
-  - synthetic
-commands:
-  - flutter test --no-pub --reporter expanded
-  - make knowledge-check
-artifacts:
-  - /tmp/xbh-heybox-migration-20260906.4EhL6I
-  - /tmp/heybox-android-baseline-20260906.YwszWV
-observed_commit: 9b3fba2004ad39275963ac512df3ebe6caa65c2a
-updated_at: 2026-09-06
+  paths: []
 ---
 
 # Heybox Android 视觉迁移验收
@@ -101,3 +103,7 @@ Android 脚本需要已安装 APK、`uiautomator2` 与 ImageMagick；Web 脚本�
 iOS 或真实模型服务验收。原版未采样的私信、Agent、记忆和追踪使用同一套视觉规则适配。
 真实联调入口在任务开始时为 502；恢复与真实 API 检查属于整合后的独立运行时记录，不能从本页的
 Mock 结果推导其通过。没有修改后端、SDK、数据层或原有输入限制。
+
+## 覆盖元数据迁移
+
+观察提交未保存完整输入路径；空的 `coverage.paths` 表示未知，不可用作当前 `aligned` 证明。原观察提交、命令及结果未改写。

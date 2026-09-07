@@ -2,6 +2,8 @@ SHELL := /bin/sh
 
 FLUTTER ?= flutter
 PYTHON ?= python3
+KNOWLEDGE_PYTHON ?= .venv-knowledge/bin/python
+REF ?= HEAD
 COVERAGE_MIN ?= 70
 HOST ?= 0.0.0.0
 PORT ?= 3000
@@ -12,7 +14,7 @@ BACKEND_API ?=
 PID_FILE ?= .dart_tool/web-server-$(PORT).pid
 LOG_FILE ?= .dart_tool/web-server-$(PORT).log
 
-.PHONY: help setup analyze test test-coverage tools-test knowledge-test knowledge-check require-backend-api sdk-check check dev dev-real build-web serve start stop restart status
+.PHONY: help setup analyze test test-coverage tools-test knowledge-setup knowledge-ready knowledge-test knowledge-check knowledge-index knowledge-export require-backend-api sdk-check check dev dev-real build-web serve start stop restart status
 
 help:
 	@printf '%s\n' \
@@ -22,6 +24,9 @@ help:
 		'make test-coverage  Run tests with coverage; fails below COVERAGE_MIN (default 70)' \
 		'make tools-test   Run repository maintenance tests' \
 		'make knowledge-test  Run knowledge validator fixture tests' \
+		'make knowledge-setup  Install isolated pinned knowledge tooling' \
+		'make knowledge-index  Regenerate layer indexes' \
+		'make knowledge-export REF=HEAD  Export Git snapshot as JSON' \
 		'make knowledge-check  Validate five-layer project knowledge' \
 		'make sdk-check BACKEND_API=/path/to/gateway.api  Verify generated SDK copies without writing' \
 		'make check BACKEND_API=/path/to/gateway.api  Run analyze, tests, knowledge, and SDK gates' \
@@ -47,14 +52,27 @@ test-coverage:
 	$(MAKE) tools-test
 	$(PYTHON) tools/lcov_summary.py coverage/lcov.info --min $(COVERAGE_MIN)
 
-tools-test:
-	$(PYTHON) -m unittest discover -s tools -p 'test_*.py'
+knowledge-setup:
+	$(PYTHON) -m venv .venv-knowledge
+	.venv-knowledge/bin/python -m pip install -r tools/requirements-knowledge.txt
 
-knowledge-test:
-	$(PYTHON) -m unittest discover -s tools -p 'test_knowledge_base.py'
+knowledge-ready:
+	@test -x "$(KNOWLEDGE_PYTHON)" || { printf '%s\n' 'Run make knowledge-setup first' >&2; exit 2; }
 
-knowledge-check:
-	$(PYTHON) tools/knowledge_base.py check
+tools-test: knowledge-ready
+	$(KNOWLEDGE_PYTHON) -m unittest discover -s tools -p 'test_*.py'
+
+knowledge-test: knowledge-ready
+	$(KNOWLEDGE_PYTHON) -m unittest discover -s tools -p 'test_knowledge_base.py'
+
+knowledge-check: knowledge-ready
+	$(KNOWLEDGE_PYTHON) tools/knowledge_base.py check
+
+knowledge-index: knowledge-ready
+	$(KNOWLEDGE_PYTHON) tools/knowledge_base.py index
+
+knowledge-export: knowledge-ready
+	@$(KNOWLEDGE_PYTHON) tools/knowledge_base.py export --ref "$(REF)"
 
 require-backend-api:
 	@if [ -z "$(strip $(BACKEND_API))" ]; then \
@@ -65,7 +83,7 @@ require-backend-api:
 sdk-check: require-backend-api
 	$(PYTHON) tools/sync_gateway_sdk.py --check --api "$(BACKEND_API)"
 
-check: require-backend-api analyze test tools-test knowledge-check sdk-check
+check: knowledge-ready require-backend-api analyze test tools-test knowledge-check sdk-check
 
 dev:
 	$(FLUTTER) run -d web-server \

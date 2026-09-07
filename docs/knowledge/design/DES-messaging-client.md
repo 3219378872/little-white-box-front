@@ -5,13 +5,11 @@ title: 一对一私信客户端设计
 status: active
 role: baseline
 owner: agent
-upstream:
-  - SPEC-client-experience
 external_upstream:
-  - little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-community-core
+- little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-community-core
 tracks:
-  - FX-040
-  - FX-041
+- FX-040
+- FX-041
 updated_at: 2026-09-06
 ---
 

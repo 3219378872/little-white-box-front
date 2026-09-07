@@ -1,18 +1,21 @@
 # 设计层
 
-设计说明如何满足规格、组件如何协作、关键取舍和失败恢复。`active`/`blocked` 是当前规范性设计；
-`role: baseline` 只说明内容来自现状投影，不是 lifecycle，也不降低已批准规格的约束力。
+本页清单由 `make knowledge-index` 生成；治理规则见[知识总路由](../README.md)。
 
-当前设计：
+<!-- knowledge-index:start -->
 
-- [DES-client-platform](DES-client-platform.md)：应用壳、身份、传输、SDK、Mock 和工程边界。
-- [DES-community-client](DES-community-client.md)：发现、内容、互动与行为反馈。
-- [DES-messaging-client](DES-messaging-client.md)：一对一私信读取、发送和已读。
-- [DES-assistant-client](DES-assistant-client.md)：Agent 虚拟线程、run、Memory、Watch、问答和来源。
-- [DES-presentation-client](DES-presentation-client.md)：Forui、视觉系统与响应式页面。
+| Page | State | Related |
+| --- | --- | --- |
+| [DES-assistant-client](DES-assistant-client.md) | active | [SPEC-client-experience](../spec/SPEC-client-experience.md) |
+| [DES-client-platform](DES-client-platform.md) | active | [SPEC-client-engineering](../spec/SPEC-client-engineering.md), [SPEC-client-experience](../spec/SPEC-client-experience.md) |
+| [DES-community-client](DES-community-client.md) | active | [SPEC-client-experience](../spec/SPEC-client-experience.md) |
+| [DES-messaging-client](DES-messaging-client.md) | active | [SPEC-client-experience](../spec/SPEC-client-experience.md) |
+| [DES-presentation-client](DES-presentation-client.md) | active | [SPEC-client-engineering](../spec/SPEC-client-engineering.md) |
 
-历史稳定 ID 指针：
+### History
 
-- [DES-flutter-client](DES-flutter-client.md)
 - [DES-assistant-research-client](DES-assistant-research-client.md)
+- [DES-flutter-client](DES-flutter-client.md)
 - [DES-heybox-presentation](DES-heybox-presentation.md)
+
+<!-- knowledge-index:end -->

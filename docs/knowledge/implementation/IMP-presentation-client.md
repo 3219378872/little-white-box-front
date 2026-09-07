@@ -2,26 +2,15 @@
 id: IMP-presentation-client
 layer: implementation
 title: 客户端展示系统实现映射
-status: unknown
+status: active
 owner: agent
-upstream:
-  - DES-presentation-client
-tracks:
-  - FQ-004
-  - FQ-005
-  - FQ-009
 code_paths:
-  - lib/core/theme
-  - lib/core/widgets
-  - lib/core/router/app_router.dart
-  - test/helpers/forui_test_builder.dart
-  - tools/heybox_visual_check.mjs
-  - tools/heybox_android_check.py
-evidence:
-  - EVD-knowledge-graph-refactor-2026-09-06
-  - EVD-assistant-research-2026-09-05
-  - EVD-desktop-nav-semantics-2026-09-05
-  - EVD-heybox-presentation-2026-09-06
+- lib/core/theme
+- lib/core/widgets
+- lib/core/router/app_router.dart
+- test/helpers/forui_test_builder.dart
+- tools/heybox_visual_check.mjs
+- tools/heybox_android_check.py
 updated_at: 2026-09-06
 ---
 

@@ -5,14 +5,30 @@ title: 客户端异步生命周期与状态边界加固 2026-09-05
 status: active
 result: partial
 owner: agent
-upstream:
-  - IMP-client-platform
-  - IMP-community-client
-  - IMP-assistant-client
-covers:
+scope:
+- static
+- unit
+commands:
+- make analyze
+- make test
+- make test-coverage
+- make knowledge-check
+observed_commit: 74c96f6e487df0e8c08a1154c4c2e9b3ebbcbb1d
+updated_at: 2026-09-05
+coverage:
+- requirements:
   - FX-002
+  - FQ-002
+  - FQ-003
+  - FQ-006
+  - FQ-007
+  - FQ-008
+  paths: []
+- requirements:
   - FX-030
   - FX-032
+  paths: []
+- requirements:
   - FX-050
   - FX-053
   - FX-055
@@ -25,21 +41,7 @@ covers:
   - FX-091
   - FX-092
   - FX-093
-  - FQ-002
-  - FQ-003
-  - FQ-006
-  - FQ-007
-  - FQ-008
-scope:
-  - static
-  - unit
-commands:
-  - make analyze
-  - make test
-  - make test-coverage
-  - make knowledge-check
-observed_commit: 74c96f6e487df0e8c08a1154c4c2e9b3ebbcbb1d
-updated_at: 2026-09-05
+  paths: []
 ---
 
 # 客户端异步生命周期与状态边界加固 2026-09-05
@@ -121,3 +123,7 @@ make build-web
   客户端尚未增加逐任务 busy fence。
 - Consent GET 失败沿用既有未授权表现，尚未建模为独立的可恢复读取错误态。私信视频/语音上传契约缺口
   仍存在；当前结论分别登记在 Assistant 与私信 IMP，本证据保持 `active/partial`。
+
+## 覆盖元数据迁移
+
+观察提交未保存完整输入路径；空的 `coverage.paths` 表示未知，不可用作当前 `aligned` 证明。原观察提交、命令及结果未改写。

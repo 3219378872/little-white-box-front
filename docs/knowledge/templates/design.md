@@ -1,28 +1,22 @@
+# 设计页面模板
+
+```yaml
 ---
-id: DES-topic
+id: DES-example
 layer: design
-title: 主题设计
+title: Example design
 status: draft
 owner: agent
-upstream:
-  - SPEC-topic
+updated_at: YYYY-MM-DD
 tracks:
   - FX-001
-updated_at: YYYY-MM-DD
 ---
+```
 
-# 主题设计
+## 边界与协作
 
-## 范围与状态
+## 取舍与失败恢复
 
-## 组件与职责
+## 验证策略
 
-## 数据流
-
-## 关键取舍
-
-## 失败与恢复
-
-## 规格追踪
-
-把每个 `tracks` 条款映射到设计位置。
+上游 SPEC 从 tracks 推导；同一要求可由多个 current DES 承接，IMP 矩阵指定主承接设计。

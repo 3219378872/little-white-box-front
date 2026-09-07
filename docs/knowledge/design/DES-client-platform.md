@@ -5,22 +5,19 @@ title: 客户端平台与工程边界设计
 status: active
 role: baseline
 owner: agent
-upstream:
-  - SPEC-client-experience
-  - SPEC-client-engineering
 external_upstream:
-  - little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-community-core
+- little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-community-core
 tracks:
-  - FX-001
-  - FX-002
-  - FX-010
-  - FX-070
-  - FQ-001
-  - FQ-002
-  - FQ-003
-  - FQ-006
-  - FQ-007
-  - FQ-008
+- FX-001
+- FX-002
+- FX-010
+- FX-070
+- FQ-001
+- FQ-002
+- FQ-003
+- FQ-006
+- FQ-007
+- FQ-008
 updated_at: 2026-09-06
 ---
 
