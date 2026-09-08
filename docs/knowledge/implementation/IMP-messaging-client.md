@@ -7,7 +7,7 @@ owner: agent
 code_paths:
 - lib/features/message
 - test/features/message
-updated_at: 2026-09-07
+updated_at: 2026-09-08
 ---
 
 # 一对一私信实现映射
@@ -19,4 +19,4 @@ updated_at: 2026-09-07
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
 | FX-040 | DES-messaging-client | diverged | gap: backend gateway has no video or voice upload contract, so those media sends cannot complete |
-| FX-041 | DES-messaging-client | aligned | EVD-module-refactor-2026-09-07 |
+| FX-041 | DES-messaging-client | aligned | EVD-review-remediation-2026-09-08 |

@@ -22,7 +22,7 @@ code_paths:
 - tools/test_knowledge_base.py
 - tools/requirements-knowledge.txt
 - Makefile
-updated_at: 2026-09-07
+updated_at: 2026-09-08
 ---
 
 # 客户端平台实现映射
@@ -38,13 +38,13 @@ repository。Riverpod 3 的 `StateNotifier` 经 `package:flutter_riverpod/legacy
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FX-001 | DES-client-platform | aligned | EVD-module-refactor-2026-09-07 |
-| FX-002 | DES-client-platform | aligned | EVD-module-refactor-2026-09-07 |
-| FX-010 | DES-client-platform | aligned | EVD-module-refactor-2026-09-07 |
-| FX-070 | DES-client-platform | aligned | EVD-module-refactor-2026-09-07 |
-| FQ-001 | DES-client-platform | aligned | EVD-module-refactor-2026-09-07 |
-| FQ-002 | DES-client-platform | aligned | EVD-module-refactor-2026-09-07 |
-| FQ-003 | DES-client-platform | aligned | EVD-module-refactor-2026-09-07 |
-| FQ-006 | DES-client-platform | aligned | EVD-module-refactor-2026-09-07 |
+| FX-001 | DES-client-platform | aligned | EVD-review-remediation-2026-09-08 |
+| FX-002 | DES-client-platform | aligned | EVD-review-remediation-2026-09-08 |
+| FX-010 | DES-client-platform | aligned | EVD-review-remediation-2026-09-08 |
+| FX-070 | DES-client-platform | aligned | EVD-review-remediation-2026-09-08 |
+| FQ-001 | DES-client-platform | aligned | EVD-review-remediation-2026-09-08 |
+| FQ-002 | DES-client-platform | aligned | EVD-review-remediation-2026-09-08 |
+| FQ-003 | DES-client-platform | aligned | EVD-review-remediation-2026-09-08 |
+| FQ-006 | DES-client-platform | aligned | EVD-review-remediation-2026-09-08 |
 | FQ-007 | DES-client-platform | unknown | gap: current evidence lacks the real-interface and browser validation required by the spec |
-| FQ-008 | DES-client-platform | aligned | EVD-module-refactor-2026-09-07 |
+| FQ-008 | DES-client-platform | aligned | EVD-review-remediation-2026-09-08 |

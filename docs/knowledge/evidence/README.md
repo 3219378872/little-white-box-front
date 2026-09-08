@@ -16,6 +16,7 @@
 | [EVD-knowledge-graph-refactor-2026-09-06](EVD-knowledge-graph-refactor-2026-09-06.md) | active / passed | [IMP-assistant-client](../implementation/IMP-assistant-client.md), [IMP-client-platform](../implementation/IMP-client-platform.md), [IMP-community-client](../implementation/IMP-community-client.md), [IMP-messaging-client](../implementation/IMP-messaging-client.md), [IMP-presentation-client](../implementation/IMP-presentation-client.md) |
 | [EVD-knowledge-slim-2026-09-07](EVD-knowledge-slim-2026-09-07.md) | active / passed | [IMP-client-platform](../implementation/IMP-client-platform.md) |
 | [EVD-module-refactor-2026-09-07](EVD-module-refactor-2026-09-07.md) | active / passed | [IMP-assistant-client](../implementation/IMP-assistant-client.md), [IMP-client-platform](../implementation/IMP-client-platform.md), [IMP-community-client](../implementation/IMP-community-client.md), [IMP-messaging-client](../implementation/IMP-messaging-client.md), [IMP-presentation-client](../implementation/IMP-presentation-client.md) |
+| [EVD-review-remediation-2026-09-08](EVD-review-remediation-2026-09-08.md) | active / passed | [IMP-assistant-client](../implementation/IMP-assistant-client.md), [IMP-client-platform](../implementation/IMP-client-platform.md), [IMP-community-client](../implementation/IMP-community-client.md), [IMP-messaging-client](../implementation/IMP-messaging-client.md), [IMP-presentation-client](../implementation/IMP-presentation-client.md) |
 
 ### History
 

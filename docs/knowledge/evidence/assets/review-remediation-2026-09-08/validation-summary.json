@@ -1,0 +1,69 @@
+{
+  "observed_commit": "775df64d9e09800412469f76668f1822e233e24f",
+  "validated_at": "2026-09-08",
+  "initial_worktree_clean": true,
+  "scope": ["static", "unit"],
+  "backend_api_sha256": "b8b4438226607295c964647a1ca66d1b328e72f159ca3e2686c968af3158b7cc",
+  "results": [
+    {
+      "command": "make format-check analyze",
+      "exit_code": 0,
+      "dart_files": 203,
+      "format_changes": 0,
+      "analysis": "No issues found"
+    },
+    {
+      "command": "flutter test --no-pub --reporter expanded",
+      "exit_code": 0,
+      "passed": 533,
+      "previous_passed": 497,
+      "added_tests": 36
+    },
+    {
+      "command": "make tools-test KNOWLEDGE_PYTHON=/home/dev/projects/little/little-white-box-front/.venv-knowledge/bin/python",
+      "exit_code": 0,
+      "passed": 52,
+      "previous_passed": 51
+    },
+    {
+      "command": "make sdk-check BACKEND_API=/home/dev/projects/little/little-white-box-content-community/.worktree/task-review-remediation/app/gateway/gateway.api",
+      "exit_code": 0,
+      "result": "generated SDK is current"
+    },
+    {
+      "command": "make knowledge-index KNOWLEDGE_PYTHON=/home/dev/projects/little/little-white-box-front/.venv-knowledge/bin/python",
+      "exit_code": 0
+    },
+    {
+      "command": "make check BACKEND_API=/home/dev/projects/little/little-white-box-content-community/.worktree/task-review-remediation/app/gateway/gateway.api KNOWLEDGE_PYTHON=/home/dev/projects/little/little-white-box-front/.venv-knowledge/bin/python",
+      "exit_code": 0,
+      "worktree_delta": "evidence and implementation mappings only",
+      "flutter_passed": 533,
+      "tools_passed": 52,
+      "knowledge": {
+        "documents": 63,
+        "requirements": 54,
+        "aligned": 25,
+        "unknown": 28,
+        "diverged": 1
+      },
+      "sdk": "generated SDK is current"
+    }
+  ],
+  "coverage_audit": {
+    "previous_evidence": "EVD-module-refactor-2026-09-07",
+    "groups_preserved_exactly": 5,
+    "requirements": 25,
+    "unknown_and_diverged_unchanged": true
+  },
+  "frontend_review_items": ["R01", "R05", "R08", "R13", "R15", "R16"],
+  "not_verified": [
+    "real_gateway_or_database",
+    "real_sms_or_media_upload",
+    "real_model_or_provider",
+    "browser",
+    "native_or_physical_device",
+    "capacity_or_production",
+    "coverage_percentage"
+  ]
+}
