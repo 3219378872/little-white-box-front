@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/api/error_codes.dart';
+import '../../core/api/api_exceptions.dart';
 import '../../core/api/json_int64.dart';
 import '../../core/auth/session_tokens.dart';
 import '../vars/kv.dart';
@@ -30,9 +31,27 @@ http.Client get apiClient => _apiClient;
 
 /// Supports the gateway envelope used by both the real API and Mock router.
 Map<String, dynamic> apiResponseData(dynamic decoded) {
-  if (decoded is! Map<String, dynamic>) return <String, dynamic>{};
+  if (decoded is! Map<String, dynamic>) {
+    throw const ApiException('响应格式无效');
+  }
+  int? code;
+  if (decoded.containsKey('code')) {
+    final raw = decoded['code'];
+    code = raw is int ? raw : int.tryParse('$raw');
+    if (code == null) throw const ApiException('响应业务码无效');
+    if (code != 0) {
+      throw ApiException(
+        (decoded['message'] ?? decoded['msg'] ?? '请求失败').toString(),
+        code: code,
+      );
+    }
+  }
+  if (!decoded.containsKey('data')) return decoded;
   final nested = decoded['data'];
-  return nested is Map<String, dynamic> ? nested : decoded;
+  if (nested is Map<String, dynamic>) return nested;
+  // Explicit success envelopes may use null for a void response.
+  if (nested == null && code == 0) return <String, dynamic>{};
+  throw const ApiException('响应数据格式无效');
 }
 
 /// Compatibility wrapper for callers that only need success/failure.
@@ -143,6 +162,7 @@ Future apiPost(
   Function(Map<String, dynamic>)? ok,
   Function(String)? fail,
   Function? eventually,
+  int? expectedSessionRevision,
 }) async {
   await _apiRequest(
     'POST',
@@ -152,6 +172,7 @@ Future apiPost(
     ok: ok,
     fail: fail,
     eventually: eventually,
+    expectedSessionRevision: expectedSessionRevision,
   );
 }
 
@@ -246,10 +267,19 @@ Future _apiRequest(
   Function(Map<String, dynamic>)? ok,
   Function(String)? fail,
   Function? eventually,
+  int? expectedSessionRevision,
 }) async {
   try {
+    final initialContext = await getTokenSessionContext();
+    final requestRevision = expectedSessionRevision ?? initialContext.revision;
     for (var attempt = 1; ; attempt++) {
-      final session = await getTokenSnapshot();
+      final context = attempt == 1
+          ? initialContext
+          : await getTokenSessionContext();
+      if (context.revision != requestRevision) {
+        throw const ApiException('请求会话已变化，请重试');
+      }
+      final session = context.snapshot;
       final tokens = session?.tokens;
       var strData = '';
       if (data != null) {
@@ -333,7 +363,13 @@ Future _apiRequest(
       break;
     }
   } catch (e) {
-    if (fail != null) fail(e.toString());
+    if (fail != null) {
+      fail(
+        e is ApiException
+            ? jsonEncode({'code': e.code, 'message': e.message})
+            : e.toString(),
+      );
+    }
   }
   if (eventually != null) eventually();
 }

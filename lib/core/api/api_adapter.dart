@@ -67,8 +67,15 @@ Future<T> apiPostMultipart<T>({
   Duration timeout = const Duration(seconds: 60),
 }) async {
   try {
+    final initialContext = await getTokenSessionContext();
     for (var attempt = 1; ; attempt++) {
-      final session = await getTokenSnapshot();
+      final context = attempt == 1
+          ? initialContext
+          : await getTokenSessionContext();
+      if (context.revision != initialContext.revision) {
+        throw const ApiException('请求会话已变化，请重试');
+      }
+      final session = context.snapshot;
       final tokens = session?.tokens;
       final req = http.MultipartRequest('POST', apiUri(path));
       if (tokens != null) {

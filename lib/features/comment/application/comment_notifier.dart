@@ -84,6 +84,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
   static const _replyPageSize = 10;
 
   int _page = 0;
+  int _generation = 0;
   String? _submitIdempotencyKey;
   String? _submitCommandFingerprint;
 
@@ -98,6 +99,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
 
   /// 首屏/重试/切排序：从第 1 页重建列表。
   Future<void> loadInitial() async {
+    final generation = ++_generation;
     _page = 1;
     state = state.copyWith(isLoading: true, hasError: false);
     try {
@@ -107,7 +109,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
         pageSize: _pageSize,
         sortBy: state.sortBy,
       );
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         comments: resp.list,
         hasMore: resp.list.length >= _pageSize,
@@ -116,7 +118,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
       );
     } catch (_) {
       // 失败不得伪装成空评论区（FX-001）；给出可重试的错误态。
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(isLoading: false, hasError: true);
     }
   }
@@ -125,6 +127,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
   Future<void> loadMore() async {
     if (!state.hasMore || state.isLoading || state.hasError) return;
     final page = _page + 1;
+    final generation = _generation;
     state = state.copyWith(isLoading: true);
     try {
       final resp = await _repository.fetchComments(
@@ -133,7 +136,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
         pageSize: _pageSize,
         sortBy: state.sortBy,
       );
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       _page = page;
       state = state.copyWith(
         comments: [...state.comments, ...resp.list],
@@ -141,7 +144,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
         isLoading: false,
       );
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(isLoading: false, hasError: true);
     }
   }
@@ -278,6 +281,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
     );
     _submitIdempotencyKey = null;
     _submitCommandFingerprint = null;
+    if (!mounted) return;
     // 回复成功后重置该父评论的楼中楼缓存，刷新后重新拉取
     final hadExpanded = state.expandedReplies.isNotEmpty;
     state = state.copyWith(

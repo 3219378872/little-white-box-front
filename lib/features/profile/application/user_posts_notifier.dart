@@ -150,7 +150,11 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
 
   Future<void> refresh() async {
     final generation = ++_generation;
-    state = state.copyWith(isRefreshing: true, clearError: true);
+    state = state.copyWith(
+      isRefreshing: true,
+      isLoading: false,
+      clearError: true,
+    );
     try {
       final resp = await _fetch('');
       if (!mounted || generation != _generation) return;
@@ -164,7 +168,11 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
       );
     } catch (error) {
       if (!mounted || generation != _generation) return;
-      state = state.copyWith(isRefreshing: false, error: error);
+      state = state.copyWith(
+        isRefreshing: false,
+        isLoading: false,
+        error: error,
+      );
     }
   }
 

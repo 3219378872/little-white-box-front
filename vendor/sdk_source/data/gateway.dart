@@ -3775,7 +3775,7 @@ class UpdatePostV2Req {
 
   final String content;
 
-  final List<String> images;
+  final List<String>? images;
 
   final List<String> tags;
 
@@ -3784,23 +3784,23 @@ class UpdatePostV2Req {
   // 必填；缺失/0 → 参数错误
   final num expectedRevision;
 
-  final List<Object> mediaIds;
+  final List<Object>? mediaIds;
   UpdatePostV2Req({
     required this.postId,
     required this.title,
     required this.content,
-    required this.images,
+    this.images,
     required this.tags,
     required this.status,
     required this.expectedRevision,
-    required this.mediaIds,
+    this.mediaIds,
   });
   factory UpdatePostV2Req.fromJson(Map<String, dynamic> m) {
     return UpdatePostV2Req(
       postId: m['postId'] ?? 0,
       title: m['title'] ?? "",
       content: m['content'] ?? "",
-      images: m['images']?.cast<String>() ?? [],
+      images: m['images']?.cast<String>(),
       tags: m['tags']?.cast<String>() ?? [],
       status: m['status'] == null
           ? null
@@ -3808,9 +3808,9 @@ class UpdatePostV2Req {
           ? (m['status'] as num).toInt()
           : null,
       expectedRevision: m['expectedRevision'] ?? 0,
-      mediaIds: m['mediaIds'] is List
-          ? List<Object>.from(m['mediaIds'] as List)
-          : <Object>[],
+      mediaIds: m['mediaIds'] == null
+          ? null
+          : List<Object>.from(m['mediaIds'] as List),
     );
   }
   Map<String, dynamic> toJson() {
@@ -3818,11 +3818,11 @@ class UpdatePostV2Req {
       'postId': postId,
       'title': title,
       'content': content,
-      'images': images,
+      if (images != null) 'images': images,
       'tags': tags,
       'status': status,
       'expectedRevision': expectedRevision,
-      'mediaIds': mediaIds,
+      if (mediaIds != null) 'mediaIds': mediaIds,
     };
   }
 }

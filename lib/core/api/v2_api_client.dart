@@ -17,11 +17,18 @@ class V2ApiClient {
 
   Future<Map<String, dynamic>> post(
     String path,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    int? expectedSessionRevision,
+  }) async {
     return apiCall<Map<String, dynamic>>(
-      (ok, fail, eventually) =>
-          apiPost(path, body, ok: ok, fail: fail, eventually: eventually),
+      (ok, fail, eventually) => apiPost(
+        path,
+        body,
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+        expectedSessionRevision: expectedSessionRevision,
+      ),
     );
   }
 

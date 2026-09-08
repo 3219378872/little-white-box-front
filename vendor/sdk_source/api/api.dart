@@ -17,9 +17,21 @@ http.Client get apiClient => _apiClient;
 
 /// Supports the gateway envelope used by both the real API and Mock router.
 Map<String, dynamic> apiResponseData(dynamic decoded) {
-  if (decoded is! Map<String, dynamic>) return <String, dynamic>{};
+  if (decoded is! Map<String, dynamic>) {
+    throw const FormatException('invalid API response');
+  }
+  int? code;
+  if (decoded.containsKey('code')) {
+    code = int.tryParse('${decoded['code']}');
+    if (code == null || code != 0) {
+      throw FormatException('${decoded['message'] ?? 'API request failed'}');
+    }
+  }
+  if (!decoded.containsKey('data')) return decoded;
   final nested = decoded['data'];
-  return nested is Map<String, dynamic> ? nested : decoded;
+  if (nested is Map<String, dynamic>) return nested;
+  if (nested == null && code == 0) return <String, dynamic>{};
+  throw const FormatException('invalid API response data');
 }
 
 /// send request with post method

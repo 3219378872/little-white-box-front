@@ -121,6 +121,35 @@ PostItem _post(num id) {
 }
 
 void main() {
+  test('failed refresh releases an invalidated pagination request', () async {
+    final repo = _QueuedUserPostsRepo();
+    final notifier = UserPostsNotifier(
+      repo: repo,
+      key: const UserPostsKey(userId: 1, type: UserPostsListType.posts),
+    );
+    addTearDown(notifier.dispose);
+    final initial = notifier.loadFirstPage();
+    repo.pending
+        .removeAt(0)
+        .complete(GetPostListResp(list: [_post(1)], nextCursor: 'page-2'));
+    await initial;
+    final more = notifier.loadNextPage();
+    final refresh = notifier.refresh();
+    repo.pending.removeLast().completeError(StateError('refresh failed'));
+    await refresh;
+    repo.completeNext([_post(2)]);
+    await more;
+    expect(notifier.state.items.map((item) => item.id), [1]);
+    expect(notifier.state.isLoading, isFalse);
+    expect(notifier.state.isRefreshing, isFalse);
+    expect(notifier.state.error, isNotNull);
+    final retry = notifier.loadNextPage();
+    expect(repo.pending, hasLength(1));
+    repo.completeNext([_post(2)]);
+    await retry;
+    expect(notifier.state.items.map((item) => item.id), [1, 2]);
+    expect(notifier.state.error, isNull);
+  });
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('UserPostsNotifier', () {

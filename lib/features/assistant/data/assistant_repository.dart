@@ -223,16 +223,11 @@ class AssistantRepository implements AssistantDataSource {
         'limit': limit,
       },
     );
-    final raw = response['messages'];
-    final messages = raw is! List
-        ? const <AssistantHistoryMessage>[]
-        : [
-            for (final item in raw)
-              if (item is Map)
-                AssistantHistoryMessage.fromJson(
-                  Map<String, dynamic>.from(item),
-                ),
-          ];
+    final raw = _requiredList(response, 'messages');
+    final messages = [
+      for (final item in raw)
+        AssistantHistoryMessage.fromJson(_requiredObject(item)),
+    ];
     return AssistantMessagePage(
       messages: messages,
       hasMore: response['hasMore'] == true,
@@ -314,10 +309,14 @@ class AssistantRepository implements AssistantDataSource {
       throw const ApiException('Assistant run 标识无效');
     }
     late http.StreamedResponse response;
+    final initialContext = _usesStoredAccessToken
+        ? await getTokenSessionContext()
+        : null;
     for (var attempt = 1; ; attempt++) {
       final requestContext = await _buildEventsRequest(
         runId: runId,
         afterSeq: afterSeq,
+        expectedSessionRevision: initialContext?.revision,
       );
       final request = requestContext.$1;
       final session = requestContext.$2;
@@ -407,8 +406,11 @@ class AssistantRepository implements AssistantDataSource {
   Future<int> markThreadRead() async {
     final response = await _api.post('/api/v2/assistant/thread/read', {});
     final unread = response['unreadCount'];
-    if (unread is num) return unread.toInt();
-    return int.tryParse(unread?.toString() ?? '') ?? 0;
+    final count = unread is int ? unread : int.tryParse('$unread');
+    if (count == null || count < 0) {
+      throw const ApiException('Assistant 未读响应格式无效');
+    }
+    return count;
   }
 
   @override
@@ -448,39 +450,33 @@ class AssistantRepository implements AssistantDataSource {
       query: {if (target.isNotEmpty) 'target': target},
     );
     final items = <MemoryRecord>[];
-    final rawItems = response['items'];
-    if (rawItems is List) {
-      for (final item in rawItems) {
-        if (item is! Map) continue;
-        final map = Map<String, dynamic>.from(item);
-        final entryTarget = map['target']?.toString() ?? '';
-        if (!memoryTargets.contains(entryTarget)) continue;
-        items.add(
-          MemoryRecord(
-            id: map['id'] ?? 0,
-            target: entryTarget,
-            content: map['content']?.toString() ?? '',
-            version: _asInt(map['version']),
-            createdAtMs: _asInt(map['createdAtMs']),
-            updatedAtMs: _asInt(map['updatedAtMs']),
-          ),
-        );
-      }
+    final rawItems = _requiredList(response, 'items');
+    for (final item in rawItems) {
+      final map = _requiredObject(item);
+      final entryTarget = map['target']?.toString() ?? '';
+      if (!memoryTargets.contains(entryTarget)) continue;
+      items.add(
+        MemoryRecord(
+          id: map['id'] ?? 0,
+          target: entryTarget,
+          content: map['content']?.toString() ?? '',
+          version: _asInt(map['version']),
+          createdAtMs: _asInt(map['createdAtMs']),
+          updatedAtMs: _asInt(map['updatedAtMs']),
+        ),
+      );
     }
     final capacities = <MemoryCapacity>[];
-    final rawCaps = response['capacities'];
-    if (rawCaps is List) {
-      for (final item in rawCaps) {
-        if (item is! Map) continue;
-        final map = Map<String, dynamic>.from(item);
-        capacities.add(
-          MemoryCapacity(
-            target: map['target']?.toString() ?? '',
-            used: _asInt(map['used']),
-            limit: _asInt(map['limit']),
-          ),
-        );
-      }
+    final rawCaps = _requiredList(response, 'capacities');
+    for (final item in rawCaps) {
+      final map = _requiredObject(item);
+      capacities.add(
+        MemoryCapacity(
+          target: map['target']?.toString() ?? '',
+          used: _asInt(map['used']),
+          limit: _asInt(map['limit']),
+        ),
+      );
     }
     return (items, capacities);
   }
@@ -558,12 +554,8 @@ class AssistantRepository implements AssistantDataSource {
   @override
   Future<List<WatchTask>> listWatches() async {
     final response = await _api.get('/api/v2/assistant/watch');
-    final raw = response['tasks'];
-    if (raw is! List) return const [];
-    return [
-      for (final item in raw)
-        if (item is Map) _watchFromJson(Map<String, dynamic>.from(item)),
-    ];
+    final raw = _requiredList(response, 'tasks');
+    return [for (final item in raw) _watchFromJson(_requiredObject(item))];
   }
 
   @override
@@ -641,6 +633,27 @@ class AssistantRepository implements AssistantDataSource {
     }
   }
 
+  static List<dynamic> _requiredList(
+    Map<String, dynamic> response,
+    String key,
+  ) {
+    if (!response.containsKey(key)) {
+      throw const ApiException('Assistant 列表响应缺少字段');
+    }
+    final raw = response[key];
+    // Go nil slices are encoded as explicit JSON null.
+    if (raw == null) return const [];
+    if (raw is! List) throw const ApiException('Assistant 列表响应格式无效');
+    return raw;
+  }
+
+  static Map<String, dynamic> _requiredObject(Object? raw) {
+    if (raw is! Map<String, dynamic>) {
+      throw const ApiException('Assistant 列表项格式无效');
+    }
+    return raw;
+  }
+
   static void _requireKnownWatchCondition(
     String conditionType,
     String targetType,
@@ -701,6 +714,7 @@ class AssistantRepository implements AssistantDataSource {
   Future<(http.Request, SessionTokenSnapshot?)> _buildEventsRequest({
     required Object runId,
     required Object afterSeq,
+    int? expectedSessionRevision,
   }) async {
     final seq = _asInt(afterSeq);
     final path = '/api/v2/assistant/runs/${jsonInt64Id(runId)}/events';
@@ -713,7 +727,13 @@ class AssistantRepository implements AssistantDataSource {
     if (seq > 0) {
       request.headers['Last-Event-ID'] = '$seq';
     }
-    final session = _usesStoredAccessToken ? await getTokenSnapshot() : null;
+    final context = _usesStoredAccessToken
+        ? await getTokenSessionContext()
+        : null;
+    if (context != null && context.revision != expectedSessionRevision) {
+      throw const ApiException('请求会话已变化，请重试');
+    }
+    final session = context?.snapshot;
     final token =
         (_usesStoredAccessToken
                 ? session?.tokens.accessToken

@@ -17,6 +17,36 @@ SCRIPT = Path(__file__).with_name("sync_gateway_sdk.py")
 
 
 class NullablePrimitivePatchTest(unittest.TestCase):
+    def test_only_post_update_media_arrays_preserve_presence(self):
+        generated = """class UpdatePostV2Req {
+  final List<String> images;
+  final List<int> mediaIds;
+  UpdatePostV2Req({required this.images, required this.mediaIds,});
+  factory UpdatePostV2Req.fromJson(Map<String,dynamic> m) {
+    return UpdatePostV2Req(
+      images: m['images']?.cast<String>() ?? [],
+      mediaIds: m['mediaIds']?.cast<int>() ?? [],
+    );
+  }
+  Map<String,dynamic> toJson() { return {
+    'images': images,
+    'mediaIds': mediaIds,
+  }; }
+}
+class CreatePostReq {
+  final List<String> images;
+}
+"""
+        patched = patch_generated_types(generated)
+        self.assertIn("final List<String>? images;", patched)
+        self.assertIn("final List<Object>? mediaIds;", patched)
+        self.assertIn("images: m['images']?.cast<String>(),", patched)
+        self.assertIn("mediaIds: m['mediaIds'] == null ? null", patched)
+        self.assertIn("if (images != null) 'images': images,", patched)
+        self.assertIn("if (mediaIds != null) 'mediaIds': mediaIds,", patched)
+        self.assertIn("class CreatePostReq {\n  final List<String> images;", patched)
+        self.assertEqual(patch_generated_types(patched), patched)
+
     def test_finds_backend_api_from_main_checkout(self):
         with TemporaryDirectory() as tmp:
             workspace = Path(tmp) / "little"

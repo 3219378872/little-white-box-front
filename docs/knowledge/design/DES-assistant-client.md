@@ -40,7 +40,7 @@ tracks:
 - FX-097
 - FX-098
 - FX-099
-updated_at: 2026-09-07
+updated_at: 2026-09-08
 ---
 
 # Assistant 虚拟线程与研究交互设计
@@ -77,6 +77,7 @@ generation 或 requestId。状态模型、consent notifier、公共 repository/i
 run SSE 使用独立 transport，并以 `Last-Event-ID` 与 `afterSeq` 恢复。repository 校验帧，忽略未知
 type，只把明确 done/error 当终止。notifier 同时使用 run cursor、连接 generation、seq 和 streamId
 隔离重放与迟到事件。
+SSE 握手与认证刷新后的重试固定原会话 revision；账号切换后不以新账号令牌重新订阅旧 run。
 
 首个有效 token 选中当前 stream；只有同 stream token 可追加。匹配的 `response_reset` 清空该 run
 临时正文并释放 stream，旧 stream 和未获选 attempt 的迟到 token 永远不能恢复失败正文。工具行、来源
@@ -91,6 +92,8 @@ cursor，显示可恢复错误，不伪造取消或完成。
 Memory 只列出用户可见的 MEMORY/USER 自然语言条目、version 和容量，支持 add/replace/remove/undo。
 每个写命令按操作与规范化参数生成稳定指纹，失败保留 requestId；undo 成功才清 changeId。隐藏画像、
 内部 score 或 suppressed 状态不进入 UI。
+Memory、Watch 与消息列表必须包含对应列表字段；显式 null 兼容 Go 空切片，缺失字段、非列表值或
+非对象条目进入错误态。已读响应必须包含非负整数 unreadCount，不能在格式错误时推测为零。
 
 Watch 只管理四种支持条件的任务 CRUD，无独立命中收件箱。更新和删除携带 expectedVersion；版本冲突
 先刷新权威列表，再保留错误供用户决定。帖子可发起盯作者/盯修订；未授权引导到 Assistant，目标是

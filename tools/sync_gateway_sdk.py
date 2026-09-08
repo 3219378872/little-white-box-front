@@ -174,7 +174,37 @@ def patch_generated_types(source: str) -> str:
         "          ? List<Object>.from(m['changeIds'] as List)\n"
         "          : <Object>[],",
     )
-    return source
+    return patch_post_update_presence(source)
+
+
+def patch_post_update_presence(source: str) -> str:
+    """Keep absent media arrays distinct from an explicit clear command."""
+    match = re.search(r"(?ms)^class UpdatePostV2Req \{.*?(?=^class |\Z)", source)
+    if match is None:
+        return source
+    block = match[0]
+    for field, element_type in (("images", "String"), ("mediaIds", "Object")):
+        block = block.replace(
+            f"final List<{element_type}> {field};",
+            f"final List<{element_type}>? {field};",
+        ).replace(f"required this.{field},", f"this.{field},")
+        block = re.sub(
+            rf"(?m)^(\s*)'{field}': {field},$",
+            rf"\1if ({field} != null) '{field}': {field},",
+            block,
+        )
+    block = block.replace(
+        "images: m['images']?.cast<String>() ?? [],",
+        "images: m['images']?.cast<String>(),",
+    )
+    block = re.sub(
+        r"mediaIds: m\['mediaIds'\] is List\s*"
+        r"\? List<Object>\.from\(m\['mediaIds'\] as List\)\s*:\s*<Object>\[\],",
+        "mediaIds: m['mediaIds'] == null ? null : "
+        "List<Object>.from(m['mediaIds'] as List),",
+        block,
+    )
+    return source[: match.start()] + block + source[match.end() :]
 
 
 def patch_generated_api(source: str) -> str:

@@ -30,6 +30,13 @@ class SessionTokenSnapshot {
   }
 }
 
+class TokenSessionContext {
+  final int revision;
+  final SessionTokenSnapshot? snapshot;
+
+  const TokenSessionContext({required this.revision, this.snapshot});
+}
+
 /// Starts a new login session. Token rotation must use the conditional replace
 /// below so a response from an older account cannot overwrite a newer login.
 Future<SessionTokenSnapshot> startTokenSession(Tokens tokens) {
@@ -93,10 +100,21 @@ Future<int> getTokenSessionRevision() async {
 }
 
 Future<SessionTokenSnapshot?> getTokenSnapshot() async {
+  return (await getTokenSessionContext()).snapshot;
+}
+
+/// Reads the anonymous revision and credentials in the same synchronous read.
+Future<TokenSessionContext> getTokenSessionContext() async {
   final mutation = _mutationTail;
   if (mutation != null) await mutation;
   final preferences = await SharedPreferences.getInstance();
-  return _readSnapshot(preferences);
+  return TokenSessionContext(
+    revision:
+        preferences.getInt(_sessionRevisionKey) ??
+        _payloadRevision(preferences) ??
+        0,
+    snapshot: _readSnapshot(preferences),
+  );
 }
 
 Future<Tokens?> getTokens() async => (await getTokenSnapshot())?.tokens;

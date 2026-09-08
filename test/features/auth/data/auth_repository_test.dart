@@ -54,11 +54,13 @@ void main() {
   });
 
   test('register and sendCode use the auth verify-code endpoints', () async {
-    final client = ScriptedGatewayClient.always({
-      'userId': 9,
-      'token': 't',
-      'refreshToken': 'r',
-    });
+    final client = ScriptedGatewayClient(
+      (request) async => jsonResponse(
+        request.url.path == '/api/v1/auth/register'
+            ? {'userId': 9, 'token': 't', 'refreshToken': 'r'}
+            : {},
+      ),
+    );
     setApiClient(client);
     final repository = AuthRepository();
 
@@ -68,7 +70,7 @@ void main() {
       phone: '13800000001',
       verifyCode: '123456',
     );
-    await repository.sendCode('13800000002', 2);
+    final sent = await repository.sendCode('13800000002', 2);
 
     expect(client.requests[0].url.path, '/api/v1/auth/register');
     expect(jsonBodyOf(client.requests[0] as http.Request), {
@@ -85,7 +87,23 @@ void main() {
       'phone': '13800000002',
       'type': 2,
     });
+    expect(sent.toJson(), isEmpty);
   });
+
+  for (final body in ['null', '', '<html>not an API</html>']) {
+    test('sendCode rejects an invalid HTTP 200 response: $body', () async {
+      final client = ScriptedGatewayClient(
+        (_) async => http.Response(body, 200),
+      );
+      setApiClient(client);
+
+      await expectLater(
+        AuthRepository().sendCode('13800000002', 2),
+        throwsA(isA<ApiException>()),
+      );
+      expect(client.requests.single.url.path, '/api/v1/auth/verify-code');
+    });
+  }
 
   test(
     'business failures surface as ApiException with the gateway code',

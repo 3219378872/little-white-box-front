@@ -18,7 +18,7 @@ tracks:
 - FQ-006
 - FQ-007
 - FQ-008
-updated_at: 2026-09-06
+updated_at: 2026-09-08
 ---
 
 # 客户端平台与工程边界设计
@@ -58,6 +58,10 @@ presentation -> application -> feature repository -> shared transport -> gateway
 分组，迟到 refresh、401 或旧账号请求不能覆盖或清理新账号。只有明确的凭证拒绝触发条件清理；网络、
 5xx 和非法成功体保持当前身份并返回可恢复错误。
 
+JSON 请求、multipart 与 SSE 在首次发送前固定会话 revision；刷新后的重试只能使用同一 revision 的
+轮换令牌，换号或登出即终止原请求。匿名 revision 与凭据快照一并读取，行为批次还可显式绑定预期
+revision，防止身份校验与实际发送之间的账号切换。
+
 公开缓存和认证缓存均带 session identity。provider 在身份改变时重建，notifier 还以 generation、
 mounted 和当前命令身份拒绝迟到结果。首次加载、刷新、分页、局部失败、空态和终态分别建模；失败命令
 保留原参数与幂等标识，参数变化才形成新命令。
@@ -66,11 +70,17 @@ mounted 和当前命令身份拒绝迟到结果。首次加载、刷新、分页
 
 默认 API URI 使用相对 `/api/...`，由页面来源提供同源反代；原生端或跨源调试可显式注入
 `SERVER_HOST`。HTTP 状态与结构化业务码共同分类，未知或非法响应进入失败态。
+成功体必须是 JSON 对象，非零或非法业务码、HTML、空 body、顶层 null/数组均不得变成成功。
+真实网关 void 响应为 `{}`；兼容的显式 `code: 0, data: null` 信封可解为 void，读取 repository
+仍须校验必需字段，不能借此伪造空列表或零未读。
 
 `vendor/sdk_source` 是 `goctl api dart` 的生成来源，`lib/sdk` 是应用副本。PUT/DELETE 修补、绝对生成
 路径清理和实体 ID 类型兼容集中在 `tools/sync_gateway_sdk.py`；应用适配位于 `core/api` 或 feature
 repository，禁止只手改任一生成副本。`sdk-check` 必须针对已核验的后端 `gateway.api` 在临时目录重生
 并逐字比较两份副本。
+
+`UpdatePostV2Req` 的 images/mediaIds 数组保留 presence：null 表示不提供并从 JSON 省略，显式空
+列表发送 `[]` 以清空。该修补只由生成工具作用于此请求模型，不改变创建请求或其它数组的默认语义。
 
 网关雪花 ID 是 JSON number。解码前将 16 位及以上整数字面量保护为字符串，编码时仅在 `Id`/`Ids`
 键上下文把十进制字符串还原为 JSON number；自由文本不做转换。路径、query、路由和领域模型不把实体

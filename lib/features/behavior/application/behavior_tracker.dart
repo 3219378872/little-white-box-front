@@ -6,9 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/analytics/client_identity_store.dart';
 import '../../../core/api/json_int64.dart';
+import '../../auth/application/auth_notifier.dart';
 import '../../feed/data/feed_models.dart';
 import '../data/behavior_event.dart';
 import '../data/behavior_event_queue.dart';
+import '../data/behavior_identity.dart';
 import '../data/behavior_repository.dart';
 
 const _exposureDedupeStorageKey = 'behavior.exposure_dedupe.v1';
@@ -63,6 +65,8 @@ class PersistentBehaviorTracker implements BehaviorTracker {
     FeedRecommendationContext context,
   ) async {
     if (!_valid(postId, context)) return false;
+    final owner = await loadBehaviorIdentity();
+    if (owner.ownerIdentity == null) return false;
     await initialize();
     final dedupeKey = '${context.requestId}:${jsonInt64Id(postId)}';
     return _synchronized(() async {
@@ -72,6 +76,7 @@ class PersistentBehaviorTracker implements BehaviorTracker {
         postId: postId,
         context: context,
         clientEventId: 'exposure-$dedupeKey',
+        ownerIdentity: owner.ownerIdentity!,
       );
       _exposureKeys.add(dedupeKey);
       _exposureKeySet.add(dedupeKey);
@@ -95,12 +100,15 @@ class PersistentBehaviorTracker implements BehaviorTracker {
     Duration duration,
   ) async {
     if (duration.inMilliseconds <= 0 || !_valid(postId, context)) return;
+    final owner = await loadBehaviorIdentity();
+    if (owner.ownerIdentity == null) return;
     await initialize();
     await _enqueue(
       action: 'dwell',
       postId: postId,
       context: context,
       durationMs: duration.inMilliseconds,
+      ownerIdentity: owner.ownerIdentity!,
     );
   }
 
@@ -110,8 +118,15 @@ class PersistentBehaviorTracker implements BehaviorTracker {
     FeedRecommendationContext context,
   ) async {
     if (!_valid(postId, context)) return;
+    final owner = await loadBehaviorIdentity();
+    if (owner.ownerIdentity == null) return;
     await initialize();
-    await _enqueue(action: action, postId: postId, context: context);
+    await _enqueue(
+      action: action,
+      postId: postId,
+      context: context,
+      ownerIdentity: owner.ownerIdentity!,
+    );
   }
 
   bool _valid(Object postId, FeedRecommendationContext context) {
@@ -125,12 +140,14 @@ class PersistentBehaviorTracker implements BehaviorTracker {
     required String action,
     required Object postId,
     required FeedRecommendationContext context,
+    required String ownerIdentity,
     String? clientEventId,
     int? durationMs,
   }) async {
     final identity = await _identityStore.loadOrCreate();
     await _queue.enqueue(
       QueuedBehaviorEvent(
+        ownerIdentity: ownerIdentity,
         anonymousId: identity.anonymousId,
         sessionId: identity.sessionId,
         event: ClientBehaviorEvent(
@@ -204,6 +221,9 @@ final behaviorEventQueueProvider = Provider<BehaviorEventQueue>((ref) {
     transport: ref.read(behaviorEventTransportProvider),
   );
   ref.onDispose(queue.dispose);
+  ref.listen(authSessionIdentityProvider, (_, _) {
+    unawaited(queue.flush());
+  });
   return queue;
 });
 

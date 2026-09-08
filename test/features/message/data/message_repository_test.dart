@@ -165,8 +165,9 @@ class _StubV2ApiClient extends V2ApiClient {
   @override
   Future<Map<String, dynamic>> post(
     String path,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    int? expectedSessionRevision,
+  }) async {
     postCalls.add(_PostCall(path, Map.of(body)));
     return postResponses.removeAt(0);
   }

@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'behavior_event.dart';
+import 'behavior_identity.dart';
 import 'behavior_repository.dart';
 
 const _queueStorageKey = 'behavior.event_queue.v1';
@@ -42,6 +43,7 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
   final BehaviorEventTransport _transport;
   final ConnectivityMonitor _connectivity;
   final Future<SharedPreferences> Function() _preferences;
+  final Future<BehaviorIdentity> Function() _loadIdentity;
   final int maxQueueSize;
   final int maxBatchSize;
   final Duration flushDelay;
@@ -63,6 +65,7 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
     required BehaviorEventTransport transport,
     ConnectivityMonitor? connectivity,
     Future<SharedPreferences> Function()? preferences,
+    Future<BehaviorIdentity> Function()? loadIdentity,
     this.maxQueueSize = 500,
     this.maxBatchSize = 100,
     this.flushDelay = const Duration(milliseconds: 500),
@@ -72,12 +75,17 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
   }) : assert(maxQueueSize > 0),
        assert(maxBatchSize > 0 && maxBatchSize <= 100),
        _transport = transport,
+       _loadIdentity = loadIdentity ?? loadBehaviorIdentity,
        _connectivity = connectivity ?? PluginConnectivityMonitor(),
        _preferences = preferences ?? SharedPreferences.getInstance;
 
   int get pendingCount => _events.length;
 
   List<QueuedBehaviorEvent> get pendingEvents => List.unmodifiable(_events);
+
+  /// Legacy events have no trustworthy account attribution and stay unsent.
+  int get unattributedCount =>
+      _events.where((event) => event.ownerIdentity == null).length;
 
   @override
   Future<void> initialize() {
@@ -105,12 +113,18 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
   Future<void> flush() async {
     await initialize();
     if (_disposed || !_online) return;
+    final identity = await _loadIdentity();
+    if (_disposed || identity.ownerIdentity == null) return;
 
     final batchItems = await _synchronized<List<QueuedBehaviorEvent>>(() async {
       if (_flushInFlight || _events.isEmpty || !_online) return const [];
+      final eligible = _events.where(
+        (item) => item.ownerIdentity == identity.ownerIdentity,
+      );
+      if (eligible.isEmpty) return const [];
       _flushInFlight = true;
-      final first = _events.first;
-      return _events
+      final first = eligible.first;
+      return eligible
           .where(
             (item) =>
                 item.anonymousId == first.anonymousId &&
@@ -124,6 +138,7 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
     try {
       final result = await _transport.send(
         BehaviorBatch(
+          ownerIdentity: batchItems.first.ownerIdentity,
           anonymousId: batchItems.first.anonymousId,
           sessionId: batchItems.first.sessionId,
           events: batchItems.map((item) => item.event).toList(),

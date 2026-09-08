@@ -63,11 +63,13 @@ class ClientBehaviorEvent {
 }
 
 class QueuedBehaviorEvent {
+  final String? ownerIdentity;
   final String anonymousId;
   final String sessionId;
   final ClientBehaviorEvent event;
 
   const QueuedBehaviorEvent({
+    this.ownerIdentity,
     required this.anonymousId,
     required this.sessionId,
     required this.event,
@@ -75,6 +77,7 @@ class QueuedBehaviorEvent {
 
   factory QueuedBehaviorEvent.fromJson(Map<String, dynamic> json) {
     return QueuedBehaviorEvent(
+      ownerIdentity: json['ownerIdentity'] as String?,
       anonymousId: json['anonymousId'] as String? ?? '',
       sessionId: json['sessionId'] as String? ?? '',
       event: ClientBehaviorEvent.fromJson(
@@ -85,6 +88,7 @@ class QueuedBehaviorEvent {
 
   Map<String, dynamic> toJson() {
     return {
+      if (ownerIdentity != null) 'ownerIdentity': ownerIdentity,
       'anonymousId': anonymousId,
       'sessionId': sessionId,
       'event': event.toJson(),
@@ -93,11 +97,13 @@ class QueuedBehaviorEvent {
 }
 
 class BehaviorBatch {
+  final String? ownerIdentity;
   final String anonymousId;
   final String sessionId;
   final List<ClientBehaviorEvent> events;
 
   const BehaviorBatch({
+    this.ownerIdentity,
     required this.anonymousId,
     required this.sessionId,
     required this.events,

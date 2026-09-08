@@ -1,5 +1,7 @@
+import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/v2_api_client.dart';
 import 'behavior_event.dart';
+import 'behavior_identity.dart';
 
 abstract interface class BehaviorEventTransport {
   Future<BehaviorSendResult> send(BehaviorBatch batch);
@@ -13,11 +15,16 @@ class BehaviorRepository implements BehaviorEventTransport {
 
   @override
   Future<BehaviorSendResult> send(BehaviorBatch batch) async {
+    final identity = await loadBehaviorIdentity();
+    if (batch.ownerIdentity == null ||
+        batch.ownerIdentity != identity.ownerIdentity) {
+      throw const ApiException('行为事件所属会话已变化');
+    }
     final response = await _client.post('/api/v2/behavior/events', {
       'anonymousId': batch.anonymousId,
       'sessionId': batch.sessionId,
       'events': batch.events.map((event) => event.toJson()).toList(),
-    });
+    }, expectedSessionRevision: identity.sessionRevision);
     final results = response['results'] as List<dynamic>? ?? const [];
     final accepted = <String>{};
     final permanentlyRejected = <String>{};

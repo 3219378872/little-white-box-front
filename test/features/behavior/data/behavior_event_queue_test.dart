@@ -155,6 +155,7 @@ void main() {
 }
 
 QueuedBehaviorEvent queued(String id) => QueuedBehaviorEvent(
+  ownerIdentity: 'anonymous:0',
   anonymousId: 'anonymous-1',
   sessionId: 'session-1',
   event: ClientBehaviorEvent(
