@@ -1,0 +1,15 @@
+{
+  "observed_commit": "f9dbc113f097bffb664e6b8add7f7c9be4b3e89a",
+  "backend_contract_commit": "0184c600d8a0fcfb8e7701464fa3e5ef330f7faf",
+  "flutter": "3.47.2",
+  "dart": "3.13.2",
+  "format_files": 207,
+  "format_changes": 0,
+  "analyze_issues": 0,
+  "flutter_tests_passed": 576,
+  "tools_tests_passed": 52,
+  "handwritten_coverage": {"covered": 8069, "lines": 9700, "percent": 83.2},
+  "sdk_regeneration": "passed",
+  "release_web_build": "passed",
+  "browser_device_live_gateway": "not_run"
+}
