@@ -1,4 +1,5 @@
 import '../../../core/api/api_adapter.dart';
+import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../sdk/api/api.dart';
 import '../../../sdk/api/gateway.dart' as gw;
@@ -8,8 +9,17 @@ import '../application/user_posts_notifier.dart';
 class UserRepository implements UserPostsRepository {
   Future<GetUserResp> getUserProfile(Object userId) {
     return apiCall<GetUserResp>(
-      (ok, fail, eventually) =>
-          gw.getUser(userId, ok: ok, fail: fail, eventually: eventually),
+      (ok, fail, eventually) => apiGet(
+        '/api/v1/user/${jsonInt64Id(userId)}',
+        ok: (data) {
+          if (data['isFollowing'] is! bool) {
+            throw const ApiException('用户关注状态响应格式无效');
+          }
+          ok(GetUserResp.fromJson(data));
+        },
+        fail: fail,
+        eventually: eventually,
+      ),
     );
   }
 

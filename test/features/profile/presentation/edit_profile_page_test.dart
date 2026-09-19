@@ -81,6 +81,7 @@ void main() {
     );
     final client = ScriptedGatewayClient.always({
       'id': 7,
+      'isFollowing': false,
       'username': 'admin',
       'nickname': '管理员昵称',
       'avatarUrl': '',
@@ -114,6 +115,7 @@ void main() {
         return jsonResponse(
           okEnvelope({
             'id': 7,
+            'isFollowing': false,
             'username': 'admin',
             'nickname': '旧昵称',
             'avatarUrl': '',
@@ -150,6 +152,7 @@ void main() {
         return jsonResponse(
           okEnvelope({
             'id': 7,
+            'isFollowing': false,
             'username': 'admin',
             'nickname': '旧昵称',
             'avatarUrl': '',
@@ -185,6 +188,7 @@ void main() {
     );
     final client = ScriptedGatewayClient.always({
       'id': 7,
+      'isFollowing': false,
       'username': 'admin',
       'nickname': '管理员昵称',
       'avatarUrl': '',
@@ -232,6 +236,7 @@ void main() {
             ? jsonResponse(
                 okEnvelope({
                   'id': 7,
+                  'isFollowing': false,
                   'username': 'admin',
                   'nickname': '恢复昵称',
                   'avatarUrl': '',

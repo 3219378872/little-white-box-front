@@ -341,6 +341,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 20));
       }
       expect(find.text('账号 B 资料'), findsOneWidget);
+      expect(find.text('已关注'), findsOneWidget);
 
       harness.oldResponse.complete(
         jsonResponse(okEnvelope(_profileJson('账号 A 资料'))),
@@ -348,6 +349,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('账号 B 资料'), findsOneWidget);
       expect(find.text('账号 A 资料'), findsNothing);
+      expect(find.text('已关注'), findsOneWidget);
     },
   );
 
@@ -384,10 +386,59 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('follow state is reloaded on revisit and drives unfollow', (
+    tester,
+  ) async {
+    final harness = await _pumpFollowProfile(tester);
+    await tester.tap(find.byKey(const Key('profile-follow-toggle')));
+    await tester.pump();
+    harness.followResponse.complete(jsonResponse(okEnvelope(const {})));
+    await tester.pumpAndSettle();
+    harness.router.go('/');
+    await tester.pumpAndSettle();
+    harness.router.go('/user/2');
+    await tester.pumpAndSettle();
+    expect(find.text('已关注'), findsOneWidget);
+    expect(harness.profileCalls, 2);
+    harness.followResponse = Completer<http.Response>();
+    await tester.tap(find.byKey(const Key('profile-follow-toggle')));
+    await tester.pump();
+    expect(harness.client.requests.last.method, 'DELETE');
+    harness.followResponse.complete(jsonResponse(okEnvelope(const {})));
+    await tester.pumpAndSettle();
+    expect(find.text('已关注'), findsNothing);
+    harness.router.go('/');
+    await tester.pumpAndSettle();
+    harness.router.go('/user/2');
+    await tester.pumpAndSettle();
+    expect(find.text('已关注'), findsNothing);
+    expect(harness.following, isFalse);
+  });
+
+  testWidgets('unfollow failure restores the authoritative followed state', (
+    tester,
+  ) async {
+    final harness = await _pumpFollowProfile(tester, following: true);
+    expect(find.text('已关注'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('profile-follow-toggle')));
+    await tester.pump();
+    expect(find.text('已关注'), findsNothing);
+    harness.followResponse.complete(
+      jsonResponse({'code': 500, 'message': 'offline'}, 500),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('已关注'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+  });
 }
 
-Future<_FollowProfileHarness> _pumpFollowProfile(WidgetTester tester) async {
-  final harness = _FollowProfileHarness();
+Future<_FollowProfileHarness> _pumpFollowProfile(
+  WidgetTester tester, {
+  bool following = false,
+}) async {
+  final harness = _FollowProfileHarness()..following = following;
   setApiClient(harness.client);
   final container = createAppProviderContainer(
     overrides: [
@@ -402,12 +453,17 @@ Future<_FollowProfileHarness> _pumpFollowProfile(WidgetTester tester) async {
     initialLocation: '/user/2',
     routes: [
       GoRoute(
+        path: '/',
+        builder: (_, _) => const Scaffold(body: Text('home')),
+      ),
+      GoRoute(
         path: '/user/:userId',
         builder: (_, state) =>
             ProfilePage(userId: int.parse(state.pathParameters['userId']!)),
       ),
     ],
   );
+  harness.router = router;
   addTearDown(router.dispose);
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -429,7 +485,10 @@ Future<_FollowProfileHarness> _pumpFollowProfile(WidgetTester tester) async {
   return harness;
 }
 
-Map<String, dynamic> _profileJson(String nickname) => {
+Map<String, dynamic> _profileJson(
+  String nickname, {
+  bool isFollowing = false,
+}) => {
   'id': 2,
   'username': 'profile-user',
   'nickname': nickname,
@@ -440,6 +499,7 @@ Map<String, dynamic> _profileJson(String nickname) => {
   'followingCount': 0,
   'postCount': 12,
   'favoritesVisible': true,
+  'isFollowing': isFollowing,
 };
 
 class _AccountSwitchProfileHarness {
@@ -465,7 +525,9 @@ class _AccountSwitchProfileHarness {
       return oldResponse.future;
     }
     if (profileCalls == 3) {
-      return jsonResponse(okEnvelope(_profileJson('账号 B 资料')));
+      return jsonResponse(
+        okEnvelope(_profileJson('账号 B 资料', isFollowing: true)),
+      );
     }
     fail('unexpected profile request $profileCalls');
   }
@@ -473,8 +535,11 @@ class _AccountSwitchProfileHarness {
 
 class _FollowProfileHarness {
   late final ScriptedGatewayClient client;
-  final followResponse = Completer<http.Response>();
+  late final GoRouter router;
+  var followResponse = Completer<http.Response>();
   int followCalls = 0;
+  int profileCalls = 0;
+  bool following = false;
 
   _FollowProfileHarness() {
     client = ScriptedGatewayClient(route);
@@ -482,11 +547,16 @@ class _FollowProfileHarness {
 
   Future<http.Response> route(http.BaseRequest request) async {
     if (request.method == 'GET' && request.url.path == '/api/v1/user/2') {
-      return jsonResponse(okEnvelope(_profileJson('被关注用户')));
+      profileCalls++;
+      return jsonResponse(
+        okEnvelope(_profileJson('被关注用户', isFollowing: following)),
+      );
     }
-    if (request.method == 'POST' && request.url.path == '/api/v1/user/follow') {
+    if (request.url.path == '/api/v1/user/follow') {
       followCalls++;
-      return followResponse.future;
+      final response = await followResponse.future;
+      if (response.statusCode == 200) following = request.method == 'POST';
+      return response;
     }
     fail('unexpected request: ${request.method} ${request.url.path}');
   }

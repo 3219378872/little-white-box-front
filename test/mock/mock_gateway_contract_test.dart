@@ -29,6 +29,39 @@ void main() {
     expect(bodyOf(ready)['dependencies'], isA<Map>());
   });
 
+  test(
+    'profile relationship belongs to the viewer and reflects follow commands',
+    () {
+      Map<String, dynamic> profile([int? viewer]) => bodyOf(
+        mock_router.dispatchResponse(
+          'GET',
+          '/api/v1/user/2',
+          '',
+          headers: viewer == null ? const {} : bearer(viewer),
+        ),
+      );
+      final followed = mock_router.dispatchResponse(
+        'POST',
+        '/api/v1/user/follow',
+        jsonEncode({'targetUserId': 2}),
+        headers: bearer(1),
+      );
+      expect(followed.statusCode, 200);
+      expect(profile(1)['isFollowing'], isTrue);
+      expect(profile(3)['isFollowing'], isFalse);
+      expect(profile()['isFollowing'], isFalse);
+      expect(profile(2)['isFollowing'], isFalse);
+      final unfollowed = mock_router.dispatchResponse(
+        'DELETE',
+        '/api/v1/user/follow',
+        jsonEncode({'targetUserId': 2}),
+        headers: bearer(1),
+      );
+      expect(unfollowed.statusCode, 200);
+      expect(profile(1)['isFollowing'], isFalse);
+    },
+  );
+
   test('optional auth routes advertise x-auth-state', () {
     final anonymous = mock_router.dispatchResponse(
       'GET',

@@ -1,4 +1,5 @@
 import '../../../core/api/json_int64.dart';
+import '../../../core/api/response_fields.dart';
 
 class ConversationSummary {
   final Object id;
@@ -107,8 +108,8 @@ class UnreadSummary {
 
   factory UnreadSummary.fromJson(Map<String, dynamic> json) {
     return UnreadSummary(
-      messageUnread: _integer(json['messageUnread']),
-      notificationUnread: _integer(json['notificationUnread']),
+      messageUnread: requiredResponseCount(json, 'messageUnread'),
+      notificationUnread: requiredResponseCount(json, 'notificationUnread'),
     );
   }
 }

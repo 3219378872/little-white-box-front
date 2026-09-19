@@ -227,7 +227,10 @@ MockRouterResponse _routeV1(
   }
   if (segments.length == 4 && segments[2] == 'user') {
     _requireMethod(method, 'GET');
-    return _jsonResponse(_getUser(_pathId(segments[3])));
+    return _withAuthState(
+      auth,
+      _jsonResponse(_getUser(_pathId(segments[3]), auth)),
+    );
   }
   if (segments.length == 5 && segments[2] == 'users') {
     _requireMethod(method, 'GET');

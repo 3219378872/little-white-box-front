@@ -70,33 +70,61 @@ void main() {
     expect(notifier.state.error, isNull);
   });
 
-  test('a successful send wins over an older in-flight thread load', () async {
-    final repository = _SendDuringLoadSource();
-    final notifier = MessageThreadNotifier(
-      repository: repository,
-      conversationId: 8,
-      targetUserId: 7,
-      currentUserId: 1,
-      loadImmediately: false,
-    );
+  test(
+    'sending during initial load preserves history, cursor and read receipt',
+    () async {
+      final repository = _SendDuringLoadSource();
+      final notifier = MessageThreadNotifier(
+        repository: repository,
+        conversationId: 8,
+        targetUserId: 7,
+        currentUserId: 1,
+        loadImmediately: false,
+      );
 
-    final load = notifier.refresh();
-    await pumpEventQueue();
-    expect(await notifier.send('new message'), isTrue);
+      final load = notifier.refresh();
+      await pumpEventQueue();
+      expect(await notifier.send('new message'), isTrue);
 
-    repository.pendingLoad.complete(
-      MessagePage(messages: [message(1)], hasMore: false),
-    );
-    await load;
+      repository.pendingLoad.complete(
+        MessagePage(messages: [message(1)], hasMore: true),
+      );
+      await load;
 
-    expect(notifier.state.messages, hasLength(1));
-    expect(notifier.state.messages.single.content, 'new message');
-    expect(
-      notifier.state.messages.single.createdAt,
-      greaterThan(1000000000000),
-    );
-    expect(repository.markReadCalls, 0);
-  });
+      expect(notifier.state.messages.map((m) => m.id), [1, 99]);
+      expect(notifier.state.messages.last.content, 'new message');
+      expect(
+        notifier.state.messages.last.createdAt,
+        greaterThan(1000000000000),
+      );
+      expect(notifier.state.hasMore, isTrue);
+      expect(notifier.state.isLoading, isFalse);
+      expect(repository.markReadCalls, 1);
+    },
+  );
+
+  test(
+    'history owns metadata when it contains the newly sent message',
+    () async {
+      final repository = _SendDuringLoadSource();
+      final notifier = MessageThreadNotifier(
+        repository: repository,
+        conversationId: 8,
+        targetUserId: 7,
+        currentUserId: 1,
+        loadImmediately: false,
+      );
+      addTearDown(notifier.dispose);
+      final load = notifier.refresh();
+      await notifier.send('new message');
+      repository.pendingLoad.complete(
+        MessagePage(messages: [message(1), message(99)], hasMore: false),
+      );
+      await load;
+      expect(notifier.state.messages.map((m) => m.id), [1, 99]);
+      expect(notifier.state.messages.last.createdAt, 99);
+    },
+  );
 
   test(
     'account switch replaces conversations and ignores the old response',

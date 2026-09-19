@@ -16,6 +16,7 @@ class CommentState {
   final List<CommentItem> comments;
   final bool isLoading;
   final bool hasError;
+  final bool initialLoadFailed;
   final bool hasMore;
   final int sortBy;
 
@@ -34,6 +35,7 @@ class CommentState {
     this.comments = const [],
     this.isLoading = false,
     this.hasError = false,
+    this.initialLoadFailed = false,
     this.hasMore = true,
     this.sortBy = 1,
     this.expandedReplies = const {},
@@ -49,6 +51,7 @@ class CommentState {
     List<CommentItem>? comments,
     bool? isLoading,
     bool? hasError,
+    bool? initialLoadFailed,
     bool? hasMore,
     int? sortBy,
     Set<String>? expandedReplies,
@@ -64,6 +67,7 @@ class CommentState {
       comments: comments ?? this.comments,
       isLoading: isLoading ?? this.isLoading,
       hasError: hasError ?? this.hasError,
+      initialLoadFailed: initialLoadFailed ?? this.initialLoadFailed,
       hasMore: hasMore ?? this.hasMore,
       sortBy: sortBy ?? this.sortBy,
       expandedReplies: expandedReplies ?? this.expandedReplies,
@@ -85,6 +89,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
 
   int _page = 0;
   int _generation = 0;
+  final Map<String, int> _replyGenerations = {};
   String? _submitIdempotencyKey;
   String? _submitCommandFingerprint;
 
@@ -100,16 +105,21 @@ class CommentNotifier extends StateNotifier<CommentState> {
   /// 首屏/重试/切排序：从第 1 页重建列表。
   Future<void> loadInitial() async {
     final generation = ++_generation;
-    _page = 1;
-    state = state.copyWith(isLoading: true, hasError: false);
+    state = state.copyWith(
+      isLoading: true,
+      hasError: false,
+      initialLoadFailed: false,
+      loadingReplies: const {},
+    );
     try {
       final resp = await _repository.fetchComments(
         postId: postId,
-        page: _page,
+        page: 1,
         pageSize: _pageSize,
         sortBy: state.sortBy,
       );
       if (!mounted || generation != _generation) return;
+      _page = 1;
       state = state.copyWith(
         comments: resp.list,
         hasMore: resp.list.length >= _pageSize,
@@ -119,7 +129,11 @@ class CommentNotifier extends StateNotifier<CommentState> {
     } catch (_) {
       // 失败不得伪装成空评论区（FX-001）；给出可重试的错误态。
       if (!mounted || generation != _generation) return;
-      state = state.copyWith(isLoading: false, hasError: true);
+      state = state.copyWith(
+        isLoading: false,
+        hasError: true,
+        initialLoadFailed: true,
+      );
     }
   }
 
@@ -150,7 +164,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
   }
 
   Future<void> retry() async {
-    if (state.comments.isNotEmpty) {
+    if (state.comments.isNotEmpty && !state.initialLoadFailed) {
       if (state.hasError) {
         state = state.copyWith(hasError: false);
       }
@@ -178,7 +192,11 @@ class CommentNotifier extends StateNotifier<CommentState> {
     final expanded = {...state.expandedReplies};
     if (!expanded.add(id)) {
       expanded.remove(id);
-      state = state.copyWith(expandedReplies: expanded);
+      _replyGenerations[id] = (_replyGenerations[id] ?? 0) + 1;
+      state = state.copyWith(
+        expandedReplies: expanded,
+        loadingReplies: {...state.loadingReplies}..remove(id),
+      );
       return;
     }
     final threadReplies = Map<String, List<CommentItem>>.of(state.threadReplies)
@@ -195,7 +213,10 @@ class CommentNotifier extends StateNotifier<CommentState> {
 
   Future<void> loadMoreReplies(CommentItem comment) async {
     final id = jsonInt64Id(comment.id);
-    if (state.loadingReplies.contains(id)) return;
+    if (!state.expandedReplies.contains(id) ||
+        state.loadingReplies.contains(id)) {
+      return;
+    }
     state = state.copyWith(loadingReplies: {...state.loadingReplies, id});
     await _fetchReplyThread(
       comment,
@@ -210,13 +231,21 @@ class CommentNotifier extends StateNotifier<CommentState> {
     required bool append,
   }) async {
     final id = jsonInt64Id(comment.id);
+    final generation = _generation;
+    final replyGeneration = (_replyGenerations[id] ?? 0) + 1;
+    _replyGenerations[id] = replyGeneration;
+    bool isCurrent() =>
+        mounted &&
+        generation == _generation &&
+        replyGeneration == _replyGenerations[id] &&
+        state.expandedReplies.contains(id);
     try {
       final resp = await _repository.fetchReplies(
         commentId: comment.id,
         page: page,
         pageSize: _replyPageSize,
       );
-      if (!mounted) return;
+      if (!isCurrent()) return;
       final existing = append
           ? (state.threadReplies[id] ?? const <CommentItem>[])
           : const <CommentItem>[];
@@ -236,7 +265,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
       );
     } catch (_) {
       // 与既有行为一致：失败仅结束 loading 并提示，保持展开态展示内嵌预览。
-      if (!mounted) return;
+      if (!isCurrent()) return;
       final loadingReplies = Set<String>.of(state.loadingReplies)..remove(id);
       state = state.copyWith(loadingReplies: loadingReplies);
       rethrow;

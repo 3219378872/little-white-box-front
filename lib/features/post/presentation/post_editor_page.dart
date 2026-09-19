@@ -49,6 +49,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   String? _createCommandFingerprint;
   String? _uploadedSelectionFingerprint;
   List<UploadedImage>? _uploadedLocalImages;
+  int _editorGeneration = 0;
 
   bool get _isEditMode => widget.postId != null;
 
@@ -63,6 +64,30 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   }
 
   @override
+  void didUpdateWidget(covariant PostEditorPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.postId == widget.postId) return;
+    _editorGeneration++;
+    _titleCtrl.clear();
+    _contentCtrl.clear();
+    _tagCtrl.clear();
+    _tags.clear();
+    _networkImages.clear();
+    _localImages.clear();
+    _revision = 0;
+    _isLoading = false;
+    _isInitialized = !_isEditMode;
+    _createIdempotencyKey = null;
+    _createCommandFingerprint = null;
+    _uploadedSelectionFingerprint = null;
+    _uploadedLocalImages = null;
+    if (_isEditMode) _loadExistingPost();
+  }
+
+  bool _ownsEditor(int generation) =>
+      mounted && generation == _editorGeneration;
+
+  @override
   void dispose() {
     _titleCtrl.dispose();
     _contentCtrl.dispose();
@@ -71,11 +96,11 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   }
 
   Future<void> _loadExistingPost() async {
+    final generation = _editorGeneration;
+    final postId = widget.postId!;
     try {
-      final post = await ref
-          .read(_postRepoProvider)
-          .getPostDetail(widget.postId!);
-      if (!mounted) return;
+      final post = await ref.read(_postRepoProvider).getPostDetail(postId);
+      if (!_ownsEditor(generation)) return;
       setState(() {
         _titleCtrl.text = post.title;
         _contentCtrl.text = post.content;
@@ -85,7 +110,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
         _isInitialized = true;
       });
     } catch (e) {
-      if (mounted) {
+      if (mounted && _ownsEditor(generation)) {
         showAppError(context, '加载失败: ${friendlyErrorMessage(e)}');
         context.pop();
       }
@@ -106,6 +131,8 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
 
   Future<List<UploadedImage>> _uploadLocalImages(
     List<XFile> localImages,
+    PostRepository repo,
+    int generation,
   ) async {
     if (localImages.isEmpty) {
       _uploadedSelectionFingerprint = null;
@@ -117,12 +144,11 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
       for (final file in localImages)
         {'path': file.path, 'name': file.name, 'length': await file.length()},
     ]);
+    if (!_ownsEditor(generation)) return const [];
     if (_uploadedSelectionFingerprint == selectionFingerprint &&
         _uploadedLocalImages != null) {
       return _uploadedLocalImages!;
     }
-
-    final repo = ref.read(_postRepoProvider);
 
     final futures = <Future<(int, UploadedImage?, String?)>>[];
     for (var i = 0; i < localImages.length; i++) {
@@ -160,13 +186,19 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
     }
 
     final uploaded = [for (final r in results) r.$2!];
-    _uploadedSelectionFingerprint = selectionFingerprint;
-    _uploadedLocalImages = uploaded;
+    if (_ownsEditor(generation)) {
+      _uploadedSelectionFingerprint = selectionFingerprint;
+      _uploadedLocalImages = uploaded;
+    }
     return uploaded;
   }
 
   Future<void> _publish({int status = 1}) async {
-    if (_isLoading) return;
+    if (_isLoading || !_isInitialized) return;
+    final generation = _editorGeneration;
+    final postId = widget.postId;
+    final revision = _revision;
+    final repo = ref.read(_postRepoProvider);
     final title = _titleCtrl.text.trim();
     final content = _contentCtrl.text.trim();
     final tags = List<String>.of(_tags);
@@ -182,32 +214,31 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
     }
     setState(() => _isLoading = true);
     try {
-      final uploaded = await _uploadLocalImages(localImages);
+      final uploaded = await _uploadLocalImages(localImages, repo, generation);
+      if (!_ownsEditor(generation)) return;
       final allImages = [...networkImages, ...uploaded.map((item) => item.url)];
       final mediaIds = [
         ...uploaded.map((item) => item.mediaId).where(jsonInt64IsPositive),
       ];
 
-      if (_isEditMode) {
-        if (_revision <= 0) {
+      if (postId != null) {
+        if (revision <= 0) {
           throw const ApiException('缺少帖子版本，请刷新后重试');
         }
-        await ref
-            .read(_postRepoProvider)
-            .updateExistingPost(
-              widget.postId!,
-              UpdatePostV2Req(
-                postId: widget.postId!,
-                title: title,
-                content: content,
-                images: allImages,
-                tags: tags,
-                status: status,
-                expectedRevision: _revision,
-                mediaIds: mediaIds,
-              ),
-            );
-        if (mounted) context.pop();
+        await repo.updateExistingPost(
+          postId,
+          UpdatePostV2Req(
+            postId: postId,
+            title: title,
+            content: content,
+            images: allImages,
+            tags: tags,
+            status: status,
+            expectedRevision: revision,
+            mediaIds: mediaIds,
+          ),
+        );
+        if (mounted && _ownsEditor(generation)) context.pop();
       } else {
         final commandFingerprint = jsonEncode({
           'title': title,
@@ -222,19 +253,18 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
           _createIdempotencyKey = newIdempotencyKey();
           _createCommandFingerprint = commandFingerprint;
         }
-        await ref
-            .read(_postRepoProvider)
-            .createNewPost(
-              CreatePostReq(
-                title: title,
-                content: content,
-                images: allImages,
-                tags: tags,
-                status: status,
-                idempotencyKey: _createIdempotencyKey!,
-                mediaIds: mediaIds,
-              ),
-            );
+        await repo.createNewPost(
+          CreatePostReq(
+            title: title,
+            content: content,
+            images: allImages,
+            tags: tags,
+            status: status,
+            idempotencyKey: _createIdempotencyKey!,
+            mediaIds: mediaIds,
+          ),
+        );
+        if (!_ownsEditor(generation)) return;
         _createIdempotencyKey = null;
         _createCommandFingerprint = null;
         if (mounted) {
@@ -242,7 +272,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
         }
       }
     } on _UploadTransactionException catch (e) {
-      if (mounted) {
+      if (mounted && _ownsEditor(generation)) {
         await showAppAlert(
           context: context,
           title: '图片上传失败',
@@ -250,7 +280,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
         );
       }
     } on ApiException catch (e) {
-      if (mounted) {
+      if (mounted && _ownsEditor(generation)) {
         showAppError(
           context,
           e.code == ErrorCodes.contentVersionConflict
@@ -259,11 +289,11 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && _ownsEditor(generation)) {
         showAppError(context, '发布失败: ${friendlyErrorMessage(e)}');
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (_ownsEditor(generation)) setState(() => _isLoading = false);
     }
   }
 
@@ -286,13 +316,15 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
               variant: .ghost,
               size: .sm,
               mainAxisSize: MainAxisSize.min,
-              onPress: _isLoading ? null : () => _publish(status: 0),
+              onPress: _isLoading || !_isInitialized
+                  ? null
+                  : () => _publish(status: 0),
               child: const Text('存草稿'),
             ),
           FButton(
             size: .sm,
             mainAxisSize: MainAxisSize.min,
-            onPress: _isLoading ? null : () => _publish(),
+            onPress: _isLoading || !_isInitialized ? null : () => _publish(),
             child: _isLoading
                 ? const FCircularProgress(size: .sm)
                 : const Text('发布'),

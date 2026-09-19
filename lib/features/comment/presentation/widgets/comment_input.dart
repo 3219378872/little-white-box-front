@@ -48,12 +48,13 @@ class _CommentInputState extends State<CommentInput> {
   }
 
   Future<void> _submit() async {
-    final text = _controller.text.trim();
+    final draft = _controller.text;
+    final text = draft.trim();
     if (text.isEmpty || _submitting) return;
     setState(() => _submitting = true);
     try {
       await widget.onSubmit(text);
-      if (mounted) {
+      if (mounted && _controller.text == draft) {
         _controller.clear();
         _focusNode.unfocus();
       }

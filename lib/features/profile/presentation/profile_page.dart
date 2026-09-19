@@ -79,7 +79,7 @@ class _ProfileContent extends ConsumerStatefulWidget {
 }
 
 class _ProfileContentState extends ConsumerState<_ProfileContent> {
-  bool _isFollowing = false;
+  bool? _followOverride;
   bool _followBusy = false;
   bool? _personalizationEnabled;
   bool _personalizationBusy = false;
@@ -152,27 +152,27 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
     }
   }
 
-  Future<void> _toggleFollow() async {
+  Future<void> _toggleFollow(bool isFollowing) async {
     if (_followBusy) return;
     if (!ref.read(authNotifierProvider).isAuthenticated) {
       context.push('/auth/login');
       return;
     }
     final repo = ref.read(_userRepoProvider);
-    final wasFollowing = _isFollowing;
+    final previousOverride = _followOverride;
     setState(() {
-      _isFollowing = !_isFollowing;
+      _followOverride = !isFollowing;
       _followBusy = true;
     });
     try {
-      if (wasFollowing) {
+      if (isFollowing) {
         await repo.unfollowUser(widget.userId);
       } else {
         await repo.followUser(widget.userId);
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _isFollowing = wasFollowing);
+      setState(() => _followOverride = previousOverride);
       showAppError(context, '操作失败: $e');
     } finally {
       if (mounted) setState(() => _followBusy = false);
@@ -210,6 +210,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
           onRetry: () => ref.invalidate(_userProfileProvider(widget.userId)),
         ),
         data: (user) {
+          final isFollowing = _followOverride ?? user.isFollowing;
           final showFavoritesTab = widget.isOwnProfile || user.favoritesVisible;
           return NestedScrollView(
             floatHeaderSlivers: false,
@@ -300,12 +301,14 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                       ] else
                         FButton(
                           key: const Key('profile-follow-toggle'),
-                          variant: _isFollowing
+                          variant: isFollowing
                               ? FButtonVariant.secondary
                               : FButtonVariant.primary,
                           mainAxisSize: MainAxisSize.min,
-                          onPress: _followBusy ? null : _toggleFollow,
-                          child: Text(_isFollowing ? '已关注' : '关注'),
+                          onPress: _followBusy
+                              ? null
+                              : () => _toggleFollow(isFollowing),
+                          child: Text(isFollowing ? '已关注' : '关注'),
                         ),
                     ],
                   ),

@@ -119,7 +119,11 @@ class MessageRepository implements MessageDataSource {
   @override
   Future<UnreadSummary> getUnreadSummary() async {
     final response = await _client.get('/api/v2/messages/unread');
-    return UnreadSummary.fromJson(response);
+    try {
+      return UnreadSummary.fromJson(response);
+    } on FormatException {
+      throw const ApiException('未读数量响应格式无效');
+    }
   }
 
   static void _validatePage(int page, int pageSize) {

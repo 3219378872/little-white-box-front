@@ -2364,6 +2364,8 @@ class GetUserResp {
   final num postCount;
 
   final bool favoritesVisible;
+
+  final bool isFollowing;
   GetUserResp({
     required this.id,
     required this.username,
@@ -2375,6 +2377,7 @@ class GetUserResp {
     required this.followingCount,
     required this.postCount,
     required this.favoritesVisible,
+    required this.isFollowing,
   });
   factory GetUserResp.fromJson(Map<String, dynamic> m) {
     return GetUserResp(
@@ -2388,6 +2391,7 @@ class GetUserResp {
       followingCount: m['followingCount'] ?? 0,
       postCount: m['postCount'] ?? 0,
       favoritesVisible: m['favoritesVisible'] ?? false,
+      isFollowing: m['isFollowing'] ?? false,
     );
   }
   Map<String, dynamic> toJson() {
@@ -2402,6 +2406,7 @@ class GetUserResp {
       'followingCount': followingCount,
       'postCount': postCount,
       'favoritesVisible': favoritesVisible,
+      'isFollowing': isFollowing,
     };
   }
 }

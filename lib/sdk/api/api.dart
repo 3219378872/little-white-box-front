@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -12,6 +13,7 @@ import '../vars/vars.dart';
 http.Client _apiClient = http.Client();
 
 const String _refreshPath = '/api/v1/auth/refresh';
+const apiRequestTimeout = Duration(seconds: 15);
 
 /// 传输层仅携带发生失败时的会话快照通知宿主。宿主必须按 revision
 /// 条件更新内存态，不能让迟到的旧请求清除后来登录的账号。
@@ -87,11 +89,13 @@ Future<SessionRefreshResult> _doRefreshTokens(
 ) async {
   final refreshToken = expected.tokens.refreshToken.trim();
   try {
-    final rp = await _apiClient.post(
-      apiUri(_refreshPath),
-      headers: {'Content-Type': 'application/json; charset=utf-8'},
-      body: encodeApiJson({'refreshToken': refreshToken}),
-    );
+    final rp = await _apiClient
+        .post(
+          apiUri(_refreshPath),
+          headers: {'Content-Type': 'application/json; charset=utf-8'},
+          body: encodeApiJson({'refreshToken': refreshToken}),
+        )
+        .timeout(apiRequestTimeout);
     final body = utf8.decode(rp.bodyBytes);
     dynamic decoded;
     try {
@@ -298,17 +302,14 @@ Future _apiRequest(
       }
 
       final uri = apiUri(path);
-      final rp = switch (method) {
-        'POST' => await _apiClient.post(uri, headers: headers, body: strData),
-        'PUT' => await _apiClient.put(uri, headers: headers, body: strData),
-        'DELETE' => await _apiClient.delete(
-          uri,
-          headers: headers,
-          body: strData,
-        ),
-        'PATCH' => await _apiClient.patch(uri, headers: headers, body: strData),
-        _ => await _apiClient.get(uri, headers: headers),
+      final response = switch (method) {
+        'POST' => _apiClient.post(uri, headers: headers, body: strData),
+        'PUT' => _apiClient.put(uri, headers: headers, body: strData),
+        'DELETE' => _apiClient.delete(uri, headers: headers, body: strData),
+        'PATCH' => _apiClient.patch(uri, headers: headers, body: strData),
+        _ => _apiClient.get(uri, headers: headers),
       };
+      final rp = await response.timeout(apiRequestTimeout);
       final body = utf8.decode(rp.bodyBytes);
       dynamic decoded;
       try {
@@ -365,7 +366,9 @@ Future _apiRequest(
   } catch (e) {
     if (fail != null) {
       fail(
-        e is ApiException
+        e is TimeoutException
+            ? jsonEncode({'message': '请求超时，请重试'})
+            : e is ApiException
             ? jsonEncode({'code': e.code, 'message': e.message})
             : e.toString(),
       );

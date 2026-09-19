@@ -1,10 +1,50 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
+import 'package:xiaobaihe_app/features/message/application/message_notifiers.dart';
 import 'package:xiaobaihe_app/core/api/json_int64.dart';
 import 'package:xiaobaihe_app/core/api/v2_api_client.dart';
 import 'package:xiaobaihe_app/features/message/data/message_models.dart';
 import 'package:xiaobaihe_app/features/message/data/message_repository.dart';
 
 void main() {
+  for (final malformed in <Map<String, dynamic>>[
+    {},
+    {'messageUnread': 0},
+    {'messageUnread': -1, 'notificationUnread': 0},
+    {'messageUnread': 0, 'notificationUnread': null},
+    {'messageUnread': '0', 'notificationUnread': 0},
+    {'messageUnread': 0, 'notificationUnread': 0.5},
+  ]) {
+    test(
+      'malformed unread summary preserves the last valid counters: $malformed',
+      () async {
+        final client = _StubV2ApiClient(
+          getResponses: [
+            {'messageUnread': 3, 'notificationUnread': 4},
+            malformed,
+            malformed,
+          ],
+          postResponses: [],
+        );
+        final repository = MessageRepository(client: client);
+        final notifier = UnreadSummaryNotifier(
+          repository: repository,
+          loadImmediately: false,
+        );
+        addTearDown(notifier.dispose);
+        await notifier.refresh();
+        await notifier.refresh();
+        expect(notifier.state.summary.messageUnread, 3);
+        expect(notifier.state.summary.notificationUnread, 4);
+        expect(notifier.state.error, isNotNull);
+        await expectLater(
+          repository.getUnreadSummary(),
+          throwsA(isA<ApiException>()),
+        );
+      },
+    );
+  }
+
   test(
     'uses conversation, detail cursor, and idempotent send contracts',
     () async {

@@ -18,7 +18,7 @@ tracks:
 - FQ-006
 - FQ-007
 - FQ-008
-updated_at: 2026-09-08
+updated_at: 2026-09-19
 ---
 
 # 客户端平台与工程边界设计
@@ -62,6 +62,10 @@ JSON 请求、multipart 与 SSE 在首次发送前固定会话 revision；刷新
 轮换令牌，换号或登出即终止原请求。匿名 revision 与凭据快照一并读取，行为批次还可显式绑定预期
 revision，防止身份校验与实际发送之间的账号切换。
 
+普通 JSON 请求每次 HTTP 尝试和令牌刷新各有 15 秒期限，包含完整响应体读取。刷新超时释放同会话的
+所有等待者并保留令牌，后续操作可重新发起刷新；迟到响应不能回写令牌或再次完成业务回调。普通请求
+超时进入可重试错误态，写入仍由领域层保留原幂等键或 revision，不在传输层自动重发。
+
 公开缓存和认证缓存均带 session identity。provider 在身份改变时重建，notifier 还以 generation、
 mounted 和当前命令身份拒绝迟到结果。首次加载、刷新、分页、局部失败、空态和终态分别建模；失败命令
 保留原参数与幂等标识，参数变化才形成新命令。
@@ -73,6 +77,9 @@ mounted 和当前命令身份拒绝迟到结果。首次加载、刷新、分页
 成功体必须是 JSON 对象，非零或非法业务码、HTML、空 body、顶层 null/数组均不得变成成功。
 真实网关 void 响应为 `{}`；兼容的显式 `code: 0, data: null` 信封可解为 void，读取 repository
 仍须校验必需字段，不能借此伪造空列表或零未读。
+
+搜索的对应结果列表必须存在，显式 null 兼容 Go nil slice；用户搜索 total 和未读汇总的两个计数必须
+是非负整数。资料读取的 `isFollowing` 必须是布尔值；缺失或畸形成功体进入错误态，不能回退为未关注。
 
 `vendor/sdk_source` 是 `goctl api dart` 的生成来源，`lib/sdk` 是应用副本。PUT/DELETE 修补、绝对生成
 路径清理和实体 ID 类型兼容集中在 `tools/sync_gateway_sdk.py`；应用适配位于 `core/api` 或 feature

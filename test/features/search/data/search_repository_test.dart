@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
 import 'package:xiaobaihe_app/core/api/v2_api_client.dart';
 import 'package:xiaobaihe_app/features/search/data/search_models.dart';
 import 'package:xiaobaihe_app/features/search/data/search_repository.dart';
@@ -58,11 +59,13 @@ void main() {
   });
 
   test(
-    'treats omitted result lists as empty and keeps degradation flags',
+    'accepts explicit null result lists and keeps degradation flags',
     () async {
       final client = _StubV2ApiClient([
         {
           'posts': [postJson(1)],
+          'users': null,
+          'tags': null,
           'degraded': true,
           'unavailableTypes': ['user', 'tag'],
         },
@@ -81,6 +84,30 @@ void main() {
       expect(results.unavailableTypes, ['user', 'tag']);
     },
   );
+
+  for (final scope in SearchScope.values) {
+    test('rejects a missing result list for ${scope.name}', () async {
+      final repository = SearchRepository(client: _StubV2ApiClient([{}]));
+      await expectLater(
+        repository.search(scope: scope, keyword: 'query'),
+        throwsA(isA<ApiException>()),
+      );
+    });
+  }
+
+  for (final total in [null, -1, 1.5, '1']) {
+    test('rejects invalid user total $total', () async {
+      final repository = SearchRepository(
+        client: _StubV2ApiClient([
+          {'users': [], 'total': total},
+        ]),
+      );
+      await expectLater(
+        repository.search(scope: SearchScope.users, keyword: 'query'),
+        throwsA(isA<ApiException>()),
+      );
+    });
+  }
 }
 
 Map<String, dynamic> postJson(int id) => {

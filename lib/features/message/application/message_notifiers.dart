@@ -235,6 +235,9 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
 
   Future<void> refresh() async {
     final generation = ++_loadGeneration;
+    final previousIds = state.messages
+        .map((item) => jsonInt64Id(item.id))
+        .toSet();
     state = state.copyWith(
       isLoading: true,
       isLoadingOlder: false,
@@ -247,7 +250,14 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
       );
       if (!mounted || generation != _loadGeneration) return;
       state = state.copyWith(
-        messages: _ordered(result.messages),
+        // Preserve sends accepted while this read was in flight. The server
+        // wins for IDs present in both snapshots (status and timestamps).
+        messages: _ordered([
+          ...state.messages.where(
+            (item) => !previousIds.contains(jsonInt64Id(item.id)),
+          ),
+          ...result.messages,
+        ]),
         hasMore: result.hasMore,
         isLoading: false,
         clearError: true,
@@ -368,11 +378,8 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
         status: 0,
         createdAt: DateTime.now().millisecondsSinceEpoch,
       );
-      _loadGeneration++;
       state = state.copyWith(
         messages: _ordered([...state.messages, sent]),
-        isLoading: false,
-        isLoadingOlder: false,
         isSending: false,
         clearSendError: true,
         clearFailedCommand: true,

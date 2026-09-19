@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
 import 'package:xiaobaihe_app/features/profile/data/user_repository.dart';
 import 'package:xiaobaihe_app/sdk/api/api.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
@@ -23,6 +24,7 @@ void main() {
       'followingCount': 12,
       'postCount': 13,
       'favoritesVisible': true,
+      'isFollowing': true,
     });
     setApiClient(client);
     final repository = UserRepository();
@@ -37,7 +39,22 @@ void main() {
     expect(profile.followerCount, 11);
     expect(profile.postCount, 13);
     expect(profile.favoritesVisible, isTrue);
+    expect(profile.isFollowing, isTrue);
   });
+
+  for (final relation in [
+    <String, dynamic>{},
+    {'isFollowing': null},
+    {'isFollowing': 'true'},
+  ]) {
+    test('rejects invalid viewer relation: $relation', () async {
+      setApiClient(ScriptedGatewayClient.always({'id': 7, ...relation}));
+      await expectLater(
+        UserRepository().getUserProfile(7),
+        throwsA(isA<ApiException>()),
+      );
+    });
+  }
 
   test('updateUserProfile puts nickname, avatar and bio', () async {
     final client = ScriptedGatewayClient.always(<String, dynamic>{});

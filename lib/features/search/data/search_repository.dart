@@ -1,4 +1,5 @@
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/response_fields.dart';
 import '../../../core/api/v2_api_client.dart';
 import 'search_models.dart';
 
@@ -50,18 +51,33 @@ class SearchRepository implements SearchDataSource {
     try {
       return switch (scope) {
         SearchScope.all => SearchResults(
-          posts: _list(response['posts'], SearchPostResult.fromJson),
-          users: _list(response['users'], SearchUserResult.fromJson),
-          tags: _list(response['tags'], SearchTagResult.fromJson),
+          posts: _list(
+            requiredResponseList(response, 'posts'),
+            SearchPostResult.fromJson,
+          ),
+          users: _list(
+            requiredResponseList(response, 'users'),
+            SearchUserResult.fromJson,
+          ),
+          tags: _list(
+            requiredResponseList(response, 'tags'),
+            SearchTagResult.fromJson,
+          ),
           degraded: response['degraded'] == true,
           unavailableTypes: _strings(response['unavailableTypes']),
         ),
         SearchScope.users => SearchResults(
-          users: _list(response['users'], SearchUserResult.fromJson),
-          total: _integer(response['total']),
+          users: _list(
+            requiredResponseList(response, 'users'),
+            SearchUserResult.fromJson,
+          ),
+          total: requiredResponseCount(response, 'total'),
         ),
         SearchScope.tags => SearchResults(
-          tags: _list(response['tags'], SearchTagResult.fromJson),
+          tags: _list(
+            requiredResponseList(response, 'tags'),
+            SearchTagResult.fromJson,
+          ),
         ),
       };
     } on FormatException {
@@ -70,22 +86,15 @@ class SearchRepository implements SearchDataSource {
   }
 
   static List<T> _list<T>(
-    Object? value,
+    List<dynamic> value,
     T Function(Map<String, dynamic>) decode,
   ) {
-    if (value == null) return const [];
-    if (value is! List) throw const FormatException('missing result list');
     return value
         .map((item) {
           if (item is! Map) throw const FormatException('invalid result item');
           return decode(Map<String, dynamic>.from(item));
         })
         .toList(growable: false);
-  }
-
-  static int _integer(Object? value) {
-    if (value is num) return value.toInt();
-    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   static List<String> _strings(Object? value) {

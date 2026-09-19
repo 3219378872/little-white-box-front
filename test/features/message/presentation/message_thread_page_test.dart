@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -41,6 +42,8 @@ class _Harness {
   late final ScriptedGatewayClient client;
   bool threadOk = true;
   bool hasMore = false;
+  Completer<http.Response>? pendingSend;
+  bool failSend = false;
 
   _Harness() {
     client = ScriptedGatewayClient(route);
@@ -68,6 +71,8 @@ class _Harness {
       return jsonResponse(okEnvelope(<String, dynamic>{}));
     }
     if (path == '/api/v2/messages') {
+      if (failSend) return jsonResponse({'code': 500, 'message': '发送失败'}, 500);
+      if (pendingSend != null) return pendingSend!.future;
       return jsonResponse(okEnvelope({'messageId': 31}));
     }
     fail('unexpected request: ${request.method} $path');
@@ -154,6 +159,61 @@ void main() {
     final input = tester.widget<EditableText>(find.byType(EditableText).first);
     expect(input.controller.text, isEmpty);
   });
+
+  for (final retry in [false, true]) {
+    testWidgets(
+      '${retry ? 'retrying an old message' : 'sending a message'} preserves the next draft',
+      (tester) async {
+        await loginAsCurrentUser();
+        final harness = _Harness()..failSend = retry;
+        if (!retry) harness.pendingSend = Completer<http.Response>();
+        setApiClient(harness.client);
+        await _pumpThread(tester);
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byType(EditableText).first,
+          'first message',
+        );
+        await tester.tap(find.bySemanticsLabel('发送'));
+        await tester.pump();
+        if (retry) {
+          await tester.pumpAndSettle();
+          harness.failSend = false;
+          harness.pendingSend = Completer<http.Response>();
+          await tester.enterText(
+            find.byType(EditableText).first,
+            'unrelated draft',
+          );
+          await tester.tap(find.bySemanticsLabel('重试发送'));
+          await tester.pump();
+        } else {
+          await tester.enterText(
+            find.byType(EditableText).first,
+            'unrelated draft',
+          );
+        }
+        harness.pendingSend!.complete(
+          jsonResponse(okEnvelope({'messageId': 31})),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .widget<EditableText>(find.byType(EditableText).first)
+              .controller
+              .text,
+          'unrelated draft',
+        );
+        final commands = harness.client.requests
+            .where((r) => r.url.path == '/api/v2/messages')
+            .map(jsonBodyOf)
+            .toList();
+        expect(commands.every((c) => c['content'] == 'first message'), isTrue);
+        if (retry) {
+          expect(commands[0]['idempotencyKey'], commands[1]['idempotencyKey']);
+        }
+      },
+    );
+  }
 
   testWidgets('falls back to an error view and recovers on retry', (
     tester,

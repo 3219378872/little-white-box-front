@@ -54,10 +54,15 @@ MockRouterResponse _favorite(
   return _jsonResponse(const {});
 }
 
-Map<String, dynamic> _getUser(int userId) {
+Map<String, dynamic> _getUser(int userId, _Auth auth) {
   final user = _users[userId];
   if (user == null) throw const _MockBiz(404, 1001, '用户不存在');
-  return Map<String, dynamic>.from(user);
+  return {
+    ...user,
+    'isFollowing':
+        auth.isAuthenticated &&
+        (_followedByUser[auth.userId]?.contains(userId) ?? false),
+  };
 }
 
 MockRouterResponse _updateProfile(int userId, Map<String, dynamic> body) {

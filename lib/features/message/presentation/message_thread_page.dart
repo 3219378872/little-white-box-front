@@ -49,11 +49,10 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
   );
 
   Future<void> _send(MessageThreadKey key) async {
-    final sent = await ref
-        .read(messageThreadProvider(key).notifier)
-        .send(_controller.text);
+    final text = _controller.text;
+    final sent = await ref.read(messageThreadProvider(key).notifier).send(text);
     if (!mounted || !sent) return;
-    _controller.clear();
+    if (_controller.text == text) _controller.clear();
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
   }
 
@@ -154,8 +153,15 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
                     onPress: state.isSending
                         ? null
                         : () async {
+                            final text = _controller.text;
+                            final command = state.failedCommand;
                             final sent = await notifier.retryFailed();
-                            if (sent && mounted) _controller.clear();
+                            if (sent &&
+                                mounted &&
+                                _controller.text == text &&
+                                command?.content == text.trim()) {
+                              _controller.clear();
+                            }
                           },
                     child: const Icon(
                       FLucideIcons.refreshCw,
