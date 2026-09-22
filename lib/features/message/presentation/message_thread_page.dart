@@ -34,12 +34,36 @@ class MessageThreadPage extends ConsumerStatefulWidget {
 class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
+  bool _pinToLatest = true;
+  int _seenMessageCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_rememberPin);
+  }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_rememberPin);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _rememberPin() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    _pinToLatest = position.maxScrollExtent - position.pixels <= 48;
+  }
+
+  void _revealLatest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final target = _scrollController.position.maxScrollExtent;
+      if ((_scrollController.offset - target).abs() < 1) return;
+      _scrollController.jumpTo(target);
+    });
   }
 
   MessageThreadKey _key(Object currentUserId) => MessageThreadKey(
@@ -122,6 +146,12 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     final key = _key(currentUserId!);
     final state = ref.watch(messageThreadProvider(key));
     final notifier = ref.read(messageThreadProvider(key).notifier);
+    final messageCount = state.messages.length;
+    if (messageCount != _seenMessageCount) {
+      final opened = _seenMessageCount == 0 && messageCount > 0;
+      _seenMessageCount = messageCount;
+      if (opened || _pinToLatest) _revealLatest();
+    }
 
     return FScaffold(
       childPad: false,

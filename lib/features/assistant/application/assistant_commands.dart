@@ -332,6 +332,10 @@ extension _AssistantCommands on AssistantNotifier {
           isStreaming: false,
           isCanceled: true,
           terminalEventReceived: true,
+          toolSteps: _settleSteps(
+            message.toolSteps,
+            AssistantToolStatus.failed,
+          ),
         ),
         createIfMissing: true,
         matchPersistedTerminal: true,

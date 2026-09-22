@@ -139,6 +139,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 : _SearchResultList(
                     results: state.results,
                     scope: state.scope,
+                    hasMore: state.hasMore,
+                    isLoadingMore: state.isLoadingMore,
+                    loadMoreError: state.error,
+                    onLoadMore: ref
+                        .read(searchNotifierProvider.notifier)
+                        .loadMore,
                     onOpenPost: _openPost,
                     onOpenUser: _openUser,
                     onSearchTag: (tag) {
@@ -166,6 +172,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 class _SearchResultList extends StatelessWidget {
   final SearchResults results;
   final SearchScope scope;
+  final bool hasMore;
+  final bool isLoadingMore;
+  final String? loadMoreError;
+  final VoidCallback onLoadMore;
   final ValueChanged<Object> onOpenPost;
   final ValueChanged<Object> onOpenUser;
   final ValueChanged<String> onSearchTag;
@@ -173,6 +183,10 @@ class _SearchResultList extends StatelessWidget {
   const _SearchResultList({
     required this.results,
     required this.scope,
+    required this.hasMore,
+    required this.isLoadingMore,
+    required this.loadMoreError,
+    required this.onLoadMore,
     required this.onOpenPost,
     required this.onOpenUser,
     required this.onSearchTag,
@@ -196,6 +210,32 @@ class _SearchResultList extends StatelessWidget {
         _sectionTitle(context, scope == SearchScope.tags ? '标签' : '相关标签'),
       );
       children.addAll(results.tags.map(_tag));
+      if (scope == SearchScope.tags && results.tags.length >= 20) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
+            child: Text(
+              '只显示前 ${results.tags.length} 个标签',
+              style: context.theme.typography.body.sm.copyWith(
+                color: context.theme.colors.mutedForeground,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+    if (hasMore || isLoadingMore || loadMoreError != null) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: isLoadingMore
+              ? const Center(child: FCircularProgress())
+              : FButton(
+                  onPress: onLoadMore,
+                  child: Text(loadMoreError == null ? '加载更多' : '加载更多失败，重试'),
+                ),
+        ),
+      );
     }
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),

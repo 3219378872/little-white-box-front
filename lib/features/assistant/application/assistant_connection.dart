@@ -421,6 +421,10 @@ extension _AssistantConnection on AssistantNotifier {
           isStreaming: false,
           degraded: true,
           errorCode: 'STREAM_DISCONNECTED',
+          toolSteps: _settleSteps(
+            message.toolSteps,
+            AssistantToolStatus.failed,
+          ),
         ),
         createIfMissing: true,
         matchPersistedTerminal: true,

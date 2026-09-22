@@ -190,6 +190,19 @@ void main() {
       expect(repo.seenCursors, ['', 'c2']);
     });
 
+    test('空收藏页仍有下一页游标时继续翻到可见帖子', () async {
+      repo.addPage(const [], hasMore: true);
+      repo.addPage([_post(9)]);
+      final n = UserPostsNotifier(
+        repo: repo,
+        key: const UserPostsKey(userId: 1, type: UserPostsListType.favorites),
+      );
+      await n.loadFirstPage();
+      expect(n.state.items.map((item) => item.id), [9]);
+      expect(n.state.hasMore, isFalse);
+      expect(repo.seenCursors, ['', 'c2']);
+    });
+
     test('loadNextPage 在 hasMore=false 时不发请求', () async {
       repo.addPage([_post(1)]);
       final n = UserPostsNotifier(

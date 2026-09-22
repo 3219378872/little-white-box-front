@@ -17,6 +17,7 @@ import 'post_media_preview.dart';
 import '../../../auth/application/auth_notifier.dart';
 import '../../../behavior/application/behavior_tracker.dart';
 import '../../data/feed_models.dart';
+import '../../../interaction/application/interaction_notifier.dart';
 import '../../../interaction/data/interaction_repository.dart';
 import '../../../../sdk/data/gateway.dart';
 
@@ -45,9 +46,6 @@ class _PostCardState extends ConsumerState<PostCard>
   static const _visibilityThreshold = 0.5;
   static const _exposureThreshold = Duration(seconds: 1);
 
-  late bool _isLiked;
-  bool _isLikePending = false;
-  late int _likeCount;
   Timer? _exposureTimer;
   DateTime? _visibleSince;
   DateTime? _dwellStartedAt;
@@ -60,8 +58,6 @@ class _PostCardState extends ConsumerState<PostCard>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _isLiked = post.isLiked;
-    _likeCount = post.likeCount.toInt();
   }
 
   @override
@@ -90,16 +86,6 @@ class _PostCardState extends ConsumerState<PostCard>
       _dwellStartedAt = null;
       _exposureReported = false;
     }
-    if (postIdChanged) {
-      _isLiked = post.isLiked;
-      _isLikePending = false;
-      _likeCount = post.likeCount.toInt();
-    } else if (!_isLikePending &&
-        (oldWidget.post.isLiked != post.isLiked ||
-            oldWidget.post.likeCount != post.likeCount)) {
-      _isLiked = post.isLiked;
-      _likeCount = post.likeCount.toInt();
-    }
   }
 
   @override
@@ -120,37 +106,20 @@ class _PostCardState extends ConsumerState<PostCard>
   }
 
   Future<void> _toggleLike() async {
-    if (_isLikePending) return;
     if (!ref.read(authNotifierProvider).isAuthenticated) {
       context.push('/auth/login');
       return;
     }
-
-    final wasLiked = _isLiked;
-    setState(() {
-      _isLiked = !wasLiked;
-      _likeCount += wasLiked ? -1 : 1;
-      _isLikePending = true;
-    });
-
+    final id = jsonInt64Id(post.id);
+    final interaction = ref.read(interactionNotifierProvider(id));
+    final currentlyLiked = interaction.optimisticIsLiked ?? post.isLiked;
     try {
-      final repo = ref.read(postCardInteractionRepositoryProvider);
-      if (wasLiked) {
-        await repo.unlikeTarget(post.id, 1);
-      } else {
-        await repo.likeTarget(post.id, 1);
-      }
+      await ref
+          .read(interactionNotifierProvider(id).notifier)
+          .toggleLikeTarget(targetId: post.id, currentlyLiked: currentlyLiked);
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _isLiked = wasLiked;
-        _likeCount += wasLiked ? 1 : -1;
-      });
       showAppError(context, '操作失败: ${friendlyErrorMessage(e)}');
-    } finally {
-      if (mounted) {
-        setState(() => _isLikePending = false);
-      }
     }
   }
 
@@ -267,6 +236,11 @@ class _PostCardState extends ConsumerState<PostCard>
     final theme = context.theme;
     final colors = theme.colors;
     final typography = theme.typography;
+    final interaction = ref.watch(
+      interactionNotifierProvider(jsonInt64Id(post.id)),
+    );
+    final isLiked = interaction.optimisticIsLiked ?? post.isLiked;
+    final likeCount = post.likeCount.toInt() + interaction.likeCountDelta;
 
     return VisibilityDetector(
       key: Key(
@@ -373,13 +347,13 @@ class _PostCardState extends ConsumerState<PostCard>
                     _statItem(
                       context,
                       FLucideIcons.thumbsUp,
-                      _likeCount,
+                      likeCount,
                       key: ValueKey('post-like-${jsonInt64Id(post.id)}'),
-                      active: _isLiked,
+                      active: isLiked,
                       onPress: _toggleLike,
-                      semanticsLabel: _isLiked
-                          ? '取消点赞，当前 $_likeCount 赞'
-                          : '点赞，当前 $_likeCount 赞',
+                      semanticsLabel: isLiked
+                          ? '取消点赞，当前 $likeCount 赞'
+                          : '点赞，当前 $likeCount 赞',
                     ),
                   ],
                 ),

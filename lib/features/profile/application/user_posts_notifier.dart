@@ -83,6 +83,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
   final UserPostsKey key;
   final int pageSize;
   int _generation = 0;
+  static const _emptyPageAdvanceLimit = 8;
 
   UserPostsNotifier({required this.repo, required this.key, this.pageSize = 20})
     : super(const UserPostsState());
@@ -106,6 +107,20 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
   /// 服务端游标驱动：nextCursor 非空即还有下一页。
   bool _hasMoreFrom(GetPostListResp resp) => resp.nextCursor.isNotEmpty;
 
+  /// 收藏会在分页之后丢掉未发布帖子。空页但还有游标时继续向后翻，
+  /// 避免把「这一页被滤空」画成没有收藏或列表结束。
+  Future<GetPostListResp> _fetchVisible(String cursor) async {
+    var next = cursor;
+    late GetPostListResp resp;
+    for (var attempt = 0; attempt < _emptyPageAdvanceLimit; attempt++) {
+      resp = await _fetch(next);
+      if (resp.list.isNotEmpty || resp.nextCursor.isEmpty) return resp;
+      if (resp.nextCursor == next) return resp;
+      next = resp.nextCursor;
+    }
+    return resp;
+  }
+
   Future<void> loadFirstPage() async {
     final generation = ++_generation;
     state = state.copyWith(
@@ -114,7 +129,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
       clearError: true,
     );
     try {
-      final resp = await _fetch('');
+      final resp = await _fetchVisible('');
       if (!mounted || generation != _generation) return;
       state = state.copyWith(
         items: _deduplicate(resp.list),
@@ -134,7 +149,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
     // 与 feed/message 的 loadMore 一致：显式重试时先清掉上一次的失败态。
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final resp = await _fetch(state.cursor);
+      final resp = await _fetchVisible(state.cursor);
       if (!mounted || generation != _generation) return;
       state = state.copyWith(
         items: _deduplicate([...state.items, ...resp.list]),
@@ -156,7 +171,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
       clearError: true,
     );
     try {
-      final resp = await _fetch('');
+      final resp = await _fetchVisible('');
       if (!mounted || generation != _generation) return;
       state = state.copyWith(
         items: _deduplicate(resp.list),

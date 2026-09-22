@@ -50,19 +50,28 @@ class InteractionNotifier extends StateNotifier<InteractionState> {
     : _repository = repository,
       super(const InteractionState());
 
-  Future<void> toggleLike(GetPostResp post) async {
+  Future<void> toggleLike(GetPostResp post) {
+    return toggleLikeTarget(
+      targetId: post.id,
+      currentlyLiked: state.optimisticIsLiked ?? post.isLiked,
+    );
+  }
+
+  Future<void> toggleLikeTarget({
+    required Object targetId,
+    required bool currentlyLiked,
+  }) async {
     if (_likeInFlight) return;
     _likeInFlight = true;
-    final currentlyLiked = state.optimisticIsLiked ?? post.isLiked;
     state = state.copyWith(
       optimisticIsLiked: !currentlyLiked,
       likeCountDelta: state.likeCountDelta + (currentlyLiked ? -1 : 1),
     );
     try {
       if (currentlyLiked) {
-        await _repository.unlikeTarget(post.id, 1);
+        await _repository.unlikeTarget(targetId, 1);
       } else {
-        await _repository.likeTarget(post.id, 1);
+        await _repository.likeTarget(targetId, 1);
       }
     } catch (_) {
       if (!mounted) return;

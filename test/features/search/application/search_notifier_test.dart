@@ -39,6 +39,21 @@ void main() {
     expect(notifier.state.scope, SearchScope.users);
     expect(notifier.state.phase, SearchPhase.success);
   });
+
+  test('loads the next page and stops when the page is short', () async {
+    final repository = _PagedSearchSource();
+    final notifier = SearchNotifier(repository);
+
+    await notifier.search('query');
+    expect(notifier.state.hasMore, isTrue);
+    expect(notifier.state.results.posts, hasLength(20));
+
+    await notifier.loadMore();
+    expect(notifier.state.page, 2);
+    expect(notifier.state.results.posts, hasLength(21));
+    expect(notifier.state.hasMore, isFalse);
+    expect(repository.pages, [1, 2]);
+  });
 }
 
 class _CompleterSearchSource implements SearchDataSource {
@@ -53,6 +68,53 @@ class _CompleterSearchSource implements SearchDataSource {
     int page = 1,
     int pageSize = 20,
   }) => responses.removeAt(0).future;
+}
+
+class _PagedSearchSource implements SearchDataSource {
+  final pages = <int>[];
+
+  @override
+  Future<SearchResults> search({
+    required SearchScope scope,
+    required String keyword,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    pages.add(page);
+    if (page == 1) {
+      return SearchResults(
+        posts: [
+          for (var i = 0; i < pageSize; i++)
+            SearchPostResult(
+              id: i + 1,
+              title: 'p$i',
+              contentHighlight: '',
+              authorId: 1,
+              authorName: 'a',
+              authorAvatar: '',
+              likeCount: 0,
+              commentCount: 0,
+              createdAt: 0,
+            ),
+        ],
+      );
+    }
+    return const SearchResults(
+      posts: [
+        SearchPostResult(
+          id: 100,
+          title: 'last',
+          contentHighlight: '',
+          authorId: 1,
+          authorName: 'a',
+          authorAvatar: '',
+          likeCount: 0,
+          commentCount: 0,
+          createdAt: 0,
+        ),
+      ],
+    );
+  }
 }
 
 class _RecordingSearchSource implements SearchDataSource {

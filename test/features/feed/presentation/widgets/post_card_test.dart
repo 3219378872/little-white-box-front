@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/feed/presentation/widgets/post_card.dart';
+import 'package:xiaobaihe_app/features/interaction/application/interaction_notifier.dart';
 import 'package:xiaobaihe_app/features/interaction/data/interaction_repository.dart';
 import 'package:xiaobaihe_app/mock/mock_router.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
@@ -60,6 +61,7 @@ void main() {
     final container = createAppProviderContainer(
       overrides: [
         postCardInteractionRepositoryProvider.overrideWithValue(repository),
+        interactionRepositoryProvider.overrideWithValue(repository),
       ],
     );
     addTearDown(container.dispose);
@@ -101,9 +103,11 @@ void main() {
 
   testWidgets('PostCard renders title and stats', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(
-        builder: foruiTestBuilder,
-        home: Scaffold(body: PostCard(post: post())),
+      ProviderScope(
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: Scaffold(body: PostCard(post: post())),
+        ),
       ),
     );
 
@@ -138,9 +142,11 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        builder: foruiTestBuilder,
-        home: Scaffold(body: PostCard(post: imagePost)),
+      ProviderScope(
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: Scaffold(body: PostCard(post: imagePost)),
+        ),
       ),
     );
 
