@@ -72,8 +72,14 @@ Future<SessionRefreshResult> refreshSessionTokensFor(
   final refreshToken = expected.tokens.refreshToken.trim();
   if (refreshToken.isEmpty) return SessionRefreshResult.unavailable;
   final current = await getTokenSnapshot();
-  if (current == null || !current.hasSameRefreshCredential(expected)) {
+  if (current == null || !current.hasSameSession(expected)) {
     return SessionRefreshResult.stale;
+  }
+  // A concurrent request may have already rotated this session before its
+  // sibling's 401 arrives. Use the current credentials for that one retry
+  // without rotating again or confusing rotation with a different login.
+  if (!current.hasSameRefreshCredential(expected)) {
+    return SessionRefreshResult.refreshed;
   }
   final key = _RefreshKey(expected.revision, refreshToken);
   return _pendingRefreshes.putIfAbsent(

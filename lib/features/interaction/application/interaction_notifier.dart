@@ -5,28 +5,34 @@ import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/interaction_repository.dart';
 
-/// 单帖点赞/收藏的乐观更新状态：覆盖值 + 计数偏移量。
+/// 单帖点赞/收藏的乐观关系；计数按各消费端的服务器快照对账。
 /// 服务端失败时回滚并抛出，由 UI 层提示。
 class InteractionState {
   final bool? optimisticIsLiked;
   final bool? optimisticIsFavorited;
-  final int likeCountDelta;
-  final int favoriteCountDelta;
 
-  const InteractionState({
-    this.optimisticIsLiked,
-    this.optimisticIsFavorited,
-    this.likeCountDelta = 0,
-    this.favoriteCountDelta = 0,
-  });
+  const InteractionState({this.optimisticIsLiked, this.optimisticIsFavorited});
+
+  // 同一帖子可同时有旧卡片与新详情，按各自的关系计算本用户贡献差。
+  // 服务器聚合计数最终一致；关系已收敛时直接显示其返回的计数，
+  // 不将无法确认的聚合滞后当作永久增量重复叠加。
+  int likeCountFor({required int count, required bool isLiked}) =>
+      count +
+      _contribution(optimisticIsLiked ?? isLiked) -
+      _contribution(isLiked);
+
+  int favoriteCountFor({required int count, required bool isFavorited}) =>
+      count +
+      _contribution(optimisticIsFavorited ?? isFavorited) -
+      _contribution(isFavorited);
+
+  static int _contribution(bool active) => active ? 1 : 0;
 
   InteractionState copyWith({
     bool? optimisticIsLiked,
     bool clearOptimisticIsLiked = false,
     bool? optimisticIsFavorited,
     bool clearOptimisticIsFavorited = false,
-    int? likeCountDelta,
-    int? favoriteCountDelta,
   }) {
     return InteractionState(
       optimisticIsLiked: clearOptimisticIsLiked
@@ -35,8 +41,6 @@ class InteractionState {
       optimisticIsFavorited: clearOptimisticIsFavorited
           ? null
           : (optimisticIsFavorited ?? this.optimisticIsFavorited),
-      likeCountDelta: likeCountDelta ?? this.likeCountDelta,
-      favoriteCountDelta: favoriteCountDelta ?? this.favoriteCountDelta,
     );
   }
 }
@@ -63,10 +67,8 @@ class InteractionNotifier extends StateNotifier<InteractionState> {
   }) async {
     if (_likeInFlight) return;
     _likeInFlight = true;
-    state = state.copyWith(
-      optimisticIsLiked: !currentlyLiked,
-      likeCountDelta: state.likeCountDelta + (currentlyLiked ? -1 : 1),
-    );
+    final previous = state.optimisticIsLiked;
+    state = state.copyWith(optimisticIsLiked: !currentlyLiked);
     try {
       if (currentlyLiked) {
         await _repository.unlikeTarget(targetId, 1);
@@ -76,8 +78,8 @@ class InteractionNotifier extends StateNotifier<InteractionState> {
     } catch (_) {
       if (!mounted) return;
       state = state.copyWith(
-        optimisticIsLiked: currentlyLiked,
-        likeCountDelta: state.likeCountDelta + (currentlyLiked ? 1 : -1),
+        optimisticIsLiked: previous,
+        clearOptimisticIsLiked: previous == null,
       );
       rethrow;
     } finally {
@@ -88,11 +90,9 @@ class InteractionNotifier extends StateNotifier<InteractionState> {
   Future<void> toggleFavorite(GetPostResp post) async {
     if (_favoriteInFlight) return;
     _favoriteInFlight = true;
+    final previous = state.optimisticIsFavorited;
     final currentlyFav = state.optimisticIsFavorited ?? post.isFavorited;
-    state = state.copyWith(
-      optimisticIsFavorited: !currentlyFav,
-      favoriteCountDelta: state.favoriteCountDelta + (currentlyFav ? -1 : 1),
-    );
+    state = state.copyWith(optimisticIsFavorited: !currentlyFav);
     try {
       if (currentlyFav) {
         await _repository.unfavoritePost(post.id);
@@ -102,8 +102,8 @@ class InteractionNotifier extends StateNotifier<InteractionState> {
     } catch (_) {
       if (!mounted) return;
       state = state.copyWith(
-        optimisticIsFavorited: currentlyFav,
-        favoriteCountDelta: state.favoriteCountDelta + (currentlyFav ? 1 : -1),
+        optimisticIsFavorited: previous,
+        clearOptimisticIsFavorited: previous == null,
       );
       rethrow;
     } finally {

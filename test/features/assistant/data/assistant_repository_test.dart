@@ -63,6 +63,54 @@ void main() {
     },
   );
 
+  for (final retryable in [true, false]) {
+    test(
+      'transport failure preserves retryability=$retryable and event cursor',
+      () async {
+        final payload = jsonEncode({
+          'type': 'transport_error',
+          'error': {'code': 3, 'message': 'subscription failed'},
+          'retryable': retryable,
+        });
+        final client = _CapturingClient(
+          (_) => http.StreamedResponse(
+            Stream.value(
+              utf8.encode(
+                'id: 6\ndata: {"type":"token","runId":21,"seq":6,"text":"partial"}\n\n'
+                'event: transport_error\ndata: $payload\n\n',
+              ),
+            ),
+            200,
+          ),
+        );
+        final repository = AssistantRepository(
+          client: client,
+          baseUrl: 'http://gateway.test',
+          loadAccessToken: () async => 'test-token',
+        );
+        final received = <AssistantRunEvent>[];
+        await expectLater(
+          repository.runEvents(runId: 21).map((event) {
+            received.add(event);
+            return event;
+          }).toList(),
+          throwsA(
+            isA<AssistantStreamException>()
+                .having((error) => error.retryable, 'retryable', retryable)
+                .having(
+                  (error) => error.message,
+                  'message',
+                  'subscription failed',
+                ),
+          ),
+        );
+        expect(received, hasLength(1));
+        expect(received.single.seq, 6);
+        expect(received.single.isTerminal, isFalse);
+      },
+    );
+  }
+
   test('parses fragmented token, source_card, and done SSE events', () async {
     final payload = [
       'id: 1\ndata: {"type":"token","text":"你","runId":21,"seq":1}\n\n',

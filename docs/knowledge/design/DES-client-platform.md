@@ -18,7 +18,7 @@ tracks:
 - FQ-006
 - FQ-007
 - FQ-008
-updated_at: 2026-09-19
+updated_at: 2026-09-25
 ---
 
 # 客户端平台与工程边界设计
@@ -57,6 +57,8 @@ presentation -> application -> feature repository -> shared transport -> gateway
 会话的 access/refresh token 轮换保持原 revision。刷新 single-flight 以 revision 与 refresh token
 分组，迟到 refresh、401 或旧账号请求不能覆盖或清理新账号。只有明确的凭证拒绝触发条件清理；网络、
 5xx 和非法成功体保持当前身份并返回可恢复错误。
+并发请求的迟到 401 若遇到同 revision 已轮换凭据，直接复用当前令牌完成该请求唯一一次重试；只有
+revision 变化才按换号拒绝。重试仍被拒绝时条件清理匹配凭据，不再次刷新或循环发送。
 
 JSON 请求、multipart 与 SSE 在首次发送前固定会话 revision；刷新后的重试只能使用同一 revision 的
 轮换令牌，换号或登出即终止原请求。匿名 revision 与凭据快照一并读取，行为批次还可显式绑定预期
@@ -65,6 +67,8 @@ revision，防止身份校验与实际发送之间的账号切换。
 普通 JSON 请求每次 HTTP 尝试和令牌刷新各有 15 秒期限，包含完整响应体读取。刷新超时释放同会话的
 所有等待者并保留令牌，后续操作可重新发起刷新；迟到响应不能回写令牌或再次完成业务回调。普通请求
 超时进入可重试错误态，写入仍由领域层保留原幂等键或 revision，不在传输层自动重发。
+multipart 默认每次尝试 60 秒，发送、响应头与完整响应体共用一个期限；超时后的迟到响应不再解码
+业务结果或触发认证刷新，也不承诺取消服务端已接受的上传。
 
 公开缓存和认证缓存均带 session identity。provider 在身份改变时重建，notifier 还以 generation、
 mounted 和当前命令身份拒绝迟到结果。首次加载、刷新、分页、局部失败、空态和终态分别建模；失败命令

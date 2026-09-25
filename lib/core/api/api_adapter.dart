@@ -96,8 +96,10 @@ Future<T> apiPostMultipart<T>({
         ),
       );
 
-      final streamed = await sdk_api.apiClient.send(req).timeout(timeout);
-      final rp = await http.Response.fromStream(streamed);
+      final rp = await sdk_api.apiClient
+          .send(req)
+          .then(http.Response.fromStream)
+          .timeout(timeout);
       final respBody = utf8.decode(rp.bodyBytes);
 
       dynamic decoded;
@@ -149,6 +151,8 @@ Future<T> apiPostMultipart<T>({
       final data = sdk_api.apiResponseData(decoded);
       return decodeData(data);
     }
+  } on TimeoutException {
+    throw const ApiException('请求超时，请重试');
   } on ApiException {
     rethrow;
   } catch (e) {

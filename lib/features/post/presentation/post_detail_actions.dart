@@ -6,9 +6,14 @@ extension _PostDetailActions on _PostDetailPageState {
 
     final isLiked = interaction.optimisticIsLiked ?? post.isLiked;
     final isFavorited = interaction.optimisticIsFavorited ?? post.isFavorited;
-    final likeCount = post.likeCount.toInt() + interaction.likeCountDelta;
-    final favCount =
-        post.favoriteCount.toInt() + interaction.favoriteCountDelta;
+    final likeCount = interaction.likeCountFor(
+      count: post.likeCount.toInt(),
+      isLiked: post.isLiked,
+    );
+    final favCount = interaction.favoriteCountFor(
+      count: post.favoriteCount.toInt(),
+      isFavorited: post.isFavorited,
+    );
     return CommentInput(
       replyTo: comments.replyToUser,
       onSubmit: _submitComment,

@@ -117,6 +117,40 @@ void main() {
     expect(find.byType(FCard), findsNothing);
   });
 
+  testWidgets(
+    'refresh and new detail snapshots do not count an accepted like twice',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final repository = _TestInteractionRepository();
+      final container = createAppProviderContainer(
+        overrides: [
+          interactionRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      addTearDown(container.dispose);
+      Widget view(PostItem snapshot) => UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: Scaffold(body: PostCard(post: snapshot)),
+        ),
+      );
+      await tester.pumpWidget(view(post()));
+      await container
+          .read(interactionNotifierProvider('1').notifier)
+          .toggleLikeTarget(targetId: 1, currentlyLiked: false);
+      await tester.pump();
+      expect(find.text('43'), findsOneWidget);
+
+      await tester.pumpWidget(view(post(likeCount: 43, isLiked: true)));
+      expect(find.text('43'), findsOneWidget);
+      expect(find.text('44'), findsNothing);
+      // An older card may still coexist with the newly fetched detail.
+      await tester.pumpWidget(view(post()));
+      expect(find.text('43'), findsOneWidget);
+    },
+  );
+
   testWidgets('PostCard renders three individual image previews', (
     tester,
   ) async {

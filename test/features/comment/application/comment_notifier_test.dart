@@ -208,6 +208,81 @@ void main() {
     expect(notifier.state.loadingReplies, isEmpty);
   });
 
+  test(
+    'failed first reply page retries page one without losing replies',
+    () async {
+      final repo = _FakeCommentRepository(
+        pages: [
+          [_commentJson(55, replyCount: 12)],
+        ],
+        replyPages: [
+          List.generate(10, (i) => _commentJson(101 + i)),
+          [_commentJson(111), _commentJson(112)],
+        ],
+        failRepliesFor: 55,
+      );
+      final notifier = CommentNotifier(
+        repository: repo,
+        postId: '9',
+        loadImmediately: false,
+      );
+      addTearDown(notifier.dispose);
+      await notifier.loadInitial();
+      final parent = notifier.state.comments.single;
+      await expectLater(notifier.toggleReplies(parent), throwsException);
+      repo.failRepliesFor = null;
+      await notifier.loadMoreReplies(parent);
+      expect(
+        notifier.state.threadReplies['55']!.map((item) => item.id),
+        List.generate(10, (i) => 101 + i),
+      );
+      await notifier.loadMoreReplies(parent);
+      expect(repo.calls.where((call) => call.startsWith('replies:')), [
+        'replies:1',
+        'replies:1',
+        'replies:2',
+      ]);
+      expect(notifier.state.threadReplies['55'], hasLength(12));
+    },
+  );
+
+  test(
+    'submitting resets expanded threads so reopening starts at page one',
+    () async {
+      final repo = _FakeCommentRepository(
+        pages: [
+          [_commentJson(55, replyCount: 12)],
+        ],
+        replyPages: [
+          List.generate(10, (i) => _commentJson(101 + i)),
+          [_commentJson(111), _commentJson(112)],
+          List.generate(10, (i) => _commentJson(101 + i)),
+        ],
+      );
+      final notifier = CommentNotifier(
+        repository: repo,
+        postId: '9',
+        loadImmediately: false,
+      );
+      addTearDown(notifier.dispose);
+      await notifier.loadInitial();
+      final parent = notifier.state.comments.single;
+      await notifier.toggleReplies(parent);
+      await notifier.loadMoreReplies(parent);
+      await notifier.submit('new reply');
+      expect(notifier.state.expandedReplies, isEmpty);
+      expect(notifier.state.threadPage, isEmpty);
+      expect(notifier.state.threadReplies, isEmpty);
+      await notifier.toggleReplies(notifier.state.comments.single);
+      expect(repo.calls.where((call) => call.startsWith('replies:')), [
+        'replies:1',
+        'replies:2',
+        'replies:1',
+      ]);
+      expect(notifier.state.threadReplies['55'], hasLength(10));
+    },
+  );
+
   test('submit 成功后清空回复目标并刷新第一页', () async {
     final repo = _FakeCommentRepository(
       pages: [

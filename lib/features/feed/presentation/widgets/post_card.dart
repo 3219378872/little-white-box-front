@@ -240,7 +240,10 @@ class _PostCardState extends ConsumerState<PostCard>
       interactionNotifierProvider(jsonInt64Id(post.id)),
     );
     final isLiked = interaction.optimisticIsLiked ?? post.isLiked;
-    final likeCount = post.likeCount.toInt() + interaction.likeCountDelta;
+    final likeCount = interaction.likeCountFor(
+      count: post.likeCount.toInt(),
+      isLiked: post.isLiked,
+    );
 
     return VisibilityDetector(
       key: Key(

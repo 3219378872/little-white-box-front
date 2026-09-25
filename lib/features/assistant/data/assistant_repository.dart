@@ -364,6 +364,20 @@ class AssistantRepository implements AssistantDataSource {
           throw const FormatException('assistant event is not an object');
         }
         final json = Map<String, dynamic>.from(decoded);
+        // Connection failures are not persisted run events: never advance seq
+        // or mark the run failed merely because its subscription failed.
+        if (json['type'] == 'transport_error') {
+          final error = json['error'];
+          if (error is! Map ||
+              error['message'] is! String ||
+              json['retryable'] is! bool) {
+            throw const FormatException('invalid assistant transport error');
+          }
+          throw AssistantStreamException(
+            error['message'] as String,
+            retryable: json['retryable'] as bool,
+          );
+        }
         if (frame.id.isNotEmpty && json['seq'] == null) {
           json['seq'] = int.tryParse(frame.id) ?? 0;
         }

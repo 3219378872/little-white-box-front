@@ -218,10 +218,11 @@ class CommentNotifier extends StateNotifier<CommentState> {
       return;
     }
     state = state.copyWith(loadingReplies: {...state.loadingReplies, id});
+    final loadedPage = state.threadPage[id] ?? 0;
     await _fetchReplyThread(
       comment,
-      page: (state.threadPage[id] ?? 1) + 1,
-      append: true,
+      page: loadedPage + 1,
+      append: loadedPage > 0,
     );
   }
 
@@ -311,14 +312,15 @@ class CommentNotifier extends StateNotifier<CommentState> {
     _submitIdempotencyKey = null;
     _submitCommandFingerprint = null;
     if (!mounted) return;
-    // 回复成功后重置该父评论的楼中楼缓存，刷新后重新拉取
-    final hadExpanded = state.expandedReplies.isNotEmpty;
+    // 清空缓存时同时收起楼中楼，下一次展开重新读取第一页。
     state = state.copyWith(
       clearReplyToUser: true,
       replyParentId: 0,
       replyUserId: 0,
-      threadReplies: hadExpanded ? const {} : null,
-      threadPage: hadExpanded ? const {} : null,
+      expandedReplies: const {},
+      threadReplies: const {},
+      threadPage: const {},
+      loadingReplies: const {},
     );
     await loadInitial();
   }

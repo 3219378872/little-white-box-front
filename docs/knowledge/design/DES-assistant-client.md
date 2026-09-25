@@ -40,7 +40,7 @@ tracks:
 - FX-097
 - FX-098
 - FX-099
-updated_at: 2026-09-08
+updated_at: 2026-09-25
 ---
 
 # Assistant 虚拟线程与研究交互设计
@@ -77,6 +77,9 @@ generation 或 requestId。状态模型、consent notifier、公共 repository/i
 run SSE 使用独立 transport，并以 `Last-Event-ID` 与 `afterSeq` 恢复。repository 校验帧，忽略未知
 type，只把明确 done/error 当终止。notifier 同时使用 run cursor、连接 generation、seq 和 streamId
 隔离重放与迟到事件。
+网关可发送不持久化的 `transport_error` 帧，携带错误信息和 `retryable`；repository 将其映射为
+连接异常，不产出 run 事件、不推进 seq/cursor、不将 run 标为失败。可恢复与永久连接错误沿用
+notifier 的对应重连/错误路径；非法错误帧作为不可重试的协议异常处理。
 SSE 握手与认证刷新后的重试固定原会话 revision；账号切换后不以新账号令牌重新订阅旧 run。
 
 首个有效 token 选中当前 stream；只有同 stream token 可追加。匹配的 `response_reset` 清空该 run
