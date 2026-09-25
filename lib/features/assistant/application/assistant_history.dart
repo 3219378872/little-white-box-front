@@ -118,7 +118,9 @@ extension _AssistantHistory on AssistantNotifier {
         );
         changed = true;
       }
-      if (_subscription == null && reconnectActiveRun()) changed = true;
+      if (_subscription == null && _reconnectRun(automatic: true)) {
+        changed = true;
+      }
     }
     final needsMessageRefresh =
         jsonInt64IsPositive(thread.lastMessageId) &&
@@ -233,7 +235,10 @@ extension _AssistantHistory on AssistantNotifier {
           : _mergeHistory(history);
       _value = _value.copyWith(
         messages: messages,
-        clearConnectionError: _value.pendingRetryCommand == null,
+        clearConnectionError:
+            _value.pendingRetryCommand == null &&
+            (!jsonInt64IsPositive(_automaticReconnectBlockedRunId) ||
+                !_sameRun(_automaticReconnectBlockedRunId, _value.activeRunId)),
       );
       if (history.isNotEmpty) {
         for (final item in history) {

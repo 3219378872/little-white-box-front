@@ -79,7 +79,9 @@ type，只把明确 done/error 当终止。notifier 同时使用 run cursor、�
 隔离重放与迟到事件。
 网关可发送不持久化的 `transport_error` 帧，携带错误信息和 `retryable`；repository 将其映射为
 连接异常，不产出 run 事件、不推进 seq/cursor、不将 run 标为失败。可恢复与永久连接错误沿用
-notifier 的对应重连/错误路径；非法错误帧作为不可重试的协议异常处理。
+notifier 的对应重连/错误路径；非法错误帧作为不可重试的协议异常处理。握手 4xx（429 除外）
+也禁止同一 run 的自动重连，包括等待输入计时器与线程轮询；保留活动 run 与 cursor，用户显式
+重连可以重试，新 run 不受旧拒绝状态影响。
 SSE 握手与认证刷新后的重试固定原会话 revision；账号切换后不以新账号令牌重新订阅旧 run。
 
 首个有效 token 选中当前 stream；只有同 stream token 可追加。匹配的 `response_reset` 清空该 run

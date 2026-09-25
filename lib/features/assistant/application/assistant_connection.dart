@@ -1,12 +1,13 @@
 part of 'assistant_notifier.dart';
 
 extension _AssistantConnection on AssistantNotifier {
-  bool _reconnectRun() {
+  bool _reconnectRun({bool automatic = false}) {
     final runId = _value.activeRunId;
     if (_identityKey.isEmpty ||
         !mounted ||
         !jsonInt64IsPositive(runId) ||
         _subscription != null ||
+        (automatic && _sameRun(_automaticReconnectBlockedRunId, runId)) ||
         _hasPersistedTerminalResponseForRun(_value.messages, runId)) {
       return false;
     }
@@ -24,6 +25,9 @@ extension _AssistantConnection on AssistantNotifier {
   }
 
   void _subscribe(Object runId, {required Object afterSeq}) {
+    // A new subscription comes from an explicit action/new run or from the
+    // automatic reconnect gate above. A manual retry may try the same run.
+    _automaticReconnectBlockedRunId = 0;
     _waitingReconnect?.cancel();
     if (!_sameRun(_subscribedRunId, runId)) {
       _resetStreamTracking();
@@ -76,6 +80,11 @@ extension _AssistantConnection on AssistantNotifier {
           _listen(runId, generation);
           unawaited(previous?.cancel());
           return;
+        }
+        if (error is AssistantStreamException && !error.retryable) {
+          // Preserve the active run while stopping both the short waiting
+          // reconnect timer and the thread poll's automatic reconnect path.
+          _automaticReconnectBlockedRunId = runId;
         }
         _finishWithTransportError(
           friendlyErrorMessage(error),

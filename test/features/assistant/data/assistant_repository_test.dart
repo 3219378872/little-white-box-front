@@ -63,6 +63,31 @@ void main() {
     },
   );
 
+  for (final status in [403, 404, 429, 503]) {
+    test('HTTP $status subscription rejection keeps retryability', () async {
+      final repository = AssistantRepository(
+        client: _CapturingClient(
+          (_) => http.StreamedResponse(
+            Stream.value(utf8.encode('{"code":3,"message":"rejected"}')),
+            status,
+          ),
+        ),
+        baseUrl: 'http://gateway.test',
+        loadAccessToken: () async => 'test-token',
+      );
+      await expectLater(
+        repository.runEvents(runId: 21).toList(),
+        throwsA(
+          isA<AssistantStreamException>().having(
+            (error) => error.retryable,
+            'retryable',
+            status >= 500 || status == 429,
+          ),
+        ),
+      );
+    });
+  }
+
   for (final retryable in [true, false]) {
     test(
       'transport failure preserves retryability=$retryable and event cursor',

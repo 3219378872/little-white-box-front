@@ -2264,6 +2264,150 @@ void main() {
     await expectLater(canceled.future, completes);
   });
 
+  for (final phase in ['waiting_input', 'model_request']) {
+    testWidgets(
+      'non-retryable $phase failure stays disconnected through thread polls',
+      (tester) async {
+        final streams = <StreamController<AssistantRunEvent>>[];
+        final source = FakeAssistantSource()
+          ..thread = AssistantThreadSummary(
+            sessionId: 1,
+            activeRunId: 21,
+            activeRunPhase: phase,
+          )
+          ..eventsHandler = ({required runId, required afterSeq}) {
+            final stream = StreamController<AssistantRunEvent>();
+            streams.add(stream);
+            return stream.stream;
+          };
+        final notifier = AssistantNotifier(repository: source);
+        addTearDown(() async {
+          notifier.dispose();
+          for (final stream in streams) {
+            await stream.close();
+          }
+        });
+        await notifier.load();
+        streams.single.addError(
+          const AssistantStreamException(
+            'subscription rejected',
+            retryable: false,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 3));
+        for (var poll = 0; poll < 3; poll++) {
+          await tester.pump(const Duration(seconds: 30));
+          await notifier.refreshForThread(source.thread);
+        }
+        expect(source.eventCalls, hasLength(1));
+        expect(notifier.state.isStreaming, isFalse);
+        expect(notifier.state.activeRunId, 21);
+        expect(
+          notifier.state.connectionError,
+          contains('subscription rejected'),
+        );
+        expect(notifier.state.messages.last.terminalEventReceived, isFalse);
+        source.messages = const [
+          AssistantHistoryMessage(
+            id: 11,
+            sessionId: 1,
+            runId: 21,
+            role: 'user',
+            content: 'queued followup',
+          ),
+        ];
+        source.thread = AssistantThreadSummary(
+          sessionId: 1,
+          activeRunId: 21,
+          activeRunPhase: phase,
+          lastMessageId: 11,
+        );
+        await notifier.refreshForThread(source.thread);
+        expect(source.eventCalls, hasLength(1));
+        expect(
+          notifier.state.connectionError,
+          contains('subscription rejected'),
+          reason: 'message polling must preserve the explicit reconnect action',
+        );
+
+        source.thread = const AssistantThreadSummary(
+          sessionId: 1,
+          activeRunId: 22,
+          activeRunPhase: 'model_request',
+        );
+        await notifier.refreshForThread(source.thread);
+        expect(source.eventCalls, hasLength(2));
+        expect(source.lastEventsRunId, 22);
+        expect(notifier.state.isStreaming, isTrue);
+      },
+    );
+  }
+
+  test(
+    'explicit reconnect retries a blocked run from its committed event cursor',
+    () async {
+      final streams = <StreamController<AssistantRunEvent>>[];
+      final source = FakeAssistantSource()
+        ..thread = const AssistantThreadSummary(
+          sessionId: 1,
+          activeRunId: 21,
+          activeRunPhase: 'model_request',
+        )
+        ..eventsHandler = ({required runId, required afterSeq}) {
+          final stream = StreamController<AssistantRunEvent>();
+          streams.add(stream);
+          return stream.stream;
+        };
+      final notifier = AssistantNotifier(repository: source);
+      addTearDown(() async {
+        notifier.dispose();
+        for (final stream in streams) {
+          await stream.close();
+        }
+      });
+      await notifier.load();
+      streams[0].add(
+        const AssistantRunEvent(
+          type: AssistantEventType.token,
+          runId: 21,
+          seq: 6,
+          text: 'partial',
+        ),
+      );
+      streams[0].addError(
+        const AssistantStreamException(
+          'subscription rejected',
+          retryable: false,
+        ),
+      );
+      await pumpEventQueue();
+      await notifier.refreshForThread(source.thread);
+      expect(source.eventCalls, [0]);
+      expect(notifier.reconnectActiveRun(), isTrue);
+      expect(source.eventCalls, [0, 6]);
+      streams[1].addError(
+        const AssistantStreamException('still rejected', retryable: false),
+      );
+      await pumpEventQueue();
+      await notifier.refreshForThread(source.thread);
+      expect(source.eventCalls, [0, 6]);
+      expect(notifier.reconnectActiveRun(), isTrue);
+      expect(source.eventCalls, [0, 6, 6]);
+      streams[2].add(
+        const AssistantRunEvent(
+          type: AssistantEventType.done,
+          runId: 21,
+          seq: 7,
+        ),
+      );
+      await pumpEventQueue();
+      expect(notifier.state.hasActiveRun, isFalse);
+      expect(notifier.state.connectionError, isNull);
+      expect(notifier.state.messages.last.text, 'partial');
+    },
+  );
+
   test(
     'a disconnected stream reconnects then becomes a transport error',
     () async {

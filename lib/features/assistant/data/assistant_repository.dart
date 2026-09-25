@@ -15,11 +15,14 @@ import '../../../sdk/vars/kv.dart';
 import '../../../sdk/vars/vars.dart';
 import 'assistant_models.dart';
 
-class AssistantStreamException implements Exception {
-  final String message;
+class AssistantStreamException extends ApiException {
   final bool retryable;
 
-  const AssistantStreamException(this.message, {this.retryable = true});
+  const AssistantStreamException(
+    super.message, {
+    this.retryable = true,
+    super.code,
+  });
 
   @override
   String toString() => message;
@@ -348,10 +351,14 @@ class AssistantRepository implements AssistantDataSource {
           (exception.isAuthError || response.statusCode == 401)) {
         await sdk_api.invalidateSessionIfCredentialsMatch(session);
       }
-      if (response.statusCode >= 500) {
+      if (response.statusCode >= 500 || response.statusCode == 429) {
         throw const AssistantStreamException('Assistant 服务暂时不可用');
       }
-      throw exception;
+      throw AssistantStreamException(
+        exception.message,
+        code: exception.code,
+        retryable: false,
+      );
     }
 
     var terminal = false;

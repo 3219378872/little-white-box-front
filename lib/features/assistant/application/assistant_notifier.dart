@@ -37,6 +37,7 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   int _lastSeq = 0;
   int _reconnects = 0;
   Object _subscribedRunId = 0;
+  Object _automaticReconnectBlockedRunId = 0;
   String _activeStreamId = '';
   final Set<String> _retiredStreamIds = <String>{};
   bool _usesStreamIds = false;
