@@ -22,7 +22,7 @@ code_paths:
 - tools/test_knowledge_base.py
 - tools/requirements-knowledge.txt
 - Makefile
-updated_at: 2026-09-19
+updated_at: 2026-09-25
 ---
 
 # 客户端平台实现映射
@@ -38,13 +38,13 @@ repository。Riverpod 3 的 `StateNotifier` 经 `package:flutter_riverpod/legacy
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FX-001 | DES-client-platform | aligned | EVD-quality-fixes-2026-09-19 |
-| FX-002 | DES-client-platform | aligned | EVD-quality-fixes-2026-09-19 |
-| FX-010 | DES-client-platform | aligned | EVD-quality-fixes-2026-09-19 |
-| FX-070 | DES-client-platform | aligned | EVD-quality-fixes-2026-09-19 |
-| FQ-001 | DES-client-platform | aligned | EVD-quality-fixes-2026-09-19 |
-| FQ-002 | DES-client-platform | aligned | EVD-quality-fixes-2026-09-19 |
-| FQ-003 | DES-client-platform | aligned | EVD-quality-fixes-2026-09-19 |
-| FQ-006 | DES-client-platform | aligned | EVD-quality-fixes-2026-09-19 |
+| FX-001 | DES-client-platform | aligned | EVD-quality-remediation-2026-09-25 |
+| FX-002 | DES-client-platform | aligned | EVD-quality-remediation-2026-09-25 |
+| FX-010 | DES-client-platform | aligned | EVD-quality-remediation-2026-09-25 |
+| FX-070 | DES-client-platform | aligned | EVD-quality-remediation-2026-09-25 |
+| FQ-001 | DES-client-platform | aligned | EVD-quality-remediation-2026-09-25 |
+| FQ-002 | DES-client-platform | aligned | EVD-quality-remediation-2026-09-25 |
+| FQ-003 | DES-client-platform | aligned | EVD-quality-remediation-2026-09-25 |
+| FQ-006 | DES-client-platform | aligned | EVD-quality-remediation-2026-09-25 |
 | FQ-007 | DES-client-platform | unknown | gap: current evidence lacks the real-interface and browser validation required by the spec |
-| FQ-008 | DES-client-platform | aligned | EVD-quality-fixes-2026-09-19 |
+| FQ-008 | DES-client-platform | aligned | EVD-quality-remediation-2026-09-25 |

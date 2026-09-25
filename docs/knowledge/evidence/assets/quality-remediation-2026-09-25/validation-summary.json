@@ -1,0 +1,56 @@
+{
+  "observed_commit": "3c575d3d0d6a235cf2176e233cc98a73fd951c28",
+  "scope": [
+    "static",
+    "unit"
+  ],
+  "flutter_tests_passed": 603,
+  "coverage": {
+    "covered": 8195,
+    "total": 9812,
+    "percent": 83.5
+  },
+  "tools_tests_passed": 52,
+  "sdk_drift": false,
+  "release_web_build": "passed",
+  "commands": [
+    {
+      "command": "make format-check analyze",
+      "exit_code": 0,
+      "seconds": 6.63
+    },
+    {
+      "command": "flutter test --no-pub --coverage --reporter expanded",
+      "exit_code": 0,
+      "seconds": 57.84
+    },
+    {
+      "command": "python3 tools/lcov_summary.py coverage/lcov.info --min 70",
+      "exit_code": 0,
+      "seconds": 0.05
+    },
+    {
+      "command": "make tools-test KNOWLEDGE_PYTHON=/home/dev/projects/little/little-white-box-front/.venv-knowledge/bin/python",
+      "exit_code": 0,
+      "seconds": 5.0
+    },
+    {
+      "command": "PATH=/tmp/little-quality-tools-nsA9h9/bin:$PATH make sdk-check BACKEND_API=/home/dev/projects/little/little-white-box-content-community/.worktree/task-quality-remediation-20260925/app/gateway/gateway.api",
+      "exit_code": 0,
+      "seconds": 0.42
+    },
+    {
+      "command": "flutter build web --no-pub --release -t lib/main.dart",
+      "exit_code": 0,
+      "seconds": 134.31
+    }
+  ],
+  "unverified": [
+    "browser",
+    "device",
+    "real gateway",
+    "live provider",
+    "capacity",
+    "production"
+  ]
+}
