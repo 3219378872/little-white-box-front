@@ -1,0 +1,227 @@
+{
+  "observed_commit": "58fa6a24f4c75c58e987331711b4ea49dc4aa34c",
+  "baseline_commit": "34280c0",
+  "backend_commit": "09df8155ec7ef92f77fca54d68f1bd12ac69369f",
+  "flutter": "3.47.2",
+  "scope": [
+    "static",
+    "unit",
+    "browser"
+  ],
+  "flutter_tests_passed": 618,
+  "coverage": {
+    "covered": 8619,
+    "total": 10264,
+    "percent": 84.0
+  },
+  "tools_tests_passed": 52,
+  "sdk_drift": false,
+  "release_web_build": "passed",
+  "commands": [
+    {
+      "command": "make format-check analyze",
+      "exit_code": 0,
+      "seconds": 3.59
+    },
+    {
+      "command": "flutter test --no-pub --coverage --reporter expanded",
+      "exit_code": 0,
+      "seconds": 36.34
+    },
+    {
+      "command": "python3 tools/lcov_summary.py coverage/lcov.info --min 70",
+      "exit_code": 0,
+      "seconds": 0.03
+    },
+    {
+      "command": "make tools-test KNOWLEDGE_PYTHON=/home/dev/projects/little/little-white-box-front/.venv-knowledge/bin/python",
+      "exit_code": 0,
+      "seconds": 3.27
+    },
+    {
+      "command": "PATH=/tmp/little-quality-tools-nsA9h9/bin:$PATH make sdk-check BACKEND_API=/home/dev/projects/little/little-white-box-content-community/app/gateway/gateway.api",
+      "exit_code": 0,
+      "seconds": 0.29
+    },
+    {
+      "command": "flutter build web --no-pub --release -t lib/main.dart",
+      "exit_code": 0,
+      "seconds": 59.68
+    }
+  ],
+  "browser": {
+    "chromium": "151.0.7922.34",
+    "before": [
+      {
+        "name": "desktop-light-feed",
+        "viewport": {
+          "width": 1440,
+          "height": 1000,
+          "mobile": false
+        },
+        "scheme": "light",
+        "route": "/feed",
+        "overflow": false,
+        "errors": 0
+      },
+      {
+        "name": "desktop-dark-feed",
+        "viewport": {
+          "width": 1440,
+          "height": 1000,
+          "mobile": false
+        },
+        "scheme": "dark",
+        "route": "/feed",
+        "overflow": false,
+        "errors": 0
+      },
+      {
+        "name": "mobile-light-feed",
+        "viewport": {
+          "width": 390,
+          "height": 844,
+          "mobile": true
+        },
+        "scheme": "light",
+        "route": "/feed",
+        "overflow": false,
+        "errors": 0
+      },
+      {
+        "name": "mobile-light-post",
+        "viewport": {
+          "width": 390,
+          "height": 844,
+          "mobile": true
+        },
+        "scheme": "light",
+        "route": "/post/7",
+        "overflow": false,
+        "errors": 0
+      },
+      {
+        "name": "desktop-light-post",
+        "viewport": {
+          "width": 1440,
+          "height": 1000,
+          "mobile": false
+        },
+        "scheme": "light",
+        "route": "/post/1",
+        "overflow": false,
+        "errors": 0
+      },
+      {
+        "name": "mobile-dark-search",
+        "viewport": {
+          "width": 390,
+          "height": 844,
+          "mobile": true
+        },
+        "scheme": "dark",
+        "route": "/search",
+        "overflow": false,
+        "errors": 0
+      },
+      {
+        "name": "mobile-light-agent-questions",
+        "viewport": {
+          "width": 390,
+          "height": 844,
+          "mobile": true
+        },
+        "scheme": "light",
+        "route": "/messages/assistant",
+        "overflow": false,
+        "errors": 0
+      }
+    ],
+    "after": [
+      {
+        "name": "desktop-light-feed",
+        "viewport": {
+          "width": 1440,
+          "height": 1000,
+          "mobile": false
+        },
+        "scheme": "light",
+        "route": "/feed",
+        "overflow": false,
+        "errors": 0
+      },
+      {
+        "name": "desktop-dark-feed",
+        "viewport": {
+          "width": 1440,
+          "height": 1000,
+          "mobile": false
+        },
+        "scheme": "dark",
+        "route": "/feed",
+        "overflow": false,
+        "errors": 0
+      },
+      {
+        "name": "mobile-light-feed",
+        "viewport": {
+          "width": 390,
+          "height": 844,
+          "mobile": true
+        },
+        "scheme": "light",
+        "route": "/feed",
+        "overflow": false,
+        "errors": 0
+      },
+      {
+        "name": "mobile-light-post",
+        "viewport": {
+          "width": 390,
+          "height": 844,
+          "mobile": true
+        },
+        "scheme": "light",
+        "route": "/post/7",
+        "overflow": false,
+        "errors": 0
+      },
+      {
+        "name": "desktop-light-post",
+        "viewport": {
+          "width": 1440,
+          "height": 1000,
+          "mobile": false
+        },
+        "scheme": "light",
+        "route": "/post/1",
+        "overflow": false,
+        "errors": 0
+      },
+      {
+        "name": "mobile-dark-search",
+        "viewport": {
+          "width": 390,
+          "height": 844,
+          "mobile": true
+        },
+        "scheme": "dark",
+        "route": "/search",
+        "overflow": false,
+        "errors": 0
+      },
+      {
+        "name": "mobile-light-agent-questions",
+        "viewport": {
+          "width": 390,
+          "height": 844,
+          "mobile": true
+        },
+        "scheme": "light",
+        "route": "/messages/assistant",
+        "overflow": false,
+        "errors": 0
+      }
+    ]
+  }
+}

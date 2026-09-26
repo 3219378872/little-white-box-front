@@ -26,10 +26,11 @@ updated_at: 2026-09-26
 （发布、Agent 入口、基于已加载推荐流近似统计的热门标签，无新接口）、Feed 图片 1/2/3+ 规则、详情页
 操作收敛到 `…` 菜单与作者行关注、搜索最近记录与高亮、Agent 澄清题 chip 化。其中强调色、卡片圆角 12、
 图片圆角 8、680 列与热门标签右栏偏离 FQ-009 的 Heybox 黑白灰、圆角 4/≤8、单列 720 与“不新增热点”约束；
-规格与设计未改，偏离只在下表登记。
+规格与设计未改，偏离只在下表登记；验证与改造前后对比见
+[EVD-ui-redesign-2026-09-26](../evidence/EVD-ui-redesign-2026-09-26.md)。
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FQ-004 | DES-presentation-client | aligned | EVD-quality-remediation-2026-09-25 |
+| FQ-004 | DES-presentation-client | aligned | EVD-ui-redesign-2026-09-26 |
 | FQ-005 | DES-presentation-client | unknown | gap: current native-platform evidence is temporary and does not cover physical devices or iOS |
 | FQ-009 | DES-presentation-client | diverged | gap: 2026-09-26 ui-redesign keeps a blue accent, card radius 12, image radius 8, a 680px feed column and a client-side trending-tags rail, contrary to the Heybox monochrome, radius 4/<=8, 720px single column and no-hotspot rules; needs a human decision to amend FQ-009/DES or revert |
