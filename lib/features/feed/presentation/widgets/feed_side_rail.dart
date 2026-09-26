@@ -58,7 +58,15 @@ class FeedSideRail extends ConsumerWidget {
                 size: FButtonSizeVariant.sm,
                 onPress: () =>
                     _requireLogin(context, ref, '/messages/assistant'),
-                child: const Text('开始对话'),
+                // Accent text keeps the outline action from reading as
+                // disabled on the muted rail card.
+                child: Text(
+                  '开始对话',
+                  style: TextStyle(
+                    color: theme.colors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
