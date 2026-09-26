@@ -177,19 +177,75 @@ extension _PostDetailContent on _PostDetailPageState {
         ),
         const Spacer(),
         for (final (sort, label) in const [(1, '最新'), (2, '最热')])
-          FButton(
-            size: FButtonSizeVariant.xs,
-            mainAxisSize: MainAxisSize.min,
+          _CommentSortChip(
+            key: ValueKey('comment-sort-$sort'),
+            label: label,
             selected: comments.sortBy == sort,
-            variant: comments.sortBy == sort
-                ? FButtonVariant.secondary
-                : FButtonVariant.ghost,
             onPress: () => ref
                 .read(commentNotifierProvider(widget.postId).notifier)
                 .selectSort(sort),
-            child: Text(label),
           ),
       ],
+    );
+  }
+}
+
+/// Comment sort toggle; the active order uses the accent like other
+/// selected navigation so it does not read as a disabled control.
+class _CommentSortChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onPress;
+
+  const _CommentSortChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final colors = theme.colors;
+    // One merged node: a button that reports its selected state. The notifier
+    // ignores re-selecting the active order, so the chip is never disabled.
+    return Semantics(
+      container: true,
+      button: true,
+      selected: selected,
+      label: '按$label排序',
+      onTap: onPress,
+      excludeSemantics: true,
+      child: FTappable(
+        onPress: onPress,
+        builder: (context, variants, _) {
+          final hovered =
+              !selected &&
+              (variants.contains(FTappableVariant.hovered) ||
+                  variants.contains(FTappableVariant.pressed));
+          return Container(
+            constraints: const BoxConstraints(minHeight: 32, minWidth: 44),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.space3),
+            decoration: BoxDecoration(
+              color: selected
+                  ? AppTheme.accentSoft(colors)
+                  : hovered
+                  ? colors.secondary
+                  : null,
+              borderRadius: AppTheme.controlRadius,
+            ),
+            child: Text(
+              label,
+              style: theme.typography.body.sm.copyWith(
+                color: selected ? colors.primary : colors.mutedForeground,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

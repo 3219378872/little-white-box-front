@@ -358,6 +358,18 @@ void main() {
     expect(commentCalls[1].url.queryParameters['sortBy'], '2');
     expect(find.text('沙发'), findsNothing);
     expect(find.text('最热内容'), findsOneWidget);
+
+    // The active order is exposed as selected and re-tapping it is a no-op.
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('comment-sort-2'))),
+      isSemantics(isSelected: true, isButton: true, label: '按最热排序'),
+    );
+    await tester.tap(find.text('最热'));
+    await tester.pumpAndSettle();
+    expect(
+      harness.client.requests.where((r) => r.url.path == '/api/v1/comments/9'),
+      hasLength(2),
+    );
   });
 
   testWidgets('expands replies on demand and loads the full thread', (

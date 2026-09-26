@@ -14,10 +14,12 @@ class TrendingTag {
 ///
 /// There is no server-side trending endpoint; this is a client-side
 /// approximation over the posts the user has in the recommend feed and never
-/// triggers an extra request.
+/// triggers an extra request. Tags seen on fewer than [minPosts] loaded posts
+/// are dropped so a thin feed does not present one-off tags as trends.
 List<TrendingTag> rankTrendingTags(
   Iterable<FeedEntry> entries, {
   int limit = 10,
+  int minPosts = 2,
 }) {
   final counts = <String, int>{};
   final firstSeen = <String, int>{};
@@ -30,7 +32,7 @@ List<TrendingTag> rankTrendingTags(
       firstSeen.putIfAbsent(tag, () => order++);
     }
   }
-  final ranked = counts.entries.toList()
+  final ranked = counts.entries.where((e) => e.value >= minPosts).toList()
     ..sort((a, b) {
       final byCount = b.value.compareTo(a.value);
       return byCount != 0

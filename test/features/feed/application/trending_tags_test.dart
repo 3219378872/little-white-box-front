@@ -16,11 +16,23 @@ void main() {
     expect(ranked.map((tag) => tag.postCount), [2, 2, 2]);
   });
 
+  test('drops tags seen on a single loaded post', () {
+    final ranked = rankTrendingTags([
+      _entry(1, ['go', 'once']),
+      _entry(2, ['go']),
+    ]);
+    expect(ranked.map((tag) => tag.name), ['go']);
+  });
+
   test('respects the limit and returns nothing for an empty feed', () {
     expect(rankTrendingTags(const []), isEmpty);
-    final ranked = rankTrendingTags([
-      _entry(1, ['a', 'b', 'c']),
-    ], limit: 2);
+    final ranked = rankTrendingTags(
+      [
+        _entry(1, ['a', 'b', 'c']),
+      ],
+      limit: 2,
+      minPosts: 1,
+    );
     expect(ranked.map((tag) => tag.name), ['a', 'b']);
   });
 }
