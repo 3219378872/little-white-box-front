@@ -54,6 +54,36 @@ void main() {
     expect(notifier.state.hasMore, isFalse);
     expect(repository.pages, [1, 2]);
   });
+
+  test('remembers recent keywords, newest first and deduplicated', () async {
+    final notifier = SearchNotifier(_RecordingSearchSource());
+
+    for (var i = 0; i < SearchNotifier.maxRecentKeywords + 2; i++) {
+      await notifier.search('k$i');
+    }
+    await notifier.search('  k5 ');
+
+    expect(notifier.state.recentKeywords.first, 'k5');
+    expect(
+      notifier.state.recentKeywords,
+      hasLength(SearchNotifier.maxRecentKeywords),
+    );
+    expect(notifier.state.recentKeywords.where((k) => k == 'k5'), hasLength(1));
+    expect(notifier.state.recentKeywords, isNot(contains('k0')));
+  });
+
+  test('clear returns to idle but keeps history until cleared', () async {
+    final notifier = SearchNotifier(_RecordingSearchSource());
+    await notifier.search('query');
+
+    notifier.clear();
+    expect(notifier.state.keyword, isEmpty);
+    expect(notifier.state.phase, isNot(SearchPhase.success));
+    expect(notifier.state.recentKeywords, ['query']);
+
+    notifier.clearRecent();
+    expect(notifier.state.recentKeywords, isEmpty);
+  });
 }
 
 class _CompleterSearchSource implements SearchDataSource {

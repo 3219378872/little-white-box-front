@@ -4,17 +4,43 @@ import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart'
     show InputBorder, OutlineInputBorder;
 
+/// Shared design tokens. Pages read spacing, radii and brand colors from here
+/// instead of hard-coding values, so light/dark and touch/desktop stay aligned.
 class AppTheme {
-  static const pageInset = 12.0;
-  static const contentGap = 6.0;
-  static const imageRadius = BorderRadius.all(Radius.circular(4));
-  static const link = Color(0xFF23649A);
+  // Spacing scale on a 4/8 grid.
+  static const space1 = 4.0;
+  static const space2 = 8.0;
+  static const space3 = 12.0;
+  static const space4 = 16.0;
+  static const space6 = 24.0;
+
+  static const pageInset = space4;
+  static const contentGap = space2;
+
+  // Radius scale: tags 4, images and controls 8, cards and sheets 12.
+  static const tagRadius = BorderRadius.all(Radius.circular(4));
+  static const imageRadius = BorderRadius.all(Radius.circular(8));
+  static const controlRadius = BorderRadius.all(Radius.circular(8));
+  static const cardRadius = BorderRadius.all(Radius.circular(12));
+
+  // Desktop layout widths.
+  static const feedColumnWidth = 680.0;
+  static const sideRailWidth = 288.0;
+  static const sidebarWidth = 240.0;
+  static const sidebarCollapsedWidth = 72.0;
+
+  /// Brand accent: selected tabs, primary buttons, links and active states.
+  static const accentLight = Color(0xFF2563EB);
+  static const accentDark = Color(0xFF60A5FA);
+  static const link = accentLight;
   static const assistantCard = FCardStyleDelta.delta(
-    decoration: DecorationDelta.boxDelta(
-      borderRadius: BorderRadius.all(Radius.circular(8)),
-    ),
+    decoration: DecorationDelta.boxDelta(borderRadius: cardRadius),
   );
   static const _seedColor = Color(0xFF14191E);
+
+  /// Low-emphasis tint of the accent for selected chips and highlights.
+  static Color accentSoft(FColors colors) =>
+      colors.primary.withValues(alpha: .12);
 
   static FTextFieldStyleDelta editorField(
     BuildContext context, {
@@ -51,14 +77,15 @@ class AppTheme {
     final colors = variant.colors.copyWith(
       background: dark ? const Color(0xFF101112) : Colors.white,
       foreground: dark ? const Color(0xFFE1E2E3) : _seedColor,
-      primary: dark ? const Color(0xFFE1E2E3) : _seedColor,
-      primaryForeground: dark ? _seedColor : Colors.white,
+      primary: dark ? accentDark : accentLight,
+      primaryForeground: dark ? const Color(0xFF0B1220) : Colors.white,
       secondary: dark ? const Color(0xFF222426) : const Color(0xFFF3F4F5),
       secondaryForeground: dark
           ? const Color(0xFFB9BDC1)
           : const Color(0xFF64696E),
       muted: dark ? const Color(0xFF1E1F21) : const Color(0xFFF7F8F9),
-      mutedForeground: dark ? const Color(0xFF9B9FA2) : const Color(0xFF8C9196),
+      // Light muted text is 4.9:1 on white so meta text meets WCAG AA.
+      mutedForeground: dark ? const Color(0xFF9B9FA2) : const Color(0xFF6B7075),
       border: dark ? const Color(0xFF27292C) : const Color(0xFFF0F1F2),
     );
     TextStyle text(
@@ -101,14 +128,14 @@ class AppTheme {
           touch: touch,
         ).copyWith(
           borderRadius: const FBorderRadius(
-            xs2: BorderRadius.all(Radius.circular(2)),
-            xs: imageRadius,
-            sm: imageRadius,
-            md: BorderRadius.all(Radius.circular(6)),
-            lg: BorderRadius.all(Radius.circular(8)),
-            xl: BorderRadius.all(Radius.circular(8)),
-            xl2: BorderRadius.all(Radius.circular(8)),
-            xl3: BorderRadius.all(Radius.circular(8)),
+            xs2: tagRadius,
+            xs: tagRadius,
+            sm: controlRadius,
+            md: controlRadius,
+            lg: cardRadius,
+            xl: cardRadius,
+            xl2: cardRadius,
+            xl3: cardRadius,
           ),
           shadow: const [],
         );
@@ -130,16 +157,16 @@ class AppTheme {
       ),
       border: FVariants(
         OutlineInputBorder(
-          borderRadius: imageRadius,
+          borderRadius: controlRadius,
           borderSide: BorderSide.none,
         ),
         variants: {
           [FTextFieldVariant.focused]: OutlineInputBorder(
-            borderRadius: imageRadius,
-            borderSide: BorderSide(color: colors.mutedForeground),
+            borderRadius: controlRadius,
+            borderSide: BorderSide(color: colors.primary),
           ),
           [FTextFieldVariant.error]: OutlineInputBorder(
-            borderRadius: imageRadius,
+            borderRadius: controlRadius,
             borderSide: BorderSide(color: colors.destructive),
           ),
         },
@@ -152,16 +179,68 @@ class AppTheme {
     }) => FBadgeStyle(
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(2),
+        borderRadius: tagRadius,
         border: outline ? Border.all(color: colors.border) : null,
       ),
       labelTextStyle: body.xs.copyWith(color: foreground),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
     );
+    final sidebar =
+        FSidebarStyle.inherit(
+          colors: colors,
+          typography: typography,
+          icons: variant.icons,
+          style: style,
+          touch: touch,
+        ).copyWith(
+          constraints: const BoxConstraints.tightFor(width: sidebarWidth),
+          headerPadding: const EdgeInsetsGeometryDelta.value(
+            EdgeInsets.fromLTRB(0, 12, 0, 4),
+          ),
+          groupStyle: FSidebarGroupStyleDelta.delta(
+            itemStyle: FSidebarItemStyleDelta.delta(
+              padding: const EdgeInsetsGeometryDelta.value(
+                EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              ),
+              iconSpacing: 12,
+              borderRadius: controlRadius,
+              textStyle: FVariants.from(
+                body.sm.copyWith(
+                  color: colors.foreground,
+                  fontWeight: FontWeight.w500,
+                  height: 1,
+                ),
+                variants: {
+                  [FTappableVariant.selected]: TextStyleDelta.delta(
+                    color: colors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                },
+              ),
+              iconStyle: FVariants.from(
+                IconThemeData(color: colors.foreground, size: 20),
+                variants: {
+                  [FTappableVariant.selected]: IconThemeDataDelta.delta(
+                    color: colors.primary,
+                  ),
+                },
+              ),
+              backgroundColor: FVariants(
+                colors.background,
+                variants: {
+                  [FTappableVariant.hovered, FTappableVariant.pressed]:
+                      colors.secondary,
+                  [FTappableVariant.selected]: accentSoft(colors),
+                },
+              ),
+            ),
+          ),
+        );
     return FThemeData(
       colors: colors,
       typography: typography,
       style: style,
+      sidebarStyle: sidebar,
       badgeStyles: FVariants(
         badge(colors.primary, colors.primaryForeground),
         variants: {
@@ -202,7 +281,7 @@ class AppTheme {
             indicatorDecoration: DecorationDelta.value(
               BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: colors.foreground, width: 2),
+                  bottom: BorderSide(color: colors.primary, width: 2),
                 ),
               ),
             ),
@@ -223,7 +302,10 @@ class AppTheme {
             style: style,
           ).copyWith(
             decoration: DecorationDelta.value(
-              BoxDecoration(color: colors.muted),
+              BoxDecoration(
+                color: colors.background,
+                border: Border(top: BorderSide(color: colors.border)),
+              ),
             ),
             padding: const EdgeInsetsGeometryDelta.value(
               EdgeInsets.symmetric(horizontal: 4, vertical: 6),

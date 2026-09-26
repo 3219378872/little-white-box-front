@@ -81,6 +81,9 @@ class _Harness {
   bool commentsOk = true;
   int replyCount = 0;
   int authorId = 2;
+  bool following = false;
+  bool emptyComments = false;
+  final followMethods = <String>[];
   List<Map<String, dynamic>> embeddedReplies = const [];
 
   _Harness({this.authorId = 2}) {
@@ -97,6 +100,16 @@ class _Harness {
     if (path == '/api/v1/comments/9') {
       if (!commentsOk) {
         return jsonResponse({'code': 500, 'message': '评论服务不可用'}, 500);
+      }
+      if (emptyComments) {
+        return jsonResponse(
+          okEnvelope({
+            'list': <dynamic>[],
+            'total': 0,
+            'page': 1,
+            'pageSize': 20,
+          }),
+        );
       }
       final hottest = request.url.queryParameters['sortBy'] == '2';
       return jsonResponse(
@@ -131,6 +144,28 @@ class _Harness {
           'pageSize': 10,
         }),
       );
+    }
+    if (request.method == 'GET' && path == '/api/v1/user/2') {
+      return jsonResponse(
+        okEnvelope({
+          'id': 2,
+          'username': 'author',
+          'nickname': '作者甲',
+          'avatarUrl': '',
+          'bio': '',
+          'level': 1,
+          'followerCount': 0,
+          'followingCount': 0,
+          'postCount': 1,
+          'favoritesVisible': true,
+          'isFollowing': following,
+        }),
+      );
+    }
+    if (path == '/api/v1/user/follow') {
+      followMethods.add(request.method);
+      following = request.method == 'POST';
+      return jsonResponse(okEnvelope(<String, dynamic>{}));
     }
     if (path == '/api/v1/like' || path == '/api/v1/favorite') {
       return jsonResponse(okEnvelope(<String, dynamic>{}));
@@ -236,11 +271,14 @@ void main() {
     expect(find.text('联调标题'), findsOneWidget);
     expect(find.text('联调正文'), findsOneWidget);
     expect(find.text('沙发'), findsOneWidget);
-    // 点赞、收藏、评论数与浏览数。
+    // 点赞、收藏数在底栏，评论数在评论区标题，浏览数并入作者元信息。
     expect(find.text('2'), findsOneWidget);
     expect(find.text('5'), findsOneWidget);
-    expect(find.text('7'), findsOneWidget);
-    expect(find.text('11 次浏览'), findsOneWidget);
+    expect(find.text('评论  7', findRichText: true), findsOneWidget);
+    expect(find.textContaining('11 次浏览'), findsOneWidget);
+    // 不再有正文/评论切换与重复的评论入口。
+    expect(find.text('正文'), findsNothing);
+    expect(find.byKey(const ValueKey('post-action-查看评论')), findsNothing);
   });
 
   testWidgets('likes optimistically and can toggle back', (tester) async {
@@ -346,8 +384,7 @@ void main() {
       isEmpty,
     );
 
-    await tester.tap(find.byKey(const ValueKey('post-action-查看评论')));
-    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('共 5 条回复'));
     await tester.tap(find.text('共 5 条回复'));
     await tester.pumpAndSettle();
 
@@ -460,6 +497,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Watch commands live in the header's overflow menu.
+    expect(find.byKey(const Key('post-watch-author')), findsNothing);
+    await tester.tap(find.byKey(const Key('post-more')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('post-watch-author')), findsOneWidget);
     expect(find.byKey(const Key('post-watch-revision')), findsOneWidget);
 
@@ -467,14 +508,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(source.lastCreateCondition, 'author_new_post');
 
+    await tester.tap(find.byKey(const Key('post-more')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('post-watch-revision')));
     await tester.pumpAndSettle();
     expect(source.lastCreateCondition, 'post_revised');
   });
 
-  testWidgets('own posts show a self-watch error without creating a task', (
-    tester,
-  ) async {
+  testWidgets('own posts hide follow and watch commands', (tester) async {
     SharedPreferences.setMockInitialValues({
       'tokens': jsonEncode({
         'access_token': _testJwt(userId: 1),
@@ -502,17 +543,80 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('post-watch-author')));
-    await tester.pumpAndSettle();
-    expect(find.text('不能关注自己的动态'), findsOneWidget);
+    expect(find.byKey(const Key('post-more')), findsNothing);
+    expect(find.byKey(const Key('post-follow-author')), findsNothing);
     expect(source.lastCreateCondition, isNull);
+    expect(
+      harness.client.requests.where(
+        (r) => r.url.path.startsWith('/api/v1/user'),
+      ),
+      isEmpty,
+    );
+  });
 
-    await tester.tap(find.byKey(const Key('post-watch-revision')));
-    await tester.pumpAndSettle();
-    expect(source.lastCreateCondition, isNull);
+  testWidgets('follows the author from the detail header row', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'tokens': jsonEncode({
+        'access_token': _testJwt(userId: 1),
+        'access_expire': 0,
+        'refresh_token': '',
+        'refresh_expire': 0,
+        'refresh_after': 0,
+      }),
+    });
+    final harness = _Harness();
+    setApiClient(harness.client);
 
-    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpWidget(
+      AppProviderScope(
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: const PostDetailPage(postId: '9'),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
+
+    expect(find.text('关注'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('post-follow-author')));
+    await tester.pumpAndSettle();
+    expect(harness.followMethods, ['POST']);
+    expect(find.text('已关注'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('post-follow-author')));
+    await tester.pumpAndSettle();
+    expect(harness.followMethods, ['POST', 'DELETE']);
+    expect(find.text('关注'), findsOneWidget);
+  });
+
+  testWidgets('empty comments offer a first-comment shortcut', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'tokens': jsonEncode({
+        'access_token': _testJwt(userId: 1),
+        'access_expire': 0,
+        'refresh_token': '',
+        'refresh_expire': 0,
+        'refresh_after': 0,
+      }),
+    });
+    final harness = _Harness()..emptyComments = true;
+    setApiClient(harness.client);
+
+    await tester.pumpWidget(
+      AppProviderScope(
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: const PostDetailPage(postId: '9'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('还没有评论'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('post-first-comment')));
+    await tester.pumpAndSettle();
+    final field = tester.widget<EditableText>(find.byType(EditableText));
+    expect(field.focusNode.hasFocus, isTrue);
   });
 
   testWidgets(

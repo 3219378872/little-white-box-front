@@ -369,13 +369,24 @@ void main() {
     );
     expect(
       tester.getRect(find.byType(FeedPage)),
-      const Rect.fromLTWH(400, 0, 720, 900),
+      // Feed column (680) + gap (24) + side rail (288) centred beside the
+      // 240px sidebar with 24px shell padding.
+      const Rect.fromLTWH(264, 0, 992, 900),
     );
     expect(
       Directionality.of(tester.element(find.text('首页'))),
       TextDirection.ltr,
     );
     _expectSidebarItemsAligned(tester);
+  });
+
+  testWidgets('narrow desktop collapses the sidebar to icons', (tester) async {
+    await pumpShell(tester, location: '/feed', width: 1024);
+
+    expect(tester.getSize(find.byType(FSidebar)).width, 72);
+    // Labels move into tooltips; the feed drops the side rail.
+    expect(find.byType(FTooltip), findsWidgets);
+    expect(tester.getSize(find.byType(FeedPage)).width, lessThanOrEqualTo(680));
   });
 
   testWidgets('desktop message item stays aligned with an unread badge', (

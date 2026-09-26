@@ -19,6 +19,7 @@ import '../../features/post/presentation/post_editor_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
 import '../../features/profile/presentation/edit_profile_page.dart';
 import '../../features/search/presentation/search_page.dart';
+import '../theme/app_theme.dart';
 import '../widgets/content_constraint.dart';
 import 'app_route_observer.dart';
 import 'public_routes.dart';
@@ -235,6 +236,7 @@ class MainShell extends ConsumerWidget {
           ? _DesktopSidebar(
               selectedDestination: destination,
               messageUnread: navUnread,
+              collapsed: width < breakpoints.xl,
               onDestinationSelected: (selected) =>
                   _onDestinationSelected(context, ref, selected),
             )
@@ -295,7 +297,12 @@ class MainShell extends ConsumerWidget {
       return width >= 1024 ? 1100 : 720;
     }
     if (location == '/profile/edit') return 560;
-    if (location == '/feed' && width >= 1024) return 720;
+    if (location == '/feed') {
+      // Wide desktops add the side rail next to the fixed-width feed column.
+      return width >= 1280
+          ? AppTheme.feedColumnWidth + AppTheme.space6 + AppTheme.sideRailWidth
+          : AppTheme.feedColumnWidth;
+    }
     return 680;
   }
 }
@@ -303,11 +310,13 @@ class MainShell extends ConsumerWidget {
 class _DesktopSidebar extends StatelessWidget {
   final _AppDestination selectedDestination;
   final int messageUnread;
+  final bool collapsed;
   final ValueChanged<_AppDestination> onDestinationSelected;
 
   const _DesktopSidebar({
     required this.selectedDestination,
     required this.messageUnread,
+    required this.collapsed,
     required this.onDestinationSelected,
   });
 
@@ -321,75 +330,135 @@ class _DesktopSidebar extends StatelessWidget {
       unreadSemanticsHint = '$messageUnread 条未读';
     }
 
+    Widget item(
+      _AppDestination destination,
+      IconData icon,
+      String label, {
+      int unread = 0,
+      String? hint,
+    }) {
+      final selected = selectedDestination == destination;
+      final Widget iconWidget = collapsed && unread > 0
+          ? _UnreadNavigationIcon(icon: icon, count: unread, dot: true)
+          : Icon(icon);
+      final entry = MergeSemantics(
+        child: FSidebarItem(
+          icon: collapsed
+              ? Semantics(label: label, hint: hint, child: iconWidget)
+              : ExcludeSemantics(child: iconWidget),
+          // The unread count sits at the trailing edge so it never overlaps
+          // the icon or the label.
+          label: collapsed
+              ? null
+              : Row(
+                  children: [
+                    Expanded(
+                      child: Semantics(hint: hint, child: Text(label)),
+                    ),
+                    if (unread > 0)
+                      ExcludeSemantics(child: _UnreadPill(count: unread)),
+                  ],
+                ),
+          selected: selected,
+          onPress: () => onDestinationSelected(destination),
+        ),
+      );
+      return collapsed
+          ? FTooltip(tipBuilder: (_, _) => Text(label), child: entry)
+          : entry;
+    }
+
     return FSidebar(
-      style: const FSidebarStyleDelta.delta(
-        constraints: BoxConstraints.tightFor(width: 240),
+      style: FSidebarStyleDelta.delta(
+        constraints: BoxConstraints.tightFor(
+          width: collapsed
+              ? AppTheme.sidebarCollapsedWidth
+              : AppTheme.sidebarWidth,
+        ),
       ),
       header: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        padding: EdgeInsets.fromLTRB(
+          collapsed ? 0 : 24,
+          AppTheme.space4,
+          collapsed ? 0 : 24,
+          AppTheme.space4,
+        ),
         child: Row(
+          mainAxisAlignment: collapsed
+              ? MainAxisAlignment.center
+              : MainAxisAlignment.start,
           children: [
-            Icon(FLucideIcons.box, color: theme.colors.primary),
-            const SizedBox(width: 10),
-            Text(
-              '小白盒',
-              style: theme.typography.display.sm.copyWith(
-                fontWeight: FontWeight.w600,
+            Icon(FLucideIcons.box, color: theme.colors.primary, size: 26),
+            if (!collapsed) ...[
+              const SizedBox(width: 10),
+              Text(
+                '小白盒',
+                style: theme.typography.display.sm.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
       children: [
-        MergeSemantics(
-          child: FSidebarItem(
-            icon: const Icon(FLucideIcons.house),
-            label: const Text('首页'),
-            selected: selectedDestination == _AppDestination.feed,
-            onPress: () => onDestinationSelected(_AppDestination.feed),
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: collapsed ? AppTheme.space3 : AppTheme.space4,
           ),
-        ),
-        MergeSemantics(
-          child: FSidebarItem(
-            icon: const Icon(FLucideIcons.search),
-            label: const Text('搜索'),
-            selected: selectedDestination == _AppDestination.search,
-            onPress: () => onDestinationSelected(_AppDestination.search),
-          ),
-        ),
-        MergeSemantics(
-          child: FSidebarItem(
-            icon: ExcludeSemantics(
-              child: _UnreadNavigationIcon(
-                icon: FLucideIcons.messagesSquare,
-                count: messageUnread,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: AppTheme.space1,
+            children: [
+              item(_AppDestination.feed, FLucideIcons.house, '首页'),
+              item(_AppDestination.search, FLucideIcons.search, '搜索'),
+              item(
+                _AppDestination.messages,
+                FLucideIcons.messageSquare,
+                '消息',
+                unread: messageUnread,
+                hint: unreadSemanticsHint,
               ),
-            ),
-            label: Semantics(
-              hint: unreadSemanticsHint,
-              child: const Text('消息'),
-            ),
-            selected: selectedDestination == _AppDestination.messages,
-            onPress: () => onDestinationSelected(_AppDestination.messages),
-          ),
-        ),
-        MergeSemantics(
-          child: FSidebarItem(
-            icon: const Icon(FLucideIcons.circlePlus),
-            label: const Text('发布'),
-            selected: selectedDestination == _AppDestination.create,
-            onPress: () => onDestinationSelected(_AppDestination.create),
-          ),
-        ),
-        MergeSemantics(
-          child: FSidebarItem(
-            icon: const Icon(FLucideIcons.userRound),
-            label: const Text('我的'),
-            selected: selectedDestination == _AppDestination.profile,
-            onPress: () => onDestinationSelected(_AppDestination.profile),
+              item(_AppDestination.create, FLucideIcons.squarePen, '发布'),
+              item(_AppDestination.profile, FLucideIcons.userRound, '我的'),
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _UnreadPill extends StatelessWidget {
+  final int count;
+  const _UnreadPill({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 20, minHeight: 18),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colors.destructive,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Center(
+            widthFactor: 1,
+            child: Text(
+              count > 99 ? '99+' : '$count',
+              style: theme.typography.body.xs.copyWith(
+                color: theme.colors.destructiveForeground,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -407,12 +476,13 @@ class _MobileBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.theme.colors;
     return FBottomNavigationBar(
       index: _mobileDestinations.indexOf(destination).clamp(0, 4),
       onChange: onChange,
       children: [
         const FBottomNavigationBarItem(
-          icon: Icon(FLucideIcons.triangle),
+          icon: Icon(FLucideIcons.house),
           label: Text('首页'),
         ),
         const FBottomNavigationBarItem(
@@ -424,16 +494,16 @@ class _MobileBottomNavigation extends StatelessWidget {
           icon: FTooltip(
             tipBuilder: (_, _) => const Text('发布'),
             child: Container(
-              width: 38,
-              height: 30,
+              width: 44,
+              height: 32,
               decoration: BoxDecoration(
-                color: context.theme.colors.primary,
-                borderRadius: BorderRadius.circular(6),
+                color: colors.primary,
+                borderRadius: AppTheme.controlRadius,
               ),
               child: Icon(
                 FLucideIcons.plus,
-                color: context.theme.colors.primaryForeground,
-                size: 24,
+                color: colors.primaryForeground,
+                size: 22,
                 semanticLabel: '发布',
               ),
             ),
@@ -441,13 +511,13 @@ class _MobileBottomNavigation extends StatelessWidget {
         ),
         FBottomNavigationBarItem(
           icon: _UnreadNavigationIcon(
-            icon: FLucideIcons.mail,
+            icon: FLucideIcons.messageSquare,
             count: messageUnread,
           ),
           label: const Text('消息'),
         ),
         const FBottomNavigationBarItem(
-          icon: Icon(FLucideIcons.square),
+          icon: Icon(FLucideIcons.userRound),
           label: Text('我的'),
         ),
       ],
@@ -458,8 +528,13 @@ class _MobileBottomNavigation extends StatelessWidget {
 class _UnreadNavigationIcon extends StatelessWidget {
   final IconData icon;
   final int count;
+  final bool dot;
 
-  const _UnreadNavigationIcon({required this.icon, required this.count});
+  const _UnreadNavigationIcon({
+    required this.icon,
+    required this.count,
+    this.dot = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -469,6 +544,27 @@ class _UnreadNavigationIcon extends StatelessWidget {
       return iconWidget;
     }
 
+    if (dot) {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          iconWidget,
+          Positioned(
+            right: -2,
+            top: -2,
+            child: SizedBox.square(
+              dimension: 8,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: theme.colors.destructive,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     final label = count > 99 ? '99+' : '$count';
     return Stack(
       clipBehavior: Clip.none,

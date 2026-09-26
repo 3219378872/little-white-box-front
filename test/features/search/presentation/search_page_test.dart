@@ -10,6 +10,36 @@ import 'package:xiaobaihe_app/features/search/presentation/search_page.dart';
 import '../../../helpers/forui_test_builder.dart';
 
 void main() {
+  testWidgets('idle page lists recent searches and can clear them', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      AppProviderScope(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(_PageSearchSource()),
+        ],
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: SearchPage(onOpenPost: (_) {}),
+        ),
+      ),
+    );
+
+    expect(find.text('最近搜索'), findsNothing);
+    await tester.enterText(find.byType(EditableText), 'flutter');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('search-cancel')));
+    await tester.pumpAndSettle();
+    expect(find.text('最近搜索'), findsOneWidget);
+    expect(find.text('flutter'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('search-clear-recent')));
+    await tester.pumpAndSettle();
+    expect(find.text('最近搜索'), findsNothing);
+  });
+
   testWidgets('shows all-search results and opens a post', (tester) async {
     var openedPost = 0;
     await tester.pumpWidget(
@@ -25,7 +55,8 @@ void main() {
     );
 
     await tester.enterText(find.byType(EditableText), 'flutter');
-    await tester.tap(find.byKey(const Key('search-submit')));
+    // The keyboard search action is the only submit path.
+    await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pump();
     await tester.pump();
 
@@ -53,7 +84,8 @@ void main() {
     );
 
     await tester.enterText(find.byType(EditableText), 'flutter');
-    await tester.tap(find.byKey(const Key('search-submit')));
+    // The keyboard search action is the only submit path.
+    await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pump();
     await tester.pump();
 
@@ -75,7 +107,8 @@ void main() {
     );
 
     await tester.enterText(find.byType(EditableText), 'flutter');
-    await tester.tap(find.byKey(const Key('search-submit')));
+    // The keyboard search action is the only submit path.
+    await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pump();
     await tester.pump();
 

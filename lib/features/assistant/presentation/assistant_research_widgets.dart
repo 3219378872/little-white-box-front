@@ -248,51 +248,73 @@ class _AssistantQuestionCardState extends State<AssistantQuestionCard> {
             ),
             for (final question in widget.question.questions) ...[
               const SizedBox(height: 12),
-              Text(question.text, style: theme.typography.body.md),
+              Text(
+                question.text,
+                style: theme.typography.body.md.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                question.selection == 'multiple' ? '可多选' : '选择一项',
+                style: theme.typography.body.xs.copyWith(
+                  color: theme.colors.mutedForeground,
+                ),
+              ),
               const SizedBox(height: 8),
-              for (final option in question.options)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: question.selection == 'multiple'
-                      ? FCheckbox(
-                          key: Key('question-${question.id}-${option.id}'),
-                          label: Text(option.label),
-                          semanticsLabel: option.label,
-                          value: _selected[question.id]!.contains(option.id),
-                          enabled: _editable,
-                          onChange: (value) =>
-                              _choose(question.id, option.id, value, true),
-                        )
-                      : FRadio(
-                          key: Key('question-${question.id}-${option.id}'),
-                          label: Text(option.label),
-                          semanticsLabel: option.label,
-                          value: _selected[question.id]!.contains(option.id),
-                          enabled: _editable,
-                          onChange: (value) =>
-                              _choose(question.id, option.id, true, false),
-                        ),
-                ),
-              for (final choice in const [
-                ('unknown', '不知道'),
-                ('no_preference', '没有偏好'),
-                ('skipped', '跳过'),
-              ])
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: FRadio(
-                    key: Key('question-${question.id}-${choice.$1}'),
-                    label: Text(choice.$2),
-                    semanticsLabel: choice.$2,
-                    value: _dispositions[question.id] == choice.$1,
-                    enabled: _editable,
-                    onChange: (_) => setState(() {
-                      _selected[question.id]!.clear();
-                      _dispositions[question.id] = choice.$1;
-                    }),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final option in question.options)
+                    _ChoiceChip(
+                      key: Key('question-${question.id}-${option.id}'),
+                      label: option.label,
+                      multiple: question.selection == 'multiple',
+                      selected: _selected[question.id]!.contains(option.id),
+                      enabled: _editable,
+                      onChanged: (value) => _choose(
+                        question.id,
+                        option.id,
+                        question.selection == 'multiple' ? value : true,
+                        question.selection == 'multiple',
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Exclusive "no answer" dispositions are separate from the
+              // options so single/multi selection semantics never mix.
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    '或者',
+                    style: theme.typography.body.xs.copyWith(
+                      color: theme.colors.mutedForeground,
+                    ),
                   ),
-                ),
-              const SizedBox(height: 6),
+                  for (final choice in const [
+                    ('unknown', '不知道'),
+                    ('no_preference', '没有偏好'),
+                  ])
+                    _ChoiceChip(
+                      key: Key('question-${question.id}-${choice.$1}'),
+                      label: choice.$2,
+                      multiple: false,
+                      subtle: true,
+                      selected: _dispositions[question.id] == choice.$1,
+                      enabled: _editable,
+                      onChanged: (_) => setState(() {
+                        _selected[question.id]!.clear();
+                        _dispositions[question.id] = choice.$1;
+                      }),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
               FTextField.multiline(
                 control: FTextFieldControl.managed(
                   controller: _text[question.id],
@@ -303,7 +325,8 @@ class _AssistantQuestionCardState extends State<AssistantQuestionCard> {
                   }),
                 ),
                 enabled: _editable,
-                label: const Text('补充'),
+                label: const Text('补充说明（可选）'),
+                hint: '例如：预算 3000 以内、偏好开源方案',
                 minLines: 1,
                 maxLines: 3,
                 maxLength: 2000,
@@ -311,29 +334,41 @@ class _AssistantQuestionCardState extends State<AssistantQuestionCard> {
             ],
             if (_editable || _busy) ...[
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  FButton(
-                    key: Key('question-submit-${widget.question.id}'),
-                    size: .sm,
-                    onPress: _valid && !_busy ? () => _submit(false) : null,
-                    child: Text(
-                      _busy
-                          ? '提交中'
-                          : widget.question.hasExpired ||
-                                widget.question.status == 'cancelled'
-                          ? '继续回答'
-                          : '提交回答',
+              if (!_valid && !_busy)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    '选择一项或填写补充说明后即可提交',
+                    style: theme.typography.body.xs.copyWith(
+                      color: theme.colors.mutedForeground,
                     ),
                   ),
+                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: FButton(
+                      key: Key('question-submit-${widget.question.id}'),
+                      size: .sm,
+                      onPress: _valid && !_busy ? () => _submit(false) : null,
+                      child: Text(
+                        _busy
+                            ? '提交中'
+                            : widget.question.hasExpired ||
+                                  widget.question.status == 'cancelled'
+                            ? '继续回答'
+                            : '提交回答',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   FButton(
                     key: Key('question-search-${widget.question.id}'),
                     size: .sm,
-                    variant: .secondary,
+                    variant: .ghost,
+                    mainAxisSize: MainAxisSize.min,
                     onPress: _busy ? null : () => _submit(true),
-                    child: const Text('先搜索'),
+                    child: const Text('跳过，直接搜索'),
                   ),
                 ],
               ),
@@ -367,6 +402,92 @@ class _AssistantQuestionCardState extends State<AssistantQuestionCard> {
     }
     if (answer.text.isNotEmpty) values.add(answer.text);
     return values.join('；');
+  }
+}
+
+/// Selectable chip used by clarification questions. Exposes checkbox or radio
+/// semantics so assistive technology announces the selection model.
+class _ChoiceChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final bool multiple;
+  final bool enabled;
+  final bool subtle;
+  final ValueChanged<bool> onChanged;
+
+  const _ChoiceChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.multiple,
+    required this.enabled,
+    required this.onChanged,
+    this.subtle = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final colors = theme.colors;
+    final foreground = !enabled
+        ? colors.disable(colors.foreground)
+        : selected
+        ? colors.primary
+        : subtle
+        ? colors.secondaryForeground
+        : colors.foreground;
+    return FTappable(
+      onPress: enabled ? () => onChanged(!selected) : null,
+      semanticsLabel: label,
+      semanticsButton: false,
+      semanticsChecked: selected,
+      semanticsInMutuallyExclusiveGroup: multiple ? null : true,
+      excludeSemantics: true,
+      builder: (context, variants, _) {
+        final hovered =
+            enabled &&
+            (variants.contains(FTappableVariant.hovered) ||
+                variants.contains(FTappableVariant.pressed));
+        return AnimatedContainer(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 120),
+          constraints: const BoxConstraints(minHeight: 36),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppTheme.accentSoft(colors)
+                : hovered
+                ? colors.secondary
+                : subtle
+                ? colors.background
+                : colors.muted,
+            borderRadius: AppTheme.controlRadius,
+            border: Border.all(
+              color: selected ? colors.primary : colors.border,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selected) ...[
+                Icon(FLucideIcons.check, size: 14, color: foreground),
+                const SizedBox(width: 4),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  style: theme.typography.body.sm.copyWith(
+                    color: foreground,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 

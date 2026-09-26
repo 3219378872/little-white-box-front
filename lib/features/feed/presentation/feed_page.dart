@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/forui_pull_to_refresh.dart';
@@ -10,6 +11,7 @@ import '../../../core/widgets/skeleton_loader.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/feed_notifier.dart';
 import '../data/feed_models.dart';
+import 'widgets/feed_side_rail.dart';
 import 'widgets/post_card.dart';
 
 class FeedPage extends ConsumerStatefulWidget {
@@ -22,28 +24,34 @@ class FeedPage extends ConsumerStatefulWidget {
 class _FeedPageState extends ConsumerState<FeedPage> {
   int _selectedTab = 1;
 
+  static const _railBreakpoint =
+      AppTheme.feedColumnWidth + AppTheme.space6 + AppTheme.sideRailWidth;
+
   @override
   Widget build(BuildContext context) {
     final showTools =
         MediaQuery.sizeOf(context).width < context.theme.breakpoints.lg;
-    return Stack(
+    final theme = context.theme;
+    final tabs = Stack(
       children: [
         FTabs(
           scrollable: true,
           style: FTabsStyleDelta.delta(
             padding: EdgeInsetsGeometryDelta.value(
-              EdgeInsets.only(right: showTools ? 100 : 0),
+              EdgeInsets.only(
+                left: AppTheme.space1,
+                right: showTools ? 100 : 0,
+              ),
             ),
-            minHeight: 56,
-            indicatorDecoration: const DecorationDelta.value(BoxDecoration()),
+            minHeight: 52,
             labelTextStyle: FVariants.from(
-              context.theme.typography.body.xl.copyWith(
-                color: context.theme.colors.mutedForeground,
+              theme.typography.body.lg.copyWith(
+                color: theme.colors.mutedForeground,
               ),
               variants: {
                 [FTabVariant.selected]: TextStyleDelta.delta(
                   fontWeight: FontWeight.w700,
-                  color: context.theme.colors.foreground,
+                  color: theme.colors.foreground,
                 ),
               },
             ),
@@ -71,6 +79,18 @@ class _FeedPageState extends ConsumerState<FeedPage> {
             ),
           ],
         ),
+        // Hairline under the sticky tab bar separates it from the list.
+        Positioned(
+          top: 52,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            child: SizedBox(
+              height: 1,
+              child: ColoredBox(color: theme.colors.border),
+            ),
+          ),
+        ),
         if (showTools)
           Positioned(
             top: 4,
@@ -83,7 +103,7 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                   onPress: () => context.go('/search'),
                 ),
                 AppIconButton(
-                  icon: FLucideIcons.mail,
+                  icon: FLucideIcons.messageSquare,
                   label: '消息',
                   onPress: () => context.go('/messages'),
                 ),
@@ -91,6 +111,22 @@ class _FeedPageState extends ConsumerState<FeedPage> {
             ),
           ),
       ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < _railBreakpoint) return tabs;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(width: AppTheme.feedColumnWidth, child: tabs),
+            const SizedBox(width: AppTheme.space6),
+            const SizedBox(
+              width: AppTheme.sideRailWidth,
+              child: FeedSideRail(),
+            ),
+          ],
+        );
+      },
     );
   }
 }

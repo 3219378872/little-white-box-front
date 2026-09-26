@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/formatters/time_formatter.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_tag_badge.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
@@ -18,6 +19,7 @@ import '../../comment/application/comment_notifier.dart';
 import '../../comment/presentation/widgets/comment_input.dart';
 import '../../comment/presentation/widgets/comment_item.dart';
 import '../../interaction/application/interaction_notifier.dart';
+import '../../profile/data/user_repository.dart';
 import '../data/post_repository.dart';
 
 part 'post_detail_content.dart';
@@ -25,6 +27,16 @@ part 'post_detail_comments.dart';
 part 'post_detail_actions.dart';
 
 final _postRepoProvider = Provider((ref) => PostRepository());
+
+final _authorRepoProvider = Provider((ref) => UserRepository());
+
+/// Whether the signed-in user follows [authorId]; reuses the profile endpoint.
+final _authorFollowingProvider = FutureProvider.autoDispose
+    .family<bool, String>((ref, authorId) async {
+      ref.watch(authSessionIdentityProvider);
+      final user = await ref.read(_authorRepoProvider).getUserProfile(authorId);
+      return user.isFollowing;
+    });
 
 final _postDetailProvider = FutureProvider.autoDispose
     .family<GetPostResp, String>((ref, postId) {
@@ -41,17 +53,14 @@ class PostDetailPage extends ConsumerStatefulWidget {
 }
 
 class _PostDetailPageState extends ConsumerState<PostDetailPage> {
-  final ScrollController _scrollCtrl = ScrollController();
-  bool _commentsOnly = false;
+  /// Scroll offset after which the title moves into the header.
+  static const _titleCollapseOffset = 72.0;
 
-  void _selectSection(bool commentsOnly) {
-    if (_commentsOnly == commentsOnly) {
-      if (_scrollCtrl.hasClients) _scrollCtrl.jumpTo(0);
-      return;
-    }
-    setState(() => _commentsOnly = commentsOnly);
-    if (_scrollCtrl.hasClients) _scrollCtrl.jumpTo(0);
-  }
+  final ScrollController _scrollCtrl = ScrollController();
+  final FocusNode _commentFocus = FocusNode();
+  bool _showHeaderTitle = false;
+  bool? _followOverride;
+  bool _followBusy = false;
 
   @override
   void initState() {
@@ -63,11 +72,16 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   void dispose() {
     _scrollCtrl.removeListener(_onScroll);
     _scrollCtrl.dispose();
+    _commentFocus.dispose();
     super.dispose();
   }
 
   void _onScroll() {
     if (!_scrollCtrl.hasClients) return;
+    final showTitle = _scrollCtrl.offset > _titleCollapseOffset;
+    if (showTitle != _showHeaderTitle) {
+      setState(() => _showHeaderTitle = showTitle);
+    }
     final threshold = _scrollCtrl.position.maxScrollExtent - 300;
     if (_scrollCtrl.position.pixels >= threshold) {
       ref.read(commentNotifierProvider(widget.postId).notifier).loadMore();
@@ -87,6 +101,33 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       if (mounted) {
         showAppError(context, '操作失败: ${friendlyErrorMessage(e)}');
       }
+    }
+  }
+
+  Future<void> _toggleFollow(GetPostResp post, bool isFollowing) async {
+    if (_followBusy) return;
+    if (!ref.read(authNotifierProvider).isAuthenticated) {
+      context.push('/auth/login');
+      return;
+    }
+    final repo = ref.read(_authorRepoProvider);
+    final previous = _followOverride;
+    setState(() {
+      _followOverride = !isFollowing;
+      _followBusy = true;
+    });
+    try {
+      if (isFollowing) {
+        await repo.unfollowUser(post.authorId);
+      } else {
+        await repo.followUser(post.authorId);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _followOverride = previous);
+      showAppError(context, '操作失败: ${friendlyErrorMessage(e)}');
+    } finally {
+      if (mounted) setState(() => _followBusy = false);
     }
   }
 
@@ -188,22 +229,42 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
+  bool _isOwnPost(GetPostResp post) {
+    final auth = ref.read(authNotifierProvider);
+    return jsonInt64IsPositive(auth.userId) &&
+        jsonInt64Id(post.authorId) == jsonInt64Id(auth.userId);
+  }
+
   @override
   Widget build(BuildContext context) {
-    ref.watch(authNotifierProvider);
+    final auth = ref.watch(authNotifierProvider);
     final postAsync = ref.watch(_postDetailProvider(widget.postId));
+    final post = postAsync.value;
+    final theme = context.theme;
     return FScaffold(
       childPad: false,
       header: FHeader.nested(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [_sectionTab('正文', false), _sectionTab('评论', true)],
-        ),
+        // The title moves into the header once the in-page title scrolls
+        // away; it is not built before that so it is never announced twice.
+        title: _showHeaderTitle && post != null
+            ? Text(
+                post.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.typography.body.md.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              )
+            : const SizedBox.shrink(),
         prefixes: [
           FHeaderAction.back(
             onPress: () =>
                 context.canPop() ? context.pop() : context.go('/feed'),
           ),
+        ],
+        suffixes: [
+          if (post != null && auth.isAuthenticated && !_isOwnPost(post))
+            _buildMoreMenu(post),
         ],
       ),
       child: postAsync.when(
@@ -221,7 +282,6 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                 child: CustomScrollView(
                   controller: _scrollCtrl,
                   slivers: [
-                    // 帖子内容
                     _buildPostSection(post, comments),
                     ..._buildCommentSlivers(comments),
                   ],
@@ -235,36 +295,51 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     );
   }
 
-  Widget _sectionTab(String label, bool commentsOnly) {
-    final selected = _commentsOnly == commentsOnly;
-    return Semantics(
-      selected: selected,
-      child: FTappable(
-        onPress: () => _selectSection(commentsOnly),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 44),
-          alignment: Alignment.center,
-          margin: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                width: 2,
-                color: selected
-                    ? context.theme.colors.foreground
-                    : const Color(0x00000000),
-              ),
+  Widget _buildMoreMenu(GetPostResp post) {
+    return FPopoverMenu(
+      menuAnchor: Alignment.topRight,
+      childAnchor: Alignment.bottomRight,
+      menuBuilder: (context, controller, _) => [
+        FItemGroup(
+          children: [
+            FItem(
+              key: const Key('post-watch-author'),
+              prefix: const Icon(FLucideIcons.userRoundPlus),
+              title: const Text('追踪作者新帖'),
+              subtitle: const Text('作者发新帖时由 Agent 提醒'),
+              onPress: () {
+                controller.hide();
+                _createWatch(
+                  conditionType: 'author_new_post',
+                  targetType: 'author',
+                  targetId: post.authorId,
+                  authorId: post.authorId,
+                );
+              },
             ),
-          ),
-          child: Text(
-            label,
-            style: context.theme.typography.body.lg.copyWith(
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-              color: selected
-                  ? context.theme.colors.foreground
-                  : context.theme.colors.mutedForeground,
+            FItem(
+              key: const Key('post-watch-revision'),
+              prefix: const Icon(FLucideIcons.history),
+              title: const Text('追踪本帖修订'),
+              subtitle: const Text('正文更新时由 Agent 提醒'),
+              onPress: () {
+                controller.hide();
+                _createWatch(
+                  conditionType: 'post_revised',
+                  targetType: 'post',
+                  targetId: post.id,
+                  authorId: post.authorId,
+                );
+              },
             ),
-          ),
+          ],
         ),
+      ],
+      builder: (context, controller, _) => FHeaderAction(
+        key: const Key('post-more'),
+        icon: const Icon(FLucideIcons.ellipsis),
+        semanticsLabel: '更多操作',
+        onPress: controller.toggle,
       ),
     );
   }

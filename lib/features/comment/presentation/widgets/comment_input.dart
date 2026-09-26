@@ -7,11 +7,16 @@ class CommentInput extends StatefulWidget {
   final Future<void> Function(String) onSubmit;
   final Widget? actions;
 
+  /// Optional external focus node so the page can open the composer, e.g.
+  /// from an empty comment list.
+  final FocusNode? focusNode;
+
   const CommentInput({
     super.key,
     this.replyTo,
     required this.onSubmit,
     this.actions,
+    this.focusNode,
   });
 
   @override
@@ -20,7 +25,9 @@ class CommentInput extends StatefulWidget {
 
 class _CommentInputState extends State<CommentInput> {
   final _controller = TextEditingController();
-  final _focusNode = FocusNode();
+  FocusNode? _ownedFocusNode;
+  FocusNode get _focusNode =>
+      widget.focusNode ?? (_ownedFocusNode ??= FocusNode());
   bool _submitting = false;
 
   @override
@@ -42,8 +49,9 @@ class _CommentInputState extends State<CommentInput> {
 
   @override
   void dispose() {
+    _focusNode.removeListener(_refresh);
     _controller.dispose();
-    _focusNode.dispose();
+    _ownedFocusNode?.dispose();
     super.dispose();
   }
 
@@ -69,7 +77,7 @@ class _CommentInputState extends State<CommentInput> {
   Widget build(BuildContext context) {
     final colors = context.theme.colors;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: colors.background,
         border: Border(top: BorderSide(color: colors.border)),

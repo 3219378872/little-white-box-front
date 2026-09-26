@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,6 +24,43 @@ void main() {
       expect(theme.typography.body.md.letterSpacing, 0);
       expect(theme.style.shadow, isEmpty);
       expect(theme.tabsStyle.indicatorSize, FTabBarIndicatorSize.label);
+    }
+  });
+
+  test('single images stay 16:9 and cap their height on desktop', () {
+    expect(
+      PostMediaPreview.heightFor(1, 648),
+      PostMediaPreview.maxSingleHeight,
+    );
+    expect(PostMediaPreview.heightFor(0, 648), 0);
+  });
+
+  test('accent and meta text meet contrast targets', () {
+    double luminance(Color color) {
+      double channel(double c) => c <= .03928
+          ? c / 12.92
+          : math.pow((c + .055) / 1.055, 2.4).toDouble();
+      return .2126 * channel(color.r) +
+          .7152 * channel(color.g) +
+          .0722 * channel(color.b);
+    }
+
+    double contrast(Color a, Color b) {
+      final la = luminance(a), lb = luminance(b);
+      return (la > lb ? la + .05 : lb + .05) / (la > lb ? lb + .05 : la + .05);
+    }
+
+    for (final theme in [AppTheme.foruiLight, AppTheme.foruiDark]) {
+      final colors = theme.colors;
+      expect(
+        contrast(colors.mutedForeground, colors.background),
+        greaterThan(4.5),
+      );
+      expect(contrast(colors.primary, colors.background), greaterThan(4.5));
+      expect(
+        contrast(colors.primaryForeground, colors.primary),
+        greaterThan(4.5),
+      );
     }
   });
 
@@ -55,13 +94,16 @@ void main() {
         expect(size.width, 296);
         expect(
           size.height,
-          closeTo(
-            count == 1 ? 296 * .72 / 1.45 : 296 / (count > 3 ? 2.5 : 3),
-            .01,
-          ),
+          closeTo(PostMediaPreview.heightFor(count, 296), .01),
         );
+        final expected = switch (count) {
+          1 => 296 * 9 / 16,
+          2 => (296 - 4) / 2 * 3 / 4,
+          _ => (296 - 8) / 3,
+        };
+        expect(size.height, closeTo(expected, .01));
       }
-      if (count > 3) expect(find.text('共$count张'), findsOneWidget);
+      if (count > 3) expect(find.text('+${count - 3}'), findsOneWidget);
       await tester.pump();
       expect(tester.takeException(), isNull);
     });

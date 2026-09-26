@@ -32,14 +32,14 @@ void main() {
       ),
       '30分钟前',
     );
-    expect(formatRelativeTime(old.millisecondsSinceEpoch, now: now), '7-3');
+    expect(formatRelativeTime(old.millisecondsSinceEpoch, now: now), '07-03');
     expect(
       formatRelativeTime(
         old.millisecondsSinceEpoch,
         now: now,
         includeYear: true,
       ),
-      '2026-7-3',
+      '2026-07-03',
     );
   });
 

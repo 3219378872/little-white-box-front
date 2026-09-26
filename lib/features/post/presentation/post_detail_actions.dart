@@ -15,6 +15,7 @@ extension _PostDetailActions on _PostDetailPageState {
       isFavorited: post.isFavorited,
     );
     return CommentInput(
+      focusNode: _commentFocus,
       replyTo: comments.replyToUser,
       onSubmit: _submitComment,
       actions: Row(
@@ -34,12 +35,6 @@ extension _PostDetailActions on _PostDetailPageState {
             active: isFavorited,
             onTap: () => _toggleFavorite(post),
           ),
-          _actionButton(
-            icon: FLucideIcons.messageSquare,
-            label: '${post.commentCount}',
-            name: '查看评论',
-            onTap: () => _selectSection(true),
-          ),
         ],
       ),
     );
@@ -54,26 +49,32 @@ extension _PostDetailActions on _PostDetailPageState {
   }) {
     final theme = context.theme;
     final color = active ? theme.colors.primary : theme.colors.mutedForeground;
+    final count = int.tryParse(label) ?? 0;
     return FTappable(
       key: ValueKey('post-action-$name'),
       onPress: onTap,
       semanticsLabel: '$name $label',
-      child: SizedBox(
-        width: 44,
-        height: 48,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 22, color: color),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.typography.body.xs.copyWith(color: color),
-              ),
-            ),
-          ],
+      selected: active,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 44),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppTheme.space2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 22, color: color),
+              // Zero counts add no information; the icon names the action.
+              if (count > 0) ...[
+                const SizedBox(width: AppTheme.space1),
+                Text(
+                  label,
+                  maxLines: 1,
+                  style: theme.typography.body.sm.copyWith(color: color),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

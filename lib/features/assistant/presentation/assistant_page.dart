@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../post/data/post_repository.dart';
@@ -485,17 +486,6 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
           Expanded(child: _buildConversationBody(state)),
           if (state.messages.isNotEmpty && state.connectionError != null)
             _buildConnectionStatus(state),
-          if (state.isQueued || state.hasActiveRun || state.isStreaming)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: FBadge(
-                  variant: .secondary,
-                  child: Text(_busyLabel(state)),
-                ),
-              ),
-            ),
           _buildComposer(state, consent),
         ],
       ),

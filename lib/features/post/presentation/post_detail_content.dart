@@ -4,173 +4,191 @@ extension _PostDetailContent on _PostDetailPageState {
   Widget _buildPostSection(GetPostResp post, CommentState comments) {
     final theme = context.theme;
     return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!_commentsOnly) ...[
-              if (post.title.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(post.title, style: theme.typography.display.sm),
-                ),
-              // 作者
-              _buildPostAuthor(post),
-              const SizedBox(height: 16),
-              // 正文
-              Text(post.content, style: theme.typography.body.lg),
-              // 图片
-              if (post.images.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                ...post.images.map(
-                  (url) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: ClipRRect(
-                      borderRadius: theme.style.borderRadius.md,
-                      child: CachedNetworkImage(
-                        imageUrl: url,
-                        width: double.infinity,
-                        fit: BoxFit.fitWidth,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-              // 标签
-              if (post.tags.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 6,
-                  children: post.tags
-                      .map((tag) => AppTagBadge(label: tag))
-                      .toList(),
-                ),
-              ],
-              const SizedBox(height: 16),
-              Text(
-                '${post.viewCount} 次浏览',
-                style: theme.typography.body.xs.copyWith(
-                  color: theme.colors.mutedForeground,
-                ),
-              ),
-              if (ref.watch(authNotifierProvider).isAuthenticated) ...[
-                const SizedBox(height: 12),
-                _buildPostWatchActions(post),
-              ],
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: FDivider(),
-              ),
-            ],
-            // 评论区标题
-            _buildCommentSort(comments),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPostAuthor(GetPostResp post) {
-    final theme = context.theme;
-    return FTappable(
-      onPress: () => context.push('/user/${jsonInt64Id(post.authorId)}'),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          CachedAvatar(
-            url: post.authorAvatar,
-            name: post.authorName,
-            radius: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.pageInset,
+              AppTheme.space2,
+              AppTheme.pageInset,
+              AppTheme.space6,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  post.authorName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.typography.body.md.copyWith(
-                    fontWeight: FontWeight.w600,
+                if (post.title.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppTheme.space4),
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        post.title,
+                        style: theme.typography.display.md,
+                      ),
+                    ),
                   ),
-                ),
+                _buildPostAuthor(post),
+                const SizedBox(height: AppTheme.space4),
                 Text(
-                  formatRelativeTime(post.createdAt, includeYear: true),
-                  style: theme.typography.body.xs.copyWith(
-                    color: theme.colors.mutedForeground,
-                  ),
+                  post.content,
+                  style: theme.typography.body.md.copyWith(height: 1.75),
                 ),
+                if (post.images.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.space4),
+                  ...post.images.map(
+                    (url) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppTheme.space2),
+                      child: ClipRRect(
+                        borderRadius: AppTheme.imageRadius,
+                        child: CachedNetworkImage(
+                          imageUrl: url,
+                          width: double.infinity,
+                          fit: BoxFit.fitWidth,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                if (post.tags.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.space3),
+                  Wrap(
+                    spacing: AppTheme.space2,
+                    runSpacing: AppTheme.space2,
+                    children: post.tags
+                        .map((tag) => AppTagBadge(label: tag))
+                        .toList(),
+                  ),
+                ],
               ],
             ),
+          ),
+          // Section band between the article and the discussion.
+          SizedBox(height: 8, child: ColoredBox(color: theme.colors.muted)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.pageInset,
+              AppTheme.space3,
+              AppTheme.pageInset,
+              AppTheme.space1,
+            ),
+            child: _buildCommentSort(post, comments),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPostWatchActions(GetPostResp post) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+  Widget _buildPostAuthor(GetPostResp post) {
+    final theme = context.theme;
+    final auth = ref.watch(authNotifierProvider);
+    final own = _isOwnPost(post);
+    final authorKey = jsonInt64Id(post.authorId).toString();
+    final following = auth.isAuthenticated && !own
+        ? ref.watch(_authorFollowingProvider(authorKey)).value
+        : false;
+    final isFollowing = _followOverride ?? following ?? false;
+    return Row(
       children: [
-        FButton(
-          key: const Key('post-watch-author'),
-          variant: .outline,
-          size: .sm,
-          onPress: () => _createWatch(
-            conditionType: 'author_new_post',
-            targetType: 'author',
-            targetId: post.authorId,
-            authorId: post.authorId,
+        Expanded(
+          child: FTappable(
+            onPress: () => context.push('/user/${jsonInt64Id(post.authorId)}'),
+            child: Row(
+              children: [
+                CachedAvatar(
+                  url: post.authorAvatar,
+                  name: post.authorName,
+                  radius: 20,
+                ),
+                const SizedBox(width: AppTheme.space3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.authorName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.typography.body.md.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        '${formatRelativeTime(post.createdAt, includeYear: true)}'
+                        '  ·  ${post.viewCount} 次浏览',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.typography.body.xs.copyWith(
+                          color: theme.colors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          child: const Text('盯作者'),
         ),
-        FButton(
-          key: const Key('post-watch-revision'),
-          variant: .outline,
-          size: .sm,
-          onPress: () => _createWatch(
-            conditionType: 'post_revised',
-            targetType: 'post',
-            targetId: post.id,
-            authorId: post.authorId,
+        if (!own) ...[
+          const SizedBox(width: AppTheme.space2),
+          FButton(
+            key: const Key('post-follow-author'),
+            size: FButtonSizeVariant.sm,
+            mainAxisSize: MainAxisSize.min,
+            variant: isFollowing
+                ? FButtonVariant.secondary
+                : FButtonVariant.primary,
+            prefix: Icon(
+              isFollowing ? FLucideIcons.check : FLucideIcons.plus,
+              size: 16,
+            ),
+            onPress: _followBusy || (auth.isAuthenticated && following == null)
+                ? null
+                : () => _toggleFollow(post, isFollowing),
+            child: Text(isFollowing ? '已关注' : '关注'),
           ),
-          child: const Text('盯本帖修订'),
-        ),
+        ],
       ],
     );
   }
 
-  Widget _buildCommentSort(CommentState comments) {
+  Widget _buildCommentSort(GetPostResp post, CommentState comments) {
     final theme = context.theme;
+    final count = post.commentCount.toInt();
     return Row(
       children: [
-        Text('评论', style: theme.typography.body.md),
+        Semantics(
+          header: true,
+          child: Text.rich(
+            TextSpan(
+              children: [
+                const TextSpan(text: '评论'),
+                if (count > 0)
+                  TextSpan(
+                    text: '  $count',
+                    style: TextStyle(color: theme.colors.mutedForeground),
+                  ),
+              ],
+            ),
+            style: theme.typography.body.lg.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
         const Spacer(),
-        FButton(
-          size: .xs,
-          mainAxisSize: MainAxisSize.min,
-          variant: comments.sortBy == 1
-              ? FButtonVariant.secondary
-              : FButtonVariant.ghost,
-          onPress: () => ref
-              .read(commentNotifierProvider(widget.postId).notifier)
-              .selectSort(1),
-          child: const Text('最新'),
-        ),
-        const SizedBox(width: 4),
-        FButton(
-          size: .xs,
-          mainAxisSize: MainAxisSize.min,
-          variant: comments.sortBy == 2
-              ? FButtonVariant.secondary
-              : FButtonVariant.ghost,
-          onPress: () => ref
-              .read(commentNotifierProvider(widget.postId).notifier)
-              .selectSort(2),
-          child: const Text('最热'),
-        ),
+        for (final (sort, label) in const [(1, '最新'), (2, '最热')])
+          FButton(
+            size: FButtonSizeVariant.xs,
+            mainAxisSize: MainAxisSize.min,
+            selected: comments.sortBy == sort,
+            variant: comments.sortBy == sort
+                ? FButtonVariant.secondary
+                : FButtonVariant.ghost,
+            onPress: () => ref
+                .read(commentNotifierProvider(widget.postId).notifier)
+                .selectSort(sort),
+            child: Text(label),
+          ),
       ],
     );
   }

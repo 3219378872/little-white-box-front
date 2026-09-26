@@ -251,117 +251,121 @@ class _PostCardState extends ConsumerState<PostCard>
         '${widget.recommendationContext?.requestId ?? '-'}',
       ),
       onVisibilityChanged: _onVisibilityChanged,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: colors.muted, width: 6)),
+      child: FTappable(
+        onPress: _openPost,
+        builder: (context, variants, child) => DecoratedBox(
+          decoration: BoxDecoration(
+            color:
+                variants.contains(FTappableVariant.hovered) ||
+                    variants.contains(FTappableVariant.pressed)
+                ? colors.muted
+                : colors.background,
+            border: Border(bottom: BorderSide(color: colors.border)),
+          ),
+          child: child,
         ),
-        child: FTappable(
-          onPress: _openPost,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.pageInset,
-              12,
-              AppTheme.pageInset,
-              14,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 作者信息行（更紧凑）
-                Row(
-                  children: [
-                    FTappable(
-                      onPress: () =>
-                          context.push('/user/${jsonInt64Id(post.authorId)}'),
-                      child: CachedAvatar(
-                        url: post.authorAvatar,
-                        name: post.authorName,
-                        radius: 10,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pageInset,
+            AppTheme.space4,
+            AppTheme.pageInset,
+            AppTheme.space2,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  FTappable(
+                    onPress: () =>
+                        context.push('/user/${jsonInt64Id(post.authorId)}'),
+                    semanticsLabel: '查看作者 ${post.authorName}',
+                    child: CachedAvatar(
+                      url: post.authorAvatar,
+                      name: post.authorName,
+                      radius: 14,
+                    ),
+                  ),
+                  const SizedBox(width: AppTheme.space2),
+                  Flexible(
+                    child: Text(
+                      post.authorName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: typography.body.sm.copyWith(
+                        color: colors.foreground,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        post.authorName,
-                        style: typography.body.sm.copyWith(
-                          color: colors.mutedForeground,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      formatRelativeTime(post.createdAt),
-                      style: typography.body.xs.copyWith(
-                        color: colors.mutedForeground,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // 标题
-                if (post.title.isNotEmpty)
+                  ),
                   Text(
-                    post.title,
-                    style: typography.body.md.copyWith(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      height: 1.45,
+                    '  ·  ${formatRelativeTime(post.createdAt)}',
+                    style: typography.body.xs.copyWith(
+                      color: colors.mutedForeground,
                     ),
-                    maxLines: 2,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTheme.space3),
+              if (post.title.isNotEmpty)
+                Text(
+                  post.title,
+                  style: typography.body.lg.copyWith(
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              if (post.content.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppTheme.space1),
+                  child: Text(
+                    post.content,
+                    style: typography.body.sm.copyWith(
+                      color: colors.secondaryForeground,
+                      height: 1.6,
+                    ),
+                    maxLines: post.title.isNotEmpty ? 2 : 3,
                     overflow: TextOverflow.ellipsis,
                   ),
-                // 内容摘要
-                if (post.content.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      post.content,
-                      style: typography.body.md.copyWith(
-                        color: colors.foreground,
-                      ),
-                      maxLines: post.title.isNotEmpty ? 2 : 3,
-                      overflow: TextOverflow.ellipsis,
+                ),
+              if (post.images.isNotEmpty) ...[
+                const SizedBox(height: AppTheme.space3),
+                PostMediaPreview(images: post.images),
+              ],
+              const SizedBox(height: AppTheme.space2),
+              Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: AppTheme.space1,
+                      runSpacing: AppTheme.space1,
+                      children: post.tags
+                          .map((tag) => AppTagBadge(label: tag))
+                          .toList(),
                     ),
                   ),
-                // 图片展示（首张占满宽度）
-                if (post.images.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  PostMediaPreview(images: post.images),
+                  const SizedBox(width: AppTheme.space2),
+                  _statItem(
+                    context,
+                    FLucideIcons.messageCircle,
+                    post.commentCount.toInt(),
+                  ),
+                  _statItem(
+                    context,
+                    FLucideIcons.thumbsUp,
+                    likeCount,
+                    key: ValueKey('post-like-${jsonInt64Id(post.id)}'),
+                    active: isLiked,
+                    onPress: _toggleLike,
+                    semanticsLabel: isLiked
+                        ? '取消点赞，当前 $likeCount 赞'
+                        : '点赞，当前 $likeCount 赞',
+                  ),
                 ],
-                // 底部统计
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Wrap(
-                        spacing: 4,
-                        runSpacing: 4,
-                        children: post.tags
-                            .map((tag) => AppTagBadge(label: tag))
-                            .toList(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _statItem(
-                      context,
-                      FLucideIcons.messageCircle,
-                      post.commentCount.toInt(),
-                    ),
-                    const SizedBox(width: 16),
-                    _statItem(
-                      context,
-                      FLucideIcons.thumbsUp,
-                      likeCount,
-                      key: ValueKey('post-like-${jsonInt64Id(post.id)}'),
-                      active: isLiked,
-                      onPress: _toggleLike,
-                      semanticsLabel: isLiked
-                          ? '取消点赞，当前 $likeCount 赞'
-                          : '点赞，当前 $likeCount 赞',
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -379,18 +383,27 @@ class _PostCardState extends ConsumerState<PostCard>
   }) {
     final theme = context.theme;
     final color = active ? theme.colors.primary : theme.colors.mutedForeground;
-    final content = Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 4),
-          Text(
-            count > 999 ? '${(count / 1000).toStringAsFixed(1)}k' : '$count',
-            style: theme.typography.body.xs.copyWith(color: color),
-          ),
-        ],
+    // Zero counts are noise; the icon alone still names the action.
+    final content = ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 36),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppTheme.space2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: color),
+            if (count > 0) ...[
+              const SizedBox(width: AppTheme.space1),
+              Text(
+                count > 999
+                    ? '${(count / 1000).toStringAsFixed(1)}k'
+                    : '$count',
+                style: theme.typography.body.xs.copyWith(color: color),
+              ),
+            ],
+          ],
+        ),
       ),
     );
 

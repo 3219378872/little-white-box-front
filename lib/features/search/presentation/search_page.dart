@@ -5,10 +5,12 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/json_int64.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../application/search_notifier.dart';
 import '../data/search_models.dart';
+import 'search_highlight.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   final ValueChanged<Object>? onOpenPost;
@@ -21,16 +23,43 @@ class SearchPage extends ConsumerStatefulWidget {
 }
 
 class _SearchPageState extends ConsumerState<SearchPage> {
-  final _controller = TextEditingController();
+  late final TextEditingController _controller;
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // Keep the field in sync with a search started elsewhere (e.g. a tag).
+    _controller = TextEditingController(
+      text: ref.read(searchNotifierProvider).keyword,
+    );
+    _controller.addListener(_refresh);
+    _focusNode.addListener(_refresh);
+  }
+
+  void _refresh() => setState(() {});
 
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
   void _submit([String? value]) {
     ref.read(searchNotifierProvider.notifier).search(value ?? _controller.text);
+  }
+
+  void _searchFor(String keyword) {
+    _controller.text = keyword;
+    _focusNode.unfocus();
+    _submit(keyword);
+  }
+
+  void _cancel() {
+    _controller.clear();
+    _focusNode.unfocus();
+    ref.read(searchNotifierProvider.notifier).clear();
   }
 
   void _selectScope(int index) {
@@ -52,21 +81,39 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(searchNotifierProvider);
+    ref.listen<String>(
+      searchNotifierProvider.select((state) => state.keyword),
+      (previous, next) {
+        if (next.isNotEmpty && next != _controller.text.trim()) {
+          _controller.text = next;
+        }
+      },
+    );
+    final showCancel =
+        _focusNode.hasFocus ||
+        _controller.text.isNotEmpty ||
+        state.phase != SearchPhase.idle;
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pageInset,
+            AppTheme.space2,
+            AppTheme.space2,
+            AppTheme.space1,
+          ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
                 child: Semantics(
                   label: '搜索词',
                   child: FTextField(
                     control: FTextFieldControl.managed(controller: _controller),
-                    hint: '搜索内容',
+                    focusNode: _focusNode,
+                    hint: '搜索帖子、用户或标签',
                     textInputAction: TextInputAction.search,
                     onSubmit: _submit,
+                    clearable: (value) => value.text.isNotEmpty,
                     prefixBuilder: (context, style, variants) =>
                         FTextField.prefixIconBuilder(
                           context,
@@ -77,17 +124,22 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              FButton.icon(
-                key: const Key('search-submit'),
-                onPress: state.phase == SearchPhase.loading ? null : _submit,
-                child: const Icon(FLucideIcons.search, semanticLabel: '搜索'),
-              ),
+              if (showCancel)
+                FButton(
+                  key: const Key('search-cancel'),
+                  variant: FButtonVariant.ghost,
+                  size: FButtonSizeVariant.sm,
+                  mainAxisSize: MainAxisSize.min,
+                  onPress: _cancel,
+                  child: const Text('取消'),
+                )
+              else
+                const SizedBox(width: AppTheme.space2),
             ],
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: AppTheme.pageInset),
           child: FTabs(
             control: FTabControl.lifted(
               index: state.scope.index,
@@ -100,15 +152,70 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ],
           ),
         ),
-        const SizedBox(height: 8),
         Expanded(child: _buildBody(state)),
+      ],
+    );
+  }
+
+  Widget _buildIdle(SearchState state) {
+    final theme = context.theme;
+    if (state.recentKeywords.isEmpty) {
+      return const EmptyView(message: '搜索帖子、用户和标签', icon: FLucideIcons.search);
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.pageInset,
+        AppTheme.space4,
+        AppTheme.pageInset,
+        AppTheme.space6,
+      ),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                header: true,
+                child: Text(
+                  '最近搜索',
+                  style: theme.typography.body.md.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            FButton(
+              key: const Key('search-clear-recent'),
+              variant: FButtonVariant.ghost,
+              size: FButtonSizeVariant.xs,
+              mainAxisSize: MainAxisSize.min,
+              onPress: ref.read(searchNotifierProvider.notifier).clearRecent,
+              child: const Text('清空'),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppTheme.space2),
+        Wrap(
+          spacing: AppTheme.space2,
+          runSpacing: AppTheme.space2,
+          children: [
+            for (final keyword in state.recentKeywords)
+              FButton(
+                variant: FButtonVariant.secondary,
+                size: FButtonSizeVariant.sm,
+                mainAxisSize: MainAxisSize.min,
+                prefix: const Icon(FLucideIcons.history, size: 14),
+                onPress: () => _searchFor(keyword),
+                child: Text(keyword),
+              ),
+          ],
+        ),
       ],
     );
   }
 
   Widget _buildBody(SearchState state) {
     return switch (state.phase) {
-      SearchPhase.idle => const SizedBox.shrink(),
+      SearchPhase.idle => _buildIdle(state),
       SearchPhase.loading => const Center(child: FCircularProgress()),
       SearchPhase.failure => ErrorView(
         message: state.error ?? '搜索失败',
@@ -147,10 +254,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         .loadMore,
                     onOpenPost: _openPost,
                     onOpenUser: _openUser,
-                    onSearchTag: (tag) {
-                      _controller.text = tag;
-                      _submit(tag);
-                    },
+                    keyword: state.keyword,
+                    onSearchTag: _searchFor,
                   ),
           ),
         ],
@@ -179,8 +284,10 @@ class _SearchResultList extends StatelessWidget {
   final ValueChanged<Object> onOpenPost;
   final ValueChanged<Object> onOpenUser;
   final ValueChanged<String> onSearchTag;
+  final String keyword;
 
   const _SearchResultList({
+    required this.keyword,
     required this.results,
     required this.scope,
     required this.hasMore,
@@ -209,7 +316,7 @@ class _SearchResultList extends StatelessWidget {
       children.add(
         _sectionTitle(context, scope == SearchScope.tags ? '标签' : '相关标签'),
       );
-      children.addAll(results.tags.map(_tag));
+      children.addAll(results.tags.map((tag) => _tag(context, tag)));
       if (scope == SearchScope.tags && results.tags.length >= 20) {
         children.add(
           Padding(
@@ -238,33 +345,44 @@ class _SearchResultList extends StatelessWidget {
       );
     }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.pageInset,
+        0,
+        AppTheme.pageInset,
+        AppTheme.space6,
+      ),
       children: children,
     );
   }
 
   Widget _sectionTitle(BuildContext context, String label) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-      child: Text(
-        label,
-        style: context.theme.typography.body.lg.copyWith(
-          fontWeight: FontWeight.w600,
+      padding: const EdgeInsets.fromLTRB(0, AppTheme.space4, 0, 0),
+      child: Semantics(
+        header: true,
+        child: Text(
+          label,
+          style: context.theme.typography.body.sm.copyWith(
+            color: context.theme.colors.mutedForeground,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
   }
 
   Widget _post(BuildContext context, SearchPostResult post) {
-    final highlight = post.contentHighlight
-        .replaceAll(RegExp(r'</?em>', caseSensitive: false), '')
-        .trim();
+    final theme = context.theme;
+    final mark = TextStyle(
+      color: theme.colors.primary,
+      fontWeight: FontWeight.w600,
+    );
+    final highlight = parseEmHighlight(post.contentHighlight.trim(), mark);
     final avatar = CachedAvatar(
       url: post.authorAvatar,
       name: post.displayAuthor,
       radius: 10,
     );
-    final theme = context.theme;
     return FTappable(
       onPress: () => onOpenPost(post.id),
       child: Container(
@@ -297,8 +415,14 @@ class _SearchResultList extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              post.title.isEmpty ? '未命名帖子' : post.title,
+            Text.rich(
+              TextSpan(
+                children: highlightKeyword(
+                  post.title.isEmpty ? '未命名帖子' : post.title,
+                  keyword,
+                  mark,
+                ),
+              ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: theme.typography.body.lg.copyWith(
@@ -307,11 +431,14 @@ class _SearchResultList extends StatelessWidget {
             ),
             if (highlight.isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text(
-                highlight,
+              Text.rich(
+                TextSpan(children: highlight),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: theme.typography.body.md,
+                style: theme.typography.body.sm.copyWith(
+                  color: theme.colors.secondaryForeground,
+                  height: 1.6,
+                ),
               ),
             ],
             const SizedBox(height: 10),
@@ -353,13 +480,41 @@ class _SearchResultList extends StatelessWidget {
     );
   }
 
-  Widget _tag(SearchTagResult tag) {
-    return FItem(
-      prefix: const Icon(FLucideIcons.hash),
-      title: Text(tag.name),
-      details: Text('${tag.postCount} 篇帖子'),
-      suffix: const Icon(FLucideIcons.search),
+  // A plain row keeps tags on the same 16px inset as post results.
+  Widget _tag(BuildContext context, SearchTagResult tag) {
+    final theme = context.theme;
+    return FTappable(
       onPress: () => onSearchTag(tag.name),
+      semanticsLabel: '${tag.name}，${tag.postCount} 篇帖子',
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Row(
+          children: [
+            Icon(FLucideIcons.hash, size: 18, color: theme.colors.primary),
+            const SizedBox(width: AppTheme.space2),
+            Expanded(
+              child: Text(
+                tag.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.typography.body.md,
+              ),
+            ),
+            Text(
+              '${tag.postCount} 篇帖子',
+              style: theme.typography.body.xs.copyWith(
+                color: theme.colors.mutedForeground,
+              ),
+            ),
+            const SizedBox(width: AppTheme.space1),
+            Icon(
+              FLucideIcons.chevronRight,
+              size: 16,
+              color: theme.colors.mutedForeground,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

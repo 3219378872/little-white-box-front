@@ -16,10 +16,7 @@ extension _PostDetailComments on _PostDetailPageState {
                       .read(commentNotifierProvider(widget.postId).notifier)
                       .retry(),
                 )
-              : const Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Center(child: Text('还没有评论')),
-                ),
+              : _buildEmptyComments(),
         ),
       SliverList(
         delegate: SliverChildBuilderDelegate(
@@ -76,6 +73,47 @@ extension _PostDetailComments on _PostDetailPageState {
         ),
       ),
     ];
+  }
+
+  Widget _buildEmptyComments() {
+    final theme = context.theme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.pageInset,
+        vertical: AppTheme.space6,
+      ),
+      child: Column(
+        children: [
+          Icon(
+            FLucideIcons.messageCircle,
+            size: 32,
+            color: theme.colors.mutedForeground,
+          ),
+          const SizedBox(height: AppTheme.space2),
+          Text(
+            '还没有评论',
+            style: theme.typography.body.sm.copyWith(
+              color: theme.colors.mutedForeground,
+            ),
+          ),
+          const SizedBox(height: AppTheme.space3),
+          FButton(
+            key: const Key('post-first-comment'),
+            variant: FButtonVariant.outline,
+            size: FButtonSizeVariant.sm,
+            mainAxisSize: MainAxisSize.min,
+            onPress: () {
+              if (!ref.read(authNotifierProvider).isAuthenticated) {
+                context.push('/auth/login');
+                return;
+              }
+              _commentFocus.requestFocus();
+            },
+            child: const Text('来抢沙发'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildComment(CommentState comments, CommentItem comment) {

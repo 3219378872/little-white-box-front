@@ -21,9 +21,9 @@ String formatRelativeTime(
   if (diff.inHours < 1) return '${diff.inMinutes}分钟前';
   if (diff.inDays < 1) return '${diff.inHours}小时前';
   if (diff.inDays < 30) return '${diff.inDays}天前';
-  return includeYear
-      ? '${date.year}-${date.month}-${date.day}'
-      : '${date.month}-${date.day}';
+  // Zero-padded so dates line up across feed, detail and comments.
+  final monthDay = '${_twoDigits(date.month)}-${_twoDigits(date.day)}';
+  return includeYear ? '${date.year}-$monthDay' : monthDay;
 }
 
 String formatClockTime(num timestamp) {

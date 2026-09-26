@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/api_exceptions.dart';
+import '../../auth/application/auth_notifier.dart';
 import '../data/search_models.dart';
 import '../data/search_repository.dart';
 
@@ -19,6 +20,9 @@ class SearchState {
   final bool hasMore;
   final bool isLoadingMore;
 
+  /// Keywords searched in this session, newest first. Kept in memory only.
+  final List<String> recentKeywords;
+
   const SearchState({
     this.scope = SearchScope.all,
     this.phase = SearchPhase.idle,
@@ -28,6 +32,7 @@ class SearchState {
     this.page = 1,
     this.hasMore = false,
     this.isLoadingMore = false,
+    this.recentKeywords = const [],
   });
 
   SearchState copyWith({
@@ -40,6 +45,7 @@ class SearchState {
     int? page,
     bool? hasMore,
     bool? isLoadingMore,
+    List<String>? recentKeywords,
   }) {
     return SearchState(
       scope: scope ?? this.scope,
@@ -50,6 +56,7 @@ class SearchState {
       page: page ?? this.page,
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      recentKeywords: recentKeywords ?? this.recentKeywords,
     );
   }
 }
@@ -59,7 +66,27 @@ class SearchNotifier extends StateNotifier<SearchState> {
   int _generation = 0;
   static const pageSize = 20;
 
+  static const maxRecentKeywords = 8;
+
   SearchNotifier(this._repository) : super(const SearchState());
+
+  /// Returns to the idle page and drops any in-flight result.
+  void clear() {
+    _generation++;
+    state = SearchState(
+      scope: state.scope,
+      recentKeywords: state.recentKeywords,
+    );
+  }
+
+  void clearRecent() {
+    state = state.copyWith(recentKeywords: const []);
+  }
+
+  List<String> _withRecent(String keyword) => [
+    keyword,
+    ...state.recentKeywords.where((item) => item != keyword),
+  ].take(maxRecentKeywords).toList();
 
   void selectScope(SearchScope scope) {
     if (scope == state.scope) return;
@@ -83,6 +110,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
     state = state.copyWith(
       phase: SearchPhase.loading,
       keyword: normalized,
+      recentKeywords: _withRecent(normalized),
       clearError: true,
       page: 1,
       hasMore: false,
@@ -201,5 +229,7 @@ final searchRepositoryProvider = Provider<SearchDataSource>((ref) {
 
 final searchNotifierProvider =
     StateNotifierProvider<SearchNotifier, SearchState>((ref) {
+      // Recent keywords are per session; a new account starts clean.
+      ref.watch(authSessionIdentityProvider);
       return SearchNotifier(ref.read(searchRepositoryProvider));
     });

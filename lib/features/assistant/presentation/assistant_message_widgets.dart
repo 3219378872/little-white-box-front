@@ -136,7 +136,15 @@ class _AssistantMessageBubble extends StatelessWidget {
                   : message.role == AssistantMessageRole.system
                   ? theme.colors.muted
                   : const Color(0x00000000),
-              borderRadius: BorderRadius.circular(4),
+              // Chat bubble: rounded with a tighter corner toward the sender.
+              borderRadius: own
+                  ? const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(4),
+                      bottomLeft: Radius.circular(12),
+                      bottomRight: Radius.circular(12),
+                    )
+                  : AppTheme.controlRadius,
             ),
             child: Padding(
               padding: own
