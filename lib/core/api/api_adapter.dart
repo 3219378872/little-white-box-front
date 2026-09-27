@@ -61,14 +61,24 @@ Future<T> apiPostMultipart<T>({
   required String path,
   required String fieldName,
   required String filename,
-  required List<int> bytes,
+  List<int>? bytes,
+  Stream<List<int>> Function()? openRead,
+  int? length,
+  Map<String, String> fields = const {},
+  bool Function()? isCurrent,
   required T Function(Map<String, dynamic>) decodeData,
   String contentType = 'application/octet-stream',
   Duration timeout = const Duration(seconds: 60),
 }) async {
+  if (bytes == null && (openRead == null || length == null)) {
+    throw const ApiException('缺少上传文件');
+  }
   try {
     final initialContext = await getTokenSessionContext();
     for (var attempt = 1; ; attempt++) {
+      if (isCurrent != null && !isCurrent()) {
+        throw const ApiException('上传已取消');
+      }
       final context = attempt == 1
           ? initialContext
           : await getTokenSessionContext();
@@ -77,7 +87,12 @@ Future<T> apiPostMultipart<T>({
       }
       final session = context.snapshot;
       final tokens = session?.tokens;
-      final req = http.MultipartRequest('POST', apiUri(path));
+      final abort = Completer<void>();
+      final req = http.AbortableMultipartRequest(
+        'POST',
+        apiUri(path),
+        abortTrigger: abort.future,
+      );
       if (tokens != null) {
         final token = tokens.accessToken.trim();
         if (token.isNotEmpty) {
@@ -87,19 +102,34 @@ Future<T> apiPostMultipart<T>({
               : 'Bearer $token';
         }
       }
+      req.fields.addAll(fields);
       req.files.add(
-        http.MultipartFile.fromBytes(
-          fieldName,
-          bytes,
-          filename: filename,
-          contentType: MediaType.parse(contentType),
-        ),
+        bytes != null
+            ? http.MultipartFile.fromBytes(
+                fieldName,
+                bytes,
+                filename: filename,
+                contentType: MediaType.parse(contentType),
+              )
+            : http.MultipartFile(
+                fieldName,
+                openRead!(),
+                length!,
+                filename: filename,
+                contentType: MediaType.parse(contentType),
+              ),
       );
 
       final rp = await sdk_api.apiClient
           .send(req)
           .then(http.Response.fromStream)
-          .timeout(timeout);
+          .timeout(
+            timeout,
+            onTimeout: () {
+              if (!abort.isCompleted) abort.complete();
+              throw TimeoutException('upload deadline exceeded');
+            },
+          );
       final respBody = utf8.decode(rp.bodyBytes);
 
       dynamic decoded;
@@ -147,6 +177,11 @@ Future<T> apiPostMultipart<T>({
           await sdk_api.invalidateSessionIfCredentialsMatch(session);
         }
         throw ex;
+      }
+      final latest = await getTokenSessionContext();
+      if (latest.revision != initialContext.revision ||
+          (isCurrent != null && !isCurrent())) {
+        throw const ApiException('请求会话已变化，请重试');
       }
       final data = sdk_api.apiResponseData(decoded);
       return decodeData(data);

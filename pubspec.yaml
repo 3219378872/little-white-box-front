@@ -27,6 +27,7 @@ dependencies:
   characters: ^1.4.0
   visibility_detector: ^0.4.0+2
   url_launcher: ^6.3.2
+  file_selector: ^1.1.0
 
 dependency_overrides:
   shared_preferences_android: 2.4.10

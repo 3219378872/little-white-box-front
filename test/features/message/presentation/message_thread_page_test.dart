@@ -1,5 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:file_selector/file_selector.dart';
+import 'package:xiaobaihe_app/features/media/data/media_repository.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -79,9 +83,17 @@ class _Harness {
   }
 }
 
-Future<void> _pumpThread(WidgetTester tester) async {
+Future<void> _pumpThread(
+  WidgetTester tester, {
+  MediaPicker? picker,
+  MediaRepository? uploads,
+}) async {
   await tester.pumpWidget(
     AppProviderScope(
+      overrides: [
+        if (picker != null) mediaPickerProvider.overrideWithValue(picker),
+        if (uploads != null) mediaRepositoryProvider.overrideWithValue(uploads),
+      ],
       child: MaterialApp.router(
         routerConfig: GoRouter(
           initialLocation: '/thread',
@@ -102,6 +114,29 @@ Future<void> _pumpThread(WidgetTester tester) async {
   );
 }
 
+class _MediaPicker extends MediaPicker {
+  @override
+  Future<XFile?> pick(MediaKind kind) async =>
+      XFile.fromData(Uint8List.fromList([1]), name: 'selected');
+}
+
+class _Uploads extends MediaRepository {
+  int calls = 0;
+  @override
+  Future<UploadedMedia> upload(
+    XFile file,
+    MediaKind kind,
+    String key, {
+    required bool Function() isCurrent,
+  }) async {
+    calls++;
+    return const UploadedMedia(
+      mediaId: '9007199254740993',
+      url: 'https://media.test/file',
+    );
+  }
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   tearDown(() => setApiClient(http.Client()));
@@ -114,6 +149,40 @@ void main() {
       ),
     );
     addTearDown(removeTokens);
+  }
+
+  for (final kind in [MediaKind.video, MediaKind.audio]) {
+    testWidgets(
+      '${kind.name} selection sends exact media ID and opens a usable attachment at 320px',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 700);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await loginAsCurrentUser();
+        final harness = _Harness();
+        final uploads = _Uploads();
+        setApiClient(harness.client);
+        await _pumpThread(tester, picker: _MediaPicker(), uploads: uploads);
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.bySemanticsLabel(kind == MediaKind.video ? '发送视频' : '发送语音文件'),
+        );
+        await tester.pumpAndSettle();
+        expect(uploads.calls, 1);
+        final sent = harness.client.requests.singleWhere(
+          (r) => r.url.path == '/api/v2/messages',
+        );
+        final body = (sent as http.Request).body;
+        expect(body, contains('9007199254740993'));
+        expect(body, contains('"msgType":${kind.messageType}'));
+        expect(
+          find.text(kind == MediaKind.video ? '打开视频' : '播放语音文件'),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   testWidgets('renders both sides of the conversation and marks read', (

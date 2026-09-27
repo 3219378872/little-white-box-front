@@ -3897,3 +3897,50 @@ class UploadImageResp {
     return {'mediaId': mediaId, 'url': url, 'thumbnailUrl': thumbnailUrl};
   }
 }
+
+class UploadMediaReq {
+  UploadMediaReq();
+  factory UploadMediaReq.fromJson(Map<String, dynamic> m) {
+    return UploadMediaReq();
+  }
+  Map<String, dynamic> toJson() {
+    return {};
+  }
+}
+
+class UploadMediaResp {
+  final Object mediaId;
+
+  final String url;
+
+  final String fileType;
+
+  final String mimeType;
+
+  final num fileSize;
+  UploadMediaResp({
+    required this.mediaId,
+    required this.url,
+    required this.fileType,
+    required this.mimeType,
+    required this.fileSize,
+  });
+  factory UploadMediaResp.fromJson(Map<String, dynamic> m) {
+    return UploadMediaResp(
+      mediaId: m['mediaId'] ?? 0,
+      url: m['url'] ?? "",
+      fileType: m['fileType'] ?? "",
+      mimeType: m['mimeType'] ?? "",
+      fileSize: m['fileSize'] ?? 0,
+    );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      'mediaId': mediaId,
+      'url': url,
+      'fileType': fileType,
+      'mimeType': mimeType,
+      'fileSize': fileSize,
+    };
+  }
+}

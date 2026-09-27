@@ -829,6 +829,48 @@ Future sendVerifyCode(
   );
 }
 
+/// --/api/v1/media/audio--
+///
+/// request: UploadMediaReq
+/// response: UploadMediaResp
+Future uploadAudio(
+  UploadMediaReq request, {
+  Function(UploadMediaResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v1/media/audio",
+    request,
+    ok: (data) {
+      if (ok != null) ok(UploadMediaResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+/// --/api/v1/media/video--
+///
+/// request: UploadMediaReq
+/// response: UploadMediaResp
+Future uploadVideo(
+  UploadMediaReq request, {
+  Function(UploadMediaResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  await apiPost(
+    "/api/v1/media/video",
+    request,
+    ok: (data) {
+      if (ok != null) ok(UploadMediaResp.fromJson(data));
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 /// --/api/v2/messages--
 ///
 /// request: SendMessageReq

@@ -7,19 +7,21 @@ owner: agent
 code_paths:
 - lib/features/message
 - test/features/message
-updated_at: 2026-09-26
+- lib/features/media
+- lib/core/api/api_adapter.dart
+updated_at: '2026-09-27'
 ---
 
 # 一对一私信实现映射
 
 会话、线程、发送命令和已读状态位于 `lib/features/message`。文本和图片发送路径存在，幂等重试保留
-完整命令；`receiverId` 和 `mediaId` 经共享 int64 编码器输出 JSON number。当前网关没有可供私信闭环
-使用的视频和语音上传契约，因此不能把 `FX-040` 标为对齐。
+完整命令；`receiverId` 和 `mediaId` 经共享 int64 编码器输出 JSON number。视频与音频经新 Gateway 契约上传，媒体任务复用上传键并保留上传结果，消息服务检查媒体归属及类型。
+本轮验证结果将以新的日期证据记录。
 
 初始历史与读取期间发送的新消息按 ID 合并，发送/重试完成保护新草稿，非法未读汇总保留旧计数；
 这些局部修复见 `EVD-quality-remediation-2026-09-25`，不关闭上述媒体能力缺口。
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FX-040 | DES-messaging-client | diverged | gap: backend gateway has no video or voice upload contract, so those media sends cannot complete |
+| FX-040 | DES-messaging-client | unknown | gap: media upload implementation awaits final commit verification |
 | FX-041 | DES-messaging-client | aligned | EVD-ui-redesign-2026-09-26 |

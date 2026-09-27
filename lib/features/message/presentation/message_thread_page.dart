@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
@@ -11,7 +11,8 @@ import '../../../core/formatters/time_formatter.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../auth/application/auth_notifier.dart';
-import '../../post/data/post_repository.dart';
+import '../../media/data/media_repository.dart';
+import '../application/media_send_controller.dart';
 import '../application/message_notifiers.dart';
 import '../data/message_models.dart';
 
@@ -36,16 +37,21 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
   final _scrollController = ScrollController();
   bool _pinToLatest = true;
   int _seenMessageCount = 0;
+  late final MediaSendController _media;
+  bool _selecting = false;
 
   @override
   void initState() {
     super.initState();
+    _media = MediaSendController(ref.read(mediaRepositoryProvider))
+      ..addListener(_mediaChanged);
     _scrollController.addListener(_rememberPin);
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_rememberPin);
+    _media.dispose();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -80,35 +86,43 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
   }
 
-  Future<void> _sendImage(MessageThreadKey key) async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery);
-    if (file == null || !mounted) return;
+  void _mediaChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _sendMedia(MessageThreadKey key, MediaKind kind) async {
+    final auth = ref.read(authNotifierProvider);
+    bool current() =>
+        mounted &&
+        ref.read(authNotifierProvider).isAuthenticated &&
+        ref.read(authNotifierProvider).sessionRevision ==
+            auth.sessionRevision &&
+        ref.read(authNotifierProvider).userId == auth.userId;
+    setState(() => _selecting = true);
     try {
-      final bytes = await file.readAsBytes();
-      if (bytes.length > 10 * 1024 * 1024) {
-        if (mounted) showAppError(context, '图片不能超过 10 MiB');
-        return;
-      }
-      final uploaded = await PostRepository().uploadImageMultipart(
-        bytes: bytes,
-        filename: file.name,
+      final file = await ref.read(mediaPickerProvider).pick(kind);
+      if (file == null || !current()) return;
+      await _media.start(
+        file,
+        kind,
+        isCurrent: current,
+        send: (uploaded, selectedKind) async {
+          if (!current()) return false;
+          final sent = await ref
+              .read(messageThreadProvider(key).notifier)
+              .send(
+                uploaded.url,
+                msgType: selectedKind.messageType,
+                mediaId: uploaded.mediaId,
+              );
+          if (sent && current()) _revealLatest();
+          return sent;
+        },
       );
-      if (!mounted) return;
-      final sent = await ref
-          .read(messageThreadProvider(key).notifier)
-          .send(
-            uploaded.url,
-            msgType: MessageTypes.image,
-            mediaId: uploaded.mediaId,
-          );
-      if (sent) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
-      }
-    } catch (error) {
-      if (mounted) {
-        showAppError(context, '图片发送失败: ${friendlyErrorMessage(error)}');
-      }
+    } catch (e) {
+      if (mounted && current()) showAppError(context, friendlyErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _selecting = false);
     }
   }
 
@@ -167,7 +181,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
       child: Column(
         children: [
           Expanded(child: _buildMessages(state, notifier, currentUserId)),
-          if (state.sendError != null)
+          if (state.sendError != null && !_media.hasPending)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
               child: Row(
@@ -227,6 +241,63 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
                 ],
               ),
             ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Row(
+              children: [
+                for (final kind in MediaKind.values) ...[
+                  FButton.icon(
+                    variant: FButtonVariant.ghost,
+                    onPress:
+                        state.isSending ||
+                            _selecting ||
+                            _media.busy ||
+                            _media.hasPending
+                        ? null
+                        : () => _sendMedia(key, kind),
+                    child: Icon(
+                      switch (kind) {
+                        MediaKind.image => FLucideIcons.image,
+                        MediaKind.video => FLucideIcons.video,
+                        MediaKind.audio => FLucideIcons.audioLines,
+                      },
+                      semanticLabel: switch (kind) {
+                        MediaKind.image => '发送图片',
+                        MediaKind.video => '发送视频',
+                        MediaKind.audio => '发送语音文件',
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (_media.busy || _selecting)
+                  const FCircularProgress(size: .sm),
+              ],
+            ),
+          ),
+          if (_media.error != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  Expanded(child: Text(_media.error!)),
+                  FButton.icon(
+                    onPress: _media.busy ? null : _media.retry,
+                    child: const Icon(
+                      FLucideIcons.refreshCw,
+                      semanticLabel: '重试媒体发送',
+                    ),
+                  ),
+                  FButton.icon(
+                    onPress: () {
+                      _media.cancel();
+                      notifier.discardFailedMedia();
+                    },
+                    child: const Icon(FLucideIcons.x, semanticLabel: '取消媒体发送'),
+                  ),
+                ],
+              ),
+            ),
           SafeArea(
             top: false,
             child: Padding(
@@ -251,18 +322,11 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
                   const SizedBox(width: 8),
                   FButton.icon(
                     onPress:
-                        state.isSending || !jsonInt64IsPositive(currentUserId)
-                        ? null
-                        : () => _sendImage(key),
-                    child: const Icon(
-                      FLucideIcons.image,
-                      semanticLabel: '发送图片',
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FButton.icon(
-                    onPress:
-                        state.isSending || !jsonInt64IsPositive(currentUserId)
+                        state.isSending ||
+                            _media.busy ||
+                            _media.hasPending ||
+                            _selecting ||
+                            !jsonInt64IsPositive(currentUserId)
                         ? null
                         : () => _send(key),
                     child: state.isSending
@@ -400,9 +464,21 @@ class _MessageBody extends StatelessWidget {
     if ((message.msgType == MessageTypes.video ||
             message.msgType == MessageTypes.audio) &&
         looksLikeUrl) {
-      return Text(
-        message.msgType == MessageTypes.video ? '视频消息' : '语音消息',
-        style: theme.typography.body.md.copyWith(color: foreground),
+      return FButton(
+        variant: FButtonVariant.ghost,
+        onPress: () async {
+          try {
+            if (!await launchUrl(
+              Uri.parse(message.content),
+              mode: LaunchMode.platformDefault,
+            )) {
+              if (context.mounted) showAppError(context, '无法打开媒体');
+            }
+          } catch (_) {
+            if (context.mounted) showAppError(context, '无法打开媒体');
+          }
+        },
+        child: Text(message.msgType == MessageTypes.video ? '打开视频' : '播放语音文件'),
       );
     }
     if (message.msgType != MessageTypes.text && !looksLikeUrl) {

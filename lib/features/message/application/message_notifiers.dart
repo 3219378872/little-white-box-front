@@ -353,6 +353,14 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     return _send(command);
   }
 
+  void discardFailedMedia() {
+    if (!state.isSending &&
+        state.failedCommand != null &&
+        state.failedCommand!.msgType != MessageTypes.text) {
+      state = state.copyWith(clearFailedCommand: true, clearSendError: true);
+    }
+  }
+
   Future<bool> retryFailed() async {
     final command = state.failedCommand;
     if (command == null || state.isSending) return false;
@@ -375,6 +383,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
         receiverId: targetUserId,
         content: command.content,
         msgType: command.msgType,
+        mediaId: command.mediaId,
         status: 0,
         createdAt: DateTime.now().millisecondsSinceEpoch,
       );

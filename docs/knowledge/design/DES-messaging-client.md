@@ -6,11 +6,11 @@ status: active
 role: baseline
 owner: agent
 external_upstream:
-- little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-community-core
+- little-white-box-content-community@7ae3e7cd4befb8a2743d48683d556de8c2224689:SPEC-community-core
 tracks:
 - FX-040
 - FX-041
-updated_at: 2026-09-19
+updated_at: '2026-09-27'
 ---
 
 # 一对一私信客户端设计
@@ -42,3 +42,19 @@ application 层创建 `SendMessageCommand`，包含接收者、类型、正文�
 | --- | --- |
 | `FX-040` | 边界、分页和稳定发送命令 |
 | `FX-041` | 已读与未读状态收敛 |
+
+## 媒体上传闭环（2026-09-27）
+
+FX-040 的媒体选择由 MediaPicker 承接：图片和视频使用现有 image_picker，音频文件使用
+file_selector（MP3/WAV/M4A；本轮不包含录音）。共享 MediaRepository 从 XFile 的 openRead
+上传，发送前检查实际长度，图片/音频最大 10 MiB，视频最大 100 MiB，使用 330 秒上传预算。
+Dart Web 的底层浏览器传输可能缓冲请求；应用不主动把大视频加载到多份 byte list。
+
+MediaSendController 持有选中文件、上传幂等键、已上传媒体和发送回调。上传失败重试同一文件与键；
+上传成功、消息失败只重试原 SendMessageCommand。401 刷新后重新打开文件流并复用上传键。
+每次上传与发送之间验证页面生命周期及登录 sessionRevision；过期结果不自动发送，不污染新会话。
+用户取消失败任务可重新选择；在途任务结束前禁用重复选择和发送。媒体结果的 int64 标识保持精确。
+
+视频/音频消息提供打开媒体按钮，复用 url_launcher 的平台默认行为；失败可见。该入口是可访问
+媒体文件的基础能力，不表示内嵌播放器或所有编码组合均已通过设备验证。生成 SDK 从后端 gateway.api
+同步两份，multipart 适配保留在手写传输层。
