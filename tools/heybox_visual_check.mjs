@@ -12,7 +12,6 @@ const routes = [
   ['feed', '/feed'], ['post', '/post/1'], ['search', '/search'],
   ['messages', '/messages'], ['assistant', '/messages/assistant'],
   ['memory', '/messages/assistant/memory'], ['watch', '/messages/assistant/watch'],
-  ['thread', '/messages/1?targetUserId=2&targetUserName=测试用户'],
   ['editor', '/post/new'], ['edit-profile', '/profile/edit'], ['profile', '/profile'],
 ];
 
@@ -78,7 +77,7 @@ try {
       await capture(page, variant, name, errors, failures);
       if (name === 'feed') {
         await page.getByRole('button', { name: /探店｜藏在巷子里的宝藏面馆/ }).first().click();
-        await page.getByRole('button', { name: '正文', exact: true }).waitFor();
+        await page.getByRole('button', { name: '更多操作', exact: true }).waitFor();
         if (variant.width < 600) {
           assert.equal(await page.getByRole('button', { name: /第 1 个标签，共 5 个/ }).count(), 0);
         }
@@ -91,27 +90,28 @@ try {
         await capture(page, variant, 'feed-return', errors, failures);
       }
       if (name === 'post') {
-        await page.getByRole('button', { name: /^查看评论/ }).click();
+        // Body and comments share one page; watch commands sit in the overflow menu.
+        assert.equal(await page.getByRole('button', { name: /^查看评论/ }).count(), 0);
+        await page.getByRole('button', { name: '更多操作', exact: true }).click();
+        await page.getByRole('menuitem', { name: /追踪作者新帖/ }).or(page.getByRole('button', { name: /追踪作者新帖/ })).first().waitFor();
+        await capture(page, variant, 'post-menu', errors, failures);
+        await page.keyboard.press('Escape');
+        await page.mouse.move(variant.width / 2, variant.height / 2);
+        const sort = page.getByRole('button', { name: /^按最新排序/ });
+        for (let step = 0; step < 20 && !(await sort.isVisible()); step++) {
+          await page.mouse.wheel(0, 200);
+          await page.waitForTimeout(150);
+        }
+        await sort.waitFor();
         await capture(page, variant, 'comments', errors, failures);
-        await page.getByRole('button', { name: '正文', exact: true }).click();
         await type(page, '这是一条尚未发送的评论');
         await page.getByRole('button', { name: '发送评论', exact: true }).waitFor();
-        assert.equal(await page.getByRole('button', { name: /^查看评论/ }).count(), 0);
         await capture(page, variant, 'comment-compose', errors, failures);
       }
       if (name === 'search') {
         await type(page, '手机');
-        const fieldBox = await page.getByRole('textbox').boundingBox();
-        let searched = false;
-        for (const button of await page.getByRole('button', { name: '搜索', exact: true }).all()) {
-          const box = await button.boundingBox();
-          if (box && Math.abs(box.y + box.height / 2 - fieldBox.y - fieldBox.height / 2) < 12) {
-            await button.click();
-            searched = true;
-            break;
-          }
-        }
-        assert(searched, 'search command must align with its field');
+        // Submission is the keyboard search action; there is no separate button.
+        await page.keyboard.press('Enter');
         await page.getByRole('button', { name: /2026年最值得入手/ }).first().waitFor();
         await capture(page, variant, 'search-results', errors, failures);
       }
@@ -131,7 +131,12 @@ try {
         await capture(page, variant, 'assistant-menu', errors, failures);
         await page.getByRole('button', { name: '更多操作', exact: true }).click();
       }
-      if (name === 'thread') {
+      if (name === 'messages') {
+        // Mock conversation ids are allocated at runtime, so open the thread
+        // from the list instead of a hard-coded id.
+        await page.getByRole('button', { name: /萌萌哒小兔/ }).first().click();
+        await page.getByRole('textbox').first().waitFor();
+        await capture(page, variant, 'thread', errors, failures);
         await type(page, '这是一条尚未发送的私信');
         await capture(page, variant, 'thread-compose', errors, failures);
       }

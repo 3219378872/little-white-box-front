@@ -6,6 +6,7 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/core/router/app_router.dart';
+import 'package:xiaobaihe_app/core/theme/app_theme.dart';
 import 'package:xiaobaihe_app/features/assistant/presentation/assistant_page.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/auth/presentation/login_page.dart';
@@ -403,6 +404,42 @@ void main() {
 
     expect(find.text('12'), findsOneWidget);
     _expectSidebarItemsAligned(tester);
+  });
+
+  testWidgets('auth pages paint the theme background edge to edge', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 1000);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final container = createAppProviderContainer();
+    final router = container.read(routerProvider);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+          themeMode: ThemeMode.dark,
+          darkTheme: ThemeData.dark(),
+          builder: foruiTestBuilder,
+        ),
+      ),
+    );
+    for (final path in ['/auth/login', '/auth/register']) {
+      router.go(path);
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      final frame = find.byKey(const Key('auth-frame'));
+      expect(tester.getRect(frame), const Rect.fromLTWH(0, 0, 1440, 1000));
+      expect(
+        tester.widget<ColoredBox>(frame).color,
+        AppTheme.foruiDark.colors.background,
+      );
+    }
   });
 
   testWidgets('keeps search public for an anonymous user', (tester) async {

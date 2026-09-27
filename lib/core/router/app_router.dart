@@ -62,13 +62,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/auth/login',
-        builder: (context, state) =>
-            const ContentConstraint(maxWidth: 440, child: LoginPage()),
+        builder: (context, state) => const _AuthFrame(child: LoginPage()),
       ),
       GoRoute(
         path: '/auth/register',
-        builder: (context, state) =>
-            const ContentConstraint(maxWidth: 440, child: RegisterPage()),
+        builder: (context, state) => const _AuthFrame(child: RegisterPage()),
       ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
@@ -598,4 +596,20 @@ class _UnreadNavigationIcon extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Auth pages sit outside [MainShell]; paint the theme background across the
+/// whole viewport so wide dark layouts do not show the default white canvas
+/// beside the 440px column.
+class _AuthFrame extends StatelessWidget {
+  final Widget child;
+
+  const _AuthFrame({required this.child});
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    key: const Key('auth-frame'),
+    color: context.theme.colors.background,
+    child: ContentConstraint(maxWidth: 440, child: child),
+  );
 }
