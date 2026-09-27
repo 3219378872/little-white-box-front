@@ -22,7 +22,7 @@ code_paths:
 - tools/test_knowledge_base.py
 - tools/requirements-knowledge.txt
 - Makefile
-updated_at: 2026-09-26
+updated_at: '2026-09-27'
 ---
 
 # 客户端平台实现映射
@@ -38,13 +38,13 @@ repository。Riverpod 3 的 `StateNotifier` 经 `package:flutter_riverpod/legacy
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FX-001 | DES-client-platform | aligned | EVD-media-uploads-2026-09-27 |
-| FX-002 | DES-client-platform | aligned | EVD-media-uploads-2026-09-27 |
-| FX-010 | DES-client-platform | aligned | EVD-media-uploads-2026-09-27 |
-| FX-070 | DES-client-platform | aligned | EVD-media-uploads-2026-09-27 |
-| FQ-001 | DES-client-platform | aligned | EVD-media-uploads-2026-09-27 |
-| FQ-002 | DES-client-platform | aligned | EVD-media-uploads-2026-09-27 |
-| FQ-003 | DES-client-platform | aligned | EVD-media-uploads-2026-09-27 |
-| FQ-006 | DES-client-platform | aligned | EVD-media-uploads-2026-09-27 |
+| FX-001 | DES-client-platform | aligned | EVD-fq009-visual-2026-09-27 |
+| FX-002 | DES-client-platform | aligned | EVD-fq009-visual-2026-09-27 |
+| FX-010 | DES-client-platform | aligned | EVD-fq009-visual-2026-09-27 |
+| FX-070 | DES-client-platform | aligned | EVD-fq009-visual-2026-09-27 |
+| FQ-001 | DES-client-platform | aligned | EVD-fq009-visual-2026-09-27 |
+| FQ-002 | DES-client-platform | aligned | EVD-fq009-visual-2026-09-27 |
+| FQ-003 | DES-client-platform | aligned | EVD-fq009-visual-2026-09-27 |
+| FQ-006 | DES-client-platform | aligned | EVD-fq009-visual-2026-09-27 |
 | FQ-007 | DES-client-platform | unknown | gap: current evidence lacks the real-interface and browser validation required by the spec |
-| FQ-008 | DES-client-platform | aligned | EVD-media-uploads-2026-09-27 |
+| FQ-008 | DES-client-platform | aligned | EVD-fq009-visual-2026-09-27 |

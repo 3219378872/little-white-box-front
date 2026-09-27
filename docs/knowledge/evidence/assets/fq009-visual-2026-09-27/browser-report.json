@@ -1,0 +1,1011 @@
+{
+ "observed_commit": "823b796a5ccebd05fae88d435d2b86c77f96da0d",
+ "browser": "151.0.7922.34",
+ "mode": "isolated-mock-release",
+ "frames": 125,
+ "page_errors": 0,
+ "failed_requests": 0,
+ "min_stddev": 2585.45,
+ "pages": [
+  {
+   "file": "mobile-light-feed.png",
+   "viewport": "mobile-light",
+   "page": "feed",
+   "stddev": 22445.2,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-feed-push-post.png",
+   "viewport": "mobile-light",
+   "page": "feed-push-post",
+   "stddev": 21714.6,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-feed-return.png",
+   "viewport": "mobile-light",
+   "page": "feed-return",
+   "stddev": 22445.2,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-post.png",
+   "viewport": "mobile-light",
+   "page": "post",
+   "stddev": 21714.6,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-post-menu.png",
+   "viewport": "mobile-light",
+   "page": "post-menu",
+   "stddev": 21639.3,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-comments.png",
+   "viewport": "mobile-light",
+   "page": "comments",
+   "stddev": 21708.5,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-comment-compose.png",
+   "viewport": "mobile-light",
+   "page": "comment-compose",
+   "stddev": 21716.1,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-search.png",
+   "viewport": "mobile-light",
+   "page": "search",
+   "stddev": 4805.16,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-search-results.png",
+   "viewport": "mobile-light",
+   "page": "search-results",
+   "stddev": 7757.79,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-messages.png",
+   "viewport": "mobile-light",
+   "page": "messages",
+   "stddev": 6265.06,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-thread.png",
+   "viewport": "mobile-light",
+   "page": "thread",
+   "stddev": 3861.19,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-thread-compose.png",
+   "viewport": "mobile-light",
+   "page": "thread-compose",
+   "stddev": 4524.24,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-assistant.png",
+   "viewport": "mobile-light",
+   "page": "assistant",
+   "stddev": 4517.4,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-assistant-menu.png",
+   "viewport": "mobile-light",
+   "page": "assistant-menu",
+   "stddev": 5141.41,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-memory.png",
+   "viewport": "mobile-light",
+   "page": "memory",
+   "stddev": 3543.41,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-memory-dialog.png",
+   "viewport": "mobile-light",
+   "page": "memory-dialog",
+   "stddev": 4686.86,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-watch.png",
+   "viewport": "mobile-light",
+   "page": "watch",
+   "stddev": 3330.88,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-watch-dialog.png",
+   "viewport": "mobile-light",
+   "page": "watch-dialog",
+   "stddev": 5011.61,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-editor.png",
+   "viewport": "mobile-light",
+   "page": "editor",
+   "stddev": 4138.1,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-editor-draft.png",
+   "viewport": "mobile-light",
+   "page": "editor-draft",
+   "stddev": 8684.07,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-edit-profile.png",
+   "viewport": "mobile-light",
+   "page": "edit-profile",
+   "stddev": 5426.15,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-profile.png",
+   "viewport": "mobile-light",
+   "page": "profile",
+   "stddev": 16025.4,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-login.png",
+   "viewport": "mobile-light",
+   "page": "login",
+   "stddev": 8944.04,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-code-login.png",
+   "viewport": "mobile-light",
+   "page": "code-login",
+   "stddev": 9095.7,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-light-register.png",
+   "viewport": "mobile-light",
+   "page": "register",
+   "stddev": 8034.15,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-feed.png",
+   "viewport": "mobile-dark",
+   "page": "feed",
+   "stddev": 15261.2,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-feed-push-post.png",
+   "viewport": "mobile-dark",
+   "page": "feed-push-post",
+   "stddev": 14713.1,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-feed-return.png",
+   "viewport": "mobile-dark",
+   "page": "feed-return",
+   "stddev": 15261.2,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-post.png",
+   "viewport": "mobile-dark",
+   "page": "post",
+   "stddev": 14713.1,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-post-menu.png",
+   "viewport": "mobile-dark",
+   "page": "post-menu",
+   "stddev": 14428.8,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-comments.png",
+   "viewport": "mobile-dark",
+   "page": "comments",
+   "stddev": 14714.9,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-comment-compose.png",
+   "viewport": "mobile-dark",
+   "page": "comment-compose",
+   "stddev": 14819.2,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-search.png",
+   "viewport": "mobile-dark",
+   "page": "search",
+   "stddev": 5085,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-search-results.png",
+   "viewport": "mobile-dark",
+   "page": "search-results",
+   "stddev": 8822.9,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-messages.png",
+   "viewport": "mobile-dark",
+   "page": "messages",
+   "stddev": 7051.74,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-thread.png",
+   "viewport": "mobile-dark",
+   "page": "thread",
+   "stddev": 4581.49,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-thread-compose.png",
+   "viewport": "mobile-dark",
+   "page": "thread-compose",
+   "stddev": 5386.2,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-assistant.png",
+   "viewport": "mobile-dark",
+   "page": "assistant",
+   "stddev": 4883.64,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-assistant-menu.png",
+   "viewport": "mobile-dark",
+   "page": "assistant-menu",
+   "stddev": 5806.1,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-memory.png",
+   "viewport": "mobile-dark",
+   "page": "memory",
+   "stddev": 4322.46,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-memory-dialog.png",
+   "viewport": "mobile-dark",
+   "page": "memory-dialog",
+   "stddev": 5181.75,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-watch.png",
+   "viewport": "mobile-dark",
+   "page": "watch",
+   "stddev": 4420.86,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-watch-dialog.png",
+   "viewport": "mobile-dark",
+   "page": "watch-dialog",
+   "stddev": 5808.35,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-editor.png",
+   "viewport": "mobile-dark",
+   "page": "editor",
+   "stddev": 4586.13,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-editor-draft.png",
+   "viewport": "mobile-dark",
+   "page": "editor-draft",
+   "stddev": 9726.75,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-edit-profile.png",
+   "viewport": "mobile-dark",
+   "page": "edit-profile",
+   "stddev": 6569.03,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-profile.png",
+   "viewport": "mobile-dark",
+   "page": "profile",
+   "stddev": 12475.7,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-login.png",
+   "viewport": "mobile-dark",
+   "page": "login",
+   "stddev": 9965.67,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-code-login.png",
+   "viewport": "mobile-dark",
+   "page": "code-login",
+   "stddev": 10135.4,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "mobile-dark-register.png",
+   "viewport": "mobile-dark",
+   "page": "register",
+   "stddev": 9087.97,
+   "scroll_width": 390,
+   "viewport_width": 390
+  },
+  {
+   "file": "desktop-light-feed.png",
+   "viewport": "desktop-light",
+   "page": "feed",
+   "stddev": 20562,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-feed-push-post.png",
+   "viewport": "desktop-light",
+   "page": "feed-push-post",
+   "stddev": 19959.1,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-feed-return.png",
+   "viewport": "desktop-light",
+   "page": "feed-return",
+   "stddev": 20562,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-post.png",
+   "viewport": "desktop-light",
+   "page": "post",
+   "stddev": 19959.1,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-post-menu.png",
+   "viewport": "desktop-light",
+   "page": "post-menu",
+   "stddev": 19966.9,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-comments.png",
+   "viewport": "desktop-light",
+   "page": "comments",
+   "stddev": 21206.9,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-comment-compose.png",
+   "viewport": "desktop-light",
+   "page": "comment-compose",
+   "stddev": 21220.7,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-search.png",
+   "viewport": "desktop-light",
+   "page": "search",
+   "stddev": 2637.29,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-search-results.png",
+   "viewport": "desktop-light",
+   "page": "search-results",
+   "stddev": 4198.89,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-messages.png",
+   "viewport": "desktop-light",
+   "page": "messages",
+   "stddev": 3433.02,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-thread.png",
+   "viewport": "desktop-light",
+   "page": "thread",
+   "stddev": 3660.01,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-thread-compose.png",
+   "viewport": "desktop-light",
+   "page": "thread-compose",
+   "stddev": 3917.06,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-assistant.png",
+   "viewport": "desktop-light",
+   "page": "assistant",
+   "stddev": 3771.95,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-assistant-menu.png",
+   "viewport": "desktop-light",
+   "page": "assistant-menu",
+   "stddev": 3950.79,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-memory.png",
+   "viewport": "desktop-light",
+   "page": "memory",
+   "stddev": 3614.25,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-memory-dialog.png",
+   "viewport": "desktop-light",
+   "page": "memory-dialog",
+   "stddev": 6301.7,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-watch.png",
+   "viewport": "desktop-light",
+   "page": "watch",
+   "stddev": 3567.41,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-watch-dialog.png",
+   "viewport": "desktop-light",
+   "page": "watch-dialog",
+   "stddev": 6419.47,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-editor.png",
+   "viewport": "desktop-light",
+   "page": "editor",
+   "stddev": 2585.45,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-editor-draft.png",
+   "viewport": "desktop-light",
+   "page": "editor-draft",
+   "stddev": 6066.2,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-edit-profile.png",
+   "viewport": "desktop-light",
+   "page": "edit-profile",
+   "stddev": 3103.47,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-profile.png",
+   "viewport": "desktop-light",
+   "page": "profile",
+   "stddev": 14088.8,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-login.png",
+   "viewport": "desktop-light",
+   "page": "login",
+   "stddev": 4326.31,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-code-login.png",
+   "viewport": "desktop-light",
+   "page": "code-login",
+   "stddev": 4400.42,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-light-register.png",
+   "viewport": "desktop-light",
+   "page": "register",
+   "stddev": 3911.93,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-feed.png",
+   "viewport": "desktop-dark",
+   "page": "feed",
+   "stddev": 13193.6,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-feed-push-post.png",
+   "viewport": "desktop-dark",
+   "page": "feed-push-post",
+   "stddev": 12613.5,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-feed-return.png",
+   "viewport": "desktop-dark",
+   "page": "feed-return",
+   "stddev": 13193.6,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-post.png",
+   "viewport": "desktop-dark",
+   "page": "post",
+   "stddev": 12613.5,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-post-menu.png",
+   "viewport": "desktop-dark",
+   "page": "post-menu",
+   "stddev": 12653.6,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-comments.png",
+   "viewport": "desktop-dark",
+   "page": "comments",
+   "stddev": 12739.2,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-comment-compose.png",
+   "viewport": "desktop-dark",
+   "page": "comment-compose",
+   "stddev": 12774.7,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-search.png",
+   "viewport": "desktop-dark",
+   "page": "search",
+   "stddev": 2869.05,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-search-results.png",
+   "viewport": "desktop-dark",
+   "page": "search-results",
+   "stddev": 4887.49,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-messages.png",
+   "viewport": "desktop-dark",
+   "page": "messages",
+   "stddev": 3842.41,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-thread.png",
+   "viewport": "desktop-dark",
+   "page": "thread",
+   "stddev": 4230.83,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-thread-compose.png",
+   "viewport": "desktop-dark",
+   "page": "thread-compose",
+   "stddev": 4517.79,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-assistant.png",
+   "viewport": "desktop-dark",
+   "page": "assistant",
+   "stddev": 4237.06,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-assistant-menu.png",
+   "viewport": "desktop-dark",
+   "page": "assistant-menu",
+   "stddev": 4499.4,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-memory.png",
+   "viewport": "desktop-dark",
+   "page": "memory",
+   "stddev": 4173.12,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-memory-dialog.png",
+   "viewport": "desktop-dark",
+   "page": "memory-dialog",
+   "stddev": 3424.87,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-watch.png",
+   "viewport": "desktop-dark",
+   "page": "watch",
+   "stddev": 4193.3,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-watch-dialog.png",
+   "viewport": "desktop-dark",
+   "page": "watch-dialog",
+   "stddev": 3732.62,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-editor.png",
+   "viewport": "desktop-dark",
+   "page": "editor",
+   "stddev": 2925.93,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-editor-draft.png",
+   "viewport": "desktop-dark",
+   "page": "editor-draft",
+   "stddev": 6777.39,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-edit-profile.png",
+   "viewport": "desktop-dark",
+   "page": "edit-profile",
+   "stddev": 3704.59,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-profile.png",
+   "viewport": "desktop-dark",
+   "page": "profile",
+   "stddev": 10994.8,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-login.png",
+   "viewport": "desktop-dark",
+   "page": "login",
+   "stddev": 4839.49,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-code-login.png",
+   "viewport": "desktop-dark",
+   "page": "code-login",
+   "stddev": 4926.31,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "desktop-dark-register.png",
+   "viewport": "desktop-dark",
+   "page": "register",
+   "stddev": 4456.02,
+   "scroll_width": 1440,
+   "viewport_width": 1440
+  },
+  {
+   "file": "narrow-light-feed.png",
+   "viewport": "narrow-light",
+   "page": "feed",
+   "stddev": 22019.3,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-feed-push-post.png",
+   "viewport": "narrow-light",
+   "page": "feed-push-post",
+   "stddev": 21284.9,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-feed-return.png",
+   "viewport": "narrow-light",
+   "page": "feed-return",
+   "stddev": 22019.3,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-post.png",
+   "viewport": "narrow-light",
+   "page": "post",
+   "stddev": 21284.9,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-post-menu.png",
+   "viewport": "narrow-light",
+   "page": "post-menu",
+   "stddev": 21062.9,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-comments.png",
+   "viewport": "narrow-light",
+   "page": "comments",
+   "stddev": 21280.7,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-comment-compose.png",
+   "viewport": "narrow-light",
+   "page": "comment-compose",
+   "stddev": 21287.1,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-search.png",
+   "viewport": "narrow-light",
+   "page": "search",
+   "stddev": 5554.37,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-search-results.png",
+   "viewport": "narrow-light",
+   "page": "search-results",
+   "stddev": 8831.32,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-messages.png",
+   "viewport": "narrow-light",
+   "page": "messages",
+   "stddev": 7345.94,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-thread.png",
+   "viewport": "narrow-light",
+   "page": "thread",
+   "stddev": 4533.81,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-thread-compose.png",
+   "viewport": "narrow-light",
+   "page": "thread-compose",
+   "stddev": 5228.2,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-assistant.png",
+   "viewport": "narrow-light",
+   "page": "assistant",
+   "stddev": 5308.28,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-assistant-menu.png",
+   "viewport": "narrow-light",
+   "page": "assistant-menu",
+   "stddev": 6036.68,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-memory.png",
+   "viewport": "narrow-light",
+   "page": "memory",
+   "stddev": 4167.48,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-memory-dialog.png",
+   "viewport": "narrow-light",
+   "page": "memory-dialog",
+   "stddev": 5317.58,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-watch.png",
+   "viewport": "narrow-light",
+   "page": "watch",
+   "stddev": 3921.41,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-watch-dialog.png",
+   "viewport": "narrow-light",
+   "page": "watch-dialog",
+   "stddev": 5677.71,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-editor.png",
+   "viewport": "narrow-light",
+   "page": "editor",
+   "stddev": 4855.86,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-editor-draft.png",
+   "viewport": "narrow-light",
+   "page": "editor-draft",
+   "stddev": 10231.5,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-edit-profile.png",
+   "viewport": "narrow-light",
+   "page": "edit-profile",
+   "stddev": 6357.89,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-profile.png",
+   "viewport": "narrow-light",
+   "page": "profile",
+   "stddev": 15817.4,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-login.png",
+   "viewport": "narrow-light",
+   "page": "login",
+   "stddev": 9757.79,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-code-login.png",
+   "viewport": "narrow-light",
+   "page": "code-login",
+   "stddev": 9933.13,
+   "scroll_width": 320,
+   "viewport_width": 320
+  },
+  {
+   "file": "narrow-light-register.png",
+   "viewport": "narrow-light",
+   "page": "register",
+   "stddev": 8611.41,
+   "scroll_width": 320,
+   "viewport_width": 320
+  }
+ ]
+}

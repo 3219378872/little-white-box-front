@@ -12,7 +12,7 @@ code_paths:
 - lib/features/profile
 - lib/features/behavior
 - lib/features/interaction
-updated_at: 2026-09-26
+updated_at: '2026-09-27'
 ---
 
 # 社区发现与内容实现映射
@@ -27,12 +27,12 @@ transport，notifier 以 generation 与命令指纹控制分页、刷新和重�
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FX-020 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
-| FX-021 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
-| FX-022 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
-| FX-030 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
-| FX-031 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
-| FX-032 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
-| FX-060 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
-| FX-061 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
-| FX-062 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
+| FX-020 | DES-community-client | aligned | EVD-fq009-visual-2026-09-27 |
+| FX-021 | DES-community-client | aligned | EVD-fq009-visual-2026-09-27 |
+| FX-022 | DES-community-client | aligned | EVD-fq009-visual-2026-09-27 |
+| FX-030 | DES-community-client | aligned | EVD-fq009-visual-2026-09-27 |
+| FX-031 | DES-community-client | aligned | EVD-fq009-visual-2026-09-27 |
+| FX-032 | DES-community-client | aligned | EVD-fq009-visual-2026-09-27 |
+| FX-060 | DES-community-client | aligned | EVD-fq009-visual-2026-09-27 |
+| FX-061 | DES-community-client | aligned | EVD-fq009-visual-2026-09-27 |
+| FX-062 | DES-community-client | aligned | EVD-fq009-visual-2026-09-27 |

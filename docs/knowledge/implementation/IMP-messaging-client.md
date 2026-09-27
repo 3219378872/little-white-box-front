@@ -23,5 +23,5 @@ updated_at: '2026-09-27'
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FX-040 | DES-messaging-client | aligned | EVD-media-uploads-2026-09-27 |
-| FX-041 | DES-messaging-client | aligned | EVD-media-uploads-2026-09-27 |
+| FX-040 | DES-messaging-client | aligned | EVD-fq009-visual-2026-09-27 |
+| FX-041 | DES-messaging-client | aligned | EVD-fq009-visual-2026-09-27 |

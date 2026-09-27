@@ -12,7 +12,7 @@ code_paths:
 - tools/heybox_visual_check.mjs
 - tools/heybox_android_check.py
 - tools/redesign_compare_capture.mjs
-updated_at: 2026-09-26
+updated_at: '2026-09-27'
 ---
 
 # 客户端展示系统实现映射
@@ -25,12 +25,12 @@ updated_at: 2026-09-26
 品牌强调色（亮 `#2563EB` / 暗 `#60A5FA`）、桌面侧栏 <1280 折叠为 72px、≥1280 的 680 列 + 288 右栏
 （发布、Agent 入口、基于已加载推荐流近似统计的热门标签，无新接口）、Feed 图片 1/2/3+ 规则、详情页
 操作收敛到 `…` 菜单与作者行关注、搜索最近记录与高亮、Agent 澄清题 chip 化。其中强调色、卡片圆角 12、
-图片圆角 8、680 列与热门标签右栏偏离 FQ-009 的 Heybox 黑白灰、圆角 4/≤8、单列 720 与“不新增热点”约束；
-规格与设计未改，偏离只在下表登记；验证与改造前后对比见
-[EVD-ui-redesign-2026-09-26](../evidence/EVD-ui-redesign-2026-09-26.md)。
+图片圆角 8、680 列与热门标签右栏起初偏离 FQ-009；2026-09-27 人类批准修订 FQ-009 并同步 DES 后恢复对齐。
+改造前后对比见 [EVD-ui-redesign-2026-09-26](../evidence/EVD-ui-redesign-2026-09-26.md)，修订后全页面验收见
+[EVD-fq009-visual-2026-09-27](../evidence/EVD-fq009-visual-2026-09-27.md)。
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FQ-004 | DES-presentation-client | aligned | EVD-media-uploads-2026-09-27 |
+| FQ-004 | DES-presentation-client | aligned | EVD-fq009-visual-2026-09-27 |
 | FQ-005 | DES-presentation-client | unknown | gap: current native-platform evidence is temporary and does not cover physical devices or iOS |
-| FQ-009 | DES-presentation-client | diverged | gap: 2026-09-26 ui-redesign keeps a blue accent, card radius 12, image radius 8, a 680px feed column and a client-side trending-tags rail, contrary to the Heybox monochrome, radius 4/<=8, 720px single column and no-hotspot rules; needs a human decision to amend FQ-009/DES or revert |
+| FQ-009 | DES-presentation-client | aligned | EVD-fq009-visual-2026-09-27 |
