@@ -31,6 +31,6 @@ updated_at: 2026-09-26
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FQ-004 | DES-presentation-client | aligned | EVD-ui-redesign-2026-09-26 |
+| FQ-004 | DES-presentation-client | aligned | EVD-media-uploads-2026-09-27 |
 | FQ-005 | DES-presentation-client | unknown | gap: current native-platform evidence is temporary and does not cover physical devices or iOS |
 | FQ-009 | DES-presentation-client | diverged | gap: 2026-09-26 ui-redesign keeps a blue accent, card radius 12, image radius 8, a 680px feed column and a client-side trending-tags rail, contrary to the Heybox monochrome, radius 4/<=8, 720px single column and no-hotspot rules; needs a human decision to amend FQ-009/DES or revert |

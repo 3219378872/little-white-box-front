@@ -27,12 +27,12 @@ transport，notifier 以 generation 与命令指纹控制分页、刷新和重�
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FX-020 | DES-community-client | aligned | EVD-ui-redesign-2026-09-26 |
-| FX-021 | DES-community-client | aligned | EVD-ui-redesign-2026-09-26 |
-| FX-022 | DES-community-client | aligned | EVD-ui-redesign-2026-09-26 |
-| FX-030 | DES-community-client | aligned | EVD-ui-redesign-2026-09-26 |
-| FX-031 | DES-community-client | aligned | EVD-ui-redesign-2026-09-26 |
-| FX-032 | DES-community-client | aligned | EVD-ui-redesign-2026-09-26 |
-| FX-060 | DES-community-client | aligned | EVD-ui-redesign-2026-09-26 |
-| FX-061 | DES-community-client | aligned | EVD-ui-redesign-2026-09-26 |
-| FX-062 | DES-community-client | aligned | EVD-ui-redesign-2026-09-26 |
+| FX-020 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
+| FX-021 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
+| FX-022 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
+| FX-030 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
+| FX-031 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
+| FX-032 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
+| FX-060 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
+| FX-061 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |
+| FX-062 | DES-community-client | aligned | EVD-media-uploads-2026-09-27 |

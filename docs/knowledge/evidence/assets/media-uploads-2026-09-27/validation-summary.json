@@ -1,0 +1,41 @@
+{
+  "observed_commit": "71ac5148862414511ef6118882737dc369f5b8ae",
+  "checks": {
+    "format_analyze": "passed",
+    "unit_tests": 626,
+    "coverage": {
+      "covered": 8746,
+      "total": 10420,
+      "percent": 83.9
+    },
+    "tools_tests": 52,
+    "sdk": "both copies current",
+    "web_release": "passed",
+    "android_x64_debug": "build passed; device runtime not tested"
+  },
+  "browser": {
+    "origin": "http://127.0.0.1:3002",
+    "sender_scenarios": 3,
+    "widths": [
+      320,
+      390,
+      1440
+    ],
+    "media_kinds": [
+      "image",
+      "video",
+      "audio"
+    ],
+    "reload_history": true,
+    "open_video_audio": true,
+    "receiver_history": true,
+    "page_errors": 0
+  },
+  "apk_sha256": "69434c30a5ed765ce3eb26c58dcea90cdccaafb858a4977b6438eb65a33e0bab",
+  "limits": [
+    "Audio file selection, not microphone recording",
+    "Video/audio open via external URL; no embedded-player or decoding guarantee",
+    "No Android/iOS device runtime, production or accessibility expert validation",
+    "Focused private-message browser flows, not a repeated seven-scene redesign comparison"
+  ]
+}
