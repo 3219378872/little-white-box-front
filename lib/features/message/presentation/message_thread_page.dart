@@ -465,7 +465,7 @@ class _MessageBody extends StatelessWidget {
             message.msgType == MessageTypes.audio) &&
         looksLikeUrl) {
       return FButton(
-        variant: FButtonVariant.ghost,
+        variant: FButtonVariant.secondary,
         onPress: () async {
           try {
             if (!await launchUrl(
