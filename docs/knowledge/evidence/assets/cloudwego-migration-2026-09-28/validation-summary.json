@@ -1,0 +1,22 @@
+{
+  "observed_commit": "9aff299e68a7160a69a5bd24e91fff2184c76666",
+  "backend_contract_commit": "e20814b5d91ffb2cb7f7bf52fbe2b15e64ae2be3",
+  "openapi_sha256": "fdc025ee4dfde3bdba014c11883894114a88ed6dd94d006f82a8c0979c8535f2",
+  "checks": {
+    "make check": "passed",
+    "flutter tests": 627,
+    "tool tests": 47,
+    "analyze": "no issues",
+    "SDK drift": "none in either copy",
+    "Web release lib/main.dart": "passed"
+  },
+  "scope": [
+    "static",
+    "unit"
+  ],
+  "not_observed": [
+    "browser at this commit",
+    "device runtime",
+    "production"
+  ]
+}
