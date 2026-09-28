@@ -1,19 +1,10 @@
 #!/usr/bin/env python3
-"""Regenerate the Dart gateway SDK from the sibling backend .api file.
+"""Generate Gateway Dart DTOs and API methods from the reviewed OpenAPI file.
 
-goctl api dart only emits GET/POST helpers. This script:
-1. runs goctl into a temp directory
-2. patches PUT/DELETE verbs from gateway.api
-3. fixes known goctl Dart type bugs
-4. normalizes and formats generated output
-5. copies generated types and API methods into vendor/sdk_source and lib/sdk
-
-Application-owned transport files are not overwritten:
-  api/api.dart, data/tokens.dart, vars/*
+Only api/gateway.dart and data/gateway.dart are generated. Authentication,
+lossless JSON, SSE and multipart streaming remain application-owned transports.
 """
-
 from __future__ import annotations
-
 import argparse
 import re
 import shutil
@@ -21,327 +12,129 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+import yaml
 
-HANDLER_RE = re.compile(r"@handler\s+(\w+)")
-ROUTE_RE = re.compile(r"^\s*(get|post|put|delete|patch)\s+(\S+)", re.IGNORECASE)
-FUNC_RE = re.compile(r"^Future (\w+)\(")
-GENERATED_SOURCE_HEADER_RE = re.compile(r"\A// --[^\r\n]*--")
-OPTIONAL_NUM_TO_JSON_RE = re.compile(r"\b(position|durationMs|status)\?\.toJson\(\)")
-ENTITY_ID_FIELDS = (
-    "id",
-    "postId",
-    "authorId",
-    "userId",
-    "targetId",
-    "commentId",
-    "parentId",
-    "replyUserId",
-    "mediaId",
-    "conversationId",
-    "senderId",
-    "receiverId",
-    "followeeId",
-    "targetUserId",
-    "cursorPostId",
-    "nextCursorPostId",
-    "messageId",
-    "lastId",
-    "eventId",
-    "hitId",
-    "taskId",
-    "contextPostId",
-    "runId",
-    "sessionId",
-    "changeId",
-    "lastMessageId",
-    "activeRunId",
-    "afterId",
-    "beforeId",
-    "nextBeforeId",
-)
-PATH_ID_PARAMS = ("postId", "userId", "commentId", "id")
-
-VERB_TO_HELPER = {
-    "put": "apiPut",
-    "delete": "apiDelete",
-    "patch": "apiPatch",
-}
-
-GENERATED_SOURCE_HEADER = "// --app/gateway/gateway--"
-BACKEND_API_RELATIVE_PATH = Path(
-    "little-white-box-content-community/app/gateway/gateway.api"
-)
-
+BACKEND_API_RELATIVE_PATH=Path('little-white-box-content-community/app/gateway/openapi.yaml')
+GENERATED_FILES=['api/gateway.dart','data/gateway.dart']
+HEADER='// Generated from app/gateway/openapi.yaml. DO NOT EDIT.\n\n'
+PRIMITIVES={'String','Object','num','int','double','bool'}
 
 def default_backend_api_path(repo: Path) -> Path:
-    """Locate the sibling backend from a main checkout or nested task worktree."""
     for parent in repo.parents:
-        candidate = parent / BACKEND_API_RELATIVE_PATH
-        if candidate.is_file():
-            return candidate
-    return repo.parent / BACKEND_API_RELATIVE_PATH
+        candidate=parent/BACKEND_API_RELATIVE_PATH
+        if candidate.is_file(): return candidate
+    return repo.parent/BACKEND_API_RELATIVE_PATH
 
+def decode(kind: str, value: str) -> str:
+    if kind.endswith('?'): return f'{value} == null ? null : {decode(kind[:-1],value)}'
+    if kind=='String': return f'{value}?.toString() ?? ""'
+    if kind in ('Object','num'): return f'{value} ?? 0'
+    if kind=='int': return f'({value} is num) ? ({value} as num).toInt() : 0'
+    if kind=='double': return f'({value} is num) ? ({value} as num).toDouble() : 0.0'
+    if kind=='bool': return f'{value} ?? false'
+    if kind.startswith('List<'):
+        item=kind[5:-1]
+        if item in PRIMITIVES: return f'List<{item}>.from({value} as List? ?? const [])'
+        return f'(({value} ?? []) as List).map((i) => {item}.fromJson(Map<String,dynamic>.from(i as Map))).toList()'
+    if kind.startswith('Map<'): return f'{kind}.from({value} as Map? ?? const {{}})'
+    return f'{kind}.fromJson(Map<String,dynamic>.from({value} as Map? ?? const {{}}))'
 
-def parse_handler_verbs(api_path: Path) -> dict[str, str]:
-    verbs: dict[str, str] = {}
-    pending: str | None = None
-    for raw in api_path.read_text(encoding="utf-8").splitlines():
-        handler = HANDLER_RE.search(raw)
-        if handler:
-            pending = handler.group(1)
-            continue
-        if pending is None:
-            continue
-        route = ROUTE_RE.search(raw)
-        if not route:
-            continue
-        func = pending[0].lower() + pending[1:]
-        verbs[func] = route.group(1).lower()
-        pending = None
-    return verbs
+def encode(kind: str, field: str) -> str:
+    base=kind.removesuffix('?');access=field+('?' if kind.endswith('?') else '')
+    if base.startswith('List<'):
+        if base[5:-1] not in PRIMITIVES: return f'{access}.map((i) => i.toJson()).toList()'
+    elif base not in PRIMITIVES and not base.startswith('Map<'): return f'{access}.toJson()'
+    return field
 
+def render_types(spec: dict) -> str:
+    out=[HEADER]
+    for name,schema in sorted(spec['components']['schemas'].items()):
+        if name=='PublicError': continue
+        fields=schema.get('properties',{})
+        out.append(f'class {name} {{\n')
+        for prop in fields.values(): out.append(f'final {prop["x-dart-type"]} {prop["x-dart-name"]};\n')
+        if fields:
+            out.append(f'{name}({{\n')
+            for prop in fields.values():
+                required='required ' if prop['x-dart-required'] else ''
+                default=' = '+prop['x-dart-default'] if 'x-dart-default' in prop else ''
+                out.append(f'{required}this.{prop["x-dart-name"]}{default},\n')
+            out.append('});\n')
+        else: out.append(f'{name}();\n')
+        out.append(f'factory {name}.fromJson(Map<String,dynamic> m) => {name}(\n')
+        for key,prop in fields.items(): out.append(f'{prop["x-dart-name"]}: '+decode(prop['x-dart-type'],f"m['{key}']")+',\n')
+        out.append(');\nMap<String,dynamic> toJson() => {\n')
+        for key,prop in fields.items():
+            field=prop['x-dart-name'];guard=f'if ({field} != null) ' if prop.get('x-dart-omit-null') else ''
+            out.append(f"{guard}'{key}': {encode(prop['x-dart-type'],field)},\n")
+        out.append('};\n}\n\n')
+    return ''.join(out)
 
-def patch_gateway_methods(source: str, verbs: dict[str, str]) -> str:
-    lines = source.splitlines(keepends=True)
-    current: str | None = None
-    out: list[str] = []
-    for line in lines:
-        match = FUNC_RE.match(line)
-        if match:
-            current = match.group(1)
-        helper = VERB_TO_HELPER.get(verbs.get(current, ""))
-        if helper and "await apiPost(" in line:
-            line = line.replace("await apiPost(", f"await {helper}(")
-        out.append(line)
-    return "".join(out)
+def render_api(spec: dict) -> str:
+    out=[HEADER,"import 'api.dart';\nimport '../data/gateway.dart';\n\n"]
+    for path,item in spec['paths'].items():
+        for verb,operation in item.items():
+            name=operation['operationId'];name=name[0].lower()+name[1:]
+            req=operation.get('x-request-type');response=operation['x-response-type']
+            params=operation.get('parameters',[]);paths=[p for p in params if p['in']=='path'];query=[p for p in params if p['in']=='query']
+            fields=spec['components']['schemas'].get(req,{}).get('properties',{})
+            # Multipart and SSE are consumed through application-owned transports.
+            # Generate their route from the same source; never send them as JSON.
+            if operation.get('x-sse') or 'multipart/form-data' in operation.get('requestBody',{}).get('content',{}):
+                if paths:
+                    arguments=','.join('Object '+p['name'] for p in paths)
+                    route=re.sub(r'\{(\w+)\}',lambda m:'${Uri.encodeComponent('+m[1]+'.toString())}',path)
+                    out.append(f'String {name}Path({arguments}) => "{route}";\n\n')
+                else:
+                    out.append(f'const {name}Path = "{path}";\n\n')
+                continue
+            body=verb!='get' and bool(fields)
+            out.append(f'Future {name}(')
+            for p in paths: out.append(f'{fields[p["name"]]["x-dart-type"].removesuffix("?")} {p["name"]},')
+            if body: out.append(f'{req} request,')
+            out.append('{\n')
+            if verb=='get' and query: out.append(f'{req}? request,\n')
+            out.append(f'Function({response})? ok,Function(String)? fail,Function? eventually,\n}}) async {{\n')
+            url=re.sub(r'\{(\w+)\}',lambda m:'${Uri.encodeComponent('+m[1]+'.toString())}',path)
+            out.append(f'{"var" if query and verb=="get" else "final"} url = "{url}";\n')
+            if verb=='get' and query:
+                names=','.join("'"+p['name']+"'" for p in query)
+                out.append(f'if(request != null){{final allowed=<String>{{{names}}};final query=request.toJson()..removeWhere((k,v)=> !allowed.contains(k)||v==null);url=Uri.parse(url).replace(queryParameters:query.map((k,v)=>MapEntry(k,v.toString()))).toString();}}\n')
+            args='url,'+('request,' if body else 'const {},') if verb!='get' else 'url,'
+            out.append(f'await api{verb.title()}({args}ok:(data){{if(ok!=null)ok({response}.fromJson(Map<String,dynamic>.from(data as Map? ?? const {{}})));}},fail:fail,eventually:eventually);\n}}\n\n')
+    return ''.join(out)
 
+def generate(api: Path, destination: Path) -> None:
+    spec=yaml.safe_load(api.read_text())
+    if spec.get('openapi')!='3.0.3': raise ValueError('Gateway SDK requires OpenAPI 3.0.3')
+    for rel,source in zip(GENERATED_FILES,(render_api(spec),render_types(spec))):
+        path=destination/rel;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(source)
+    subprocess.run(['dart','format',*(str(destination/rel) for rel in GENERATED_FILES)],check=True)
 
-def normalize_generated_header(source: str) -> str:
-    """Remove the checkout-specific absolute path emitted by goctl."""
-    return GENERATED_SOURCE_HEADER_RE.sub(GENERATED_SOURCE_HEADER, source, count=1)
-
-
-def patch_generated_types(source: str) -> str:
-    source = normalize_generated_header(source)
-    nullable_primitives = re.findall(r"final (String|double|bool|int)\? (\w+);", source)
-    for primitive, field in nullable_primitives:
-        generated = rf"{primitive}\?\.fromJson\(m\['{field}'\]\)"
-        replacement = {
-            "String": f"m['{field}']?.toString()",
-            "double": (
-                f"(m['{field}'] is num) ? (m['{field}'] as num).toDouble() : null"
-            ),
-            "int": (f"(m['{field}'] is num) ? (m['{field}'] as num).toInt() : null"),
-            "bool": (f"(m['{field}'] is bool) ? m['{field}'] as bool : null"),
-        }[primitive]
-        source = re.sub(generated, replacement, source)
-        source = source.replace(
-            f"'{field}': {field}?.toJson(),", f"'{field}': {field},"
-        )
-    source = OPTIONAL_NUM_TO_JSON_RE.sub(r"\1", source)
-    for field in ENTITY_ID_FIELDS:
-        source = source.replace(f"final num {field};", f"final Object {field};")
-    source = source.replace("final List<int> mediaIds;", "final List<Object> mediaIds;")
-    # Read models accept additive media metadata without breaking local constructors.
-    source = re.sub(
-        r"(class PostItem \{.*?)(\n  factory PostItem\.fromJson)",
-        lambda match: (
-            match[1].replace("required this.mediaIds,", "this.mediaIds = const [],")
-            + match[2]
-        ),
-        source,
-        flags=re.DOTALL,
-    )
-    source = source.replace(
-        "mediaIds: m['mediaIds']?.cast<int>() ?? [],",
-        "mediaIds: m['mediaIds'] is List\n"
-        "          ? List<Object>.from(m['mediaIds'] as List)\n"
-        "          : <Object>[],",
-    )
-    source = source.replace("final List<int> hitIds;", "final List<Object> hitIds;")
-    source = source.replace(
-        "hitIds: m['hitIds']?.cast<int>() ?? [],",
-        "hitIds: m['hitIds'] is List\n"
-        "          ? List<Object>.from(m['hitIds'] as List)\n"
-        "          : <Object>[],",
-    )
-    source = source.replace(
-        "final List<int> changeIds;", "final List<Object> changeIds;"
-    )
-    source = source.replace(
-        "changeIds: m['changeIds']?.cast<int>() ?? [],",
-        "changeIds: m['changeIds'] is List\n"
-        "          ? List<Object>.from(m['changeIds'] as List)\n"
-        "          : <Object>[],",
-    )
-    return patch_post_update_presence(source)
-
-
-def patch_post_update_presence(source: str) -> str:
-    """Keep absent media arrays distinct from an explicit clear command."""
-    match = re.search(r"(?ms)^class UpdatePostV2Req \{.*?(?=^class |\Z)", source)
-    if match is None:
-        return source
-    block = match[0]
-    for field, element_type in (("images", "String"), ("mediaIds", "Object")):
-        block = block.replace(
-            f"final List<{element_type}> {field};",
-            f"final List<{element_type}>? {field};",
-        ).replace(f"required this.{field},", f"this.{field},")
-        block = re.sub(
-            rf"(?m)^(\s*)'{field}': {field},$",
-            rf"\1if ({field} != null) '{field}': {field},",
-            block,
-        )
-    block = block.replace(
-        "images: m['images']?.cast<String>() ?? [],",
-        "images: m['images']?.cast<String>(),",
-    )
-    block = re.sub(
-        r"mediaIds: m\['mediaIds'\] is List\s*"
-        r"\? List<Object>\.from\(m\['mediaIds'\] as List\)\s*:\s*<Object>\[\],",
-        "mediaIds: m['mediaIds'] == null ? null : "
-        "List<Object>.from(m['mediaIds'] as List),",
-        block,
-    )
-    return source[: match.start()] + block + source[match.end() :]
-
-
-def patch_generated_api(source: str) -> str:
-    source = normalize_generated_header(source)
-    for field in PATH_ID_PARAMS:
-        source = source.replace(f"  int {field},", f"  Object {field},")
-        source = source.replace(f"  int {field}", f"  Object {field}")
-    return patch_bodyless_request_args(source)
-
-
-def patch_bodyless_request_args(source: str) -> str:
-    """goctl emits `request` for POST/DELETE helpers that have no request type."""
-    parts = source.split("Future ")
-    out = [parts[0]]
-    for chunk in parts[1:]:
-        header, sep, rest = chunk.partition("{")
-        signature = header.split(")", 1)[0]
-        if sep and "request" not in signature and "    request," in rest:
-            rest = rest.replace("    request,", "    const {},", 1)
-        out.append("Future " + header + sep + rest)
-    return "".join(out)
-
-
-def copy_generated(src_root: Path, dest_root: Path, files: list[str]) -> None:
+def copy_generated(src_root: Path,dest_root: Path,files: list[str]) -> None:
     for rel in files:
-        src = src_root / rel
-        dest = dest_root / rel
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(src, dest)
+        destination=dest_root/rel;destination.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(src_root/rel,destination)
 
-
-def generated_differences(
-    src_root: Path, destinations: list[Path], files: list[str]
-) -> list[Path]:
-    differences: list[Path] = []
-    for destination in destinations:
-        for rel in files:
-            current = destination / rel
-            generated = src_root / rel
-            if not current.is_file() or current.read_bytes() != generated.read_bytes():
-                differences.append(current)
-    return differences
-
+def generated_differences(src_root: Path,destinations: list[Path],files: list[str]) -> list[Path]:
+    return [dest/rel for dest in destinations for rel in files if not (dest/rel).is_file() or (dest/rel).read_bytes()!=(src_root/rel).read_bytes()]
 
 def main() -> int:
-    repo = Path(__file__).resolve().parents[1]
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--api",
-        help=(
-            "Path to backend gateway.api; required with --check and otherwise "
-            "auto-discovered for writing sync"
-        ),
-    )
-    parser.add_argument(
-        "--check",
-        action="store_true",
-        help="Compare generated files without modifying the checkout",
-    )
-    args = parser.parse_args()
-    if args.check and not args.api:
-        parser.error(
-            "--check requires an explicit --api path to the reviewed backend revision"
-        )
-    api_path = (
-        Path(args.api).resolve()
-        if args.api
-        else default_backend_api_path(repo).resolve()
-    )
-    if not api_path.is_file():
-        print(f"gateway.api not found: {api_path}", file=sys.stderr)
-        return 1
-
-    with tempfile.TemporaryDirectory(prefix="xbh-goctl-dart-") as tmp:
-        generated = Path(tmp)
-        cmd = [
-            "goctl",
-            "api",
-            "dart",
-            "--api",
-            str(api_path),
-            "--dir",
-            str(generated),
-        ]
-        print(" ".join(cmd))
-        subprocess.run(cmd, check=True)
-
-        verbs = parse_handler_verbs(api_path)
-        gateway_api = normalize_generated_header(
-            patch_generated_api(
-                patch_gateway_methods(
-                    (generated / "api" / "gateway.dart").read_text(encoding="utf-8"),
-                    verbs,
-                )
-            )
-        )
-        (generated / "api" / "gateway.dart").write_text(gateway_api, encoding="utf-8")
-        types = normalize_generated_header(
-            patch_generated_types(
-                (generated / "data" / "gateway.dart").read_text(encoding="utf-8")
-            )
-        )
-        (generated / "data" / "gateway.dart").write_text(types, encoding="utf-8")
-
-        generated_files = ["api/gateway.dart", "data/gateway.dart"]
-        subprocess.run(
-            ["dart", "format", *(str(generated / rel) for rel in generated_files)],
-            check=True,
-        )
-        destinations = [repo / "vendor" / "sdk_source", repo / "lib" / "sdk"]
+    repo=Path(__file__).resolve().parents[1]
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--api');parser.add_argument('--check',action='store_true');args=parser.parse_args()
+    if args.check and not args.api: parser.error('--check requires an explicit --api path to the reviewed backend revision')
+    api=Path(args.api).resolve() if args.api else default_backend_api_path(repo)
+    if not api.is_file(): print(f'OpenAPI contract not found: {api}',file=sys.stderr);return 1
+    destinations=[repo/'vendor/sdk_source',repo/'lib/sdk']
+    with tempfile.TemporaryDirectory(prefix='xbh-openapi-dart-') as temp:
+        generated=Path(temp);generate(api,generated)
         if args.check:
-            differences = generated_differences(
-                generated, destinations, generated_files
-            )
+            differences=generated_differences(generated,destinations,GENERATED_FILES)
             if differences:
-                print("generated SDK drift detected:", file=sys.stderr)
-                for path in differences:
-                    print(f"  {path.relative_to(repo)}", file=sys.stderr)
+                print('generated SDK drift detected:',file=sys.stderr)
+                for p in differences: print(p.relative_to(repo),file=sys.stderr)
                 return 1
-            print("generated SDK is current")
+            print('generated SDK is current')
         else:
-            for destination in destinations:
-                copy_generated(generated, destination, generated_files)
-
-        patched = sorted(name for name, verb in verbs.items() if verb in VERB_TO_HELPER)
-        print(
-            "checked generated SDK files:"
-            if args.check
-            else "synced generated SDK files:"
-        )
-        for rel in generated_files:
-            print(f"  {rel}")
-        print("patched HTTP helpers:")
-        for name in patched:
-            print(f"  {name} -> {VERB_TO_HELPER[verbs[name]]}")
+            for dest in destinations: copy_generated(generated,dest,GENERATED_FILES)
     return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__=='__main__': raise SystemExit(main())

@@ -11,25 +11,26 @@ Current policy:
 ## Gateway SDK sync
 
 `sync_gateway_sdk.py` regenerates Dart types and API methods from the sibling
-backend `gateway.api` via `goctl api dart`, then patches PUT/DELETE verbs that
-the Dart generator still emits as POST. It also removes the checkout-specific
-absolute source path and formats the generated files before copying them.
+backend `openapi.yaml` using pinned PyYAML and project templates. OpenAPI operation
+verbs, path/query fields, JSON aliases, lossless IDs and PATCH presence are generated
+deterministically. Dart formats both outputs before copying them.
 
 ```bash
 python3 tools/sync_gateway_sdk.py \
-  --api ../little-white-box-content-community/app/gateway/gateway.api
+  --api ../little-white-box-content-community/app/gateway/openapi.yaml
 ```
 
 It updates `vendor/sdk_source/{api,data}/gateway.dart` and the `lib/sdk/`
 copies. Application-owned transport (`api/api.dart`, tokens, vars) is left
-untouched.
+untouched. Multipart and SSE operations generate route helpers used by those
+transports; they do not generate JSON request wrappers.
 
 Use check mode in CI or review gates. It generates into a temporary directory,
 compares both tracked destinations byte-for-byte, and does not modify the
 checkout:
 
 ```bash
-make sdk-check BACKEND_API=/absolute/path/to/verified/gateway.api
+make sdk-check BACKEND_API=/absolute/path/to/verified/openapi.yaml
 ```
 
 The API path must refer to the backend revision actually being reviewed. Do not

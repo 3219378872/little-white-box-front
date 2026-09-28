@@ -31,6 +31,6 @@ updated_at: '2026-09-27'
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| FQ-004 | DES-presentation-client | aligned | EVD-fq009-visual-2026-09-27 |
+| FQ-004 | DES-presentation-client | unknown | gap: OpenAPI SDK 与工具链迁移，待新提交上的对应验收证据。 |
 | FQ-005 | DES-presentation-client | unknown | gap: current native-platform evidence is temporary and does not cover physical devices or iOS |
-| FQ-009 | DES-presentation-client | aligned | EVD-fq009-visual-2026-09-27 |
+| FQ-009 | DES-presentation-client | unknown | gap: OpenAPI SDK 与工具链迁移，待新提交上的对应验收证据。 |

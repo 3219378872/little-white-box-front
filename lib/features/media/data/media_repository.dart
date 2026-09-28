@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart' show ImagePicker, ImageSource;
 import '../../../core/api/api_adapter.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
+import '../../../sdk/api/gateway.dart' as gateway;
 
 enum MediaKind {
   image('image', 2, 10 * 1024 * 1024),
@@ -35,7 +36,11 @@ class MediaRepository {
       throw ApiException('文件须为 1 字节至 ${kind.maxBytes ~/ (1024 * 1024)} MiB');
     }
     return apiPostMultipart<UploadedMedia>(
-      path: '/api/v1/media/${kind.path}',
+      path: switch (kind) {
+        MediaKind.image => gateway.uploadImagePath,
+        MediaKind.video => gateway.uploadVideoPath,
+        MediaKind.audio => gateway.uploadAudioPath,
+      },
       fieldName: 'file',
       filename: file.name,
       openRead: file.openRead,

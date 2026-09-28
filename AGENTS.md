@@ -53,8 +53,8 @@
 - `make tools-test`：运行仓库维护工具单测。
 - `make knowledge-test`：运行知识 validator fixture 测试。
 - `make knowledge-check`：校验五层知识 ID、引用、条款覆盖、本地链接和实现—证据闭环。
-- `make sdk-check BACKEND_API=<已核验 gateway.api>`：在临时目录重生并比较两份 SDK，不写工作树。
-- `make check BACKEND_API=<已核验 gateway.api>`：运行 analyze、测试、知识与 SDK gate。
+- `make sdk-check BACKEND_API=<已核验 openapi.yaml>`：在临时目录重生并比较两份 SDK，不写工作树。
+- `make check BACKEND_API=<已核验 openapi.yaml>`：运行 analyze、测试、知识与 SDK gate。
 - `make dev`：使用仓库内 Mock API 启动 Web 开发模式。
 - `make dev-real`：以相对路径 `/api/...` 连接当前源上的真实网关启动 Web。
 - `make dev-real SERVER_HOST=http://127.0.0.1:8888`：仍可显式指定绝对网关地址。

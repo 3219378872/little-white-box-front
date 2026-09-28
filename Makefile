@@ -29,8 +29,8 @@ help:
 		'make knowledge-index  Regenerate layer indexes' \
 		'make knowledge-export REF=HEAD  Export Git snapshot as JSON' \
 		'make knowledge-check  Validate five-layer project knowledge' \
-		'make sdk-check BACKEND_API=/path/to/gateway.api  Verify generated SDK copies without writing' \
-		'make check BACKEND_API=/path/to/gateway.api  Run format, analyze, tests, knowledge, and SDK gates' \
+		'make sdk-check BACKEND_API=/path/to/openapi.yaml  Verify generated SDK copies without writing' \
+		'make check BACKEND_API=/path/to/openapi.yaml  Run format, analyze, tests, knowledge, and SDK gates' \
 		'make dev         Start Mock Web in foreground with hot reload' \
 		'make dev-real    Start Web with relative /api paths (optional SERVER_HOST)' \
 		'make build-web   Build the Mock Web release artifact' \
@@ -80,7 +80,7 @@ knowledge-export: knowledge-ready
 
 require-backend-api:
 	@if [ -z "$(strip $(BACKEND_API))" ]; then \
-		printf '%s\n' 'BACKEND_API is required; pass BACKEND_API=/absolute/path/to/gateway.api' >&2; \
+		printf '%s\n' 'BACKEND_API is required; pass BACKEND_API=/absolute/path/to/openapi.yaml' >&2; \
 		exit 2; \
 	fi
 

@@ -738,7 +738,7 @@ class AssistantRepository implements AssistantDataSource {
     int? expectedSessionRevision,
   }) async {
     final seq = _asInt(afterSeq);
-    final path = '/api/v2/assistant/runs/${jsonInt64Id(runId)}/events';
+    final path = gw.assistantRunEventsPath(jsonInt64Id(runId));
     final uri = apiUri(seq > 0 ? '$path?afterSeq=$seq' : path, host: _baseUrl);
     final request = http.Request('GET', uri);
     request.headers.addAll({

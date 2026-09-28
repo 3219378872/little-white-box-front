@@ -4,230 +4,92 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from sync_gateway_sdk import (
-    default_backend_api_path,
-    generated_differences,
-    normalize_generated_header,
-    patch_bodyless_request_args,
-    patch_generated_types,
-)
+from sync_gateway_sdk import default_backend_api_path, generated_differences, render_api, render_types
 
 REPO = Path(__file__).resolve().parents[1]
-SCRIPT = Path(__file__).with_name("sync_gateway_sdk.py")
+SCRIPT = Path(__file__).with_name('sync_gateway_sdk.py')
 
 
-class NullablePrimitivePatchTest(unittest.TestCase):
-    def test_only_post_update_media_arrays_preserve_presence(self):
-        generated = """class UpdatePostV2Req {
-  final List<String> images;
-  final List<int> mediaIds;
-  UpdatePostV2Req({required this.images, required this.mediaIds,});
-  factory UpdatePostV2Req.fromJson(Map<String,dynamic> m) {
-    return UpdatePostV2Req(
-      images: m['images']?.cast<String>() ?? [],
-      mediaIds: m['mediaIds']?.cast<int>() ?? [],
-    );
-  }
-  Map<String,dynamic> toJson() { return {
-    'images': images,
-    'mediaIds': mediaIds,
-  }; }
-}
-class CreatePostReq {
-  final List<String> images;
-}
-"""
-        patched = patch_generated_types(generated)
-        self.assertIn("final List<String>? images;", patched)
-        self.assertIn("final List<Object>? mediaIds;", patched)
-        self.assertIn("images: m['images']?.cast<String>(),", patched)
-        self.assertIn("mediaIds: m['mediaIds'] == null ? null", patched)
-        self.assertIn("if (images != null) 'images': images,", patched)
-        self.assertIn("if (mediaIds != null) 'mediaIds': mediaIds,", patched)
-        self.assertIn("class CreatePostReq {\n  final List<String> images;", patched)
-        self.assertEqual(patch_generated_types(patched), patched)
+def prop(kind, name, required=True, **extra):
+    return {'x-dart-type': kind, 'x-dart-name': name, 'x-dart-required': required, **extra}
 
-    def test_finds_backend_api_from_main_checkout(self):
-        with TemporaryDirectory() as tmp:
-            workspace = Path(tmp) / "little"
-            frontend = workspace / "little-white-box-front"
-            api = (
-                workspace
-                / "little-white-box-content-community"
-                / "app"
-                / "gateway"
-                / "gateway.api"
-            )
+
+class OpenAPIGeneratorTest(unittest.TestCase):
+    def test_lossless_ids_nullable_patch_arrays_and_aliases(self):
+        spec = {'components': {'schemas': {'UpdateReq': {'properties': {
+            'id': prop('Object', 'conversationId'),
+            'mediaIds': prop('List<Object>?', 'mediaIds', False, **{'x-dart-omit-null': True}),
+            'images': prop('List<String>?', 'images', False, **{'x-dart-omit-null': True}),
+            'score': prop('double?', 'score', False),
+            'published': prop('bool?', 'published', False),
+        }}, 'Post': {'properties': {'mediaIds': prop('List<Object>', 'mediaIds', False, **{'x-dart-default': 'const []'})}}}}}
+        text = render_types(spec)
+        self.assertIn('final Object conversationId;', text)
+        self.assertIn("conversationId: m['id'] ?? 0", text)
+        self.assertIn("'id': conversationId", text)
+        self.assertIn("if (mediaIds != null) 'mediaIds': mediaIds", text)
+        self.assertIn("if (images != null) 'images': images", text)
+        self.assertIn('this.mediaIds = const []', text)
+        self.assertNotIn('?.fromJson', text)
+        self.assertNotIn('?.toJson', text)
+        self.assertNotIn('.toInt()', text)
+
+    def test_path_encoding_query_whitelist_and_bodyless_operation(self):
+        spec = {'components': {'schemas': {'ListReq': {'properties': {
+            'id': prop('Object', 'conversationId'), 'beforeId': prop('Object?', 'beforeId', False),
+        }}}}, 'paths': {'/api/conversations/{id}': {'get': {
+            'operationId': 'ListMessages', 'x-request-type': 'ListReq', 'x-response-type': 'ListResp',
+            'parameters': [{'name': 'id', 'in': 'path'}, {'name': 'beforeId', 'in': 'query'}],
+        }}, '/api/session': {'post': {'operationId': 'CreateSession', 'x-response-type': 'Session'}}}}
+        text = render_api(spec)
+        self.assertIn('Uri.encodeComponent(id.toString())', text)
+        self.assertIn("allowed=<String>{'beforeId'}", text)
+        self.assertIn('ListReq? request', text)
+        self.assertIn('await apiPost(url,const {}', text)
+
+    def test_streaming_operations_generate_routes_without_json_requests(self):
+        spec = {'components': {'schemas': {}}, 'paths': {
+            '/media': {'post': {'operationId': 'Upload', 'x-response-type': 'Media',
+                'requestBody': {'content': {'multipart/form-data': {}}}}},
+            '/runs/{id}/events': {'get': {'operationId': 'Events', 'x-response-type': 'Event',
+                'x-sse': True, 'parameters': [{'name': 'id', 'in': 'path'}]}},
+        }}
+        text = render_api(spec)
+        self.assertIn('const uploadPath = "/media"', text)
+        self.assertIn('String eventsPath(Object id)', text)
+        self.assertNotIn('await apiPost', text)
+        self.assertNotIn('await apiGet', text)
+
+    def test_default_api_works_from_nested_task_checkout(self):
+        with TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            frontend = workspace / 'little-white-box-front/.worktree/task-sdk'
+            api = workspace / 'little-white-box-content-community/app/gateway/openapi.yaml'
             frontend.mkdir(parents=True)
             api.parent.mkdir(parents=True)
             api.touch()
-
             self.assertEqual(default_backend_api_path(frontend), api)
 
-    def test_finds_backend_api_from_nested_task_worktree(self):
-        with TemporaryDirectory() as tmp:
-            workspace = Path(tmp) / "little"
-            frontend = workspace / "little-white-box-front" / ".worktree" / "task-sdk"
-            api = (
-                workspace
-                / "little-white-box-content-community"
-                / "app"
-                / "gateway"
-                / "gateway.api"
-            )
-            frontend.mkdir(parents=True)
-            api.parent.mkdir(parents=True)
-            api.touch()
-
-            self.assertEqual(default_backend_api_path(frontend), api)
-
-    def test_normalizes_checkout_specific_source_header(self):
-        generated = "// --/tmp/worktree/app/gateway/gateway--\n\nclass Req {}\n"
-
-        patched = normalize_generated_header(generated)
-
-        self.assertEqual(
-            "// --app/gateway/gateway--\n\nclass Req {}\n",
-            patched,
-        )
-
-    def test_additive_post_media_preserves_constructor_compatibility(self):
-        generated = """// --/temporary/worktree/app/gateway/gateway--
-class PostItem {
-  final List<int> mediaIds;
-  PostItem({required this.mediaIds,});
-  factory PostItem.fromJson(Map<String,dynamic> m) { return PostItem(); }
-}
-"""
-        patched = patch_generated_types(generated)
-        self.assertIn("this.mediaIds = const [],", patched)
-        self.assertIn("final List<Object> mediaIds;", patched)
-        self.assertNotIn("/temporary/worktree", patched)
-        self.assertEqual(patch_generated_types(patched), patched)
-
-    def test_patches_nullable_primitive_serialization(self):
-        generated = """
-final String? value;
-final double? score;
-final bool? suppressed;
-value: m['value'] == null ? null : String?.fromJson(m['value']),
-score: m['score'] == null ? null : double?.fromJson(m['score']),
-suppressed: m['suppressed'] == null ? null : bool?.fromJson(m['suppressed']),
-'value': value?.toJson(),
-'score': score?.toJson(),
-'suppressed': suppressed?.toJson(),
-"""
-
-        patched = patch_generated_types(generated)
-
-        self.assertNotIn("?.fromJson", patched)
-        self.assertNotIn("?.toJson", patched)
-        self.assertIn("m['value']?.toString()", patched)
-        self.assertIn("(m['score'] as num).toDouble()", patched)
-        self.assertIn("m['suppressed'] as bool", patched)
-
-    def test_widens_generated_entity_ids(self):
-        generated = """
-final num runId;
-final num sessionId;
-final num changeId;
-final num lastMessageId;
-final num activeRunId;
-final num beforeId;
-final num nextBeforeId;
-final num mediaId;
-final List<int> mediaIds;
-final List<int> changeIds;
-mediaIds: m['mediaIds']?.cast<int>() ?? [],
-changeIds: m['changeIds']?.cast<int>() ?? [],
-"""
-        patched = patch_generated_types(generated)
-        self.assertIn("final Object runId;", patched)
-        self.assertIn("final Object sessionId;", patched)
-        self.assertIn("final Object changeId;", patched)
-        self.assertIn("final Object lastMessageId;", patched)
-        self.assertIn("final Object activeRunId;", patched)
-        self.assertIn("final Object beforeId;", patched)
-        self.assertIn("final Object nextBeforeId;", patched)
-        self.assertIn("final Object mediaId;", patched)
-        self.assertIn("final List<Object> mediaIds;", patched)
-        self.assertIn("List<Object>.from(m['mediaIds'] as List)", patched)
-        self.assertIn("final List<Object> changeIds;", patched)
-        self.assertIn("List<Object>.from(m['changeIds'] as List)", patched)
-
-    def test_replaces_undefined_request_in_bodyless_helpers(self):
-        generated = """
-Future createAssistantSession({
-  Function(CreateAssistantSessionResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/sessions",
-    request,
-    ok: (data) {
-      if (ok != null) ok(CreateAssistantSessionResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-"""
-        patched = patch_bodyless_request_args(generated)
-        self.assertIn("const {},", patched)
-        self.assertNotIn("    request,", patched)
-
-    def test_detects_generated_file_drift_without_writing_destinations(self):
-        with TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            generated = root / "generated"
-            vendor = root / "vendor"
-            app = root / "app"
-            relative = "api/gateway.dart"
-            for directory, contents in (
-                (generated, "current"),
-                (vendor, "current"),
-                (app, "stale"),
-            ):
-                path = directory / relative
+    def test_detects_drift_without_writing(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            for name, value in [('generated', 'new'), ('vendor', 'new'), ('app', 'old')]:
+                path = root / name / 'api/gateway.dart'
                 path.parent.mkdir(parents=True)
-                path.write_text(contents, encoding="utf-8")
+                path.write_text(value)
+            self.assertEqual(generated_differences(root/'generated', [root/'vendor', root/'app'], ['api/gateway.dart']), [root/'app/api/gateway.dart'])
+            self.assertEqual((root/'app/api/gateway.dart').read_text(), 'old')
 
-            differences = generated_differences(generated, [vendor, app], [relative])
-
-            self.assertEqual(differences, [app / relative])
-            self.assertEqual((app / relative).read_text(encoding="utf-8"), "stale")
-
-    def test_check_cli_requires_an_explicit_backend_api(self):
-        result = subprocess.run(
-            [sys.executable, str(SCRIPT), "--check"],
-            cwd=REPO,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
-
+    def test_checks_require_explicit_reviewed_contract(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), '--check'], capture_output=True, text=True)
         self.assertEqual(result.returncode, 2)
-        self.assertIn("--check requires an explicit --api path", result.stderr)
-        self.assertNotIn("goctl api dart", result.stdout)
-
-    def test_make_check_targets_fail_early_without_backend_api(self):
-        for target in ("sdk-check", "check"):
-            with self.subTest(target=target):
-                result = subprocess.run(
-                    ["make", "--no-print-directory", target, "BACKEND_API="],
-                    cwd=REPO,
-                    text=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    check=False,
-                )
-
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn("BACKEND_API is required", result.stderr)
-                self.assertNotIn("flutter analyze", result.stdout)
+        self.assertIn('--check requires an explicit --api path', result.stderr)
+        for target in ('sdk-check', 'check'):
+            result = subprocess.run(['make', '--no-print-directory', target, 'BACKEND_API='], cwd=REPO, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('BACKEND_API is required', result.stderr)
+            self.assertNotIn('flutter analyze', result.stdout)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

@@ -85,13 +85,15 @@ mounted 和当前命令身份拒绝迟到结果。首次加载、刷新、分页
 搜索的对应结果列表必须存在，显式 null 兼容 Go nil slice；用户搜索 total 和未读汇总的两个计数必须
 是非负整数。资料读取的 `isFollowing` 必须是布尔值；缺失或畸形成功体进入错误态，不能回退为未关注。
 
-`vendor/sdk_source` 是 `goctl api dart` 的生成来源，`lib/sdk` 是应用副本。PUT/DELETE 修补、绝对生成
-路径清理和实体 ID 类型兼容集中在 `tools/sync_gateway_sdk.py`；应用适配位于 `core/api` 或 feature
-repository，禁止只手改任一生成副本。`sdk-check` 必须针对已核验的后端 `gateway.api` 在临时目录重生
+后端 `app/gateway/openapi.yaml` 为公开契约源，`vendor/sdk_source` 与 `lib/sdk` 是相同的生成副本。
+`tools/sync_gateway_sdk.py` 根据 OpenAPI 生成 Dart 类型、HTTP 方法、路径/query 与 JSON 字段别名，
+保留实体 ID、可空性、缺省值和 PATCH presence。应用适配位于 `core/api` 或 feature repository，
+认证刷新、multipart 与 SSE 继续由应用自有传输负责；这四条操作仅生成路由 helper，供现有
+MediaRepository/AssistantRepository 使用，不生成无效的 JSON 请求包装。禁止只手改任一生成副本。`sdk-check` 必须针对已核验的后端 `openapi.yaml` 在临时目录重生
 并逐字比较两份副本。
 
 `UpdatePostV2Req` 的 images/mediaIds 数组保留 presence：null 表示不提供并从 JSON 省略，显式空
-列表发送 `[]` 以清空。该修补只由生成工具作用于此请求模型，不改变创建请求或其它数组的默认语义。
+列表发送 `[]` 以清空。该语义由 OpenAPI 的 Dart presence 扩展作用于此请求模型，不改变创建请求或其它数组的默认语义。
 
 网关雪花 ID 是 JSON number。解码前将 16 位及以上整数字面量保护为字符串，编码时仅在 `Id`/`Ids`
 键上下文把十进制字符串还原为 JSON number；自由文本不做转换。路径、query、路由和领域模型不把实体

@@ -1,1041 +1,376 @@
+// Generated from app/gateway/openapi.yaml. DO NOT EDIT.
+
 import 'api.dart';
 import '../data/gateway.dart';
 
-/// gateway
-
-/// --/api/v1/health--
-///
-/// request: HealthReq
-/// response: HealthResp
 Future health({
   Function(HealthResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  final url = "/api/v1/health";
   await apiGet(
-    "/api/v1/health",
+    url,
     ok: (data) {
-      if (ok != null) ok(HealthResp.fromJson(data));
+      if (ok != null)
+        ok(
+          HealthResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v1/health/ready--
-///
-/// request: HealthReq
-/// response: HealthReadyResp
 Future healthReady({
   Function(HealthReadyResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  final url = "/api/v1/health/ready";
   await apiGet(
-    "/api/v1/health/ready",
+    url,
     ok: (data) {
-      if (ok != null) ok(HealthReadyResp.fromJson(data));
+      if (ok != null)
+        ok(
+          HealthReadyResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v2/assistant/runs/:id/events--
-///
-/// request: AssistantRunEventsReq
-/// response: AssistantRunEvent
-Future assistantRunEvents(
-  Object id, {
-  Function(AssistantRunEvent)? ok,
+Future getPostList({
+  GetPostListReq? request,
+  Function(GetPostListResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  var url = "/api/v1/posts";
+  if (request != null) {
+    final allowed = <String>{'pageSize', 'sortBy', 'cursor'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
   await apiGet(
-    "/api/v2/assistant/runs/${id}/events",
+    url,
     ok: (data) {
-      if (ok != null) ok(AssistantRunEvent.fromJson(data));
+      if (ok != null)
+        ok(
+          GetPostListResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v2/assistant/consent--
-///
-/// request:
-/// response: GetAgentConsentResp
-Future getAgentConsent({
-  Function(GetAgentConsentResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v2/assistant/consent",
-    ok: (data) {
-      if (ok != null) ok(GetAgentConsentResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/consent--
-///
-/// request: SetAgentConsentReq
-/// response: SetAgentConsentResp
-Future setAgentConsent(
-  SetAgentConsentReq request, {
-  Function(SetAgentConsentResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/consent",
-    request,
-    ok: (data) {
-      if (ok != null) ok(SetAgentConsentResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/history--
-///
-/// request:
-/// response: DeleteAssistantHistoryResp
-Future deleteAssistantHistory({
-  Function(DeleteAssistantHistoryResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiDelete(
-    "/api/v2/assistant/history",
-    const {},
-    ok: (data) {
-      if (ok != null) ok(DeleteAssistantHistoryResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/memory--
-///
-/// request: ListAssistantMemoryReq
-/// response: ListAssistantMemoryResp
-Future listAssistantMemory({
-  Function(ListAssistantMemoryResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v2/assistant/memory",
-    ok: (data) {
-      if (ok != null) ok(ListAssistantMemoryResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/memory--
-///
-/// request: AddAssistantMemoryReq
-/// response: AddAssistantMemoryResp
-Future addAssistantMemory(
-  AddAssistantMemoryReq request, {
-  Function(AddAssistantMemoryResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/memory",
-    request,
-    ok: (data) {
-      if (ok != null) ok(AddAssistantMemoryResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/memory/:id--
-///
-/// request: ReplaceAssistantMemoryReq
-/// response: ReplaceAssistantMemoryResp
-Future replaceAssistantMemory(
-  Object id,
-  ReplaceAssistantMemoryReq request, {
-  Function(ReplaceAssistantMemoryResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPatch(
-    "/api/v2/assistant/memory/${id}",
-    request,
-    ok: (data) {
-      if (ok != null) ok(ReplaceAssistantMemoryResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/memory/:id--
-///
-/// request: RemoveAssistantMemoryReq
-/// response: RemoveAssistantMemoryResp
-Future removeAssistantMemory(
-  Object id,
-  RemoveAssistantMemoryReq request, {
-  Function(RemoveAssistantMemoryResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiDelete(
-    "/api/v2/assistant/memory/${id}",
-    request,
-    ok: (data) {
-      if (ok != null) ok(RemoveAssistantMemoryResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/memory/batch--
-///
-/// request: BatchAssistantMemoryReq
-/// response: BatchAssistantMemoryResp
-Future batchAssistantMemory(
-  BatchAssistantMemoryReq request, {
-  Function(BatchAssistantMemoryResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/memory/batch",
-    request,
-    ok: (data) {
-      if (ok != null) ok(BatchAssistantMemoryResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/memory/changes/:id/undo--
-///
-/// request: UndoAssistantMemoryChangeReq
-/// response: UndoAssistantMemoryChangeResp
-Future undoAssistantMemoryChange(
-  Object id,
-  UndoAssistantMemoryChangeReq request, {
-  Function(UndoAssistantMemoryChangeResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/memory/changes/${id}/undo",
-    request,
-    ok: (data) {
-      if (ok != null) ok(UndoAssistantMemoryChangeResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/messages--
-///
-/// request: ListAssistantMessagesReq
-/// response: ListAssistantMessagesResp
-Future listAssistantMessages({
-  Function(ListAssistantMessagesResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v2/assistant/messages",
-    ok: (data) {
-      if (ok != null) ok(ListAssistantMessagesResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/messages--
-///
-/// request: PostAssistantMessageReq
-/// response: PostAssistantMessageResp
-Future postAssistantMessage(
-  PostAssistantMessageReq request, {
-  Function(PostAssistantMessageResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/messages",
-    request,
-    ok: (data) {
-      if (ok != null) ok(PostAssistantMessageResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/recommend/feedback--
-///
-/// request: AssistantRecommendFeedbackReq
-/// response: AssistantRecommendFeedbackResp
-Future submitAssistantRecommendFeedback(
-  AssistantRecommendFeedbackReq request, {
-  Function(AssistantRecommendFeedbackResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/recommend/feedback",
-    request,
-    ok: (data) {
-      if (ok != null) ok(AssistantRecommendFeedbackResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/runs/:id/answers--
-///
-/// request: AnswerAssistantQuestionsReq
-/// response: AnswerAssistantQuestionsResp
-Future answerAssistantQuestions(
-  Object id,
-  AnswerAssistantQuestionsReq request, {
-  Function(AnswerAssistantQuestionsResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/runs/${id}/answers",
-    request,
-    ok: (data) {
-      if (ok != null) ok(AnswerAssistantQuestionsResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/runs/:id/cancel--
-///
-/// request: CancelAssistantRunReq
-/// response: CancelAssistantRunResp
-Future cancelAssistantRun(
-  Object id,
-  CancelAssistantRunReq request, {
-  Function(CancelAssistantRunResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/runs/${id}/cancel",
-    request,
-    ok: (data) {
-      if (ok != null) ok(CancelAssistantRunResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/runs/:id/confirm--
-///
-/// request: ConfirmAssistantRunReq
-/// response: ConfirmAssistantRunResp
-Future confirmAssistantRun(
-  Object id,
-  ConfirmAssistantRunReq request, {
-  Function(ConfirmAssistantRunResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/runs/${id}/confirm",
-    request,
-    ok: (data) {
-      if (ok != null) ok(ConfirmAssistantRunResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/thread--
-///
-/// request:
-/// response: GetAssistantThreadResp
-Future getAssistantThread({
-  Function(GetAssistantThreadResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v2/assistant/thread",
-    ok: (data) {
-      if (ok != null) ok(GetAssistantThreadResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/thread/read--
-///
-/// request:
-/// response: MarkAssistantThreadReadResp
-Future markAssistantThreadRead({
-  Function(MarkAssistantThreadReadResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/thread/read",
-    const {},
-    ok: (data) {
-      if (ok != null) ok(MarkAssistantThreadReadResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/watch--
-///
-/// request: ListAssistantWatchReq
-/// response: ListAssistantWatchResp
-Future listAssistantWatch({
-  Function(ListAssistantWatchResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v2/assistant/watch",
-    ok: (data) {
-      if (ok != null) ok(ListAssistantWatchResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/watch--
-///
-/// request: CreateAssistantWatchReq
-/// response: CreateAssistantWatchResp
-Future createAssistantWatch(
-  CreateAssistantWatchReq request, {
-  Function(CreateAssistantWatchResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/assistant/watch",
-    request,
-    ok: (data) {
-      if (ok != null) ok(CreateAssistantWatchResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/watch/:id--
-///
-/// request: UpdateAssistantWatchReq
-/// response: UpdateAssistantWatchResp
-Future updateAssistantWatch(
-  Object id,
-  UpdateAssistantWatchReq request, {
-  Function(UpdateAssistantWatchResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPatch(
-    "/api/v2/assistant/watch/${id}",
-    request,
-    ok: (data) {
-      if (ok != null) ok(UpdateAssistantWatchResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/assistant/watch/:id--
-///
-/// request: DeleteAssistantWatchReq
-/// response: DeleteAssistantWatchResp
-Future deleteAssistantWatch(
-  Object id,
-  DeleteAssistantWatchReq request, {
-  Function(DeleteAssistantWatchResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiDelete(
-    "/api/v2/assistant/watch/${id}",
-    request,
-    ok: (data) {
-      if (ok != null) ok(DeleteAssistantWatchResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/behavior/events--
-///
-/// request: RecordBehaviorEventsReq
-/// response: RecordBehaviorEventsResp
-Future recordBehaviorEvents(
-  RecordBehaviorEventsReq request, {
-  Function(RecordBehaviorEventsResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/behavior/events",
-    request,
-    ok: (data) {
-      if (ok != null) ok(RecordBehaviorEventsResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/comments/:commentId/replies--
-///
-/// request: GetCommentRepliesReq
-/// response: GetCommentRepliesResp
-Future getCommentReplies(
-  Object commentId, {
-  Function(GetCommentRepliesResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v1/comments/${commentId}/replies",
-    ok: (data) {
-      if (ok != null) ok(GetCommentRepliesResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/comments/:postId--
-///
-/// request: GetCommentListReq
-/// response: GetCommentListResp
-Future getCommentList(
-  Object postId, {
-  Function(GetCommentListResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v1/comments/${postId}",
-    ok: (data) {
-      if (ok != null) ok(GetCommentListResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/comment--
-///
-/// request: CreateCommentReq
-/// response: CreateCommentResp
-Future createComment(
-  CreateCommentReq request, {
-  Function(CreateCommentResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v1/comment",
-    request,
-    ok: (data) {
-      if (ok != null) ok(CreateCommentResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/comment/:commentId--
-///
-/// request: DeleteCommentReq
-/// response: DeleteCommentResp
-Future deleteComment(
-  Object commentId,
-  DeleteCommentReq request, {
-  Function(DeleteCommentResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiDelete(
-    "/api/v1/comment/${commentId}",
-    request,
-    ok: (data) {
-      if (ok != null) ok(DeleteCommentResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/feed/follow--
-///
-/// request: GetFollowFeedReq
-/// response: GetFollowFeedResp
-Future getFollowFeed({
-  Function(GetFollowFeedResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v2/feed/follow",
-    ok: (data) {
-      if (ok != null) ok(GetFollowFeedResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/feed/recommend--
-///
-/// request: GetRecommendFeedReq
-/// response: GetRecommendFeedResp
-Future getRecommendFeed({
-  Function(GetRecommendFeedResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v2/feed/recommend",
-    ok: (data) {
-      if (ok != null) ok(GetRecommendFeedResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/media/image--
-///
-/// request: UploadImageReq
-/// response: UploadImageResp
-Future uploadImage(
-  UploadImageReq request, {
-  Function(UploadImageResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v1/media/image",
-    request,
-    ok: (data) {
-      if (ok != null) ok(UploadImageResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/favorite--
-///
-/// request: FavoriteReq
-/// response: FavoriteResp
-Future favorite(
-  FavoriteReq request, {
-  Function(FavoriteResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v1/favorite",
-    request,
-    ok: (data) {
-      if (ok != null) ok(FavoriteResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/favorite--
-///
-/// request: UnfavoriteReq
-/// response: UnfavoriteResp
-Future unfavorite(
-  UnfavoriteReq request, {
-  Function(UnfavoriteResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiDelete(
-    "/api/v1/favorite",
-    request,
-    ok: (data) {
-      if (ok != null) ok(UnfavoriteResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/like--
-///
-/// request: LikeReq
-/// response: LikeResp
-Future like(
-  LikeReq request, {
-  Function(LikeResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v1/like",
-    request,
-    ok: (data) {
-      if (ok != null) ok(LikeResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/like--
-///
-/// request: UnlikeReq
-/// response: UnlikeResp
-Future unlike(
-  UnlikeReq request, {
-  Function(UnlikeResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiDelete(
-    "/api/v1/like",
-    request,
-    ok: (data) {
-      if (ok != null) ok(UnlikeResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/auth/login--
-///
-/// request: LoginReq
-/// response: LoginResp
-Future login(
-  LoginReq request, {
-  Function(LoginResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v1/auth/login",
-    request,
-    ok: (data) {
-      if (ok != null) ok(LoginResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/auth/refresh--
-///
-/// request: RefreshTokenReq
-/// response: RefreshTokenResp
-Future refreshToken(
-  RefreshTokenReq request, {
-  Function(RefreshTokenResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v1/auth/refresh",
-    request,
-    ok: (data) {
-      if (ok != null) ok(RefreshTokenResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/auth/register--
-///
-/// request: RegisterReq
-/// response: RegisterResp
-Future register(
-  RegisterReq request, {
-  Function(RegisterResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v1/auth/register",
-    request,
-    ok: (data) {
-      if (ok != null) ok(RegisterResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/auth/verify-code--
-///
-/// request: SendVerifyCodeReq
-/// response: SendVerifyCodeResp
-Future sendVerifyCode(
-  SendVerifyCodeReq request, {
-  Function(SendVerifyCodeResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v1/auth/verify-code",
-    request,
-    ok: (data) {
-      if (ok != null) ok(SendVerifyCodeResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/media/audio--
-///
-/// request: UploadMediaReq
-/// response: UploadMediaResp
-Future uploadAudio(
-  UploadMediaReq request, {
-  Function(UploadMediaResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v1/media/audio",
-    request,
-    ok: (data) {
-      if (ok != null) ok(UploadMediaResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/media/video--
-///
-/// request: UploadMediaReq
-/// response: UploadMediaResp
-Future uploadVideo(
-  UploadMediaReq request, {
-  Function(UploadMediaResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v1/media/video",
-    request,
-    ok: (data) {
-      if (ok != null) ok(UploadMediaResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/messages--
-///
-/// request: SendMessageReq
-/// response: SendMessageResp
-Future sendMessage(
-  SendMessageReq request, {
-  Function(SendMessageResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/messages",
-    request,
-    ok: (data) {
-      if (ok != null) ok(SendMessageResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/messages/conversations--
-///
-/// request: GetConversationsReq
-/// response: GetConversationsResp
-Future getConversations({
-  Function(GetConversationsResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v2/messages/conversations",
-    ok: (data) {
-      if (ok != null) ok(GetConversationsResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/messages/conversations/:id--
-///
-/// request: GetMessagesReq
-/// response: GetMessagesResp
-Future getMessages(
-  Object id, {
-  Function(GetMessagesResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v2/messages/conversations/${id}",
-    ok: (data) {
-      if (ok != null) ok(GetMessagesResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/messages/conversations/:id/read--
-///
-/// request: MarkConversationReadReq
-/// response: MarkConversationReadResp
-Future markConversationRead(
-  Object id,
-  MarkConversationReadReq request, {
-  Function(MarkConversationReadResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiPost(
-    "/api/v2/messages/conversations/${id}/read",
-    request,
-    ok: (data) {
-      if (ok != null) ok(MarkConversationReadResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/messages/unread--
-///
-/// request:
-/// response: GetUnreadSummaryResp
-Future getUnreadSummary({
-  Function(GetUnreadSummaryResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v2/messages/unread",
-    ok: (data) {
-      if (ok != null) ok(GetUnreadSummaryResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v1/post/:postId--
-///
-/// request: GetPostReq
-/// response: GetPostResp
 Future getPost(
   Object postId, {
   Function(GetPostResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  final url = "/api/v1/post/${Uri.encodeComponent(postId.toString())}";
   await apiGet(
-    "/api/v1/post/${postId}",
+    url,
     ok: (data) {
-      if (ok != null) ok(GetPostResp.fromJson(data));
+      if (ok != null)
+        ok(
+          GetPostResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v1/posts--
-///
-/// request: GetPostListReq
-/// response: GetPostListResp
-Future getPostList({
+Future register(
+  RegisterReq request, {
+  Function(RegisterResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/auth/register";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          RegisterResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future login(
+  LoginReq request, {
+  Function(LoginResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/auth/login";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          LoginResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future sendVerifyCode(
+  SendVerifyCodeReq request, {
+  Function(SendVerifyCodeResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/auth/verify-code";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          SendVerifyCodeResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future refreshToken(
+  RefreshTokenReq request, {
+  Function(RefreshTokenResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/auth/refresh";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          RefreshTokenResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future getUser(
+  Object userId, {
+  Function(GetUserResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/user/${Uri.encodeComponent(userId.toString())}";
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          GetUserResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future getUserPosts(
+  Object userId, {
+  GetUserPostsReq? request,
   Function(GetPostListResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  var url = "/api/v1/users/${Uri.encodeComponent(userId.toString())}/posts";
+  if (request != null) {
+    final allowed = <String>{'pageSize', 'sortBy', 'cursor'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
   await apiGet(
-    "/api/v1/posts",
+    url,
     ok: (data) {
-      if (ok != null) ok(GetPostListResp.fromJson(data));
+      if (ok != null)
+        ok(
+          GetPostListResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v2/post--
-///
-/// request: CreatePostReq
-/// response: CreatePostResp
+Future getUserFavorites(
+  Object userId, {
+  GetUserFavoritesReq? request,
+  Function(GetPostListResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  var url = "/api/v1/users/${Uri.encodeComponent(userId.toString())}/favorites";
+  if (request != null) {
+    final allowed = <String>{'page', 'pageSize', 'cursor'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          GetPostListResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future updateProfile(
+  UpdateProfileReq request, {
+  Function(UpdateProfileResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/user/profile";
+  await apiPut(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          UpdateProfileResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future follow(
+  FollowReq request, {
+  Function(FollowResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/user/follow";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          FollowResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future unfollow(
+  UnfollowReq request, {
+  Function(UnfollowResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/user/follow";
+  await apiDelete(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          UnfollowResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 Future createPostV2(
   CreatePostReq request, {
   Function(CreatePostResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  final url = "/api/v2/post";
   await apiPost(
-    "/api/v2/post",
+    url,
     request,
     ok: (data) {
-      if (ok != null) ok(CreatePostResp.fromJson(data));
+      if (ok != null)
+        ok(
+          CreatePostResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v2/post/:postId--
-///
-/// request: UpdatePostV2Req
-/// response: UpdatePostResp
 Future updatePostV2(
   Object postId,
   UpdatePostV2Req request, {
@@ -1043,21 +378,23 @@ Future updatePostV2(
   Function(String)? fail,
   Function? eventually,
 }) async {
+  final url = "/api/v2/post/${Uri.encodeComponent(postId.toString())}";
   await apiPut(
-    "/api/v2/post/${postId}",
+    url,
     request,
     ok: (data) {
-      if (ok != null) ok(UpdatePostResp.fromJson(data));
+      if (ok != null)
+        ok(
+          UpdatePostResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v2/post/:postId--
-///
-/// request: DeletePostV2Req
-/// response: DeletePostResp
 Future deletePostV2(
   Object postId,
   DeletePostV2Req request, {
@@ -1065,231 +402,1107 @@ Future deletePostV2(
   Function(String)? fail,
   Function? eventually,
 }) async {
+  final url = "/api/v2/post/${Uri.encodeComponent(postId.toString())}";
   await apiDelete(
-    "/api/v2/post/${postId}",
+    url,
     request,
     ok: (data) {
-      if (ok != null) ok(DeletePostResp.fromJson(data));
+      if (ok != null)
+        ok(
+          DeletePostResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v2/search--
-///
-/// request: SearchReq
-/// response: SearchResp
+Future getCommentList(
+  Object postId, {
+  GetCommentListReq? request,
+  Function(GetCommentListResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  var url = "/api/v1/comments/${Uri.encodeComponent(postId.toString())}";
+  if (request != null) {
+    final allowed = <String>{'page', 'pageSize', 'sortBy'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          GetCommentListResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future getCommentReplies(
+  Object commentId, {
+  GetCommentRepliesReq? request,
+  Function(GetCommentRepliesResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  var url =
+      "/api/v1/comments/${Uri.encodeComponent(commentId.toString())}/replies";
+  if (request != null) {
+    final allowed = <String>{'page', 'pageSize'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          GetCommentRepliesResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future createComment(
+  CreateCommentReq request, {
+  Function(CreateCommentResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/comment";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          CreateCommentResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future deleteComment(
+  Object commentId,
+  DeleteCommentReq request, {
+  Function(DeleteCommentResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/comment/${Uri.encodeComponent(commentId.toString())}";
+  await apiDelete(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          DeleteCommentResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future like(
+  LikeReq request, {
+  Function(LikeResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/like";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          LikeResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future unlike(
+  UnlikeReq request, {
+  Function(UnlikeResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/like";
+  await apiDelete(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          UnlikeResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future favorite(
+  FavoriteReq request, {
+  Function(FavoriteResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/favorite";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          FavoriteResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future unfavorite(
+  UnfavoriteReq request, {
+  Function(UnfavoriteResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v1/favorite";
+  await apiDelete(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          UnfavoriteResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+const uploadImagePath = "/api/v1/media/image";
+
+const uploadVideoPath = "/api/v1/media/video";
+
+const uploadAudioPath = "/api/v1/media/audio";
+
+Future recordBehaviorEvents(
+  RecordBehaviorEventsReq request, {
+  Function(RecordBehaviorEventsResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/behavior/events";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          RecordBehaviorEventsResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future getFollowFeed({
+  GetFollowFeedReq? request,
+  Function(GetFollowFeedResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  var url = "/api/v2/feed/follow";
+  if (request != null) {
+    final allowed = <String>{'cursorCreatedAt', 'cursorPostId', 'pageSize'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          GetFollowFeedResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future getRecommendFeed({
+  GetRecommendFeedReq? request,
+  Function(GetRecommendFeedResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  var url = "/api/v2/feed/recommend";
+  if (request != null) {
+    final allowed = <String>{
+      'anonymousId',
+      'scene',
+      'requestId',
+      'sessionId',
+      'cursor',
+      'pageSize',
+      'experimentId',
+    };
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          GetRecommendFeedResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 Future search({
+  SearchReq? request,
   Function(SearchResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  var url = "/api/v2/search";
+  if (request != null) {
+    final allowed = <String>{'keyword', 'page', 'pageSize'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
   await apiGet(
-    "/api/v2/search",
+    url,
     ok: (data) {
-      if (ok != null) ok(SearchResp.fromJson(data));
+      if (ok != null)
+        ok(
+          SearchResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v2/search/tags--
-///
-/// request: SearchTagsReq
-/// response: SearchTagsResp
-Future searchTags({
-  Function(SearchTagsResp)? ok,
-  Function(String)? fail,
-  Function? eventually,
-}) async {
-  await apiGet(
-    "/api/v2/search/tags",
-    ok: (data) {
-      if (ok != null) ok(SearchTagsResp.fromJson(data));
-    },
-    fail: fail,
-    eventually: eventually,
-  );
-}
-
-/// --/api/v2/search/users--
-///
-/// request: SearchUsersReq
-/// response: SearchUsersResp
 Future searchUsers({
+  SearchUsersReq? request,
   Function(SearchUsersResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  var url = "/api/v2/search/users";
+  if (request != null) {
+    final allowed = <String>{'keyword', 'page', 'pageSize'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
   await apiGet(
-    "/api/v2/search/users",
+    url,
     ok: (data) {
-      if (ok != null) ok(SearchUsersResp.fromJson(data));
+      if (ok != null)
+        ok(
+          SearchUsersResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v1/user/:userId--
-///
-/// request: GetUserReq
-/// response: GetUserResp
-Future getUser(
-  Object userId, {
-  Function(GetUserResp)? ok,
+Future searchTags({
+  SearchTagsReq? request,
+  Function(SearchTagsResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  var url = "/api/v2/search/tags";
+  if (request != null) {
+    final allowed = <String>{'keyword', 'limit'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
   await apiGet(
-    "/api/v1/user/${userId}",
+    url,
     ok: (data) {
-      if (ok != null) ok(GetUserResp.fromJson(data));
+      if (ok != null)
+        ok(
+          SearchTagsResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v1/users/:userId/favorites--
-///
-/// request: GetUserFavoritesReq
-/// response: GetPostListResp
-Future getUserFavorites(
-  Object userId, {
-  Function(GetPostListResp)? ok,
+Future getConversations({
+  GetConversationsReq? request,
+  Function(GetConversationsResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  var url = "/api/v2/messages/conversations";
+  if (request != null) {
+    final allowed = <String>{'page', 'pageSize'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
   await apiGet(
-    "/api/v1/users/${userId}/favorites",
+    url,
     ok: (data) {
-      if (ok != null) ok(GetPostListResp.fromJson(data));
+      if (ok != null)
+        ok(
+          GetConversationsResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v1/users/:userId/posts--
-///
-/// request: GetUserPostsReq
-/// response: GetPostListResp
-Future getUserPosts(
-  Object userId, {
-  Function(GetPostListResp)? ok,
+Future getMessages(
+  Object id, {
+  GetMessagesReq? request,
+  Function(GetMessagesResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  var url =
+      "/api/v2/messages/conversations/${Uri.encodeComponent(id.toString())}";
+  if (request != null) {
+    final allowed = <String>{'lastId', 'pageSize'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
   await apiGet(
-    "/api/v1/users/${userId}/posts",
+    url,
     ok: (data) {
-      if (ok != null) ok(GetPostListResp.fromJson(data));
+      if (ok != null)
+        ok(
+          GetMessagesResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v1/user/follow--
-///
-/// request: FollowReq
-/// response: FollowResp
-Future follow(
-  FollowReq request, {
-  Function(FollowResp)? ok,
+Future sendMessage(
+  SendMessageReq request, {
+  Function(SendMessageResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  final url = "/api/v2/messages";
   await apiPost(
-    "/api/v1/user/follow",
+    url,
     request,
     ok: (data) {
-      if (ok != null) ok(FollowResp.fromJson(data));
+      if (ok != null)
+        ok(
+          SendMessageResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v1/user/follow--
-///
-/// request: UnfollowReq
-/// response: UnfollowResp
-Future unfollow(
-  UnfollowReq request, {
-  Function(UnfollowResp)? ok,
+Future markConversationRead(
+  Object id,
+  MarkConversationReadReq request, {
+  Function(MarkConversationReadResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  final url =
+      "/api/v2/messages/conversations/${Uri.encodeComponent(id.toString())}/read";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          MarkConversationReadResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future getUnreadSummary({
+  Function(GetUnreadSummaryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/messages/unread";
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          GetUnreadSummaryResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+String assistantRunEventsPath(Object id) =>
+    "/api/v2/assistant/runs/${Uri.encodeComponent(id.toString())}/events";
+
+Future getAgentConsent({
+  Function(GetAgentConsentResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/consent";
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          GetAgentConsentResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future setAgentConsent(
+  SetAgentConsentReq request, {
+  Function(SetAgentConsentResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/consent";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          SetAgentConsentResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future getAssistantThread({
+  Function(GetAssistantThreadResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/thread";
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          GetAssistantThreadResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future listAssistantMessages({
+  ListAssistantMessagesReq? request,
+  Function(ListAssistantMessagesResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  var url = "/api/v2/assistant/messages";
+  if (request != null) {
+    final allowed = <String>{'sessionId', 'afterId', 'beforeId', 'limit'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ListAssistantMessagesResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future postAssistantMessage(
+  PostAssistantMessageReq request, {
+  Function(PostAssistantMessageResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/messages";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          PostAssistantMessageResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future markAssistantThreadRead({
+  Function(MarkAssistantThreadReadResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/thread/read";
+  await apiPost(
+    url,
+    const {},
+    ok: (data) {
+      if (ok != null)
+        ok(
+          MarkAssistantThreadReadResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future deleteAssistantHistory({
+  Function(DeleteAssistantHistoryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/history";
   await apiDelete(
-    "/api/v1/user/follow",
-    request,
+    url,
+    const {},
     ok: (data) {
-      if (ok != null) ok(UnfollowResp.fromJson(data));
+      if (ok != null)
+        ok(
+          DeleteAssistantHistoryResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v1/user/profile--
-///
-/// request: UpdateProfileReq
-/// response: UpdateProfileResp
-Future updateProfile(
-  UpdateProfileReq request, {
-  Function(UpdateProfileResp)? ok,
+Future cancelAssistantRun(
+  Object id,
+  CancelAssistantRunReq request, {
+  Function(CancelAssistantRunResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
-  await apiPut(
-    "/api/v1/user/profile",
+  final url =
+      "/api/v2/assistant/runs/${Uri.encodeComponent(id.toString())}/cancel";
+  await apiPost(
+    url,
     request,
     ok: (data) {
-      if (ok != null) ok(UpdateProfileResp.fromJson(data));
+      if (ok != null)
+        ok(
+          CancelAssistantRunResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v2/me/personalization--
-///
-/// request:
-/// response: GetPersonalizationPreferenceResp
+Future confirmAssistantRun(
+  Object id,
+  ConfirmAssistantRunReq request, {
+  Function(ConfirmAssistantRunResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url =
+      "/api/v2/assistant/runs/${Uri.encodeComponent(id.toString())}/confirm";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ConfirmAssistantRunResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future answerAssistantQuestions(
+  Object id,
+  AnswerAssistantQuestionsReq request, {
+  Function(AnswerAssistantQuestionsResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url =
+      "/api/v2/assistant/runs/${Uri.encodeComponent(id.toString())}/answers";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          AnswerAssistantQuestionsResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future listAssistantMemory({
+  ListAssistantMemoryReq? request,
+  Function(ListAssistantMemoryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  var url = "/api/v2/assistant/memory";
+  if (request != null) {
+    final allowed = <String>{'target'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ListAssistantMemoryResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future addAssistantMemory(
+  AddAssistantMemoryReq request, {
+  Function(AddAssistantMemoryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/memory";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          AddAssistantMemoryResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future replaceAssistantMemory(
+  Object id,
+  ReplaceAssistantMemoryReq request, {
+  Function(ReplaceAssistantMemoryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/memory/${Uri.encodeComponent(id.toString())}";
+  await apiPatch(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ReplaceAssistantMemoryResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future removeAssistantMemory(
+  Object id,
+  RemoveAssistantMemoryReq request, {
+  Function(RemoveAssistantMemoryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/memory/${Uri.encodeComponent(id.toString())}";
+  await apiDelete(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          RemoveAssistantMemoryResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future batchAssistantMemory(
+  BatchAssistantMemoryReq request, {
+  Function(BatchAssistantMemoryResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/memory/batch";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          BatchAssistantMemoryResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future undoAssistantMemoryChange(
+  Object id,
+  UndoAssistantMemoryChangeReq request, {
+  Function(UndoAssistantMemoryChangeResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url =
+      "/api/v2/assistant/memory/changes/${Uri.encodeComponent(id.toString())}/undo";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          UndoAssistantMemoryChangeResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future listAssistantWatch({
+  Function(ListAssistantWatchResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/watch";
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ListAssistantWatchResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future createAssistantWatch(
+  CreateAssistantWatchReq request, {
+  Function(CreateAssistantWatchResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/watch";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          CreateAssistantWatchResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future updateAssistantWatch(
+  Object id,
+  UpdateAssistantWatchReq request, {
+  Function(UpdateAssistantWatchResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/watch/${Uri.encodeComponent(id.toString())}";
+  await apiPatch(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          UpdateAssistantWatchResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future deleteAssistantWatch(
+  Object id,
+  DeleteAssistantWatchReq request, {
+  Function(DeleteAssistantWatchResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/watch/${Uri.encodeComponent(id.toString())}";
+  await apiDelete(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          DeleteAssistantWatchResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future submitAssistantRecommendFeedback(
+  AssistantRecommendFeedbackReq request, {
+  Function(AssistantRecommendFeedbackResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/assistant/recommend/feedback";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          AssistantRecommendFeedbackResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 Future getPersonalizationPreference({
   Function(GetPersonalizationPreferenceResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  final url = "/api/v2/me/personalization";
   await apiGet(
-    "/api/v2/me/personalization",
+    url,
     ok: (data) {
-      if (ok != null) ok(GetPersonalizationPreferenceResp.fromJson(data));
+      if (ok != null)
+        ok(
+          GetPersonalizationPreferenceResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,
   );
 }
 
-/// --/api/v2/me/personalization--
-///
-/// request: SetPersonalizationPreferenceReq
-/// response: SetPersonalizationPreferenceResp
 Future setPersonalizationPreference(
   SetPersonalizationPreferenceReq request, {
   Function(SetPersonalizationPreferenceResp)? ok,
   Function(String)? fail,
   Function? eventually,
 }) async {
+  final url = "/api/v2/me/personalization";
   await apiPut(
-    "/api/v2/me/personalization",
+    url,
     request,
     ok: (data) {
-      if (ok != null) ok(SetPersonalizationPreferenceResp.fromJson(data));
+      if (ok != null)
+        ok(
+          SetPersonalizationPreferenceResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
     },
     fail: fail,
     eventually: eventually,

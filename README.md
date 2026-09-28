@@ -146,7 +146,7 @@ make dev-real SERVER_HOST=http://127.0.0.1:8888
 ## SDK 工作流
 
 公开 REST 与 Dart Gateway SDK 的最终生成源是后端
-[app/gateway/gateway.api](https://github.com/3219378872/little-white-box-content-community/blob/main/app/gateway/gateway.api)，
+[app/gateway/openapi.yaml](https://github.com/3219378872/little-white-box-content-community/blob/main/app/gateway/openapi.yaml)，
 不是 `vendor/sdk_source/`，也不是后端内部 RPC 的 `.proto`。
 
 同步工具从该契约生成并规范化 Dart 代码，同时更新 `vendor/sdk_source/` 与 `lib/sdk/` 下的
@@ -157,10 +157,10 @@ make dev-real SERVER_HOST=http://127.0.0.1:8888
 显式确认来源提交，不能把碰巧存在的兄弟目录当成契约版本证明。然后从前端仓运行只读检查：
 
 ```bash
-make sdk-check BACKEND_API=/absolute/path/to/verified/gateway.api
+make sdk-check BACKEND_API=/absolute/path/to/verified/openapi.yaml
 ```
 
-将示例路径替换为已核验契约的绝对路径。检查需要 Python 3、`goctl` 与 Dart，生成到临时目录并逐字节
+将示例路径替换为已核验契约的绝对路径。检查需要 Python 3、PyYAML 6.0.3 与 Dart，生成到临时目录并逐字节
 比较两份目标，不写当前工作树。需要实际同步时，使用 [工具说明](tools/README.md#gateway-sdk-sync)
 中的写入命令；后端和前端各自完成提交，根仓再更新版本指针。
 
@@ -180,8 +180,8 @@ make knowledge-setup
 | `make tools-test` | 仓库维护工具单测，含知识工具测试 |
 | `make knowledge-test` | 单独运行知识 validator fixture 测试 |
 | `make knowledge-check` | 只读校验五层知识、引用和实现与证据关系 |
-| `make sdk-check BACKEND_API=/absolute/path/to/verified/gateway.api` | 只读核对生成 SDK，须显式核验契约路径 |
-| `make check BACKEND_API=/absolute/path/to/verified/gateway.api` | 组合 analyze、测试、工具、知识及 SDK 门禁 |
+| `make sdk-check BACKEND_API=/absolute/path/to/verified/openapi.yaml` | 只读核对生成 SDK，须显式核验契约路径 |
+| `make check BACKEND_API=/absolute/path/to/verified/openapi.yaml` | 组合 analyze、测试、工具、知识及 SDK 门禁 |
 
 命令定义以 [Makefile](Makefile) 为准；检查通过不自动证明浏览器、设备或真实后端验收。
 
