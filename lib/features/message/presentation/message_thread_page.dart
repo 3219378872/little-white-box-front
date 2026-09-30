@@ -156,7 +156,9 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     } catch (e) {
       if (mounted && current()) showAppError(context, friendlyErrorMessage(e));
     } finally {
-      if (current()) setState(() => _selecting = false);
+      if (mounted && ownerGeneration == _ownerGeneration) {
+        setState(() => _selecting = false);
+      }
     }
   }
 
