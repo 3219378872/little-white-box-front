@@ -39,6 +39,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
   int _seenMessageCount = 0;
   late final MediaSendController _media;
   bool _selecting = false;
+  int _ownerGeneration = 0;
 
   @override
   void initState() {
@@ -46,6 +47,34 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     _media = MediaSendController(ref.read(mediaRepositoryProvider))
       ..addListener(_mediaChanged);
     _scrollController.addListener(_rememberPin);
+    ref.listenManual(authNotifierProvider, (previous, next) {
+      if (previous != null &&
+          (previous.sessionRevision != next.sessionRevision ||
+              jsonInt64Id(previous.userId) != jsonInt64Id(next.userId))) {
+        _resetOwner();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant MessageThreadPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (jsonInt64Id(oldWidget.conversationId) !=
+            jsonInt64Id(widget.conversationId) ||
+        jsonInt64Id(oldWidget.targetUserId) != jsonInt64Id(widget.targetUserId)) {
+      _resetOwner();
+    }
+  }
+
+  // A picker can outlive the route without having created a media task yet.
+  // Invalidate it as well as uploads and retained retries on every owner change.
+  void _resetOwner() {
+    _ownerGeneration++;
+    _selecting = false;
+    _seenMessageCount = 0;
+    _pinToLatest = true;
+    _controller.clear();
+    _media.cancel();
   }
 
   @override
@@ -92,8 +121,13 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
 
   Future<void> _sendMedia(MessageThreadKey key, MediaKind kind) async {
     final auth = ref.read(authNotifierProvider);
+    final ownerGeneration = _ownerGeneration;
     bool current() =>
         mounted &&
+        (ModalRoute.of(context)?.isCurrent ?? true) &&
+        ownerGeneration == _ownerGeneration &&
+        jsonInt64Id(widget.conversationId) == key.conversationId &&
+        jsonInt64Id(widget.targetUserId) == key.targetUserId &&
         ref.read(authNotifierProvider).isAuthenticated &&
         ref.read(authNotifierProvider).sessionRevision ==
             auth.sessionRevision &&
@@ -122,7 +156,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     } catch (e) {
       if (mounted && current()) showAppError(context, friendlyErrorMessage(e));
     } finally {
-      if (mounted) setState(() => _selecting = false);
+      if (current()) setState(() => _selecting = false);
     }
   }
 

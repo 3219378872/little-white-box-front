@@ -16,6 +16,8 @@ updated_at: '2026-09-27'
 
 会话、线程、发送命令和已读状态位于 `lib/features/message`。文本和图片发送路径存在，幂等重试保留
 完整命令；`receiverId` 和 `mediaId` 经共享 int64 编码器输出 JSON number。视频与音频经新 Gateway 契约上传，媒体任务复用上传键并保留上传结果，消息服务检查媒体归属及类型。
+媒体任务现按账号会话、conversationId、targetUserId 和页面代次隔离，相关 Widget 回归已补充，
+但当前环境禁止 Flutter/Dart 启动，运行时验证仍未知。
 本轮验证见 `EVD-media-uploads-2026-09-27`。
 
 初始历史与读取期间发送的新消息按 ID 合并，发送/重试完成保护新草稿，非法未读汇总保留旧计数；

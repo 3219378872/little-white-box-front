@@ -99,6 +99,10 @@ class MediaSendController extends ChangeNotifier {
     _generation++;
     _file = null;
     _uploaded = null;
+    _kind = null;
+    _uploadKey = null;
+    _send = null;
+    _isCurrent = null;
     filename = null;
     error = null;
     busy = false;
