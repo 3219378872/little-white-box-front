@@ -7,6 +7,7 @@ import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/feed/application/feed_notifier.dart';
 import 'package:xiaobaihe_app/features/feed/data/feed_models.dart';
 import 'package:xiaobaihe_app/features/feed/data/feed_repository.dart';
+import 'package:xiaobaihe_app/features/feed/data/sponsored_parser.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
 
 void main() {
@@ -198,6 +199,100 @@ void main() {
       );
     },
   );
+
+  group('sponsored slots', () {
+    test(
+      'accumulate across pages without shifting natural positions',
+      () async {
+        final repository = _FakeFeedRepository([
+          FeedPageResult(
+            items: [entry(1), entry(2)],
+            hasMore: true,
+            requestId: 'request',
+            recommendCursor: 'c1',
+            sponsored: [adSlot('s1', 1, adId: 70)],
+          ),
+          FeedPageResult(
+            items: [entry(3)],
+            hasMore: false,
+            requestId: 'request',
+            // Backend slot ids restart at s1 on every page.
+            sponsored: [adSlot('s1', 1, adId: 70), adSlot('s1', 3, adId: 71)],
+          ),
+        ]);
+        final notifier = FeedNotifier(
+          repository: repository,
+          kind: FeedKind.recommend,
+          pageSize: 2,
+          loadImmediately: false,
+        );
+
+        await notifier.loadInitial();
+        await notifier.loadMore();
+
+        expect(repository.calls[1].positionOffset, 2);
+        expect(notifier.state.sponsored.map((slot) => slot.key), [
+          'ad-request-1-s1',
+          'ad-request-3-s1',
+        ]);
+        expect(notifier.state.rows.map(_describe), [
+          'p1',
+          'ad:s1',
+          'p2',
+          'p3',
+          'ad:s1',
+        ]);
+      },
+    );
+
+    test(
+      'a refresh during a failed hide does not resurrect old slots',
+      () async {
+        final notifier = await _notifierWithSlots(extraPages: 1);
+
+        await expectLater(
+          notifier.hideAd(70, () async {
+            await notifier.refresh();
+            throw Exception('offline');
+          }),
+          throwsA(
+            isA<AdHideFailure>().having((f) => f.restored, 'restored', isFalse),
+          ),
+        );
+        expect(notifier.state.sponsored, isEmpty);
+      },
+    );
+
+    test('hide removes every slot of the ad before the request', () async {
+      final notifier = await _notifierWithSlots();
+      var sent = false;
+
+      await notifier.hideAd(70, () async {
+        expect(notifier.state.sponsored.map((slot) => slot.slotId), ['b']);
+        sent = true;
+      });
+
+      expect(sent, isTrue);
+      expect(notifier.state.sponsored.map((slot) => slot.slotId), ['b']);
+    });
+
+    test('hide failure restores the slots at their original places', () async {
+      final notifier = await _notifierWithSlots();
+
+      await expectLater(
+        notifier.hideAd(70, () async => throw Exception('offline')),
+        throwsA(
+          isA<AdHideFailure>().having((f) => f.restored, 'restored', isTrue),
+        ),
+      );
+
+      expect(notifier.state.sponsored.map((slot) => slot.slotId), [
+        'a',
+        'b',
+        'c',
+      ]);
+    });
+  });
 }
 
 FeedPageResult page(
@@ -334,3 +429,53 @@ class _FailingFeedRepository implements FeedPageRepository {
     throw Exception('feed failed');
   }
 }
+
+SponsoredSlot adSlot(String slotId, int after, {required int adId}) =>
+    parseSponsoredSlots(
+      [
+        {
+          'slotId': slotId,
+          'afterPosition': after,
+          'ad': {
+            'adId': adId,
+            'revision': 1,
+            'advertiserName': 'Acme',
+            'title': 'Ad $adId',
+            'cta': 'Go',
+            'landingUrl': 'https://acme.example.com',
+            'landingDomain': 'acme.example.com',
+            'disclosure': 'sponsored',
+          },
+        },
+      ],
+      requestId: 'request',
+      scene: 'home',
+    ).slots.single;
+
+Future<FeedNotifier> _notifierWithSlots({int extraPages = 0}) async {
+  final notifier = FeedNotifier(
+    repository: _FakeFeedRepository([
+      FeedPageResult(
+        items: [entry(1), entry(2), entry(3)],
+        hasMore: false,
+        requestId: 'request',
+        sponsored: [
+          adSlot('a', 1, adId: 70),
+          adSlot('b', 2, adId: 71),
+          adSlot('c', 3, adId: 70),
+        ],
+      ),
+      for (var i = 0; i < extraPages; i++)
+        FeedPageResult(items: [entry(9)], hasMore: false, requestId: 'next'),
+    ]),
+    kind: FeedKind.recommend,
+    loadImmediately: false,
+  );
+  await notifier.loadInitial();
+  return notifier;
+}
+
+String _describe(FeedRow row) => switch (row) {
+  FeedPostRow(:final entry) => 'p${entry.post.id}',
+  FeedAdRow(:final slot) => 'ad:${slot.slotId}',
+};

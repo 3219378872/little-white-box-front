@@ -40,11 +40,13 @@ MockRouterResponse _recommendFeed(Map<String, String> query, _Auth auth) {
       ),
     );
   }
+  final sponsored = _mockSponsoredSlots(items, query, auth);
   return _jsonResponse({
     'items': items,
     'nextCursor': end < published.length ? _encodeRecommendCursor(end) : '',
     'hasMore': end < published.length,
     'requestId': requestId,
+    if (query['adSlots'] == '1') 'sponsored': sponsored,
   });
 }
 

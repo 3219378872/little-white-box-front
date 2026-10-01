@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/behavior/application/behavior_tracker.dart';
+import 'package:xiaobaihe_app/features/behavior/data/behavior_event.dart';
 import 'package:xiaobaihe_app/features/feed/data/feed_models.dart';
 import 'package:xiaobaihe_app/features/feed/presentation/widgets/post_card.dart';
 import 'package:xiaobaihe_app/features/interaction/application/interaction_notifier.dart';
@@ -298,8 +299,9 @@ class _RecordingTracker implements BehaviorTracker {
   @override
   Future<bool> trackExposure(
     Object postId,
-    FeedRecommendationContext context,
-  ) async {
+    FeedRecommendationContext context, {
+    String targetType = behaviorTargetPost,
+  }) async {
     actions.add('exposure');
     return true;
   }
@@ -307,8 +309,16 @@ class _RecordingTracker implements BehaviorTracker {
   @override
   Future<void> trackClick(
     Object postId,
-    FeedRecommendationContext context,
-  ) async => actions.add('click');
+    FeedRecommendationContext context, {
+    String targetType = behaviorTargetPost,
+  }) async => actions.add('click');
+
+  @override
+  Future<void> trackHide(
+    Object postId,
+    FeedRecommendationContext context, {
+    String targetType = behaviorTargetPost,
+  }) async => actions.add('hide');
 
   @override
   Future<void> trackDwell(

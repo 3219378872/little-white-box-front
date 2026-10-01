@@ -30,23 +30,32 @@ updated_at: 2026-10-01
 本页承接推荐流广告槽位、广告主控制台、审核工作台、入口守卫，以及广告界面的设计系统与解析约束。
 后端契约来自 `SPEC-sponsored-ads` 与 `SPEC-review-platform`；身份、传输、精确 ID 与 Mock 边界沿用
 [DES-client-platform](DES-client-platform.md)，推荐流与行为队列沿用 [DES-community-client](DES-community-client.md)，
-视觉基准沿用 [DES-presentation-client](DES-presentation-client.md)。截至 2026-10-01 尚无实现，逐条状态见
-[IMP-sponsored-ads-client](../implementation/IMP-sponsored-ads-client.md)。
+视觉基准沿用 [DES-presentation-client](DES-presentation-client.md)。2026-10-01 W5 已按本页实现，与原计划不同之处
+在各节以「实现调整」注明；逐条状态见 [IMP-sponsored-ads-client](../implementation/IMP-sponsored-ads-client.md)。
 
 ## 推荐流广告
 
 - **请求**（`FX-105`）：推荐请求增加 `adSlots: 1`。后端只在声明时返回可选的 `sponsored` 数组，每项包含
   `slotId`、`afterPosition` 与 `ad`（广告主名称、标题、正文、CTA、落地页与域名、图片、标识与 `why`）。
+  客户端不发送 `market`，由后端按缺省演示市场 US 投放；关注流不声明广告槽位。
 - **解析**（`FX-103`、`FQ-011`）：`FeedRepository` 对 `items` 保持现有的严格解析
-  （`lib/features/feed/data/feed_repository.dart`）。`sponsored` 由独立解析器逐槽解析，单槽格式错误
-  只丢弃该槽并计数，不抛出页面错误。
-- **模型**：`FeedEntry`（`lib/features/feed/data/feed_models.dart`）改为密封类型：自然内容条目保留现有
-  post 与归因上下文；广告条目包含 slotId、afterPosition、ad 与归因上下文。
-- **合并**：页面解析后，把广告条目插到 position 等于 afterPosition 的自然条目之后；找不到时丢弃该槽。
+  （`lib/features/feed/data/feed_repository.dart`）。`sponsored` 由独立解析器
+  （`lib/features/feed/data/sponsored_parser.dart`）逐槽解析，单槽格式错误只丢弃该槽并计入
+  `FeedPageResult.droppedSponsored`，不抛出页面错误。以下情况视为格式错误：缺少 slotId、afterPosition 非正
+  整数、广告 ID 或 revision 无效、缺广告主或标题、标识不是 `sponsored`、落地页不是不带用户信息的 https
+  地址、`landingDomain` 与落地页主机不一致、同页 slotId 重复。图片只保留 http(s) 或同源相对地址。
+- **模型**（实现调整）：`FeedEntry` 保持自然内容条目不变，广告以独立的 `SponsoredSlot` 存放在
+  `FeedState.sponsored`；展示时由 `mergeFeedRows` 生成密封类型 `FeedRow`（`FeedPostRow` / `FeedAdRow`）。
+  原计划把 `FeedEntry` 改为密封类型，但那会让帖子去重、`positionOffset` 与热门标签统计都要区分广告；
+  分开存放后这些逻辑无需改动，隐藏与恢复也只操作广告列表。
+- **合并**：把广告插到同一 requestId 中 position 等于 afterPosition 的自然条目之后；找不到时丢弃该槽。
   帖子去重仍只比较自然条目的 post id。`positionOffset` 只累计自然条目，避免广告挤偏帖子的回退位置。
-  列表 key 为 `ad-<requestId>-<slotId>`。
-- **隐藏与举报**（`FX-101`）：隐藏先在本地移除，再调用隐藏接口，失败时按原位置恢复并提示。举报弹出
-  原因选择后提交。「为什么看到这条广告」以底部面板展示市场、场景与是否个性化。
+  后端每页的 slotId 都从 `s1` 编号，因此跨页按 `ad-<requestId>-<afterPosition>-<slotId>` 去重，列表 key 相同。
+- **隐藏与举报**（`FX-101`）：隐藏先在本地移除该广告的全部槽位，再调用隐藏接口（匿名用户带 sessionId，
+  只隐藏当前会话），失败时按原位置恢复并提示「隐藏失败，广告已恢复」；请求期间列表已刷新时不恢复旧槽位，只提示
+  重试。隐藏成功后才以 `ad` 目标类型上报 `hide` 行为，保留请求链归因，失败的隐藏不计入统计。「为什么看到这条广告」以底部面板展示广告主、市场、场景与是否个性化。
+  举报（实现调整）：后端举报接口属于 W6，尚未进入 `openapi.yaml`，客户端暂不提供举报入口，避免提交到不存在
+  的接口或把失败说成成功；后端接口就绪后在溢出菜单补上。
 
 ## 广告卡片
 
@@ -58,6 +67,7 @@ updated_at: 2026-10-01
   图标按钮都有可访问名称与 tooltip（`FQ-004`）。
 - 点击卡片或 CTA 先记点击事件，再用 `url_launcher` 外部打开过审落地页（`FX-102`），复用
   `lib/features/assistant/presentation/assistant_research_widgets.dart` 中已有的安全外链写法，不内嵌网页。
+  域名始终显示在 CTA 行，因此打开前不再弹确认框；打开失败时提示目标域名。
 - 样式只在 `lib/core/theme/app_theme.dart` 增加广告标识与 CTA 的令牌，覆盖亮暗主题。
   `test/architecture/forui_migration_test.dart` 禁止页面引入 Material 组件词，标识用 `FBadge` 而非 Chip。
 - 广告素材经同源 `/xbh-media/` 提供，满足根仓反代 CSP 的 `img-src`。
@@ -74,8 +84,10 @@ updated_at: 2026-10-01
 ## Mock
 
 `lib/mock/mock_discovery.dart` 在收到 `adSlots=1` 时为每页返回两个确定性的广告槽位，并提供格式错误槽位
-的开关，用于覆盖 `FX-103` 的失败分支（`FX-070`）。广告主与审核接口在 Mock 中提供同形数据：领取、续期、
-提交成功，以及持有失效、任务作废两种失败。
+的开关 `mockSponsoredMalformed`，用于覆盖 `FX-103` 的失败分支（`FX-070`）。种子帖子只有 8 篇，Mock 槽位放在
+本页第 3、7 个自然条目之后（后端为第 4、12 个）。广告主、广告、私有素材与审核接口集中在
+`lib/mock/mock_ads.dart`，提供同形数据：用户 1 是已过审广告主并拥有 reviewer、qa 角色；审核队列预置首次审核、
+质检，以及提交时返回持有失效（7001）、任务作废（7002）的任务；广告写入校验 expectedRevision 与幂等键。
 
 ## 广告主控制台
 
@@ -86,9 +98,17 @@ updated_at: 2026-10-01
   保留输入处理。编辑已过审广告时显示提示：「审核期间继续投放上一过审版本」。
 - `/ads/:adId`：详情，展示政策码对应的本地化原因、最新 revision 与过审快照的差异，以及申诉入口
   （每个 revision 一次）。
-- `/ads/advertiser`：申请广告主、上传与提交资质；素材与证件走现有 multipart 上传通道，目标为私有存储接口。
+- `/ads/advertiser`：申请广告主、上传与提交资质；素材与证件走现有 multipart 上传通道，目标为 ad-rpc 的私有
+  素材接口 `/api/v2/ads/assets/{creative|document}`（2 MiB 上限，编辑时经 `/api/v2/ads/assets/{assetId}`
+  读取本人素材预览）。资质有效期以 `YYYY-MM-DD` 输入，按当日 UTC 结束时刻提交。
 
-政策码到中文说明的映射集中维护在一处，未知政策码显示原始代码而不报错。
+实现调整：只有已过审广告主显示「新建广告」，否则提示审核通过后才能创建（后端返回 7101）。申诉入口依赖 W6
+后端申诉接口，尚未进入 `openapi.yaml`，详情页暂不提供。客户端按后端限制预先校验标题 1～100、正文 1～500、
+CTA 1～32 字符与 https 落地页，最终以服务端为准；常见业务错误码（7101、7103～7105、7107、2007、2008）映射为
+中文提示。
+
+政策码到中文说明的映射集中维护在 `lib/features/ads/data/ad_labels.dart`，未知政策码显示原始代码而不报错；
+工作台与详情页优先使用 `/api/v2/ads/policies` 返回的标题，请求失败时退回本地映射。
 
 ## 审核工作台
 
@@ -97,10 +117,14 @@ updated_at: 2026-10-01
 - `/review`：显示本人授权的市场与语言、待处理数量，以及「领取下一单」。
 - `/review/tasks/:taskId`：
   - 快照：文案、经鉴权接口读取的图片，以及纯文本落地页地址（高亮域名，不自动打开）。
-  - 机审证据：命中规则、相似种子、各 issue 分数；占位模型分数标注「占位」。
-  - 政策定义与结论表单：拒绝时必须多选政策码。
-- **持有**：页面显示剩余时间；剩余 2 分钟时提示续期，也可手动续期或放弃。提交返回持有失效或任务作废时，
-  明确说明并回到队列，不自动重试。只有网络重试复用同一幂等键。
+  - 机审证据：逐阶段展示组件版本、结果、原因、耗时与输出 JSON 的键值；组件版本含 `stub` 时标注「占位」，
+    影子阶段标注「影子」。
+  - 政策定义与结论表单：拒绝时必须多选政策码；可勾选「提名为相似违规种子」（需另一名审核员确认）。种子库的
+    确认与退役界面不在本期范围。
+- **持有**：页面显示剩余时间；剩余 2 分钟时提示一次续期，也可手动续期或放弃。提交、续期或放弃返回持有失效
+  （7001）、任务作废（7002）、已有结论（7004）或无权限（7003）时，任务进入只读状态，说明原因并提供「返回
+  队列」，不自动重试。幂等键按「持有代次 + 结论 + 政策码 + 备注 + 提名」指纹生成：没有错误码的网络失败再次
+  提交时复用，服务端返回业务错误后作废。
 - **质检与申诉**：任务以「质检」「申诉」标签区分，并展示原结论（`FX-113`）。
 - **移动端**：单列布局，证据分段折叠，满足 `FQ-005`。
 
@@ -109,8 +133,10 @@ updated_at: 2026-10-01
 覆盖 `FX-112`：
 
 - 入口在个人页的「商业」分组与桌面侧栏（`lib/features/feed/presentation/widgets/feed_side_rail.dart`）。
-  主导航保持 5 项。广告主控制台对已认证用户可见，审核工作台只对 reviewer 或 qa 可见。
-- 角色来自登录后请求的审核员信息接口，存放在 Riverpod provider 中；应用回到前台或审核接口返回无权限时刷新。
+  主导航保持 5 项。广告主控制台对已认证用户可见，审核工作台只对 reviewer、qa 或 qualification_reviewer
+  可见（`policy_admin` 只管理政策，不进入工作台）。
+- 角色来自登录后请求的审核员信息接口，存放在 Riverpod provider（`reviewerAccessProvider`）中；应用回到前台
+  （`MainShell` 中的 `ReviewerAccessRefreshBinding`）或审核接口返回 7003 时刷新。
 - `/review*` 在非审核员访问时显示无权限页；服务端仍是唯一权限依据。
 
 ## 接口与 SDK
@@ -128,5 +154,5 @@ repository 手写解析，与现状一致。
 
 ## 分期
 
-后端 W1～W3 提供广告主与审核接口后，控制台与工作台可提前开发；推荐流卡片与曝光依赖后端 W4 的投放
-契约，计划在 W5 完成联调。
+后端 W1～W4 已提供广告主、审核与投放接口，W5 完成本页客户端实现。举报、申诉与回扫依赖后端 W6，届时补齐
+`FX-101` 的举报入口、`FX-110` 的申诉入口与 `FX-113` 的申诉任务联调。

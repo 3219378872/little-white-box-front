@@ -35,5 +35,19 @@ void main() {
       expect(isPublicRoute('/profile'), isFalse);
       expect(isPublicRoute('/profile/edit'), isFalse);
     });
+
+    test('广告主控制台与审核工作台必须登录', () {
+      for (final route in [
+        '/ads',
+        '/ads/new',
+        '/ads/advertiser',
+        '/ads/7001',
+        '/ads/7001/edit',
+        '/review',
+        '/review/tasks/9001',
+      ]) {
+        expect(isPublicRoute(route), isFalse, reason: route);
+      }
+    });
   });
 }

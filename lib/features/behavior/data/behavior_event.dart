@@ -1,3 +1,7 @@
+/// 行为目标类型；广告曝光与点击使用独立的 `ad`（FX-104）。
+const behaviorTargetPost = 'post';
+const behaviorTargetAd = 'ad';
+
 class ClientBehaviorEvent {
   final String clientEventId;
   final int occurredAt;

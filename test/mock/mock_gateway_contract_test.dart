@@ -368,4 +368,117 @@ void main() {
     );
     expect(feedback.statusCode, 200);
   });
+
+  group('sponsored ads and review', () {
+    Map<String, dynamic> recommend(String extra) => bodyOf(
+      mock_router.dispatchResponse(
+        'GET',
+        '/api/v2/feed/recommend?anonymousId=a&sessionId=s1&requestId=r'
+            '&pageSize=20$extra',
+        '',
+      ),
+    );
+
+    test('sponsored only appears when ad slots are declared', () {
+      expect(recommend('').containsKey('sponsored'), isFalse);
+      final slots = recommend('&adSlots=1')['sponsored'] as List;
+      expect(slots, hasLength(2));
+      final items = recommend('&adSlots=1')['items'] as List;
+      final positions = items.map((item) => (item as Map)['position']).toSet();
+      for (final slot in slots.cast<Map>()) {
+        expect(positions, contains(slot['afterPosition']));
+        expect((slot['ad'] as Map)['disclosure'], 'sponsored');
+      }
+    });
+
+    test('the fault switch makes the second slot malformed', () {
+      mock_router.mockSponsoredMalformed = true;
+      final slots = (recommend('&adSlots=1')['sponsored'] as List).cast<Map>();
+      expect((slots[0]['ad'] as Map)['disclosure'], 'sponsored');
+      expect((slots[1]['ad'] as Map).containsKey('disclosure'), isFalse);
+    });
+
+    test('anonymous hide only applies to its session', () {
+      final hidden = mock_router.dispatchResponse(
+        'POST',
+        '/api/v2/ads/7001/hide',
+        jsonEncode({'adId': 7001, 'sessionId': 's1'}),
+      );
+      expect(hidden.statusCode, 200);
+      final slots = (recommend('&adSlots=1')['sponsored'] as List).cast<Map>();
+      expect(slots.map((slot) => (slot['ad'] as Map)['adId']), [7002]);
+      final other = bodyOf(
+        mock_router.dispatchResponse(
+          'GET',
+          '/api/v2/feed/recommend?anonymousId=a&sessionId=s2&requestId=r'
+              '&adSlots=1',
+          '',
+        ),
+      );
+      expect(other['sponsored'], hasLength(2));
+    });
+
+    test('review endpoints require a review role', () {
+      final profile = bodyOf(
+        mock_router.dispatchResponse(
+          'GET',
+          '/api/v2/review/me',
+          '',
+          headers: bearer(2),
+        ),
+      );
+      expect(profile['active'], isFalse);
+      final queue = mock_router.dispatchResponse(
+        'GET',
+        '/api/v2/review/queue',
+        '',
+        headers: bearer(2),
+      );
+      expect(queue.statusCode, 403);
+      expect(bodyOf(queue)['code'], 7003);
+    });
+
+    test('stale lease generations are rejected with lease lost', () {
+      final claimed = bodyOf(
+        mock_router.dispatchResponse(
+          'POST',
+          '/api/v2/review/tasks/claim',
+          jsonEncode({'purpose': 'initial'}),
+          headers: bearer(),
+        ),
+      );
+      final task = claimed['task'] as Map;
+      final stale = mock_router.dispatchResponse(
+        'POST',
+        '/api/v2/review/tasks/${task['taskId']}/renew',
+        jsonEncode({
+          'taskId': task['taskId'],
+          'leaseGeneration': (task['leaseGeneration'] as int) - 1,
+        }),
+        headers: bearer(),
+      );
+      expect(stale.statusCode, 409);
+      expect(bodyOf(stale)['code'], 7001);
+    });
+
+    test('ad writes check the expected revision', () {
+      final conflict = mock_router.dispatchResponse(
+        'PUT',
+        '/api/v2/ads/7001',
+        jsonEncode({
+          'adId': 7001,
+          'expectedRevision': 1,
+          'title': 'T',
+          'body': 'B',
+          'cta': 'Go',
+          'landingUrl': 'https://a.example.com',
+          'market': 'US',
+          'industry': 'GENERAL',
+        }),
+        headers: bearer(),
+      );
+      expect(conflict.statusCode, 409);
+      expect(bodyOf(conflict)['code'], 2007);
+    });
+  });
 }

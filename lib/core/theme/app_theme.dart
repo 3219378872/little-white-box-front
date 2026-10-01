@@ -42,6 +42,16 @@ class AppTheme {
   static Color accentSoft(FColors colors) =>
       colors.primary.withValues(alpha: .12);
 
+  /// Sponsored disclosure badge: always icon plus the text「广告」, so the
+  /// label never depends on color alone (FQ-010). Both themes reuse the
+  /// secondary pair, which keeps contrast in light and dark.
+  static const sponsoredBadgeVariant = FBadgeVariant.secondary;
+  static const sponsoredBadgeIconSize = 12.0;
+
+  /// Sponsored CTA row: landing domain stays visible next to the button.
+  static const sponsoredCtaSize = FButtonSizeVariant.sm;
+  static Color sponsoredDomain(FColors colors) => colors.mutedForeground;
+
   static FTextFieldStyleDelta editorField(
     BuildContext context, {
     bool title = false,

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/application/auth_notifier.dart';
+import '../../../review/application/reviewer_access.dart';
 import '../../../search/application/search_notifier.dart';
 import '../../application/trending_tags.dart';
 
@@ -25,6 +26,10 @@ class FeedSideRail extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final tags = ref.watch(trendingTagsProvider);
+    final authenticated = ref.watch(
+      authNotifierProvider.select((state) => state.isAuthenticated),
+    );
+    final canReview = ref.watch(canReviewProvider);
     return ListView(
       primary: false,
       padding: const EdgeInsets.only(
@@ -71,6 +76,36 @@ class FeedSideRail extends ConsumerWidget {
             ],
           ),
         ),
+        if (authenticated) ...[
+          const SizedBox(height: AppTheme.space4),
+          _RailSection(
+            icon: FLucideIcons.briefcaseBusiness,
+            title: '商业',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: AppTheme.space2,
+              children: [
+                FButton(
+                  key: const Key('feed-rail-ads'),
+                  variant: FButtonVariant.outline,
+                  size: FButtonSizeVariant.sm,
+                  prefix: const Icon(FLucideIcons.megaphone),
+                  onPress: () => context.push('/ads'),
+                  child: const Text('广告主控制台'),
+                ),
+                if (canReview)
+                  FButton(
+                    key: const Key('feed-rail-review'),
+                    variant: FButtonVariant.outline,
+                    size: FButtonSizeVariant.sm,
+                    prefix: const Icon(FLucideIcons.clipboardCheck),
+                    onPress: () => context.push('/review'),
+                    child: const Text('审核工作台'),
+                  ),
+              ],
+            ),
+          ),
+        ],
         if (tags.isNotEmpty) ...[
           const SizedBox(height: AppTheme.space4),
           _RailSection(

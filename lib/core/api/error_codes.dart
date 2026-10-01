@@ -35,6 +35,18 @@ abstract final class ErrorCodes {
 
   static const int cannotWatchSelf = 6005;
 
+  static const int reviewLeaseLost = 7001;
+  static const int reviewTaskSuperseded = 7002;
+  static const int reviewRoleRequired = 7003;
+  static const int reviewTaskDecided = 7004;
+  static const int advertiserRequired = 7101;
+  static const int advertiserExists = 7102;
+  static const int adQualificationRequired = 7103;
+  static const int adLandingInvalid = 7104;
+  static const int adIndustryUnsupported = 7105;
+  static const int adAppealNotAllowed = 7106;
+  static const int adMediaInvalid = 7107;
+
   static bool isAuthError(int? code) =>
       code == tokenExpired || code == tokenInvalid || code == loginRequired;
 }

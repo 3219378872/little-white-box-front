@@ -179,6 +179,100 @@ void main() {
     expect(result.items.single.post.id, snowflake);
     expect(result.items.single.post.title, '继续联调帖');
   });
+
+  test(
+    'declares ad slot support and parses sponsored slots apart from items',
+    () async {
+      final client = _StubV2ApiClient([
+        {
+          'items': [
+            {...postJson(1), 'postId': 1, 'position': 1},
+            {...postJson(2), 'postId': 2, 'position': 2},
+          ],
+          'nextCursor': '',
+          'hasMore': false,
+          'requestId': 'request-1',
+          'sponsored': [
+            {
+              'slotId': 'slot-2',
+              'afterPosition': 2,
+              'ad': {
+                'adId': 70,
+                'revision': 1,
+                'advertiserName': 'Acme',
+                'title': 'Buy',
+                'body': 'Body',
+                'cta': 'Go',
+                'landingUrl': 'https://acme.example.com/x',
+                'landingDomain': 'acme.example.com',
+                'images': <String>[],
+                'disclosure': 'sponsored',
+                'why': {'market': 'US', 'scene': 'home', 'personalized': false},
+              },
+            },
+            {'slotId': 'broken', 'afterPosition': 1, 'ad': 'oops'},
+          ],
+        },
+      ]);
+      final repository = FeedRepository(
+        client: client,
+        identityStore: identityStore(),
+      );
+
+      final result = await repository.fetchPage(
+        kind: FeedKind.recommend,
+        pageSize: 20,
+      );
+
+      expect(client.calls.single.query['adSlots'], 1);
+      expect(result.items.map((entry) => entry.post.id), [1, 2]);
+      expect(result.sponsored.single.slotId, 'slot-2');
+      expect(result.sponsored.single.context.requestId, 'request-1');
+      expect(result.sponsored.single.context.position, 2);
+      expect(result.droppedSponsored, 1);
+    },
+  );
+
+  test('a malformed sponsored field never fails the natural page', () async {
+    final client = _StubV2ApiClient([
+      {
+        'items': [
+          {...postJson(3), 'postId': 3, 'position': 1},
+        ],
+        'nextCursor': '',
+        'hasMore': false,
+        'requestId': 'request-1',
+        'sponsored': {'not': 'a list'},
+      },
+    ]);
+    final repository = FeedRepository(
+      client: client,
+      identityStore: identityStore(),
+    );
+
+    final result = await repository.fetchPage(
+      kind: FeedKind.recommend,
+      pageSize: 20,
+    );
+
+    expect(result.items.single.post.id, 3);
+    expect(result.sponsored, isEmpty);
+    expect(result.droppedSponsored, 1);
+  });
+
+  test('follow feed does not request ad slots', () async {
+    final client = _StubV2ApiClient([
+      {'items': <Object>[], 'hasMore': false},
+    ]);
+    final repository = FeedRepository(
+      client: client,
+      identityStore: identityStore(),
+    );
+
+    await repository.fetchPage(kind: FeedKind.follow, pageSize: 20);
+
+    expect(client.calls.single.query.containsKey('adSlots'), isFalse);
+  });
 }
 
 ClientIdentityStore identityStore() =>

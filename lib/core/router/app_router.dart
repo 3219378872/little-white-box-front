@@ -10,6 +10,10 @@ import '../../features/auth/presentation/register_page.dart';
 import '../../features/assistant/presentation/assistant_page.dart';
 import '../../features/assistant/presentation/memory_page.dart';
 import '../../features/assistant/presentation/watch_page.dart';
+import '../../features/ads/presentation/ad_detail_page.dart';
+import '../../features/ads/presentation/ad_editor_page.dart';
+import '../../features/ads/presentation/ads_page.dart';
+import '../../features/ads/presentation/advertiser_page.dart';
 import '../../features/feed/presentation/feed_page.dart';
 import '../../features/message/application/message_notifiers.dart';
 import '../../features/message/presentation/conversations_page.dart';
@@ -18,6 +22,9 @@ import '../../features/post/presentation/post_detail_page.dart';
 import '../../features/post/presentation/post_editor_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
 import '../../features/profile/presentation/edit_profile_page.dart';
+import '../../features/review/application/reviewer_access.dart';
+import '../../features/review/presentation/review_home_page.dart';
+import '../../features/review/presentation/review_task_page.dart';
 import '../../features/search/presentation/search_page.dart';
 import '../theme/app_theme.dart';
 import '../widgets/content_constraint.dart';
@@ -177,11 +184,51 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/profile/edit',
             builder: (context, state) => const EditProfilePage(),
           ),
+          GoRoute(path: '/ads', builder: (context, state) => const AdsPage()),
+          GoRoute(
+            path: '/ads/new',
+            builder: (context, state) => const AdEditorPage(),
+          ),
+          GoRoute(
+            path: '/ads/advertiser',
+            builder: (context, state) => const AdvertiserPage(),
+          ),
+          GoRoute(
+            path: '/ads/:adId',
+            redirect: (context, state) =>
+                _positiveIdOrNull(state.pathParameters['adId'], '/ads'),
+            builder: (context, state) =>
+                AdDetailPage(adId: state.pathParameters['adId']!),
+          ),
+          GoRoute(
+            path: '/ads/:adId/edit',
+            redirect: (context, state) =>
+                _positiveIdOrNull(state.pathParameters['adId'], '/ads'),
+            builder: (context, state) =>
+                AdEditorPage(adId: state.pathParameters['adId']),
+          ),
+          GoRoute(
+            path: '/review',
+            builder: (context, state) => const ReviewHomePage(),
+          ),
+          GoRoute(
+            path: '/review/tasks/:taskId',
+            redirect: (context, state) =>
+                _positiveIdOrNull(state.pathParameters['taskId'], '/review'),
+            builder: (context, state) =>
+                ReviewTaskPage(taskId: state.pathParameters['taskId']!),
+          ),
         ],
       ),
     ],
   );
 });
+
+/// 路径 ID 必须是正整数，否则回到 [fallback]。
+String? _positiveIdOrNull(String? raw, String fallback) {
+  final id = BigInt.tryParse(raw ?? '');
+  return id == null || id <= BigInt.zero ? fallback : null;
+}
 
 class MainShell extends ConsumerWidget {
   final Widget child;
@@ -264,6 +311,7 @@ class MainShell extends ConsumerWidget {
             ),
           ),
           const AssistantThreadPollBinding(),
+          const ReviewerAccessRefreshBinding(),
         ],
       ),
     );
@@ -272,7 +320,11 @@ class MainShell extends ConsumerWidget {
   _AppDestination _destinationFor(String location) {
     if (location.startsWith('/search')) return _AppDestination.search;
     if (location.startsWith('/messages')) return _AppDestination.messages;
-    if (location.startsWith('/profile')) return _AppDestination.profile;
+    if (location.startsWith('/profile') ||
+        location.startsWith('/ads') ||
+        location.startsWith('/review')) {
+      return _AppDestination.profile;
+    }
     if (location.startsWith('/post/new') || location.startsWith('/post/edit')) {
       return _AppDestination.create;
     }

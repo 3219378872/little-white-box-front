@@ -48,6 +48,70 @@ void main() {
       expect(dwell.experimentId, 'exp-a');
     },
   );
+
+  test('ads are tracked with their own target type and dedupe key', () async {
+    final queue = _RecordingQueue();
+    final behaviorTracker = _tracker(queue);
+
+    expect(await behaviorTracker.trackExposure(7, context), isTrue);
+    expect(
+      await behaviorTracker.trackExposure(
+        7,
+        context,
+        targetType: behaviorTargetAd,
+      ),
+      isTrue,
+    );
+    expect(
+      await behaviorTracker.trackExposure(
+        7,
+        context,
+        targetType: behaviorTargetAd,
+      ),
+      isFalse,
+    );
+    await behaviorTracker.trackClick(7, context, targetType: behaviorTargetAd);
+    await behaviorTracker.trackHide(7, context, targetType: behaviorTargetAd);
+
+    expect(
+      queue.events.map(
+        (item) => '${item.event.action}:${item.event.targetType}',
+      ),
+      ['exposure:post', 'exposure:ad', 'click:ad', 'hide:ad'],
+    );
+    expect(queue.events[1].event.clientEventId, 'exposure-request-1:ad:7');
+    expect(queue.events[1].event.requestId, 'request-1');
+    expect(queue.events[1].event.position, 3);
+  });
+
+  test('legacy two-part exposure keys are read as post keys', () async {
+    SharedPreferences.setMockInitialValues({
+      'behavior.exposure_dedupe.v1': '["request-1:7"]',
+    });
+    final queue = _RecordingQueue();
+    final behaviorTracker = _tracker(queue);
+
+    expect(await behaviorTracker.trackExposure(7, context), isFalse);
+    expect(
+      await behaviorTracker.trackExposure(
+        7,
+        context,
+        targetType: behaviorTargetAd,
+      ),
+      isTrue,
+    );
+    final preferences = await SharedPreferences.getInstance();
+    expect(
+      preferences.getString('behavior.exposure_dedupe.v1'),
+      '["request-1:post:7","request-1:ad:7"]',
+    );
+  });
+
+  test('dedupe key migration keeps already migrated keys', () {
+    expect(migrateExposureDedupeKey('r:9'), 'r:post:9');
+    expect(migrateExposureDedupeKey('r:ad:9'), 'r:ad:9');
+    expect(exposureDedupeKey('r', behaviorTargetAd, '12'), 'r:ad:12');
+  });
 }
 
 const context = FeedRecommendationContext(

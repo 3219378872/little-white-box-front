@@ -249,6 +249,7 @@ void resetMockState() {
   _assistantMemoryChanges = {};
   _usedRefreshTokens = {};
   _mockJwtNonce = 0;
+  _resetMockAds();
   _seeded = true;
 }
 

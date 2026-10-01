@@ -4,6 +4,7 @@ import '../../../core/api/json_int64.dart';
 import '../../../core/api/v2_api_client.dart';
 import '../../../sdk/data/gateway.dart';
 import 'feed_models.dart';
+import 'sponsored_parser.dart';
 
 abstract interface class FeedPageRepository {
   Future<FeedPageResult> fetchPage({
@@ -74,6 +75,7 @@ class FeedRepository implements FeedPageRepository {
         'requestId': requestId,
         'cursor': cursor,
         'pageSize': pageSize,
+        'adSlots': 1,
       },
     );
     final responseRequestId = _string(response['requestId']);
@@ -87,11 +89,18 @@ class FeedRepository implements FeedPageRepository {
       positionOffset: positionOffset,
       recommendation: true,
     );
+    final sponsored = parseSponsoredSlots(
+      response['sponsored'],
+      requestId: effectiveRequestId,
+      scene: 'home',
+    );
     return FeedPageResult(
       items: items,
       hasMore: response['hasMore'] == true,
       requestId: effectiveRequestId,
       recommendCursor: _string(response['nextCursor']),
+      sponsored: sponsored.slots,
+      droppedSponsored: sponsored.dropped,
     );
   }
 

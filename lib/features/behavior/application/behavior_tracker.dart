@@ -18,9 +18,23 @@ const _exposureDedupeStorageKey = 'behavior.exposure_dedupe.v1';
 abstract interface class BehaviorTracker {
   Future<void> initialize();
 
-  Future<bool> trackExposure(Object postId, FeedRecommendationContext context);
+  Future<bool> trackExposure(
+    Object targetId,
+    FeedRecommendationContext context, {
+    String targetType = behaviorTargetPost,
+  });
 
-  Future<void> trackClick(Object postId, FeedRecommendationContext context);
+  Future<void> trackClick(
+    Object targetId,
+    FeedRecommendationContext context, {
+    String targetType = behaviorTargetPost,
+  });
+
+  Future<void> trackHide(
+    Object targetId,
+    FeedRecommendationContext context, {
+    String targetType = behaviorTargetPost,
+  });
 
   Future<void> trackDwell(
     Object postId,
@@ -61,19 +75,25 @@ class PersistentBehaviorTracker implements BehaviorTracker {
 
   @override
   Future<bool> trackExposure(
-    Object postId,
-    FeedRecommendationContext context,
-  ) async {
-    if (!_valid(postId, context)) return false;
+    Object targetId,
+    FeedRecommendationContext context, {
+    String targetType = behaviorTargetPost,
+  }) async {
+    if (!_valid(targetId, context)) return false;
     final owner = await loadBehaviorIdentity();
     if (owner.ownerIdentity == null) return false;
     await initialize();
-    final dedupeKey = '${context.requestId}:${jsonInt64Id(postId)}';
+    final dedupeKey = exposureDedupeKey(
+      context.requestId,
+      targetType,
+      targetId,
+    );
     return _synchronized(() async {
       if (_exposureKeySet.contains(dedupeKey)) return false;
       await _enqueue(
         action: 'exposure',
-        postId: postId,
+        targetId: targetId,
+        targetType: targetType,
         context: context,
         clientEventId: 'exposure-$dedupeKey',
         ownerIdentity: owner.ownerIdentity!,
@@ -89,8 +109,21 @@ class PersistentBehaviorTracker implements BehaviorTracker {
   }
 
   @override
-  Future<void> trackClick(Object postId, FeedRecommendationContext context) {
-    return _track('click', postId, context);
+  Future<void> trackClick(
+    Object targetId,
+    FeedRecommendationContext context, {
+    String targetType = behaviorTargetPost,
+  }) {
+    return _track('click', targetId, targetType, context);
+  }
+
+  @override
+  Future<void> trackHide(
+    Object targetId,
+    FeedRecommendationContext context, {
+    String targetType = behaviorTargetPost,
+  }) {
+    return _track('hide', targetId, targetType, context);
   }
 
   @override
@@ -105,7 +138,8 @@ class PersistentBehaviorTracker implements BehaviorTracker {
     await initialize();
     await _enqueue(
       action: 'dwell',
-      postId: postId,
+      targetId: postId,
+      targetType: behaviorTargetPost,
       context: context,
       durationMs: duration.inMilliseconds,
       ownerIdentity: owner.ownerIdentity!,
@@ -114,23 +148,25 @@ class PersistentBehaviorTracker implements BehaviorTracker {
 
   Future<void> _track(
     String action,
-    Object postId,
+    Object targetId,
+    String targetType,
     FeedRecommendationContext context,
   ) async {
-    if (!_valid(postId, context)) return;
+    if (!_valid(targetId, context)) return;
     final owner = await loadBehaviorIdentity();
     if (owner.ownerIdentity == null) return;
     await initialize();
     await _enqueue(
       action: action,
-      postId: postId,
+      targetId: targetId,
+      targetType: targetType,
       context: context,
       ownerIdentity: owner.ownerIdentity!,
     );
   }
 
-  bool _valid(Object postId, FeedRecommendationContext context) {
-    return jsonInt64IsPositive(postId) &&
+  bool _valid(Object targetId, FeedRecommendationContext context) {
+    return jsonInt64IsPositive(targetId) &&
         context.requestId.isNotEmpty &&
         context.scene.isNotEmpty &&
         context.position > 0;
@@ -138,7 +174,8 @@ class PersistentBehaviorTracker implements BehaviorTracker {
 
   Future<void> _enqueue({
     required String action,
-    required Object postId,
+    required Object targetId,
+    required String targetType,
     required FeedRecommendationContext context,
     required String ownerIdentity,
     String? clientEventId,
@@ -154,8 +191,8 @@ class PersistentBehaviorTracker implements BehaviorTracker {
           clientEventId: clientEventId ?? _identityStore.createEventId(),
           occurredAt: _nowMilliseconds(),
           action: action,
-          targetId: postId,
-          targetType: 'post',
+          targetId: targetId,
+          targetType: targetType,
           scene: context.scene,
           requestId: context.requestId,
           position: context.position,
@@ -175,17 +212,23 @@ class PersistentBehaviorTracker implements BehaviorTracker {
     if (encoded == null || encoded.isEmpty) return;
     try {
       final decoded = jsonDecode(encoded) as List<dynamic>;
-      final keys = decoded
+      final stored = decoded
           .whereType<String>()
           .where((key) => key.isNotEmpty)
           .toList();
+      final keys = stored.map(migrateExposureDedupeKey).toList();
+      final migrated = stored.indexed.any(
+        (indexed) => indexed.$2 != keys[indexed.$1],
+      );
       final start = keys.length > maxExposureKeys
           ? keys.length - maxExposureKeys
           : 0;
       for (final key in keys.skip(start)) {
         if (_exposureKeySet.add(key)) _exposureKeys.add(key);
       }
-      if (start > 0) await _persistExposureKeys();
+      if (start > 0 || migrated) {
+        await _persistExposureKeys();
+      }
     } catch (_) {
       await preferences.remove(_exposureDedupeStorageKey);
     }
@@ -210,6 +253,20 @@ class PersistentBehaviorTracker implements BehaviorTracker {
     });
     return completer.future;
   }
+}
+
+/// 曝光去重键 `<requestId>:<targetType>:<targetId>`（FX-104）。
+String exposureDedupeKey(
+  String requestId,
+  String targetType,
+  Object targetId,
+) => '$requestId:$targetType:${jsonInt64Id(targetId)}';
+
+/// 升级前持久化的两段键 `<requestId>:<postId>` 按帖子解释，避免重复上报帖子曝光。
+String migrateExposureDedupeKey(String key) {
+  final parts = key.split(':');
+  if (parts.length != 2) return key;
+  return '${parts[0]}:$behaviorTargetPost:${parts[1]}';
 }
 
 final behaviorEventTransportProvider = Provider<BehaviorEventTransport>((ref) {

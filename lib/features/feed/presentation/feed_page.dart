@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
@@ -6,6 +8,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/app_icon_button.dart';
+import '../../../core/widgets/app_toast.dart';
+import '../../ads/data/ads_repository.dart';
+import '../../behavior/application/behavior_tracker.dart';
+import '../../behavior/data/behavior_event.dart';
 import '../../../core/widgets/forui_pull_to_refresh.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../auth/application/auth_notifier.dart';
@@ -13,6 +19,7 @@ import '../application/feed_notifier.dart';
 import '../data/feed_models.dart';
 import 'widgets/feed_side_rail.dart';
 import 'widgets/post_card.dart';
+import 'widgets/sponsored_ad_card.dart';
 
 class FeedPage extends ConsumerStatefulWidget {
   const FeedPage({super.key});
@@ -198,6 +205,7 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
     }
 
     final showFooter = _showFeedFooter(feedState);
+    final rows = feedState.rows;
     return ForuiPullToRefresh(
       onRefresh: notifier.refresh,
       child: NotificationListener<ScrollMetricsNotification>(
@@ -209,12 +217,12 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
             primary: false,
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: 24),
-            itemCount: feedState.entries.length + (showFooter ? 1 : 0),
+            itemCount: rows.length + (showFooter ? 1 : 0),
             itemBuilder: (context, index) {
-              if (index >= feedState.entries.length) {
+              if (index >= rows.length) {
                 return _feedFooter(feedState, notifier);
               }
-              return _feedItem(feedState, index);
+              return _feedRow(rows[index]);
             },
           ),
         ),
@@ -299,16 +307,52 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
     );
   }
 
-  Widget _feedItem(FeedState feedState, int index) {
-    final entry = feedState.entries[index];
-    return PostCard(
-      key: ValueKey(
-        '${widget.kind.name}-${entry.context.requestId}-${entry.post.id}',
+  Widget _feedRow(FeedRow row) {
+    return switch (row) {
+      FeedPostRow(:final entry) => PostCard(
+        key: ValueKey(
+          '${widget.kind.name}-${entry.context.requestId}-${entry.post.id}',
+        ),
+        post: entry.post,
+        recommendationContext: entry.context,
+        trackingActive: widget.active,
       ),
-      post: entry.post,
-      recommendationContext: entry.context,
-      trackingActive: widget.active,
-    );
+      FeedAdRow(:final slot) => SponsoredAdCard(
+        key: ValueKey(slot.key),
+        slot: slot,
+        trackingActive: widget.active,
+        onHide: () => _hideAd(slot),
+      ),
+    };
+  }
+
+  /// 隐藏成功后才上报 `hide` 行为，失败的隐藏不计入广告统计（FX-101、FX-104）。
+  Future<void> _hideAd(SponsoredSlot slot) async {
+    try {
+      await ref
+          .read(feedNotifierProvider(widget.kind).notifier)
+          .hideAd(
+            slot.ad.adId,
+            () => ref.read(adsRepositoryProvider).hideAd(slot.ad.adId),
+          );
+    } on AdHideFailure catch (failure) {
+      if (!mounted) return;
+      showAppError(context, failure.restored ? '隐藏失败，广告已恢复' : '隐藏失败，请稍后重试');
+      return;
+    }
+    unawaited(() async {
+      try {
+        await ref
+            .read(behaviorTrackerProvider)
+            .trackHide(
+              slot.ad.adId,
+              slot.context,
+              targetType: behaviorTargetAd,
+            );
+      } catch (_) {
+        // Analytics failures must not interrupt the user action.
+      }
+    }());
   }
 }
 

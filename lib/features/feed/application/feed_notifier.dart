@@ -21,6 +21,9 @@ class FeedState {
   final String recommendCursor;
   final FollowFeedCursor followCursor;
 
+  /// 已加载的广告槽位；与自然条目分开保存，展示时由 [rows] 合并（FX-103）。
+  final List<SponsoredSlot> sponsored;
+
   const FeedState({
     this.entries = const [],
     this.hasMore = true,
@@ -31,7 +34,10 @@ class FeedState {
     this.requestId = '',
     this.recommendCursor = '',
     this.followCursor = const FollowFeedCursor(),
+    this.sponsored = const [],
   });
+
+  List<FeedRow> get rows => mergeFeedRows(entries, sponsored);
 
   FeedState copyWith({
     List<FeedEntry>? entries,
@@ -44,6 +50,7 @@ class FeedState {
     String? requestId,
     String? recommendCursor,
     FollowFeedCursor? followCursor,
+    List<SponsoredSlot>? sponsored,
   }) {
     return FeedState(
       entries: entries ?? this.entries,
@@ -55,6 +62,7 @@ class FeedState {
       requestId: requestId ?? this.requestId,
       recommendCursor: recommendCursor ?? this.recommendCursor,
       followCursor: followCursor ?? this.followCursor,
+      sponsored: sponsored ?? this.sponsored,
     );
   }
 }
@@ -131,6 +139,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
           .toList();
       state = state.copyWith(
         entries: [...state.entries, ...additions],
+        sponsored: _appendSponsored(state.sponsored, result.sponsored),
         hasMore: result.hasMore,
         isLoadingMore: false,
         loadMoreFailed: false,
@@ -150,6 +159,39 @@ class FeedNotifier extends StateNotifier<FeedState> {
 
   Future<void> refresh() => loadInitial();
 
+  /// 先在本地移除该广告的全部槽位，再调用 [send]；失败时按原位置恢复并抛出 [AdHideFailure]
+  /// （FX-101）。期间列表已刷新时不再恢复，由新快照决定是否展示。
+  Future<void> hideAd(Object adId, Future<void> Function() send) async {
+    final generation = _generation;
+    final target = jsonInt64Id(adId);
+    final removed = <(int, SponsoredSlot)>[];
+    final remaining = <SponsoredSlot>[];
+    for (final (index, slot) in state.sponsored.indexed) {
+      if (jsonInt64Id(slot.ad.adId) == target) {
+        removed.add((index, slot));
+      } else {
+        remaining.add(slot);
+      }
+    }
+    if (removed.isEmpty) return;
+    state = state.copyWith(sponsored: remaining);
+    try {
+      await send();
+    } catch (error) {
+      final restore = mounted && generation == _generation;
+      if (restore) {
+        final restored = [...state.sponsored];
+        final present = restored.map((slot) => slot.key).toSet();
+        for (final (index, slot) in removed) {
+          if (present.contains(slot.key)) continue;
+          restored.insert(index.clamp(0, restored.length), slot);
+        }
+        state = state.copyWith(sponsored: restored);
+      }
+      throw AdHideFailure(restored: restore, cause: error);
+    }
+  }
+
   Future<FeedPageResult> _fetchUntilVisible({
     required int generation,
     required String requestId,
@@ -161,6 +203,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
     var nextRecommend = recommendCursor;
     var nextFollow = followCursor;
     var offset = positionOffset;
+    var sponsored = const <SponsoredSlot>[];
     FeedPageResult? last;
     for (var attempt = 0; attempt < _emptyPageAdvanceLimit; attempt++) {
       final result = await _repository.fetchPage(
@@ -173,6 +216,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
       );
       last = result;
       if (!mounted || generation != _generation) return result;
+      sponsored = _appendSponsored(sponsored, result.sponsored);
       final visible = _dedupe(result.items);
       if (visible.isNotEmpty || !result.hasMore) {
         return FeedPageResult(
@@ -181,6 +225,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
           requestId: result.requestId,
           recommendCursor: result.recommendCursor,
           followCursor: result.followCursor,
+          sponsored: sponsored,
         );
       }
       nextRequestId = result.requestId;
@@ -195,6 +240,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
       requestId: exhausted.requestId,
       recommendCursor: exhausted.recommendCursor,
       followCursor: exhausted.followCursor,
+      sponsored: sponsored,
     );
   }
 
@@ -205,7 +251,17 @@ class FeedNotifier extends StateNotifier<FeedState> {
       requestId: result.requestId,
       recommendCursor: result.recommendCursor,
       followCursor: result.followCursor,
+      sponsored: result.sponsored,
     );
+  }
+
+  static List<SponsoredSlot> _appendSponsored(
+    List<SponsoredSlot> current,
+    List<SponsoredSlot> additions,
+  ) {
+    if (additions.isEmpty) return current;
+    final seen = current.map((slot) => slot.key).toSet();
+    return [...current, ...additions.where((slot) => seen.add(slot.key))];
   }
 
   static List<FeedEntry> _dedupe(List<FeedEntry> items) {
@@ -214,6 +270,17 @@ class FeedNotifier extends StateNotifier<FeedState> {
         .where((entry) => seen.add(jsonInt64Id(entry.post.id)))
         .toList();
   }
+}
+
+/// 隐藏广告失败；[restored] 表示广告是否已放回原位置。
+class AdHideFailure implements Exception {
+  final bool restored;
+  final Object cause;
+
+  const AdHideFailure({required this.restored, required this.cause});
+
+  @override
+  String toString() => 'AdHideFailure(restored: $restored, cause: $cause)';
 }
 
 final feedRepositoryProvider = Provider<FeedPageRepository>((ref) {

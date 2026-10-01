@@ -5,6 +5,7 @@ import 'package:characters/characters.dart';
 import '../core/api/json_int64.dart';
 import 'mock_data.dart';
 
+part 'mock_ads.dart';
 part 'mock_assistant_research.dart';
 
 part 'mock_state.dart';
@@ -379,6 +380,11 @@ MockRouterResponse _routeV2(
       _requireAuth(auth);
       return _jsonResponse(_unreadSummary());
   }
+
+  final ads = _routeAds(method, segments, query, body, auth, headers);
+  if (ads != null) return ads;
+  final review = _routeReview(method, segments, body, auth);
+  if (review != null) return review;
 
   if (segments.length == 4 && segments[2] == 'post') {
     _requireAuth(auth);
