@@ -121,6 +121,8 @@ class AdItem {
   final bool eligible;
   final num updatedAtMs;
   final String pauseReason;
+  final bool appealable;
+  final num appealedRevision;
   AdItem({
     required this.adId,
     required this.revision,
@@ -135,6 +137,8 @@ class AdItem {
     required this.eligible,
     required this.updatedAtMs,
     required this.pauseReason,
+    required this.appealable,
+    required this.appealedRevision,
   });
   factory AdItem.fromJson(Map<String, dynamic> m) => AdItem(
     adId: m['adId'] ?? 0,
@@ -156,6 +160,8 @@ class AdItem {
     eligible: m['eligible'] ?? false,
     updatedAtMs: m['updatedAtMs'] ?? 0,
     pauseReason: m['pauseReason']?.toString() ?? "",
+    appealable: m['appealable'] ?? false,
+    appealedRevision: m['appealedRevision'] ?? 0,
   );
   Map<String, dynamic> toJson() => {
     'adId': adId,
@@ -171,6 +177,8 @@ class AdItem {
     'eligible': eligible,
     'updatedAtMs': updatedAtMs,
     'pauseReason': pauseReason,
+    'appealable': appealable,
+    'appealedRevision': appealedRevision,
   };
 }
 
@@ -447,6 +455,20 @@ class AnswerAssistantQuestionsResp {
       );
   Map<String, dynamic> toJson() => {
     'questionRequest': questionRequest.toJson(),
+  };
+}
+
+class AppealAdReq {
+  final Object adId;
+  final String idempotencyKey;
+  AppealAdReq({required this.adId, required this.idempotencyKey});
+  factory AppealAdReq.fromJson(Map<String, dynamic> m) => AppealAdReq(
+    adId: m['adId'] ?? 0,
+    idempotencyKey: m['idempotencyKey']?.toString() ?? "",
+  );
+  Map<String, dynamic> toJson() => {
+    'adId': adId,
+    'idempotencyKey': idempotencyKey,
   };
 }
 
@@ -3401,6 +3423,35 @@ class ReplaceAssistantMemoryResp {
     'entry': entry.toJson(),
     'changeId': changeId,
   };
+}
+
+class ReportAdReq {
+  final Object adId;
+  final String sessionId;
+  final String reason;
+  ReportAdReq({
+    required this.adId,
+    required this.sessionId,
+    required this.reason,
+  });
+  factory ReportAdReq.fromJson(Map<String, dynamic> m) => ReportAdReq(
+    adId: m['adId'] ?? 0,
+    sessionId: m['sessionId']?.toString() ?? "",
+    reason: m['reason']?.toString() ?? "",
+  );
+  Map<String, dynamic> toJson() => {
+    'adId': adId,
+    'sessionId': sessionId,
+    'reason': reason,
+  };
+}
+
+class ReportAdResp {
+  final bool counted;
+  ReportAdResp({required this.counted});
+  factory ReportAdResp.fromJson(Map<String, dynamic> m) =>
+      ReportAdResp(counted: m['counted'] ?? false);
+  Map<String, dynamic> toJson() => {'counted': counted};
 }
 
 class ReviewActionResp {

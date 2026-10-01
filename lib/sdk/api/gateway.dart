@@ -1743,6 +1743,52 @@ Future hideAd(
   );
 }
 
+Future reportAd(
+  Object adId,
+  ReportAdReq request, {
+  Function(ReportAdResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/ads/${Uri.encodeComponent(adId.toString())}/report";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ReportAdResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future appealAd(
+  Object adId,
+  AppealAdReq request, {
+  Function(AdResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/ads/${Uri.encodeComponent(adId.toString())}/appeal";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          AdResp.fromJson(Map<String, dynamic>.from(data as Map? ?? const {})),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
 Future getReviewerProfile({
   Function(ReviewerProfileResp)? ok,
   Function(String)? fail,
