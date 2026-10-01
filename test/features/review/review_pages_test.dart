@@ -117,6 +117,40 @@ void main() {
     expect(find.byKey(const Key('review-submit')), findsNothing);
   });
 
+  // FX-113：举报、回扫与申诉任务以文字标签区分，并说明结论的业务效果。
+  testWidgets('rescan tasks explain that the ad is paused', (tester) async {
+    await signIn(1);
+    final taskId = claim(purpose: 'rescan');
+    await pump(tester, ReviewTaskPage(taskId: taskId));
+
+    expect(find.byKey(const Key('review-purpose-rescan')), findsOneWidget);
+    expect(find.text('政策回扫判定疑似违规，广告已暂停投放'), findsOneWidget);
+    expect(find.byKey(const Key('review-purpose-hint-rescan')), findsOneWidget);
+    expect(find.byKey(const Key('review-original-decision')), findsNothing);
+  });
+
+  testWidgets('report tasks show their priority and outcome', (tester) async {
+    await signIn(1);
+    final taskId = claim(purpose: 'report');
+    await pump(tester, ReviewTaskPage(taskId: taskId));
+
+    expect(find.byKey(const Key('review-purpose-report')), findsOneWidget);
+    expect(find.text('用户举报'), findsOneWidget);
+    expect(find.text('60（举报越多越高）'), findsOneWidget);
+    expect(find.textContaining('举报成立，广告将下线'), findsOneWidget);
+  });
+
+  testWidgets('appeal tasks show the contested rejection', (tester) async {
+    await signIn(1);
+    final taskId = claim(purpose: 'appeal');
+    await pump(tester, ReviewTaskPage(taskId: taskId));
+
+    expect(find.byKey(const Key('review-purpose-appeal')), findsOneWidget);
+    expect(find.byKey(const Key('review-original-decision')), findsOneWidget);
+    expect(find.text('拒绝（人审）'), findsOneWidget);
+    expect(find.textContaining('最终结论'), findsOneWidget);
+  });
+
   testWidgets('reject needs a policy code before submit is enabled', (
     tester,
   ) async {
@@ -205,9 +239,13 @@ void main() {
     tester,
   ) async {
     await signIn(1);
-    for (var i = 0; i < 4; i++) {
-      claim();
-    }
+    // 领取到队列为空：预置任务的数量随 Mock 增加而变化，不在此写死。
+    while (dispatchResponse(
+      'POST',
+      '/api/v2/review/tasks/claim',
+      jsonEncode({'purpose': ''}),
+      headers: {'Authorization': 'Bearer ${mockAccessTokenForUser(1)}'},
+    ).body.contains('"found":true')) {}
     await pump(tester, const ReviewHomePage());
 
     expect(find.text('授权范围内暂无待处理任务'), findsOneWidget);

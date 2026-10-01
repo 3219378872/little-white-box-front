@@ -11,6 +11,7 @@ import '../../../../core/widgets/app_icon_button.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../sdk/vars/vars.dart';
 import '../../../behavior/application/behavior_tracker.dart';
+import '../../../ads/data/ad_labels.dart';
 import '../../../behavior/data/behavior_event.dart';
 import '../../data/feed_models.dart';
 import 'post_media_preview.dart';
@@ -25,12 +26,14 @@ class SponsoredAdCard extends ConsumerStatefulWidget {
   final SponsoredSlot slot;
   final bool trackingActive;
   final Future<void> Function() onHide;
+  final Future<void> Function(String reason) onReport;
   final ExternalUriOpener? openExternal;
 
   const SponsoredAdCard({
     super.key,
     required this.slot,
     required this.onHide,
+    required this.onReport,
     this.trackingActive = true,
     this.openExternal,
   });
@@ -164,6 +167,17 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
   void _hide() {
     _cancelExposure();
     unawaited(widget.onHide());
+  }
+
+  Future<void> _report() async {
+    final reason = await showFSheet<String>(
+      context: context,
+      side: FLayout.btt,
+      builder: (context) => SponsoredReportSheet(ad: ad),
+    );
+    if (reason == null || !mounted) return;
+    _cancelExposure();
+    await widget.onReport(reason);
   }
 
   Future<void> _showWhy() {
@@ -332,6 +346,15 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
                 _hide();
               },
             ),
+            FItem(
+              key: const Key('ad-report'),
+              prefix: const Icon(FLucideIcons.flag),
+              title: const Text('举报这条广告'),
+              onPress: () {
+                controller.hide();
+                unawaited(_report());
+              },
+            ),
           ],
         ),
       ],
@@ -433,6 +456,60 @@ class SponsoredWhySheet extends StatelessWidget {
                 style: theme.typography.body.xs.copyWith(
                   color: theme.colors.mutedForeground,
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 举报原因选择（FX-101）：选择即提交，关闭面板不提交。原因只取结构化选项，不收集自由文本。
+class SponsoredReportSheet extends StatelessWidget {
+  final SponsoredAd ad;
+
+  const SponsoredReportSheet({super.key, required this.ad});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colors.background,
+        border: Border(top: BorderSide(color: theme.colors.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        // 面板高度受限（矮屏或横屏），选项过多时滚动而不是溢出。
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppTheme.space6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Semantics(
+                header: true,
+                child: Text('举报这条广告', style: theme.typography.display.sm),
+              ),
+              const SizedBox(height: AppTheme.space1),
+              Text(
+                '举报后这条广告将不再向你展示，并由审核员复核。',
+                style: theme.typography.body.xs.copyWith(
+                  color: theme.colors.mutedForeground,
+                ),
+              ),
+              const SizedBox(height: AppTheme.space3),
+              FItemGroup(
+                children: [
+                  for (final (code, label) in adReportReasons)
+                    FItem(
+                      key: Key('ad-report-reason-$code'),
+                      title: Text(label),
+                      suffix: const Icon(FLucideIcons.chevronRight),
+                      onPress: () => Navigator.of(context).pop(code),
+                    ),
+                ],
               ),
             ],
           ),

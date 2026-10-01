@@ -322,8 +322,27 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
         slot: slot,
         trackingActive: widget.active,
         onHide: () => _hideAd(slot),
+        onReport: (reason) => _reportAd(slot, reason),
       ),
     };
+  }
+
+  /// 举报后服务端已对本人隐藏该广告，因此本地同样先移除；失败时按原位置恢复（FX-101）。
+  Future<void> _reportAd(SponsoredSlot slot, String reason) async {
+    try {
+      await ref
+          .read(feedNotifierProvider(widget.kind).notifier)
+          .hideAd(
+            slot.ad.adId,
+            () =>
+                ref.read(adsRepositoryProvider).reportAd(slot.ad.adId, reason),
+          );
+    } on AdHideFailure catch (failure) {
+      if (!mounted) return;
+      showAppError(context, failure.restored ? '举报失败，广告已恢复' : '举报失败，请稍后重试');
+      return;
+    }
+    if (mounted) showAppSuccess(context, '已举报，感谢反馈');
   }
 
   /// 隐藏成功后才上报 `hide` 行为，失败的隐藏不计入广告统计（FX-101、FX-104）。

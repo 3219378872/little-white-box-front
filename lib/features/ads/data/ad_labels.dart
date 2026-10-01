@@ -82,11 +82,49 @@ String adServingStatusLabel(String status) => switch (status) {
   _ => status.isEmpty ? '未知' : status,
 };
 
-/// 暂停原因：质检改判写 `qa`，资质失效写政策码。
+/// 暂停与下线原因：回扫、质检与举报写任务目的，资质失效写政策码。
 String adPauseReasonLabel(String reason) => switch (reason) {
   '' => '',
-  'qa' => '质检复审后暂停投放',
+  'rescan' => '政策回扫判定疑似违规',
+  'qa' => '质检复审判定违规',
+  'report' => '用户举报经复审成立',
   _ => adPolicyLabel(reason),
+};
+
+/// 举报原因（与后端 `ReportReasons` 一致），按展示顺序排列（FX-101）。
+const adReportReasons = <(String, String)>[
+  ('misleading', '虚假或误导'),
+  ('scam', '诈骗或欺诈'),
+  ('offensive', '冒犯或令人不适'),
+  ('inappropriate', '不适宜的内容'),
+  ('irrelevant', '与我无关或重复出现'),
+  ('other', '其他'),
+];
+
+/// 转人审原因的中文说明；未知原因原样显示。
+String reviewEscalationLabel(String reason) => switch (reason) {
+  'rescan-violation' => '政策回扫判定疑似违规，广告已暂停投放',
+  'report' => '用户举报',
+  'appeal' => '广告主申诉',
+  'qa' => '自动通过抽样质检',
+  'gray-zone' => '机审分数处于灰区',
+  'first-submission-protection' => '广告主前 3 次送审保护期',
+  'industry-no-auto-pass' => '行业不允许自动通过',
+  'image-unconfirmed' => '图片未经人工确认',
+  'forced-human-rule' => '命中强制人审规则',
+  'qualification-review' => '资质对象需资质审核员审核',
+  'router-unavailable' || 'router-no-coverage' => '召回不可用，已全部精排',
+  'ranker-timeout' || 'ranker-unavailable' || 'ranker-invalid' => '精排不可用',
+  _ => reason,
+};
+
+/// 不同任务目的下结论的业务效果，提示审核员（FX-113）。
+String? reviewPurposeHint(String purpose) => switch (purpose) {
+  'rescan' => '广告已暂停投放：拒绝即确认违规并下线，通过则恢复投放。',
+  'report' => '拒绝表示举报成立，广告将下线；通过表示举报不成立。',
+  'appeal' => '申诉复审结论为最终结论，原决策人不能处理本任务。',
+  'qa' => '质检判定违规时广告立即下线。',
+  _ => null,
 };
 
 String reviewTaskStatusLabel(String status) => switch (status) {

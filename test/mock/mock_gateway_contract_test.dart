@@ -418,6 +418,51 @@ void main() {
       expect(other['sponsored'], hasLength(2));
     });
 
+    test('reports count once per identity and hide the ad for it', () {
+      mock_router.MockRouterResponse send(
+        String reason, {
+        String session = 's1',
+      }) => mock_router.dispatchResponse(
+        'POST',
+        '/api/v2/ads/7001/report',
+        jsonEncode({'adId': 7001, 'sessionId': session, 'reason': reason}),
+      );
+      expect(send('boring').statusCode, 400);
+      expect(bodyOf(send('scam'))['counted'], isTrue);
+      expect(bodyOf(send('other'))['counted'], isFalse);
+      expect(bodyOf(send('scam', session: 's2'))['counted'], isTrue);
+      final slots = (recommend('&adSlots=1')['sponsored'] as List).cast<Map>();
+      expect(slots.map((slot) => (slot['ad'] as Map)['adId']), [7002]);
+    });
+
+    test('appeals are allowed once per rejected or offline revision', () {
+      mock_router.MockRouterResponse appeal(int adId) =>
+          mock_router.dispatchResponse(
+            'POST',
+            '/api/v2/ads/$adId/appeal',
+            jsonEncode({'adId': adId, 'idempotencyKey': 'k$adId'}),
+            headers: bearer(),
+          );
+      final serving = appeal(7001);
+      expect(serving.statusCode, 409);
+      expect(bodyOf(serving)['code'], 7106);
+      final first = bodyOf(appeal(7004))['ad'] as Map;
+      expect(first['reviewStatus'], 'appealing');
+      expect(first['appealable'], isFalse);
+      expect(bodyOf(appeal(7004))['code'], 7106);
+      expect(
+        mock_router
+            .dispatchResponse(
+              'POST',
+              '/api/v2/ads/7004/appeal',
+              '{}',
+              headers: bearer(2),
+            )
+            .statusCode,
+        404,
+      );
+    });
+
     test('review endpoints require a review role', () {
       final profile = bodyOf(
         mock_router.dispatchResponse(

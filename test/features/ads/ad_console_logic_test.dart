@@ -27,7 +27,13 @@ void main() {
     expect(adPolicyLabel('FUTURE.CODE'), 'FUTURE.CODE');
     expect(AdPolicyCatalog.fallback.titleOf('CONTENT.IP'), '知识产权侵权');
     expect(AdPolicyCatalog.fallback.titleOf('X.Y'), 'X.Y');
-    expect(adPauseReasonLabel('qa'), '质检复审后暂停投放');
+    expect(adPauseReasonLabel('qa'), '质检复审判定违规');
+    expect(adPauseReasonLabel('rescan'), '政策回扫判定疑似违规');
+    expect(adPauseReasonLabel('report'), '用户举报经复审成立');
+    expect(reviewEscalationLabel('rescan-violation'), contains('已暂停投放'));
+    expect(reviewEscalationLabel('future-reason'), 'future-reason');
+    expect(reviewPurposeHint('initial'), isNull);
+    expect(adReportReasons.map((r) => r.$1), contains('scam'));
     expect(adPauseReasonLabel('INDUSTRY.QUALIFICATION'), '缺少目标市场要求的行业资质');
     expect(adReviewStatusLabel('pending_review'), '审核中');
     expect(adServingStatusLabel('paused'), '已暂停');

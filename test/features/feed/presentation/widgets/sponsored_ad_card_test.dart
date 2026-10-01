@@ -44,6 +44,7 @@ void main() {
     WidgetTester tester, {
     ThemeMode themeMode = ThemeMode.light,
     Future<void> Function()? onHide,
+    Future<void> Function(String reason)? onReport,
     List<Uri>? opened,
   }) async {
     final tracker = _RecordingTracker();
@@ -60,6 +61,7 @@ void main() {
               child: SponsoredAdCard(
                 slot: slot,
                 onHide: onHide ?? () async {},
+                onReport: onReport ?? (_) async {},
                 openExternal: (uri) async {
                   opened?.add(uri);
                   return true;
@@ -143,6 +145,59 @@ void main() {
     expect(hidden, 1);
     // The feed records the hide only after the server accepts it.
     expect(tracker.calls.where((call) => call.startsWith('hide')), isEmpty);
+  });
+
+  _reportTests();
+}
+
+// FX-101：举报入口只收结构化原因；关闭面板不提交，选择原因即提交且不上报行为事件。
+void _reportTests() {
+  testWidgets('menu reports the ad with a structured reason', (tester) async {
+    final reasons = <String>[];
+    final tracker = _RecordingTracker();
+    await tester.pumpWidget(
+      AppProviderScope(
+        overrides: [behaviorTrackerProvider.overrideWithValue(tracker)],
+        child: MaterialApp(
+          builder: foruiTestBuilder,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: SponsoredAdCard(
+                slot: slot,
+                onHide: () async {},
+                onReport: (reason) async => reasons.add(reason),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(Key('ad-menu-${slot.key}')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('ad-report')));
+    await tester.pumpAndSettle();
+    expect(find.text('举报这条广告'), findsOneWidget);
+    expect(find.text('诈骗或欺诈'), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    expect(reasons, isEmpty, reason: 'dismissing the sheet must not report');
+
+    await tester.tap(find.byKey(Key('ad-menu-${slot.key}')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('ad-report')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('ad-report-reason-scam')));
+    await tester.pumpAndSettle();
+
+    expect(reasons, ['scam']);
+    expect(find.text('举报这条广告'), findsNothing);
+    expect(
+      tracker.calls.where((call) => !call.startsWith('exposure')),
+      isEmpty,
+    );
+    await tester.pump(const Duration(seconds: 2));
   });
 }
 

@@ -125,6 +125,57 @@ void main() {
     expect(find.text('在浏览器里写代码'), findsOneWidget);
     expect(tracker.hides, ['ad:7001:3']);
   });
+
+  _reportTests(pumpFeed, settle);
+}
+
+// FX-101：举报后本地移除该广告（服务端已对本人隐藏），失败时按原位置恢复；举报不上报行为事件。
+void _reportTests(
+  Future<void> Function(
+    WidgetTester tester, {
+    AdsRepository? adsRepository,
+    BehaviorTracker? tracker,
+  })
+  pumpFeed,
+  Future<void> Function(WidgetTester tester) settle,
+) {
+  Future<void> report(WidgetTester tester) async {
+    final menu = find.byWidgetPredicate(
+      (widget) =>
+          widget.key is ValueKey<String> &&
+          (widget.key! as ValueKey<String>).value.startsWith('ad-menu-'),
+    );
+    await tester.tap(menu.first);
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('ad-report')));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('ad-report-reason-misleading')));
+    await tester.pump();
+  }
+
+  testWidgets('reporting removes the ad and thanks the user', (tester) async {
+    final tracker = _HideRecorder();
+    await pumpFeed(tester, tracker: tracker);
+    await report(tester);
+    await settle(tester);
+
+    expect(find.text('社区限定桌搭套装上新'), findsNothing);
+    expect(find.text('在浏览器里写代码'), findsOneWidget);
+    expect(find.text('已举报，感谢反馈'), findsOneWidget);
+    expect(tracker.hides, isEmpty);
+    await settle(tester);
+  });
+
+  testWidgets('a failed report restores the ad', (tester) async {
+    await pumpFeed(tester, adsRepository: _FailingHideRepository());
+    await report(tester);
+
+    expect(find.text('社区限定桌搭套装上新'), findsNothing);
+    await settle(tester);
+    expect(find.text('社区限定桌搭套装上新'), findsOneWidget);
+    expect(find.text('举报失败，广告已恢复'), findsOneWidget);
+    await settle(tester);
+  });
 }
 
 class _FailingHideRepository extends AdsRepository {
@@ -132,6 +183,12 @@ class _FailingHideRepository extends AdsRepository {
 
   @override
   Future<void> hideAd(Object adId) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    throw Exception('offline');
+  }
+
+  @override
+  Future<bool> reportAd(Object adId, String reason) async {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     throw Exception('offline');
   }

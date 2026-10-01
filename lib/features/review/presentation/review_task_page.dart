@@ -198,7 +198,20 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
             text: reviewTaskStatusLabel(task.status),
           ),
           if (task.escalationReason.isNotEmpty)
-            AppInfoRow.text(label: '转人审原因', text: task.escalationReason),
+            AppInfoRow.text(
+              label: '转人审原因',
+              text: reviewEscalationLabel(task.escalationReason),
+            ),
+          if (task.purpose == 'report')
+            AppInfoRow.text(label: '优先级', text: '${task.priority}（举报越多越高）'),
+          if (reviewPurposeHint(task.purpose) case final hint?) ...[
+            const SizedBox(height: AppTheme.space2),
+            FAlert(
+              key: Key('review-purpose-hint-${task.purpose}'),
+              icon: const Icon(FLucideIcons.info),
+              title: Text(hint),
+            ),
+          ],
           if (state.editable) ...[
             const SizedBox(height: AppTheme.space2),
             Row(
@@ -283,7 +296,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
   }
 }
 
-/// 以文字标签区分首次审核、质检与申诉，不只依赖颜色（FX-113）。
+/// 以文字标签区分首次审核、质检、申诉、举报与回扫，不只依赖颜色（FX-113）。
 class ReviewPurposeBadge extends StatelessWidget {
   final String purpose;
 
@@ -301,7 +314,7 @@ class ReviewPurposeBadge extends StatelessWidget {
   }
 }
 
-/// 质检复审与申诉任务展示原结论（FX-113）。
+/// 质检复审与申诉任务展示原结论（FX-113）；申诉的原结论是被申诉的拒绝。
 class OriginalDecisionSection extends StatelessWidget {
   final String purpose;
   final ReviewDecisionItem decision;

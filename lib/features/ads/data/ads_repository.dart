@@ -24,7 +24,7 @@ enum AdAssetKind {
 /// 与 ad-rpc 私有存储上限一致（2 MiB）。
 const maxAdAssetBytes = 2 * 1024 * 1024;
 
-/// 广告主控制台与推荐流隐藏所用的 Gateway 接口（FX-101、FX-110）。
+/// 广告主控制台与推荐流隐藏、举报所用的 Gateway 接口（FX-101、FX-110）。
 class AdsRepository {
   final ClientIdentityStore _identityStore;
 
@@ -114,6 +114,36 @@ class AdsRepository {
       ),
     );
     if (!resp.ok) throw const ApiException('隐藏失败');
+  }
+
+  /// 举报推荐流中的广告（ADS-030）；服务端同时对举报人隐藏该广告，匿名用户只在当前会话内。
+  /// 返回是否新计入（同一身份重复举报为 false）。
+  Future<bool> reportAd(Object adId, String reason) async {
+    final identity = await _identityStore.loadOrCreate();
+    final resp = await apiCall<ReportAdResp>(
+      (ok, fail, eventually) => gw.reportAd(
+        adId,
+        ReportAdReq(adId: adId, sessionId: identity.sessionId, reason: reason),
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+    return resp.counted;
+  }
+
+  /// 对被拒或被下线的版本申诉，每个版本一次（ADS-014）。
+  Future<AdItem> appealAd(Object adId, String idempotencyKey) async {
+    final resp = await apiCall<AdResp>(
+      (ok, fail, eventually) => gw.appealAd(
+        adId,
+        AppealAdReq(adId: adId, idempotencyKey: idempotencyKey),
+        ok: ok,
+        fail: fail,
+        eventually: eventually,
+      ),
+    );
+    return _requireAd(resp);
   }
 
   /// 以 multipart 上传私有素材，只返回资产 ID 与校验信息，不返回公开地址。

@@ -18,6 +18,7 @@ late Map<int, Map<String, dynamic>> _advertisers;
 late Map<int, Map<String, dynamic>> _ads;
 late Map<int, Map<String, dynamic>> _adAssets;
 late Set<String> _hiddenAds;
+late Set<String> _adReports;
 late Map<int, Map<String, dynamic>> _reviewTasks;
 late Map<String, Map<String, dynamic>> _adIdempotency;
 
@@ -51,6 +52,7 @@ void _resetMockAds() {
   _nextDecisionId = 9500;
   mockSponsoredMalformed = false;
   _hiddenAds = {};
+  _adReports = {};
   _adIdempotency = {};
   _adAssets = {};
   _advertisers = {
@@ -90,6 +92,7 @@ void _resetMockAds() {
       'eligible': true,
       'updatedAtMs': now,
       'pauseReason': '',
+      'appealedRevision': 0,
     },
     7003: {
       'owner': 1,
@@ -113,6 +116,39 @@ void _resetMockAds() {
       'eligible': false,
       'updatedAtMs': now,
       'pauseReason': '',
+      'appealedRevision': 0,
+    },
+    // 举报成立后下线的广告：被下线的过审版本可申诉一次（ADS-014）。
+    7004: {
+      'owner': 1,
+      'adId': 7004,
+      'revision': 1,
+      'approvedRevision': 1,
+      'reviewStatus': 'rejected',
+      'servingStatus': 'offline',
+      'policyCodes': ['CONTENT.DECEPTIVE'],
+      'latest': _mockAdContent(
+        title: '限时返现活动',
+        body: '下单即返现。',
+        cta: '立即参与',
+        landingUrl: 'https://cashback.example.com/promo',
+        market: 'US',
+        revision: 1,
+      ),
+      'approved': _mockAdContent(
+        title: '限时返现活动',
+        body: '下单即返现。',
+        cta: '立即参与',
+        landingUrl: 'https://cashback.example.com/promo',
+        market: 'US',
+        revision: 1,
+      ),
+      'startMs': 0,
+      'endMs': 0,
+      'eligible': false,
+      'updatedAtMs': now,
+      'pauseReason': 'report',
+      'appealedRevision': 0,
     },
   };
   Map<String, dynamic> task(
@@ -121,6 +157,8 @@ void _resetMockAds() {
     required String title,
     String failure = '',
     Map<String, dynamic>? originalDecision,
+    String escalationReason = 'gray-zone',
+    int priority = 0,
   }) => {
     'taskId': id,
     'bizType': 'ad_creative',
@@ -131,7 +169,7 @@ void _resetMockAds() {
     'market': 'US',
     'language': 'en',
     'industry': 'GENERAL',
-    'priority': 0,
+    'priority': priority,
     'deadlineMs': now + const Duration(hours: 24).inMilliseconds,
     'leaseGeneration': 0,
     'leaseUntilMs': 0,
@@ -174,7 +212,7 @@ void _resetMockAds() {
     'originalDecision': originalDecision,
     'decision': null,
     'submittedAtMs': now - const Duration(minutes: 30).inMilliseconds,
-    'escalationReason': 'ranker_uncertain',
+    'escalationReason': escalationReason,
     'policyVersion': 'ads-2026-10-01',
     'attempts': 0,
     'claimer': 0,
@@ -206,6 +244,34 @@ void _resetMockAds() {
       purpose: 'initial',
       title: 'Slow decision',
       failure: 'lease_lost',
+    ),
+    9005: task(
+      9005,
+      purpose: 'report',
+      title: 'Reported cashback',
+      escalationReason: 'report',
+      priority: 60,
+    ),
+    9006: task(
+      9006,
+      purpose: 'rescan',
+      title: 'Paused by rescan',
+      escalationReason: 'rescan-violation',
+      priority: 90,
+    ),
+    9007: task(
+      9007,
+      purpose: 'appeal',
+      title: 'Appealed claim',
+      escalationReason: 'appeal',
+      originalDecision: {
+        'decisionId': 9401,
+        'verdict': 'reject',
+        'policyCodes': ['MISLEADING.CLAIM'],
+        'policyVersion': 'ads-2026-10-01',
+        'source': 'human',
+        'decidedAtMs': now - const Duration(hours: 2).inMilliseconds,
+      },
     ),
   };
 }
@@ -280,6 +346,19 @@ MockRouterResponse? _routeAds(
 ) {
   if (segments.length < 3 || segments[2] != 'ads') return null;
   final rest = segments.sublist(3);
+  if (rest.length == 2 && rest[1] == 'report') {
+    _requireMethod(method, 'POST');
+    final sessionId = body?['sessionId']?.toString().trim() ?? '';
+    final reason = body?['reason']?.toString().trim() ?? '';
+    if ((!auth.isAuthenticated && sessionId.isEmpty) ||
+        !_mockReportReasons.contains(reason)) {
+      throw const _MockBiz(400, 2, '参数错误');
+    }
+    final viewer = auth.isAuthenticated ? 'u:${auth.userId}' : 's:$sessionId';
+    final adId = _pathId(rest[0]);
+    _hiddenAds.add('$viewer:$adId');
+    return _jsonResponse({'counted': _adReports.add('$viewer:$adId')});
+  }
   if (rest.length == 2 && rest[1] == 'hide') {
     _requireMethod(method, 'POST');
     final sessionId = body?['sessionId']?.toString().trim() ?? '';
@@ -364,6 +443,10 @@ MockRouterResponse? _routeAds(
       'contentBase64': base64Encode(_mockPng),
     });
   }
+  if (rest.length == 2 && rest[1] == 'appeal') {
+    _requireMethod(method, 'POST');
+    return _jsonResponse({'ad': _appealMockAd(auth.userId, _pathId(rest[0]))});
+  }
   if (rest.length == 1) {
     final adId = _pathId(rest[0]);
     if (method == 'GET') {
@@ -384,8 +467,50 @@ Map<String, dynamic> _listMockAds(int userId) => {
   'hasMore': false,
 };
 
+const _mockReportReasons = {
+  'misleading',
+  'scam',
+  'offensive',
+  'inappropriate',
+  'irrelevant',
+  'other',
+};
+
 Map<String, dynamic> _publicAd(Map<String, dynamic> ad) =>
-    Map<String, dynamic>.from(ad)..remove('owner');
+    Map<String, dynamic>.from(ad)
+      ..remove('owner')
+      ..['appealable'] = _mockAppealTarget(ad) > 0;
+
+/// 与后端一致：最新版本被拒时申诉它；被下线且没有更新编辑时申诉过审版本；每个版本一次。
+int _mockAppealTarget(Map<String, dynamic> ad) {
+  final revision = ad['revision'] as int;
+  final approved = ad['approvedRevision'] as int;
+  final appealed = (ad['appealedRevision'] as int?) ?? 0;
+  var target = 0;
+  if (ad['reviewStatus'] == 'rejected') {
+    target = revision;
+  } else if (ad['servingStatus'] == 'offline' &&
+      approved > 0 &&
+      revision == approved &&
+      ad['reviewStatus'] == 'approved') {
+    target = approved;
+  }
+  return target > appealed ? target : 0;
+}
+
+Map<String, dynamic> _appealMockAd(int userId, int adId) {
+  final ad = _ads[adId];
+  if (ad == null || ad['owner'] != userId) {
+    throw const _MockBiz(404, 2001, '内容不存在');
+  }
+  final target = _mockAppealTarget(ad);
+  if (target == 0) throw const _MockBiz(409, 7106, '当前版本不可申诉');
+  ad
+    ..['reviewStatus'] = 'appealing'
+    ..['appealedRevision'] = target
+    ..['updatedAtMs'] = DateTime.now().millisecondsSinceEpoch;
+  return _publicAd(ad);
+}
 
 Map<String, dynamic> _ownedAd(int userId, int adId) {
   final ad = _ads[adId];
@@ -523,6 +648,7 @@ Map<String, dynamic> _writeMockAd(
     'eligible': current?['eligible'] ?? false,
     'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
     'pauseReason': '',
+    'appealedRevision': current?['appealedRevision'] ?? 0,
   };
   _ads[id] = ad;
   if (key.isNotEmpty) _adIdempotency['$userId:$key'] = ad;

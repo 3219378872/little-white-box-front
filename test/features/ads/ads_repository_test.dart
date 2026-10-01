@@ -54,6 +54,37 @@ void main() {
     expect(jsonBodyOf(request), {'adId': 7001, 'sessionId': 'session-1'});
   });
 
+  test('report sends the session id and a structured reason', () async {
+    final client = ScriptedGatewayClient.always({'counted': true});
+    setApiClient(client);
+
+    expect(await adsRepository().reportAd(7001, 'scam'), isTrue);
+
+    final request = client.requests.single;
+    expect(request.method, 'POST');
+    expect(request.url.path, '/api/v2/ads/7001/report');
+    expect(jsonBodyOf(request), {
+      'adId': 7001,
+      'sessionId': 'session-1',
+      'reason': 'scam',
+    });
+  });
+
+  test('appeal posts the idempotency key and returns the ad', () async {
+    final client = ScriptedGatewayClient.always({
+      'ad': {'adId': 7003, 'reviewStatus': 'appealing', 'appealedRevision': 1},
+    });
+    setApiClient(client);
+
+    final ad = await adsRepository().appealAd(7003, 'appeal-1');
+
+    expect(ad.reviewStatus, 'appealing');
+    expect(ad.appealedRevision, 1);
+    final request = client.requests.single;
+    expect(request.url.path, '/api/v2/ads/7003/appeal');
+    expect(jsonBodyOf(request), {'adId': 7003, 'idempotencyKey': 'appeal-1'});
+  });
+
   test('hide treats ok=false as a failure', () async {
     setApiClient(ScriptedGatewayClient.always({'ok': false}));
     await expectLater(adsRepository().hideAd(1), throwsA(isA<ApiException>()));

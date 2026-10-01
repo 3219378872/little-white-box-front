@@ -4,13 +4,18 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/error_codes.dart';
+import '../../../core/api/idempotency.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_dialog.dart';
 import '../../../core/widgets/app_section.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../application/ads_providers.dart';
 import '../data/ad_labels.dart';
+import '../data/ads_repository.dart';
 import 'ad_status_badges.dart';
 
 /// 最新版本与过审版本之间不同的字段（FX-110）。
@@ -48,7 +53,7 @@ List<AdContentDiff> diffAdContent(
   ];
 }
 
-/// 广告详情：审核与投放状态、政策码原因、与过审版本的差异（FX-110）。
+/// 广告详情：审核与投放状态、政策码原因、与过审版本的差异与申诉入口（FX-110）。
 class AdDetailPage extends ConsumerWidget {
   final String adId;
 
@@ -86,13 +91,55 @@ class AdDetailPage extends ConsumerWidget {
   }
 }
 
-class _AdDetail extends ConsumerWidget {
+class _AdDetail extends ConsumerStatefulWidget {
   final AdItem ad;
 
   const _AdDetail({required this.ad});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AdDetail> createState() => _AdDetailState();
+}
+
+class _AdDetailState extends ConsumerState<_AdDetail> {
+  bool _appealing = false;
+
+  /// 网络失败（无错误码）重试时复用，服务端返回业务错误后作废。
+  String? _appealKey;
+
+  AdItem get ad => widget.ad;
+
+  /// 每个被拒或被下线的版本可申诉一次，复审结论为最终结论（FX-110、ADS-014）。
+  Future<void> _appeal() async {
+    final confirmed = await showAppConfirm(
+      context: context,
+      title: '发起申诉',
+      message: '每个版本只能申诉一次，将由另一名审核员复审，复审结论为最终结论。',
+      confirmLabel: '申诉',
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _appealing = true);
+    final adId = jsonInt64Id(ad.adId);
+    try {
+      _appealKey ??= newIdempotencyKey(24);
+      await ref.read(adsRepositoryProvider).appealAd(adId, _appealKey!);
+      _appealKey = null;
+      if (!mounted) return;
+      showAppSuccess(context, '已提交申诉');
+      ref.invalidate(adDetailProvider(adId));
+    } on ApiException catch (error) {
+      if (error.code != null) _appealKey = null;
+      if (!mounted) return;
+      showAppError(context, adAppealErrorMessage(error));
+      if (error.code == ErrorCodes.adAppealNotAllowed) {
+        ref.invalidate(adDetailProvider(adId));
+      }
+    } finally {
+      if (mounted) setState(() => _appealing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = context.theme;
     final catalog =
         ref.watch(adPolicyCatalogProvider).value ?? AdPolicyCatalog.fallback;
@@ -138,11 +185,47 @@ class _AdDetail extends ConsumerWidget {
             key: const Key('ad-policy-reasons'),
             variant: FAlertVariant.destructive,
             icon: const Icon(FLucideIcons.circleAlert),
-            title: const Text('未通过原因'),
+            title: Text(switch (ad.servingStatus) {
+              'paused' => '暂停原因',
+              'offline' => '下线原因',
+              _ => '未通过原因',
+            }),
             subtitle: Text(
               ad.policyCodes
                   .map((code) => '${catalog.titleOf(code)}（$code）')
                   .join('\n'),
+            ),
+          ),
+        ],
+        if (ad.servingStatus == 'paused' && ad.pauseReason == 'rescan') ...[
+          const SizedBox(height: AppTheme.space3),
+          const FAlert(
+            key: Key('ad-rescan-paused'),
+            icon: Icon(FLucideIcons.pause),
+            title: Text('政策回扫后暂停投放，等待人工复审'),
+            subtitle: Text('复审确认违规将下线，否则恢复投放。'),
+          ),
+        ],
+        if (ad.reviewStatus == 'appealing') ...[
+          const SizedBox(height: AppTheme.space3),
+          FAlert(
+            key: const Key('ad-appealing'),
+            icon: const Icon(FLucideIcons.scale),
+            title: Text('r${ad.appealedRevision} 申诉复审中'),
+            subtitle: const Text('复审结论为最终结论，期间不能编辑。'),
+          ),
+        ],
+        if (ad.appealable) ...[
+          const SizedBox(height: AppTheme.space3),
+          FButton(
+            key: const Key('ad-appeal'),
+            variant: FButtonVariant.outline,
+            prefix: const Icon(FLucideIcons.scale),
+            onPress: _appealing ? null : _appeal,
+            child: Text(
+              ad.servingStatus == 'offline'
+                  ? '对下线的 r${ad.approvedRevision} 申诉'
+                  : '对未通过的 r${ad.revision} 申诉',
             ),
           ),
         ],
@@ -227,3 +310,10 @@ class _AdDetail extends ConsumerWidget {
     );
   }
 }
+
+/// 申诉的错误提示（ADS-014）。
+String adAppealErrorMessage(ApiException error) => switch (error.code) {
+  ErrorCodes.adAppealNotAllowed => '当前版本不可申诉（每个版本只能申诉一次）',
+  ErrorCodes.idempotencyConflict => '重复提交的内容不一致，请重试',
+  _ => '申诉失败：${error.message}',
+};

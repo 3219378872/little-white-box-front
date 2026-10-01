@@ -108,8 +108,9 @@ void main() {
 
       expect(find.text('小白盒周边店'), findsOneWidget);
       expect(find.text('社区限定桌搭套装第二波'), findsOneWidget);
-      expect(find.text('审核：未通过'), findsOneWidget);
+      expect(find.text('审核：未通过'), findsNWidgets(2));
       expect(find.text('投放：投放中'), findsOneWidget);
+      expect(find.text('投放：已下线'), findsOneWidget);
       expect(find.byKey(const Key('ads-new')), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -145,6 +146,59 @@ void main() {
       find.textContaining('涉及时间、地域或品牌的绝对化用语（MISLEADING.ABSOLUTE）'),
       findsOneWidget,
     );
+  });
+
+  // FX-110 / ADS-014：被下线的版本显示下线原因与申诉入口；确认后进入申诉复审，不能再次申诉。
+  testWidgets('an offline ad can be appealed once after confirming', (
+    tester,
+  ) async {
+    await signIn(1);
+    await pump(tester, '/ads/7004');
+
+    expect(find.text('下线原因'), findsOneWidget);
+    expect(find.text('用户举报经复审成立'), findsOneWidget);
+    expect(find.text('对下线的 r1 申诉'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('ad-appeal')));
+    await settle(tester);
+    expect(find.text('发起申诉'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('app-confirm-cancel')));
+    await settle(tester);
+    expect(find.byKey(const Key('ad-appealing')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('ad-appeal')));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('app-confirm-ok')));
+    await settle(tester);
+
+    expect(find.byKey(const Key('ad-appealing')), findsOneWidget);
+    expect(find.text('r1 申诉复审中'), findsOneWidget);
+    expect(find.byKey(const Key('ad-appeal')), findsNothing);
+    expect(find.text('审核：申诉中'), findsOneWidget);
+  });
+
+  testWidgets('an appeal already used elsewhere is explained and refreshed', (
+    tester,
+  ) async {
+    await signIn(1);
+    await pump(tester, '/ads/7003');
+    expect(find.text('对未通过的 r1 申诉'), findsOneWidget);
+    final used = dispatchResponse(
+      'POST',
+      '/api/v2/ads/7003/appeal',
+      '{}',
+      headers: {'Authorization': 'Bearer ${mockAccessTokenForUser(1)}'},
+    );
+    expect(used.statusCode, 200);
+
+    await tester.tap(find.byKey(const Key('ad-appeal')));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('app-confirm-ok')));
+    await settle(tester);
+
+    expect(find.text('当前版本不可申诉（每个版本只能申诉一次）'), findsOneWidget);
+    expect(find.byKey(const Key('ad-appeal')), findsNothing);
+    expect(find.byKey(const Key('ad-appealing')), findsOneWidget);
   });
 
   testWidgets('pending edits show the diff and the serving notice', (
