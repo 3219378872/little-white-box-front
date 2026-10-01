@@ -1,5 +1,268 @@
 // Generated from app/gateway/openapi.yaml. DO NOT EDIT.
 
+class AdActionResp {
+  final bool ok;
+  AdActionResp({required this.ok});
+  factory AdActionResp.fromJson(Map<String, dynamic> m) =>
+      AdActionResp(ok: m['ok'] ?? false);
+  Map<String, dynamic> toJson() => {'ok': ok};
+}
+
+class AdAssetContentResp {
+  final String mimeType;
+  final String contentBase64;
+  AdAssetContentResp({required this.mimeType, required this.contentBase64});
+  factory AdAssetContentResp.fromJson(Map<String, dynamic> m) =>
+      AdAssetContentResp(
+        mimeType: m['mimeType']?.toString() ?? "",
+        contentBase64: m['contentBase64']?.toString() ?? "",
+      );
+  Map<String, dynamic> toJson() => {
+    'mimeType': mimeType,
+    'contentBase64': contentBase64,
+  };
+}
+
+class AdAssetResp {
+  final Object assetId;
+  final String kind;
+  final String sha256;
+  final String mimeType;
+  final num size;
+  AdAssetResp({
+    required this.assetId,
+    required this.kind,
+    required this.sha256,
+    required this.mimeType,
+    required this.size,
+  });
+  factory AdAssetResp.fromJson(Map<String, dynamic> m) => AdAssetResp(
+    assetId: m['assetId'] ?? 0,
+    kind: m['kind']?.toString() ?? "",
+    sha256: m['sha256']?.toString() ?? "",
+    mimeType: m['mimeType']?.toString() ?? "",
+    size: m['size'] ?? 0,
+  );
+  Map<String, dynamic> toJson() => {
+    'assetId': assetId,
+    'kind': kind,
+    'sha256': sha256,
+    'mimeType': mimeType,
+    'size': size,
+  };
+}
+
+class AdContentItem {
+  final String title;
+  final String body;
+  final String cta;
+  final String landingUrl;
+  final String landingDomain;
+  final List<AdMediaItem> media;
+  final String market;
+  final String language;
+  final String industry;
+  final String advertiserName;
+  final num revision;
+  AdContentItem({
+    required this.title,
+    required this.body,
+    required this.cta,
+    required this.landingUrl,
+    required this.landingDomain,
+    required this.media,
+    required this.market,
+    required this.language,
+    required this.industry,
+    required this.advertiserName,
+    required this.revision,
+  });
+  factory AdContentItem.fromJson(Map<String, dynamic> m) => AdContentItem(
+    title: m['title']?.toString() ?? "",
+    body: m['body']?.toString() ?? "",
+    cta: m['cta']?.toString() ?? "",
+    landingUrl: m['landingUrl']?.toString() ?? "",
+    landingDomain: m['landingDomain']?.toString() ?? "",
+    media: ((m['media'] ?? []) as List)
+        .map((i) => AdMediaItem.fromJson(Map<String, dynamic>.from(i as Map)))
+        .toList(),
+    market: m['market']?.toString() ?? "",
+    language: m['language']?.toString() ?? "",
+    industry: m['industry']?.toString() ?? "",
+    advertiserName: m['advertiserName']?.toString() ?? "",
+    revision: m['revision'] ?? 0,
+  );
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'body': body,
+    'cta': cta,
+    'landingUrl': landingUrl,
+    'landingDomain': landingDomain,
+    'media': media.map((i) => i.toJson()).toList(),
+    'market': market,
+    'language': language,
+    'industry': industry,
+    'advertiserName': advertiserName,
+    'revision': revision,
+  };
+}
+
+class AdItem {
+  final Object adId;
+  final num revision;
+  final num approvedRevision;
+  final String reviewStatus;
+  final String servingStatus;
+  final List<String> policyCodes;
+  final AdContentItem latest;
+  final AdContentItem? approved;
+  final num startMs;
+  final num endMs;
+  final bool eligible;
+  final num updatedAtMs;
+  final String pauseReason;
+  AdItem({
+    required this.adId,
+    required this.revision,
+    required this.approvedRevision,
+    required this.reviewStatus,
+    required this.servingStatus,
+    required this.policyCodes,
+    required this.latest,
+    required this.approved,
+    required this.startMs,
+    required this.endMs,
+    required this.eligible,
+    required this.updatedAtMs,
+    required this.pauseReason,
+  });
+  factory AdItem.fromJson(Map<String, dynamic> m) => AdItem(
+    adId: m['adId'] ?? 0,
+    revision: m['revision'] ?? 0,
+    approvedRevision: m['approvedRevision'] ?? 0,
+    reviewStatus: m['reviewStatus']?.toString() ?? "",
+    servingStatus: m['servingStatus']?.toString() ?? "",
+    policyCodes: List<String>.from(m['policyCodes'] as List? ?? const []),
+    latest: AdContentItem.fromJson(
+      Map<String, dynamic>.from(m['latest'] as Map? ?? const {}),
+    ),
+    approved: m['approved'] == null
+        ? null
+        : AdContentItem.fromJson(
+            Map<String, dynamic>.from(m['approved'] as Map? ?? const {}),
+          ),
+    startMs: m['startMs'] ?? 0,
+    endMs: m['endMs'] ?? 0,
+    eligible: m['eligible'] ?? false,
+    updatedAtMs: m['updatedAtMs'] ?? 0,
+    pauseReason: m['pauseReason']?.toString() ?? "",
+  );
+  Map<String, dynamic> toJson() => {
+    'adId': adId,
+    'revision': revision,
+    'approvedRevision': approvedRevision,
+    'reviewStatus': reviewStatus,
+    'servingStatus': servingStatus,
+    'policyCodes': policyCodes,
+    'latest': latest.toJson(),
+    'approved': approved?.toJson(),
+    'startMs': startMs,
+    'endMs': endMs,
+    'eligible': eligible,
+    'updatedAtMs': updatedAtMs,
+    'pauseReason': pauseReason,
+  };
+}
+
+class AdMediaItem {
+  final Object mediaId;
+  final String sha256;
+  final String publicUrl;
+  AdMediaItem({
+    required this.mediaId,
+    required this.sha256,
+    required this.publicUrl,
+  });
+  factory AdMediaItem.fromJson(Map<String, dynamic> m) => AdMediaItem(
+    mediaId: m['mediaId'] ?? 0,
+    sha256: m['sha256']?.toString() ?? "",
+    publicUrl: m['publicUrl']?.toString() ?? "",
+  );
+  Map<String, dynamic> toJson() => {
+    'mediaId': mediaId,
+    'sha256': sha256,
+    'publicUrl': publicUrl,
+  };
+}
+
+class AdPolicyCodeItem {
+  final String code;
+  final String title;
+  final String category;
+  AdPolicyCodeItem({
+    required this.code,
+    required this.title,
+    required this.category,
+  });
+  factory AdPolicyCodeItem.fromJson(Map<String, dynamic> m) => AdPolicyCodeItem(
+    code: m['code']?.toString() ?? "",
+    title: m['title']?.toString() ?? "",
+    category: m['category']?.toString() ?? "",
+  );
+  Map<String, dynamic> toJson() => {
+    'code': code,
+    'title': title,
+    'category': category,
+  };
+}
+
+class AdQualificationItem {
+  final Object qualificationId;
+  final String market;
+  final String industry;
+  final Object documentAssetId;
+  final num validUntilMs;
+  final String status;
+  final num submittedRevision;
+  AdQualificationItem({
+    required this.qualificationId,
+    required this.market,
+    required this.industry,
+    required this.documentAssetId,
+    required this.validUntilMs,
+    required this.status,
+    required this.submittedRevision,
+  });
+  factory AdQualificationItem.fromJson(Map<String, dynamic> m) =>
+      AdQualificationItem(
+        qualificationId: m['qualificationId'] ?? 0,
+        market: m['market']?.toString() ?? "",
+        industry: m['industry']?.toString() ?? "",
+        documentAssetId: m['documentAssetId'] ?? 0,
+        validUntilMs: m['validUntilMs'] ?? 0,
+        status: m['status']?.toString() ?? "",
+        submittedRevision: m['submittedRevision'] ?? 0,
+      );
+  Map<String, dynamic> toJson() => {
+    'qualificationId': qualificationId,
+    'market': market,
+    'industry': industry,
+    'documentAssetId': documentAssetId,
+    'validUntilMs': validUntilMs,
+    'status': status,
+    'submittedRevision': submittedRevision,
+  };
+}
+
+class AdResp {
+  final AdItem ad;
+  AdResp({required this.ad});
+  factory AdResp.fromJson(Map<String, dynamic> m) => AdResp(
+    ad: AdItem.fromJson(Map<String, dynamic>.from(m['ad'] as Map? ?? const {})),
+  );
+  Map<String, dynamic> toJson() => {'ad': ad.toJson()};
+}
+
 class AddAssistantMemoryReq {
   final String target;
   final String content;
@@ -36,6 +299,108 @@ class AddAssistantMemoryResp {
   Map<String, dynamic> toJson() => {
     'entry': entry.toJson(),
     'changeId': changeId,
+  };
+}
+
+class AddQualificationReq {
+  final String market;
+  final String industry;
+  final Object documentAssetId;
+  final num validUntilMs;
+  final num expectedRevision;
+  final String idempotencyKey;
+  AddQualificationReq({
+    required this.market,
+    required this.industry,
+    required this.documentAssetId,
+    required this.validUntilMs,
+    required this.expectedRevision,
+    required this.idempotencyKey,
+  });
+  factory AddQualificationReq.fromJson(Map<String, dynamic> m) =>
+      AddQualificationReq(
+        market: m['market']?.toString() ?? "",
+        industry: m['industry']?.toString() ?? "",
+        documentAssetId: m['documentAssetId'] ?? 0,
+        validUntilMs: m['validUntilMs'] ?? 0,
+        expectedRevision: m['expectedRevision'] ?? 0,
+        idempotencyKey: m['idempotencyKey']?.toString() ?? "",
+      );
+  Map<String, dynamic> toJson() => {
+    'market': market,
+    'industry': industry,
+    'documentAssetId': documentAssetId,
+    'validUntilMs': validUntilMs,
+    'expectedRevision': expectedRevision,
+    'idempotencyKey': idempotencyKey,
+  };
+}
+
+class AdvertiserItem {
+  final Object advertiserId;
+  final String name;
+  final List<String> markets;
+  final num revision;
+  final num approvedRevision;
+  final String reviewStatus;
+  final List<String> policyCodes;
+  final List<AdQualificationItem> qualifications;
+  final num updatedAtMs;
+  AdvertiserItem({
+    required this.advertiserId,
+    required this.name,
+    required this.markets,
+    required this.revision,
+    required this.approvedRevision,
+    required this.reviewStatus,
+    required this.policyCodes,
+    required this.qualifications,
+    required this.updatedAtMs,
+  });
+  factory AdvertiserItem.fromJson(Map<String, dynamic> m) => AdvertiserItem(
+    advertiserId: m['advertiserId'] ?? 0,
+    name: m['name']?.toString() ?? "",
+    markets: List<String>.from(m['markets'] as List? ?? const []),
+    revision: m['revision'] ?? 0,
+    approvedRevision: m['approvedRevision'] ?? 0,
+    reviewStatus: m['reviewStatus']?.toString() ?? "",
+    policyCodes: List<String>.from(m['policyCodes'] as List? ?? const []),
+    qualifications: ((m['qualifications'] ?? []) as List)
+        .map(
+          (i) =>
+              AdQualificationItem.fromJson(Map<String, dynamic>.from(i as Map)),
+        )
+        .toList(),
+    updatedAtMs: m['updatedAtMs'] ?? 0,
+  );
+  Map<String, dynamic> toJson() => {
+    'advertiserId': advertiserId,
+    'name': name,
+    'markets': markets,
+    'revision': revision,
+    'approvedRevision': approvedRevision,
+    'reviewStatus': reviewStatus,
+    'policyCodes': policyCodes,
+    'qualifications': qualifications.map((i) => i.toJson()).toList(),
+    'updatedAtMs': updatedAtMs,
+  };
+}
+
+class AdvertiserResp {
+  final bool found;
+  final AdvertiserItem? advertiser;
+  AdvertiserResp({required this.found, required this.advertiser});
+  factory AdvertiserResp.fromJson(Map<String, dynamic> m) => AdvertiserResp(
+    found: m['found'] ?? false,
+    advertiser: m['advertiser'] == null
+        ? null
+        : AdvertiserItem.fromJson(
+            Map<String, dynamic>.from(m['advertiser'] as Map? ?? const {}),
+          ),
+  );
+  Map<String, dynamic> toJson() => {
+    'found': found,
+    'advertiser': advertiser?.toJson(),
   };
 }
 
@@ -82,6 +447,32 @@ class AnswerAssistantQuestionsResp {
       );
   Map<String, dynamic> toJson() => {
     'questionRequest': questionRequest.toJson(),
+  };
+}
+
+class ApplyAdvertiserReq {
+  final String name;
+  final List<String> markets;
+  final num expectedRevision;
+  final String idempotencyKey;
+  ApplyAdvertiserReq({
+    required this.name,
+    required this.markets,
+    required this.expectedRevision,
+    required this.idempotencyKey,
+  });
+  factory ApplyAdvertiserReq.fromJson(Map<String, dynamic> m) =>
+      ApplyAdvertiserReq(
+        name: m['name']?.toString() ?? "",
+        markets: List<String>.from(m['markets'] as List? ?? const []),
+        expectedRevision: m['expectedRevision'] ?? 0,
+        idempotencyKey: m['idempotencyKey']?.toString() ?? "",
+      );
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'markets': markets,
+    'expectedRevision': expectedRevision,
+    'idempotencyKey': idempotencyKey,
   };
 }
 
@@ -1014,6 +1405,14 @@ class CancelAssistantRunResp {
   Map<String, dynamic> toJson() => {};
 }
 
+class ClaimReviewTaskReq {
+  final String purpose;
+  ClaimReviewTaskReq({required this.purpose});
+  factory ClaimReviewTaskReq.fromJson(Map<String, dynamic> m) =>
+      ClaimReviewTaskReq(purpose: m['purpose']?.toString() ?? "");
+  Map<String, dynamic> toJson() => {'purpose': purpose};
+}
+
 class CommentItem {
   final Object id;
   final Object userId;
@@ -1132,6 +1531,55 @@ class ConversationItem {
     'lastMessage': lastMessage,
     'lastMessageTime': lastMessageTime,
     'unreadCount': unreadCount,
+  };
+}
+
+class CreateAdReq {
+  final String title;
+  final String body;
+  final String cta;
+  final String landingUrl;
+  final List<Object> mediaIds;
+  final String market;
+  final String industry;
+  final num startMs;
+  final num endMs;
+  final String idempotencyKey;
+  CreateAdReq({
+    required this.title,
+    required this.body,
+    required this.cta,
+    required this.landingUrl,
+    required this.mediaIds,
+    required this.market,
+    required this.industry,
+    required this.startMs,
+    required this.endMs,
+    required this.idempotencyKey,
+  });
+  factory CreateAdReq.fromJson(Map<String, dynamic> m) => CreateAdReq(
+    title: m['title']?.toString() ?? "",
+    body: m['body']?.toString() ?? "",
+    cta: m['cta']?.toString() ?? "",
+    landingUrl: m['landingUrl']?.toString() ?? "",
+    mediaIds: List<Object>.from(m['mediaIds'] as List? ?? const []),
+    market: m['market']?.toString() ?? "",
+    industry: m['industry']?.toString() ?? "",
+    startMs: m['startMs'] ?? 0,
+    endMs: m['endMs'] ?? 0,
+    idempotencyKey: m['idempotencyKey']?.toString() ?? "",
+  );
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'body': body,
+    'cta': cta,
+    'landingUrl': landingUrl,
+    'mediaIds': mediaIds,
+    'market': market,
+    'industry': industry,
+    'startMs': startMs,
+    'endMs': endMs,
+    'idempotencyKey': idempotencyKey,
   };
 }
 
@@ -1429,6 +1877,22 @@ class FollowResp {
   Map<String, dynamic> toJson() => {};
 }
 
+class GetAdAssetReq {
+  final Object assetId;
+  GetAdAssetReq({required this.assetId});
+  factory GetAdAssetReq.fromJson(Map<String, dynamic> m) =>
+      GetAdAssetReq(assetId: m['assetId'] ?? 0);
+  Map<String, dynamic> toJson() => {'assetId': assetId};
+}
+
+class GetAdReq {
+  final Object adId;
+  GetAdReq({required this.adId});
+  factory GetAdReq.fromJson(Map<String, dynamic> m) =>
+      GetAdReq(adId: m['adId'] ?? 0);
+  Map<String, dynamic> toJson() => {'adId': adId};
+}
+
 class GetAgentConsentResp {
   final bool granted;
   final num grantedAt;
@@ -1695,6 +2159,13 @@ class GetMessagesResp {
   };
 }
 
+class GetMyAdvertiserReq {
+  GetMyAdvertiserReq();
+  factory GetMyAdvertiserReq.fromJson(Map<String, dynamic> m) =>
+      GetMyAdvertiserReq();
+  Map<String, dynamic> toJson() => {};
+}
+
 class GetPersonalizationPreferenceResp {
   final bool enabled;
   final num optedOutAt;
@@ -1847,6 +2318,8 @@ class GetRecommendFeedReq {
   final String cursor;
   final num pageSize;
   final String experimentId;
+  final num adSlots;
+  final String market;
   GetRecommendFeedReq({
     required this.anonymousId,
     required this.scene,
@@ -1855,6 +2328,8 @@ class GetRecommendFeedReq {
     required this.cursor,
     required this.pageSize,
     required this.experimentId,
+    required this.adSlots,
+    required this.market,
   });
   factory GetRecommendFeedReq.fromJson(Map<String, dynamic> m) =>
       GetRecommendFeedReq(
@@ -1865,6 +2340,8 @@ class GetRecommendFeedReq {
         cursor: m['cursor']?.toString() ?? "",
         pageSize: m['pageSize'] ?? 0,
         experimentId: m['experimentId']?.toString() ?? "",
+        adSlots: m['adSlots'] ?? 0,
+        market: m['market']?.toString() ?? "",
       );
   Map<String, dynamic> toJson() => {
     'anonymousId': anonymousId,
@@ -1874,6 +2351,8 @@ class GetRecommendFeedReq {
     'cursor': cursor,
     'pageSize': pageSize,
     'experimentId': experimentId,
+    'adSlots': adSlots,
+    'market': market,
   };
 }
 
@@ -1882,11 +2361,13 @@ class GetRecommendFeedResp {
   final String nextCursor;
   final bool hasMore;
   final String requestId;
+  final List<SponsoredSlotItem>? sponsored;
   GetRecommendFeedResp({
     required this.items,
     required this.nextCursor,
     required this.hasMore,
     required this.requestId,
+    this.sponsored,
   });
   factory GetRecommendFeedResp.fromJson(Map<String, dynamic> m) =>
       GetRecommendFeedResp(
@@ -1900,13 +2381,58 @@ class GetRecommendFeedResp {
         nextCursor: m['nextCursor']?.toString() ?? "",
         hasMore: m['hasMore'] ?? false,
         requestId: m['requestId']?.toString() ?? "",
+        sponsored: m['sponsored'] == null
+            ? null
+            : ((m['sponsored'] ?? []) as List)
+                  .map(
+                    (i) => SponsoredSlotItem.fromJson(
+                      Map<String, dynamic>.from(i as Map),
+                    ),
+                  )
+                  .toList(),
       );
   Map<String, dynamic> toJson() => {
     'items': items.map((i) => i.toJson()).toList(),
     'nextCursor': nextCursor,
     'hasMore': hasMore,
     'requestId': requestId,
+    if (sponsored != null)
+      'sponsored': sponsored?.map((i) => i.toJson()).toList(),
   };
+}
+
+class GetReviewEvidenceMediaReq {
+  final Object taskId;
+  final Object mediaId;
+  GetReviewEvidenceMediaReq({required this.taskId, required this.mediaId});
+  factory GetReviewEvidenceMediaReq.fromJson(Map<String, dynamic> m) =>
+      GetReviewEvidenceMediaReq(
+        taskId: m['taskId'] ?? 0,
+        mediaId: m['mediaId'] ?? 0,
+      );
+  Map<String, dynamic> toJson() => {'taskId': taskId, 'mediaId': mediaId};
+}
+
+class GetReviewQueueReq {
+  GetReviewQueueReq();
+  factory GetReviewQueueReq.fromJson(Map<String, dynamic> m) =>
+      GetReviewQueueReq();
+  Map<String, dynamic> toJson() => {};
+}
+
+class GetReviewTaskReq {
+  final Object taskId;
+  GetReviewTaskReq({required this.taskId});
+  factory GetReviewTaskReq.fromJson(Map<String, dynamic> m) =>
+      GetReviewTaskReq(taskId: m['taskId'] ?? 0);
+  Map<String, dynamic> toJson() => {'taskId': taskId};
+}
+
+class GetReviewerProfileReq {
+  GetReviewerProfileReq();
+  factory GetReviewerProfileReq.fromJson(Map<String, dynamic> m) =>
+      GetReviewerProfileReq();
+  Map<String, dynamic> toJson() => {};
 }
 
 class GetUnreadSummaryResp {
@@ -2069,6 +2595,17 @@ class HealthResp {
   Map<String, dynamic> toJson() => {'status': status};
 }
 
+class HideAdReq {
+  final Object adId;
+  final String sessionId;
+  HideAdReq({required this.adId, required this.sessionId});
+  factory HideAdReq.fromJson(Map<String, dynamic> m) => HideAdReq(
+    adId: m['adId'] ?? 0,
+    sessionId: m['sessionId']?.toString() ?? "",
+  );
+  Map<String, dynamic> toJson() => {'adId': adId, 'sessionId': sessionId};
+}
+
 class LikeReq {
   final Object targetId;
   final num targetType;
@@ -2085,6 +2622,83 @@ class LikeResp {
   LikeResp();
   factory LikeResp.fromJson(Map<String, dynamic> m) => LikeResp();
   Map<String, dynamic> toJson() => {};
+}
+
+class ListAdPoliciesReq {
+  ListAdPoliciesReq();
+  factory ListAdPoliciesReq.fromJson(Map<String, dynamic> m) =>
+      ListAdPoliciesReq();
+  Map<String, dynamic> toJson() => {};
+}
+
+class ListAdPoliciesResp {
+  final String policyVersion;
+  final List<AdPolicyCodeItem> codes;
+  final List<String> markets;
+  final List<String> industries;
+  final bool demo;
+  ListAdPoliciesResp({
+    required this.policyVersion,
+    required this.codes,
+    required this.markets,
+    required this.industries,
+    required this.demo,
+  });
+  factory ListAdPoliciesResp.fromJson(Map<String, dynamic> m) =>
+      ListAdPoliciesResp(
+        policyVersion: m['policyVersion']?.toString() ?? "",
+        codes: ((m['codes'] ?? []) as List)
+            .map(
+              (i) => AdPolicyCodeItem.fromJson(
+                Map<String, dynamic>.from(i as Map),
+              ),
+            )
+            .toList(),
+        markets: List<String>.from(m['markets'] as List? ?? const []),
+        industries: List<String>.from(m['industries'] as List? ?? const []),
+        demo: m['demo'] ?? false,
+      );
+  Map<String, dynamic> toJson() => {
+    'policyVersion': policyVersion,
+    'codes': codes.map((i) => i.toJson()).toList(),
+    'markets': markets,
+    'industries': industries,
+    'demo': demo,
+  };
+}
+
+class ListAdsReq {
+  final String cursor;
+  final num pageSize;
+  ListAdsReq({required this.cursor, required this.pageSize});
+  factory ListAdsReq.fromJson(Map<String, dynamic> m) => ListAdsReq(
+    cursor: m['cursor']?.toString() ?? "",
+    pageSize: m['pageSize'] ?? 0,
+  );
+  Map<String, dynamic> toJson() => {'cursor': cursor, 'pageSize': pageSize};
+}
+
+class ListAdsResp {
+  final List<AdItem> ads;
+  final String nextCursor;
+  final bool hasMore;
+  ListAdsResp({
+    required this.ads,
+    required this.nextCursor,
+    required this.hasMore,
+  });
+  factory ListAdsResp.fromJson(Map<String, dynamic> m) => ListAdsResp(
+    ads: ((m['ads'] ?? []) as List)
+        .map((i) => AdItem.fromJson(Map<String, dynamic>.from(i as Map)))
+        .toList(),
+    nextCursor: m['nextCursor']?.toString() ?? "",
+    hasMore: m['hasMore'] ?? false,
+  );
+  Map<String, dynamic> toJson() => {
+    'ads': ads.map((i) => i.toJson()).toList(),
+    'nextCursor': nextCursor,
+    'hasMore': hasMore,
+  };
 }
 
 class ListAssistantMemoryReq {
@@ -2198,6 +2812,35 @@ class ListAssistantWatchResp {
       );
   Map<String, dynamic> toJson() => {
     'tasks': tasks.map((i) => i.toJson()).toList(),
+  };
+}
+
+class ListReviewSeedsReq {
+  final String status;
+  final num limit;
+  ListReviewSeedsReq({required this.status, required this.limit});
+  factory ListReviewSeedsReq.fromJson(Map<String, dynamic> m) =>
+      ListReviewSeedsReq(
+        status: m['status']?.toString() ?? "",
+        limit: m['limit'] ?? 0,
+      );
+  Map<String, dynamic> toJson() => {'status': status, 'limit': limit};
+}
+
+class ListReviewSeedsResp {
+  final List<ReviewSeedItem> seeds;
+  ListReviewSeedsResp({required this.seeds});
+  factory ListReviewSeedsResp.fromJson(Map<String, dynamic> m) =>
+      ListReviewSeedsResp(
+        seeds: ((m['seeds'] ?? []) as List)
+            .map(
+              (i) =>
+                  ReviewSeedItem.fromJson(Map<String, dynamic>.from(i as Map)),
+            )
+            .toList(),
+      );
+  Map<String, dynamic> toJson() => {
+    'seeds': seeds.map((i) => i.toJson()).toList(),
   };
 }
 
@@ -2760,6 +3403,382 @@ class ReplaceAssistantMemoryResp {
   };
 }
 
+class ReviewActionResp {
+  final bool ok;
+  ReviewActionResp({required this.ok});
+  factory ReviewActionResp.fromJson(Map<String, dynamic> m) =>
+      ReviewActionResp(ok: m['ok'] ?? false);
+  Map<String, dynamic> toJson() => {'ok': ok};
+}
+
+class ReviewDecisionItem {
+  final Object decisionId;
+  final String verdict;
+  final List<String> policyCodes;
+  final String policyVersion;
+  final String source;
+  final num decidedAtMs;
+  ReviewDecisionItem({
+    required this.decisionId,
+    required this.verdict,
+    required this.policyCodes,
+    required this.policyVersion,
+    required this.source,
+    required this.decidedAtMs,
+  });
+  factory ReviewDecisionItem.fromJson(Map<String, dynamic> m) =>
+      ReviewDecisionItem(
+        decisionId: m['decisionId'] ?? 0,
+        verdict: m['verdict']?.toString() ?? "",
+        policyCodes: List<String>.from(m['policyCodes'] as List? ?? const []),
+        policyVersion: m['policyVersion']?.toString() ?? "",
+        source: m['source']?.toString() ?? "",
+        decidedAtMs: m['decidedAtMs'] ?? 0,
+      );
+  Map<String, dynamic> toJson() => {
+    'decisionId': decisionId,
+    'verdict': verdict,
+    'policyCodes': policyCodes,
+    'policyVersion': policyVersion,
+    'source': source,
+    'decidedAtMs': decidedAtMs,
+  };
+}
+
+class ReviewDecisionResp {
+  final Object decisionId;
+  final String verdict;
+  final List<String> policyCodes;
+  final String policyVersion;
+  ReviewDecisionResp({
+    required this.decisionId,
+    required this.verdict,
+    required this.policyCodes,
+    required this.policyVersion,
+  });
+  factory ReviewDecisionResp.fromJson(Map<String, dynamic> m) =>
+      ReviewDecisionResp(
+        decisionId: m['decisionId'] ?? 0,
+        verdict: m['verdict']?.toString() ?? "",
+        policyCodes: List<String>.from(m['policyCodes'] as List? ?? const []),
+        policyVersion: m['policyVersion']?.toString() ?? "",
+      );
+  Map<String, dynamic> toJson() => {
+    'decisionId': decisionId,
+    'verdict': verdict,
+    'policyCodes': policyCodes,
+    'policyVersion': policyVersion,
+  };
+}
+
+class ReviewLeaseReq {
+  final Object taskId;
+  final num leaseGeneration;
+  ReviewLeaseReq({required this.taskId, required this.leaseGeneration});
+  factory ReviewLeaseReq.fromJson(Map<String, dynamic> m) => ReviewLeaseReq(
+    taskId: m['taskId'] ?? 0,
+    leaseGeneration: m['leaseGeneration'] ?? 0,
+  );
+  Map<String, dynamic> toJson() => {
+    'taskId': taskId,
+    'leaseGeneration': leaseGeneration,
+  };
+}
+
+class ReviewQueueBucket {
+  final String purpose;
+  final num pending;
+  final num oldestAgeMs;
+  ReviewQueueBucket({
+    required this.purpose,
+    required this.pending,
+    required this.oldestAgeMs,
+  });
+  factory ReviewQueueBucket.fromJson(Map<String, dynamic> m) =>
+      ReviewQueueBucket(
+        purpose: m['purpose']?.toString() ?? "",
+        pending: m['pending'] ?? 0,
+        oldestAgeMs: m['oldestAgeMs'] ?? 0,
+      );
+  Map<String, dynamic> toJson() => {
+    'purpose': purpose,
+    'pending': pending,
+    'oldestAgeMs': oldestAgeMs,
+  };
+}
+
+class ReviewQueueResp {
+  final List<ReviewQueueBucket> buckets;
+  final String policyVersion;
+  ReviewQueueResp({required this.buckets, required this.policyVersion});
+  factory ReviewQueueResp.fromJson(Map<String, dynamic> m) => ReviewQueueResp(
+    buckets: ((m['buckets'] ?? []) as List)
+        .map(
+          (i) =>
+              ReviewQueueBucket.fromJson(Map<String, dynamic>.from(i as Map)),
+        )
+        .toList(),
+    policyVersion: m['policyVersion']?.toString() ?? "",
+  );
+  Map<String, dynamic> toJson() => {
+    'buckets': buckets.map((i) => i.toJson()).toList(),
+    'policyVersion': policyVersion,
+  };
+}
+
+class ReviewSeedActionReq {
+  final Object seedId;
+  ReviewSeedActionReq({required this.seedId});
+  factory ReviewSeedActionReq.fromJson(Map<String, dynamic> m) =>
+      ReviewSeedActionReq(seedId: m['seedId'] ?? 0);
+  Map<String, dynamic> toJson() => {'seedId': seedId};
+}
+
+class ReviewSeedItem {
+  final Object seedId;
+  final String issueCode;
+  final String market;
+  final String language;
+  final String text;
+  final String status;
+  final Object nominatedBy;
+  final Object confirmedBy;
+  final Object sourceTaskId;
+  final num updatedAtMs;
+  ReviewSeedItem({
+    required this.seedId,
+    required this.issueCode,
+    required this.market,
+    required this.language,
+    required this.text,
+    required this.status,
+    required this.nominatedBy,
+    required this.confirmedBy,
+    required this.sourceTaskId,
+    required this.updatedAtMs,
+  });
+  factory ReviewSeedItem.fromJson(Map<String, dynamic> m) => ReviewSeedItem(
+    seedId: m['seedId'] ?? 0,
+    issueCode: m['issueCode']?.toString() ?? "",
+    market: m['market']?.toString() ?? "",
+    language: m['language']?.toString() ?? "",
+    text: m['text']?.toString() ?? "",
+    status: m['status']?.toString() ?? "",
+    nominatedBy: m['nominatedBy'] ?? 0,
+    confirmedBy: m['confirmedBy'] ?? 0,
+    sourceTaskId: m['sourceTaskId'] ?? 0,
+    updatedAtMs: m['updatedAtMs'] ?? 0,
+  );
+  Map<String, dynamic> toJson() => {
+    'seedId': seedId,
+    'issueCode': issueCode,
+    'market': market,
+    'language': language,
+    'text': text,
+    'status': status,
+    'nominatedBy': nominatedBy,
+    'confirmedBy': confirmedBy,
+    'sourceTaskId': sourceTaskId,
+    'updatedAtMs': updatedAtMs,
+  };
+}
+
+class ReviewSeedResp {
+  final ReviewSeedItem seed;
+  ReviewSeedResp({required this.seed});
+  factory ReviewSeedResp.fromJson(Map<String, dynamic> m) => ReviewSeedResp(
+    seed: ReviewSeedItem.fromJson(
+      Map<String, dynamic>.from(m['seed'] as Map? ?? const {}),
+    ),
+  );
+  Map<String, dynamic> toJson() => {'seed': seed.toJson()};
+}
+
+class ReviewStageItem {
+  final String stage;
+  final String componentVersion;
+  final bool shadow;
+  final String outcome;
+  final String reason;
+  final String outputJson;
+  final num latencyMs;
+  ReviewStageItem({
+    required this.stage,
+    required this.componentVersion,
+    required this.shadow,
+    required this.outcome,
+    required this.reason,
+    required this.outputJson,
+    required this.latencyMs,
+  });
+  factory ReviewStageItem.fromJson(Map<String, dynamic> m) => ReviewStageItem(
+    stage: m['stage']?.toString() ?? "",
+    componentVersion: m['componentVersion']?.toString() ?? "",
+    shadow: m['shadow'] ?? false,
+    outcome: m['outcome']?.toString() ?? "",
+    reason: m['reason']?.toString() ?? "",
+    outputJson: m['outputJson']?.toString() ?? "",
+    latencyMs: m['latencyMs'] ?? 0,
+  );
+  Map<String, dynamic> toJson() => {
+    'stage': stage,
+    'componentVersion': componentVersion,
+    'shadow': shadow,
+    'outcome': outcome,
+    'reason': reason,
+    'outputJson': outputJson,
+    'latencyMs': latencyMs,
+  };
+}
+
+class ReviewTaskItem {
+  final Object taskId;
+  final String bizType;
+  final Object objectId;
+  final num objectRevision;
+  final String purpose;
+  final String status;
+  final String market;
+  final String language;
+  final String industry;
+  final num priority;
+  final num deadlineMs;
+  final num leaseGeneration;
+  final num leaseUntilMs;
+  final String snapshotJson;
+  final List<ReviewStageItem> stages;
+  final ReviewDecisionItem? originalDecision;
+  final ReviewDecisionItem? decision;
+  final num submittedAtMs;
+  final String escalationReason;
+  final String policyVersion;
+  final num attempts;
+  ReviewTaskItem({
+    required this.taskId,
+    required this.bizType,
+    required this.objectId,
+    required this.objectRevision,
+    required this.purpose,
+    required this.status,
+    required this.market,
+    required this.language,
+    required this.industry,
+    required this.priority,
+    required this.deadlineMs,
+    required this.leaseGeneration,
+    required this.leaseUntilMs,
+    required this.snapshotJson,
+    required this.stages,
+    required this.originalDecision,
+    required this.decision,
+    required this.submittedAtMs,
+    required this.escalationReason,
+    required this.policyVersion,
+    required this.attempts,
+  });
+  factory ReviewTaskItem.fromJson(Map<String, dynamic> m) => ReviewTaskItem(
+    taskId: m['taskId'] ?? 0,
+    bizType: m['bizType']?.toString() ?? "",
+    objectId: m['objectId'] ?? 0,
+    objectRevision: m['objectRevision'] ?? 0,
+    purpose: m['purpose']?.toString() ?? "",
+    status: m['status']?.toString() ?? "",
+    market: m['market']?.toString() ?? "",
+    language: m['language']?.toString() ?? "",
+    industry: m['industry']?.toString() ?? "",
+    priority: m['priority'] ?? 0,
+    deadlineMs: m['deadlineMs'] ?? 0,
+    leaseGeneration: m['leaseGeneration'] ?? 0,
+    leaseUntilMs: m['leaseUntilMs'] ?? 0,
+    snapshotJson: m['snapshotJson']?.toString() ?? "",
+    stages: ((m['stages'] ?? []) as List)
+        .map(
+          (i) => ReviewStageItem.fromJson(Map<String, dynamic>.from(i as Map)),
+        )
+        .toList(),
+    originalDecision: m['originalDecision'] == null
+        ? null
+        : ReviewDecisionItem.fromJson(
+            Map<String, dynamic>.from(
+              m['originalDecision'] as Map? ?? const {},
+            ),
+          ),
+    decision: m['decision'] == null
+        ? null
+        : ReviewDecisionItem.fromJson(
+            Map<String, dynamic>.from(m['decision'] as Map? ?? const {}),
+          ),
+    submittedAtMs: m['submittedAtMs'] ?? 0,
+    escalationReason: m['escalationReason']?.toString() ?? "",
+    policyVersion: m['policyVersion']?.toString() ?? "",
+    attempts: m['attempts'] ?? 0,
+  );
+  Map<String, dynamic> toJson() => {
+    'taskId': taskId,
+    'bizType': bizType,
+    'objectId': objectId,
+    'objectRevision': objectRevision,
+    'purpose': purpose,
+    'status': status,
+    'market': market,
+    'language': language,
+    'industry': industry,
+    'priority': priority,
+    'deadlineMs': deadlineMs,
+    'leaseGeneration': leaseGeneration,
+    'leaseUntilMs': leaseUntilMs,
+    'snapshotJson': snapshotJson,
+    'stages': stages.map((i) => i.toJson()).toList(),
+    'originalDecision': originalDecision?.toJson(),
+    'decision': decision?.toJson(),
+    'submittedAtMs': submittedAtMs,
+    'escalationReason': escalationReason,
+    'policyVersion': policyVersion,
+    'attempts': attempts,
+  };
+}
+
+class ReviewTaskResp {
+  final bool found;
+  final ReviewTaskItem? task;
+  ReviewTaskResp({required this.found, required this.task});
+  factory ReviewTaskResp.fromJson(Map<String, dynamic> m) => ReviewTaskResp(
+    found: m['found'] ?? false,
+    task: m['task'] == null
+        ? null
+        : ReviewTaskItem.fromJson(
+            Map<String, dynamic>.from(m['task'] as Map? ?? const {}),
+          ),
+  );
+  Map<String, dynamic> toJson() => {'found': found, 'task': task?.toJson()};
+}
+
+class ReviewerProfileResp {
+  final bool active;
+  final List<String> roles;
+  final List<String> markets;
+  final List<String> languages;
+  ReviewerProfileResp({
+    required this.active,
+    required this.roles,
+    required this.markets,
+    required this.languages,
+  });
+  factory ReviewerProfileResp.fromJson(Map<String, dynamic> m) =>
+      ReviewerProfileResp(
+        active: m['active'] ?? false,
+        roles: List<String>.from(m['roles'] as List? ?? const []),
+        markets: List<String>.from(m['markets'] as List? ?? const []),
+        languages: List<String>.from(m['languages'] as List? ?? const []),
+      );
+  Map<String, dynamic> toJson() => {
+    'active': active,
+    'roles': roles,
+    'markets': markets,
+    'languages': languages,
+  };
+}
+
 class SearchPostItem {
   final Object id;
   final String title;
@@ -3060,6 +4079,144 @@ class SetPersonalizationPreferenceResp {
   Map<String, dynamic> toJson() => {};
 }
 
+class SponsoredAdItem {
+  final Object adId;
+  final num revision;
+  final String advertiserName;
+  final String title;
+  final String body;
+  final String cta;
+  final String landingUrl;
+  final String landingDomain;
+  final List<String> images;
+  final String disclosure;
+  final SponsoredWhyItem why;
+  SponsoredAdItem({
+    required this.adId,
+    required this.revision,
+    required this.advertiserName,
+    required this.title,
+    required this.body,
+    required this.cta,
+    required this.landingUrl,
+    required this.landingDomain,
+    required this.images,
+    required this.disclosure,
+    required this.why,
+  });
+  factory SponsoredAdItem.fromJson(Map<String, dynamic> m) => SponsoredAdItem(
+    adId: m['adId'] ?? 0,
+    revision: m['revision'] ?? 0,
+    advertiserName: m['advertiserName']?.toString() ?? "",
+    title: m['title']?.toString() ?? "",
+    body: m['body']?.toString() ?? "",
+    cta: m['cta']?.toString() ?? "",
+    landingUrl: m['landingUrl']?.toString() ?? "",
+    landingDomain: m['landingDomain']?.toString() ?? "",
+    images: List<String>.from(m['images'] as List? ?? const []),
+    disclosure: m['disclosure']?.toString() ?? "",
+    why: SponsoredWhyItem.fromJson(
+      Map<String, dynamic>.from(m['why'] as Map? ?? const {}),
+    ),
+  );
+  Map<String, dynamic> toJson() => {
+    'adId': adId,
+    'revision': revision,
+    'advertiserName': advertiserName,
+    'title': title,
+    'body': body,
+    'cta': cta,
+    'landingUrl': landingUrl,
+    'landingDomain': landingDomain,
+    'images': images,
+    'disclosure': disclosure,
+    'why': why.toJson(),
+  };
+}
+
+class SponsoredSlotItem {
+  final String slotId;
+  final num afterPosition;
+  final SponsoredAdItem ad;
+  SponsoredSlotItem({
+    required this.slotId,
+    required this.afterPosition,
+    required this.ad,
+  });
+  factory SponsoredSlotItem.fromJson(Map<String, dynamic> m) =>
+      SponsoredSlotItem(
+        slotId: m['slotId']?.toString() ?? "",
+        afterPosition: m['afterPosition'] ?? 0,
+        ad: SponsoredAdItem.fromJson(
+          Map<String, dynamic>.from(m['ad'] as Map? ?? const {}),
+        ),
+      );
+  Map<String, dynamic> toJson() => {
+    'slotId': slotId,
+    'afterPosition': afterPosition,
+    'ad': ad.toJson(),
+  };
+}
+
+class SponsoredWhyItem {
+  final String market;
+  final String scene;
+  final bool personalized;
+  SponsoredWhyItem({
+    required this.market,
+    required this.scene,
+    required this.personalized,
+  });
+  factory SponsoredWhyItem.fromJson(Map<String, dynamic> m) => SponsoredWhyItem(
+    market: m['market']?.toString() ?? "",
+    scene: m['scene']?.toString() ?? "",
+    personalized: m['personalized'] ?? false,
+  );
+  Map<String, dynamic> toJson() => {
+    'market': market,
+    'scene': scene,
+    'personalized': personalized,
+  };
+}
+
+class SubmitReviewDecisionReq {
+  final Object taskId;
+  final num leaseGeneration;
+  final String verdict;
+  final List<String> policyCodes;
+  final String note;
+  final bool nominateSeed;
+  final String idempotencyKey;
+  SubmitReviewDecisionReq({
+    required this.taskId,
+    required this.leaseGeneration,
+    required this.verdict,
+    required this.policyCodes,
+    required this.note,
+    required this.nominateSeed,
+    required this.idempotencyKey,
+  });
+  factory SubmitReviewDecisionReq.fromJson(Map<String, dynamic> m) =>
+      SubmitReviewDecisionReq(
+        taskId: m['taskId'] ?? 0,
+        leaseGeneration: m['leaseGeneration'] ?? 0,
+        verdict: m['verdict']?.toString() ?? "",
+        policyCodes: List<String>.from(m['policyCodes'] as List? ?? const []),
+        note: m['note']?.toString() ?? "",
+        nominateSeed: m['nominateSeed'] ?? false,
+        idempotencyKey: m['idempotencyKey']?.toString() ?? "",
+      );
+  Map<String, dynamic> toJson() => {
+    'taskId': taskId,
+    'leaseGeneration': leaseGeneration,
+    'verdict': verdict,
+    'policyCodes': policyCodes,
+    'note': note,
+    'nominateSeed': nominateSeed,
+    'idempotencyKey': idempotencyKey,
+  };
+}
+
 class UndoAssistantMemoryChangeReq {
   final Object id;
   UndoAssistantMemoryChangeReq({required this.id});
@@ -3124,6 +4281,63 @@ class UnlikeResp {
   UnlikeResp();
   factory UnlikeResp.fromJson(Map<String, dynamic> m) => UnlikeResp();
   Map<String, dynamic> toJson() => {};
+}
+
+class UpdateAdReq {
+  final Object adId;
+  final num expectedRevision;
+  final String title;
+  final String body;
+  final String cta;
+  final String landingUrl;
+  final List<Object> mediaIds;
+  final String market;
+  final String industry;
+  final num startMs;
+  final num endMs;
+  final String idempotencyKey;
+  UpdateAdReq({
+    required this.adId,
+    required this.expectedRevision,
+    required this.title,
+    required this.body,
+    required this.cta,
+    required this.landingUrl,
+    required this.mediaIds,
+    required this.market,
+    required this.industry,
+    required this.startMs,
+    required this.endMs,
+    required this.idempotencyKey,
+  });
+  factory UpdateAdReq.fromJson(Map<String, dynamic> m) => UpdateAdReq(
+    adId: m['adId'] ?? 0,
+    expectedRevision: m['expectedRevision'] ?? 0,
+    title: m['title']?.toString() ?? "",
+    body: m['body']?.toString() ?? "",
+    cta: m['cta']?.toString() ?? "",
+    landingUrl: m['landingUrl']?.toString() ?? "",
+    mediaIds: List<Object>.from(m['mediaIds'] as List? ?? const []),
+    market: m['market']?.toString() ?? "",
+    industry: m['industry']?.toString() ?? "",
+    startMs: m['startMs'] ?? 0,
+    endMs: m['endMs'] ?? 0,
+    idempotencyKey: m['idempotencyKey']?.toString() ?? "",
+  );
+  Map<String, dynamic> toJson() => {
+    'adId': adId,
+    'expectedRevision': expectedRevision,
+    'title': title,
+    'body': body,
+    'cta': cta,
+    'landingUrl': landingUrl,
+    'mediaIds': mediaIds,
+    'market': market,
+    'industry': industry,
+    'startMs': startMs,
+    'endMs': endMs,
+    'idempotencyKey': idempotencyKey,
+  };
 }
 
 class UpdateAssistantWatchReq {
@@ -3244,6 +4458,14 @@ class UpdateProfileResp {
   factory UpdateProfileResp.fromJson(Map<String, dynamic> m) =>
       UpdateProfileResp();
   Map<String, dynamic> toJson() => {};
+}
+
+class UploadAdAssetReq {
+  final String kind;
+  UploadAdAssetReq({required this.kind});
+  factory UploadAdAssetReq.fromJson(Map<String, dynamic> m) =>
+      UploadAdAssetReq(kind: m['kind']?.toString() ?? "");
+  Map<String, dynamic> toJson() => {'kind': kind};
 }
 
 class UploadImageReq {

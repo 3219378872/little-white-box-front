@@ -702,6 +702,8 @@ Future getRecommendFeed({
       'cursor',
       'pageSize',
       'experimentId',
+      'adSlots',
+      'market',
     };
     final query = request.toJson()
       ..removeWhere((k, v) => !allowed.contains(k) || v == null);
@@ -1500,6 +1502,506 @@ Future setPersonalizationPreference(
       if (ok != null)
         ok(
           SetPersonalizationPreferenceResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future getMyAdvertiser({
+  Function(AdvertiserResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/ads/advertiser";
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          AdvertiserResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future applyAdvertiser(
+  ApplyAdvertiserReq request, {
+  Function(AdvertiserResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/ads/advertiser";
+  await apiPut(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          AdvertiserResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future addAdQualification(
+  AddQualificationReq request, {
+  Function(AdvertiserResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/ads/advertiser/qualifications";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          AdvertiserResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+String uploadAdAssetPath(Object kind) =>
+    "/api/v2/ads/assets/${Uri.encodeComponent(kind.toString())}";
+
+Future getAdAsset(
+  Object assetId, {
+  Function(AdAssetContentResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/ads/assets/${Uri.encodeComponent(assetId.toString())}";
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          AdAssetContentResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future listAdPolicies({
+  Function(ListAdPoliciesResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/ads/policies";
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ListAdPoliciesResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future listAds({
+  ListAdsReq? request,
+  Function(ListAdsResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  var url = "/api/v2/ads";
+  if (request != null) {
+    final allowed = <String>{'cursor', 'pageSize'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ListAdsResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future createAd(
+  CreateAdReq request, {
+  Function(AdResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/ads";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          AdResp.fromJson(Map<String, dynamic>.from(data as Map? ?? const {})),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future getAd(
+  Object adId, {
+  Function(AdResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/ads/${Uri.encodeComponent(adId.toString())}";
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          AdResp.fromJson(Map<String, dynamic>.from(data as Map? ?? const {})),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future updateAd(
+  Object adId,
+  UpdateAdReq request, {
+  Function(AdResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/ads/${Uri.encodeComponent(adId.toString())}";
+  await apiPut(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          AdResp.fromJson(Map<String, dynamic>.from(data as Map? ?? const {})),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future hideAd(
+  Object adId,
+  HideAdReq request, {
+  Function(AdActionResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/ads/${Uri.encodeComponent(adId.toString())}/hide";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          AdActionResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future getReviewerProfile({
+  Function(ReviewerProfileResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/review/me";
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ReviewerProfileResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future getReviewQueue({
+  Function(ReviewQueueResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/review/queue";
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ReviewQueueResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future claimReviewTask(
+  ClaimReviewTaskReq request, {
+  Function(ReviewTaskResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/review/tasks/claim";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ReviewTaskResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future getReviewTask(
+  Object taskId, {
+  Function(ReviewTaskResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url = "/api/v2/review/tasks/${Uri.encodeComponent(taskId.toString())}";
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ReviewTaskResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future renewReviewTask(
+  Object taskId,
+  ReviewLeaseReq request, {
+  Function(ReviewTaskResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url =
+      "/api/v2/review/tasks/${Uri.encodeComponent(taskId.toString())}/renew";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ReviewTaskResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future releaseReviewTask(
+  Object taskId,
+  ReviewLeaseReq request, {
+  Function(ReviewActionResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url =
+      "/api/v2/review/tasks/${Uri.encodeComponent(taskId.toString())}/release";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ReviewActionResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future submitReviewDecision(
+  Object taskId,
+  SubmitReviewDecisionReq request, {
+  Function(ReviewDecisionResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url =
+      "/api/v2/review/tasks/${Uri.encodeComponent(taskId.toString())}/decision";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ReviewDecisionResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future getReviewEvidenceMedia(
+  Object taskId,
+  Object mediaId, {
+  Function(AdAssetContentResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url =
+      "/api/v2/review/tasks/${Uri.encodeComponent(taskId.toString())}/media/${Uri.encodeComponent(mediaId.toString())}";
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          AdAssetContentResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future listReviewSeeds({
+  ListReviewSeedsReq? request,
+  Function(ListReviewSeedsResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  var url = "/api/v2/review/seeds";
+  if (request != null) {
+    final allowed = <String>{'status', 'limit'};
+    final query = request.toJson()
+      ..removeWhere((k, v) => !allowed.contains(k) || v == null);
+    url = Uri.parse(url)
+        .replace(
+          queryParameters: query.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .toString();
+  }
+  await apiGet(
+    url,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ListReviewSeedsResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future confirmReviewSeed(
+  Object seedId,
+  ReviewSeedActionReq request, {
+  Function(ReviewSeedResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url =
+      "/api/v2/review/seeds/${Uri.encodeComponent(seedId.toString())}/confirm";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ReviewSeedResp.fromJson(
+            Map<String, dynamic>.from(data as Map? ?? const {}),
+          ),
+        );
+    },
+    fail: fail,
+    eventually: eventually,
+  );
+}
+
+Future retireReviewSeed(
+  Object seedId,
+  ReviewSeedActionReq request, {
+  Function(ReviewSeedResp)? ok,
+  Function(String)? fail,
+  Function? eventually,
+}) async {
+  final url =
+      "/api/v2/review/seeds/${Uri.encodeComponent(seedId.toString())}/retire";
+  await apiPost(
+    url,
+    request,
+    ok: (data) {
+      if (ok != null)
+        ok(
+          ReviewSeedResp.fromJson(
             Map<String, dynamic>.from(data as Map? ?? const {}),
           ),
         );
