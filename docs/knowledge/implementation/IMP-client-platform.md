@@ -43,7 +43,7 @@ repository。Riverpod 3 的 `StateNotifier` 经 `package:flutter_riverpod/legacy
 | FX-010 | DES-client-platform | unknown | gap: OpenAPI SDK 与工具链迁移，待新提交上的对应验收证据。 |
 | FX-070 | DES-client-platform | unknown | gap: OpenAPI SDK 与工具链迁移，待新提交上的对应验收证据。 |
 | FQ-001 | DES-client-platform | unknown | gap: OpenAPI SDK 与工具链迁移，待新提交上的对应验收证据。 |
-| FQ-002 | DES-client-platform | aligned | EVD-cloudwego-sdk-2026-09-28 |
+| FQ-002 | DES-client-platform | unknown | gap: 媒体任务身份边界已变更，原 SDK 证据覆盖组输入过期；待新提交上的契约同步与跨平台精确标识验收。 |
 | FQ-003 | DES-client-platform | unknown | gap: OpenAPI SDK 与工具链迁移，待新提交上的对应验收证据。 |
 | FQ-006 | DES-client-platform | unknown | gap: OpenAPI SDK 与工具链迁移，待新提交上的对应验收证据。 |
 | FQ-007 | DES-client-platform | unknown | gap: current evidence lacks the real-interface and browser validation required by the spec |

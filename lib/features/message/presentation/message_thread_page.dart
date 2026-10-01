@@ -61,7 +61,8 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     super.didUpdateWidget(oldWidget);
     if (jsonInt64Id(oldWidget.conversationId) !=
             jsonInt64Id(widget.conversationId) ||
-        jsonInt64Id(oldWidget.targetUserId) != jsonInt64Id(widget.targetUserId)) {
+        jsonInt64Id(oldWidget.targetUserId) !=
+            jsonInt64Id(widget.targetUserId)) {
       _resetOwner();
     }
   }

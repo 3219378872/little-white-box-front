@@ -147,8 +147,12 @@ class _DeferredUploads extends MediaRepository {
   _DeferredUploads(this.result);
   final Completer<UploadedMedia> result;
   @override
-  Future<UploadedMedia> upload(XFile file, MediaKind kind, String key,
-      {required bool Function() isCurrent}) => result.future;
+  Future<UploadedMedia> upload(
+    XFile file,
+    MediaKind kind,
+    String key, {
+    required bool Function() isCurrent,
+  }) => result.future;
 }
 
 void main() {
@@ -167,56 +171,76 @@ void main() {
 
   for (final phase in ['picker', 'upload', 'send', 'retry']) {
     for (final navigation in ['go', 'push']) {
-      testWidgets('$navigation to a new thread fences media during $phase',
-          (tester) async {
+      testWidgets('$navigation to a new thread fences media during $phase', (
+        tester,
+      ) async {
         await loginAsCurrentUser();
         final picker = _PendingPicker();
         final upload = Completer<UploadedMedia>();
         final send = Completer<http.Response>();
         final uploads = _DeferredUploads(upload);
         final recipients = <Object?>[];
-        setApiClient(ScriptedGatewayClient((request) async {
-          if (request.url.path.endsWith('/read')) {
-            return jsonResponse(okEnvelope(<String, dynamic>{}));
-          }
-          if (request.url.path.contains('/conversations/')) {
-            return jsonResponse(okEnvelope({'messages': [], 'hasMore': false}));
-          }
-          if (request.url.path == '/api/v2/messages') {
-            recipients.add(jsonDecode((request as http.Request).body)['receiverId']);
-            return phase == 'send'
-                ? send.future
-                : jsonResponse({'code': 500, 'message': '发送失败'}, 500);
-          }
-          return jsonResponse(okEnvelope({'messageUnread': 0, 'notificationUnread': 0}));
-        }));
+        setApiClient(
+          ScriptedGatewayClient((request) async {
+            if (request.url.path.endsWith('/read')) {
+              return jsonResponse(okEnvelope(<String, dynamic>{}));
+            }
+            if (request.url.path.contains('/conversations/')) {
+              return jsonResponse(
+                okEnvelope({'messages': [], 'hasMore': false}),
+              );
+            }
+            if (request.url.path == '/api/v2/messages') {
+              recipients.add(
+                jsonDecode((request as http.Request).body)['receiverId'],
+              );
+              return phase == 'send'
+                  ? send.future
+                  : jsonResponse({'code': 500, 'message': '发送失败'}, 500);
+            }
+            return jsonResponse(
+              okEnvelope({'messageUnread': 0, 'notificationUnread': 0}),
+            );
+          }),
+        );
         final router = GoRouter(
           initialLocation: '/thread/9007199254740992?target=9',
-          routes: [GoRoute(
-            path: '/thread/:id',
-            builder: (_, state) => MessageThreadPage(
-              conversationId: state.pathParameters['id']!,
-              targetUserId: state.uri.queryParameters['target']!,
+          routes: [
+            GoRoute(
+              path: '/thread/:id',
+              builder: (_, state) => MessageThreadPage(
+                conversationId: state.pathParameters['id']!,
+                targetUserId: state.uri.queryParameters['target']!,
+              ),
             ),
-          )],
+          ],
         );
         addTearDown(router.dispose);
-        await tester.pumpWidget(AppProviderScope(
-          overrides: [
-            mediaPickerProvider.overrideWithValue(picker),
-            mediaRepositoryProvider.overrideWithValue(uploads),
-          ],
-          child: MaterialApp.router(routerConfig: router, builder: foruiTestBuilder),
-        ));
+        await tester.pumpWidget(
+          AppProviderScope(
+            overrides: [
+              mediaPickerProvider.overrideWithValue(picker),
+              mediaRepositoryProvider.overrideWithValue(uploads),
+            ],
+            child: MaterialApp.router(
+              routerConfig: router,
+              builder: foruiTestBuilder,
+            ),
+          ),
+        );
         await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('发送视频'));
         await tester.pump();
         if (phase != 'picker') {
-          picker.result.complete(XFile.fromData(Uint8List.fromList([1]), name: 'v'));
+          picker.result.complete(
+            XFile.fromData(Uint8List.fromList([1]), name: 'v'),
+          );
           await tester.pump();
         }
         if (phase == 'send' || phase == 'retry') {
-          upload.complete(const UploadedMedia(mediaId: 99, url: 'https://media.test/v'));
+          upload.complete(
+            const UploadedMedia(mediaId: 99, url: 'https://media.test/v'),
+          );
           await tester.pump();
           if (phase == 'retry') await tester.pumpAndSettle();
         }
@@ -228,9 +252,13 @@ void main() {
         }
         await tester.pumpAndSettle();
         if (phase == 'picker') {
-          picker.result.complete(XFile.fromData(Uint8List.fromList([1]), name: 'old'));
+          picker.result.complete(
+            XFile.fromData(Uint8List.fromList([1]), name: 'old'),
+          );
         } else if (phase == 'upload') {
-          upload.complete(const UploadedMedia(mediaId: 99, url: 'https://media.test/v'));
+          upload.complete(
+            const UploadedMedia(mediaId: 99, url: 'https://media.test/v'),
+          );
         } else if (phase == 'send') {
           send.complete(jsonResponse({'code': 500, 'message': '发送失败'}, 500));
         }
