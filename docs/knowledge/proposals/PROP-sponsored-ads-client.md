@@ -1,7 +1,11 @@
 # PROP-0002 广告投放、广告主控制台与审核工作台（提案）
 
 - id: PROP-sponsored-ads-client
-- status: open
+- status: closed
+- decision: 2026-10-01 人类批准，待定事项授权 agent 决定（入口放在个人页与桌面侧栏；工作台保持
+  `FQ-005` 移动端可用；广告卡片与帖子卡片同构，加标识、去互动栏、增加 CTA）。已写入
+  `INT-content-community-client`、`FX-100`～`FX-105`、`FX-110`～`FX-113`、`FQ-009` 修订与
+  `FQ-010`、`FQ-011`。
 - owner: agent（意图与规格语义由人类决定）
 - target_layer: intent, spec
 - created: 2026-10-01

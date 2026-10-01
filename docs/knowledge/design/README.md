@@ -11,6 +11,7 @@
 | [DES-community-client](DES-community-client.md) | active | [SPEC-client-experience](../spec/SPEC-client-experience.md) |
 | [DES-messaging-client](DES-messaging-client.md) | active | [SPEC-client-experience](../spec/SPEC-client-experience.md) |
 | [DES-presentation-client](DES-presentation-client.md) | active | [SPEC-client-engineering](../spec/SPEC-client-engineering.md) |
+| [DES-sponsored-ads-client](DES-sponsored-ads-client.md) | active | [SPEC-client-engineering](../spec/SPEC-client-engineering.md), [SPEC-client-experience](../spec/SPEC-client-experience.md) |
 
 ### History
 

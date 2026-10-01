@@ -25,6 +25,7 @@ updated_at: 2026-09-06
 | 私信 | [私信](design/DES-messaging-client.md) | [私信](implementation/IMP-messaging-client.md) |
 | Assistant | [Assistant](design/DES-assistant-client.md) | [Assistant](implementation/IMP-assistant-client.md) |
 | 展示 | [展示](design/DES-presentation-client.md) | [展示](implementation/IMP-presentation-client.md) |
+| 广告 | [广告与审核](design/DES-sponsored-ads-client.md) | [广告与审核](implementation/IMP-sponsored-ads-client.md) |
 
 [意图](intent/INT-content-community-client.md)、[体验规格](spec/SPEC-client-experience.md)、
 [工程规格](spec/SPEC-client-engineering.md)、[证据](evidence/README.md)、[历史](archive/README.md)。
