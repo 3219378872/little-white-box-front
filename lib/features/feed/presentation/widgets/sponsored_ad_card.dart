@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_icon_button.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../sdk/vars/vars.dart';
@@ -379,7 +380,7 @@ class SponsoredBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FBadge(
+    return AppBadge(
       variant: AppTheme.sponsoredBadgeVariant,
       child: Row(
         mainAxisSize: MainAxisSize.min,

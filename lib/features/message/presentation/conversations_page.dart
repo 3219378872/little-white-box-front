@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/formatters/time_formatter.dart';
+import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/paginated_list.dart';
@@ -74,7 +75,7 @@ class ConversationsPage extends ConsumerWidget {
           suffixes: [
             if (unread.summary.notificationUnread > 0)
               Center(
-                child: FBadge(
+                child: AppBadge(
                   variant: FBadgeVariant.secondary,
                   child: Text('通知 ${unread.summary.notificationUnread}'),
                 ),
@@ -204,7 +205,7 @@ class _AssistantPin extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           details: thread.unreadCount > 0
-              ? FBadge(child: Text('${thread.unreadCount}'))
+              ? AppBadge(child: Text('${thread.unreadCount}'))
               : null,
           suffix: const Icon(FLucideIcons.chevronRight),
           onPress: onPress,
@@ -227,7 +228,7 @@ class _ConversationDetails extends StatelessWidget {
         Text(formatConversationTime(conversation.lastMessageTime)),
         if (conversation.unreadCount > 0) ...[
           const SizedBox(height: 4),
-          FBadge(child: Text('${conversation.unreadCount}')),
+          AppBadge(child: Text('${conversation.unreadCount}')),
         ],
       ],
     );

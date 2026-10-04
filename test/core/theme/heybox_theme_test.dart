@@ -27,6 +27,18 @@ void main() {
     }
   });
 
+  test('alert titles use body text size inside cards', () {
+    for (final theme in [AppTheme.foruiLight, AppTheme.foruiDark]) {
+      final body = theme.typography.body.sm.fontSize;
+      expect(theme.alertStyles.primary.titleTextStyle.fontSize, body);
+      expect(theme.alertStyles.destructive.titleTextStyle.fontSize, body);
+      expect(
+        theme.alertStyles.destructive.titleTextStyle.color,
+        theme.colors.destructive,
+      );
+    }
+  });
+
   test('single images stay 16:9 and cap their height on desktop', () {
     expect(
       PostMediaPreview.heightFor(1, 648),

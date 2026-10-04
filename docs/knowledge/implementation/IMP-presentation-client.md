@@ -12,7 +12,7 @@ code_paths:
 - tools/heybox_visual_check.mjs
 - tools/heybox_android_check.py
 - tools/redesign_compare_capture.mjs
-updated_at: '2026-09-27'
+updated_at: '2026-10-04'
 ---
 
 # 客户端展示系统实现映射
@@ -28,6 +28,14 @@ updated_at: '2026-09-27'
 图片圆角 8、680 列与热门标签右栏起初偏离 FQ-009；2026-09-27 人类批准修订 FQ-009 并同步 DES 后恢复对齐。
 改造前后对比见 [EVD-ui-redesign-2026-09-26](../evidence/EVD-ui-redesign-2026-09-26.md)，修订后全页面验收见
 [EVD-fq009-visual-2026-09-27](../evidence/EVD-fq009-visual-2026-09-27.md)。
+
+2026-10-04 修复两处展示问题。其一，直接打开页面时徽标只显示前几个字（如「回扫」只剩「回」）：
+`RenderParagraph` 计算固有宽度用的独立 `TextPainter` 不随 `systemFontsDidChange` 失效，`FBadge` 内部的
+`IntrinsicWidth` 因而保留中文回退字体加载前的宽度。`lib/core/widgets/app_badge.dart` 的
+`SystemFontsRefresh` 在系统字体变化后以新 key 重建子树，全部 `FBadge` 改用 `AppBadge`，Agent 引用按钮的
+`IntrinsicWidth` 同样包裹。其二，`FAlert` 标题沿用 `display.sm`，在本主题中为 20 号；`app_theme.dart` 将
+提示标题统一降为 `body.sm`。Widget 测试 `remeasures the label after system fonts change` 与
+`alert titles use body text size inside cards` 覆盖这两处。
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |

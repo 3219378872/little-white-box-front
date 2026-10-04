@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/error_view.dart';
@@ -93,7 +94,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
                 runSpacing: 8,
                 children: [
                   for (final cap in state.capacities)
-                    FBadge(
+                    AppBadge(
                       variant: .secondary,
                       child: Text('${cap.target} ${cap.used}/${cap.limit}'),
                     ),
@@ -405,7 +406,7 @@ class _MemoryTile extends StatelessWidget {
           children: [
             Row(
               children: [
-                FBadge(
+                AppBadge(
                   variant: .secondary,
                   child: Text(record.target.toUpperCase()),
                 ),

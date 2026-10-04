@@ -251,6 +251,23 @@ class AppTheme {
       typography: typography,
       style: style,
       sidebarStyle: sidebar,
+      // Alerts sit inside cards; Forui titles them with display.sm, which this
+      // theme sets to the 20px page-title size, so step them down to body.sm.
+      alertStyles:
+          FAlertStyles.inherit(
+            colors: colors,
+            typography: typography,
+            style: style,
+            touch: touch,
+          ).apply([
+            .all(
+              FAlertStyleDelta.delta(
+                titleTextStyle: TextStyleDelta.delta(
+                  fontSize: body.sm.fontSize,
+                ),
+              ),
+            ),
+          ]),
       badgeStyles: FVariants(
         badge(colors.primary, colors.primaryForeground),
         variants: {

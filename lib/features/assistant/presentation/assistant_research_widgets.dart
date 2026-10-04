@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/json_int64.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_badge.dart';
 import '../../../sdk/vars/vars.dart';
 import '../data/assistant_models.dart';
 
@@ -555,14 +556,16 @@ class _AssistantResearchAnswerState extends State<AssistantResearchAnswer> {
                     in block.citations
                         .map((citation) => citation.handle)
                         .toSet())
-                  IntrinsicWidth(
-                    child: FButton(
-                      key: Key('citation-${block.id}-$handle'),
-                      variant: .ghost,
-                      size: .sm,
-                      onPress: () => _reveal(handle),
-                      child: Text(
-                        '[${sources.indexWhere((source) => source.handle == handle) + 1}]${sources.any((source) => source.handle == handle && !source.available) ? ' 来源失效' : ''}',
+                  SystemFontsRefresh(
+                    child: IntrinsicWidth(
+                      child: FButton(
+                        key: Key('citation-${block.id}-$handle'),
+                        variant: .ghost,
+                        size: .sm,
+                        onPress: () => _reveal(handle),
+                        child: Text(
+                          '[${sources.indexWhere((source) => source.handle == handle) + 1}]${sources.any((source) => source.handle == handle && !source.available) ? ' 来源失效' : ''}',
+                        ),
                       ),
                     ),
                   ),

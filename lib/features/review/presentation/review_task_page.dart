@@ -6,6 +6,7 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
@@ -304,7 +305,7 @@ class ReviewPurposeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FBadge(
+    return AppBadge(
       key: Key('review-purpose-$purpose'),
       variant: purpose == 'initial'
           ? FBadgeVariant.secondary

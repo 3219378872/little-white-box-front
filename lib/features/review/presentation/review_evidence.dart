@@ -5,6 +5,7 @@ import 'package:forui/forui.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../ads/data/ad_labels.dart';
@@ -293,13 +294,13 @@ class _StageTile extends StatelessWidget {
                   ),
                 ),
                 if (placeholder)
-                  FBadge(
+                  AppBadge(
                     key: Key('review-stage-placeholder-${stage.stage}'),
                     variant: FBadgeVariant.outline,
                     child: const Text('占位'),
                   ),
                 if (stage.shadow)
-                  FBadge(
+                  AppBadge(
                     variant: FBadgeVariant.outline,
                     child: const Text('影子'),
                   ),
