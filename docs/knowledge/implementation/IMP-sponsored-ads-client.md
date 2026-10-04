@@ -40,5 +40,5 @@ updated_at: 2026-10-04
 | FX-111 | DES-sponsored-ads-client | unknown | gap: 已实现按授权队列领取、快照与机审证据、政策定义、拒绝必选政策码、续期与放弃、持有失效与任务作废的只读提示且不重复提交；控制器、Widget 与 Mock 测试通过，尚无 EVD 覆盖组。 |
 | FX-112 | DES-sponsored-ads-client | unknown | gap: 已实现个人页「商业」分组与桌面侧栏入口、按审核员信息接口显示工作台、`/review*` 非审核员无权限页、7003 与回到前台时刷新角色；Widget 测试通过，尚无 EVD 覆盖组。 |
 | FX-113 | DES-sponsored-ads-client | unknown | gap: 已实现质检、申诉、举报与回扫任务的文字标签、原结论、本地化转人审原因与结论效果提示；页面测试覆盖质检、申诉、举报与回扫任务（Mock）；未与真实后端联调；尚无 EVD 覆盖组。 |
-| FQ-010 | DES-sponsored-ads-client | unknown | gap: 广告界面复用 Forui 与 `app_theme.dart` 令牌，亮暗主题 Widget 测试通过；2026-10-04 修复首次打开审核任务页时徽标文字被截断与提示标题过大（见 IMP-presentation-client）；尚无覆盖亮暗与移动、桌面的完整浏览器验收证据。 |
+| FQ-010 | DES-sponsored-ads-client | unknown | gap: 广告界面复用 Forui 与 `app_theme.dart` 令牌，亮暗主题 Widget 测试通过；2026-10-04 修复首次打开审核任务页时徽标文字被截断与提示标题过大（[EVD-badge-alert-fix-2026-10-04](../evidence/EVD-badge-alert-fix-2026-10-04.md)，partial）；尚无覆盖亮暗与移动、桌面的完整浏览器验收证据。 |
 | FQ-011 | DES-sponsored-ads-client | unknown | gap: SDK 已于 a912526 同步，广告槽位逐槽容错解析与帖子严格解析相互独立；单元测试通过，尚无 EVD 覆盖组。 |

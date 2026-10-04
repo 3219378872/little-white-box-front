@@ -35,7 +35,8 @@ updated_at: '2026-10-04'
 `SystemFontsRefresh` 在系统字体变化后以新 key 重建子树，全部 `FBadge` 改用 `AppBadge`，Agent 引用按钮的
 `IntrinsicWidth` 同样包裹。其二，`FAlert` 标题沿用 `display.sm`，在本主题中为 20 号；`app_theme.dart` 将
 提示标题统一降为 `body.sm`。Widget 测试 `remeasures the label after system fonts change` 与
-`alert titles use body text size inside cards` 覆盖这两处。
+`alert titles use body text size inside cards` 覆盖这两处，浏览器对比见
+[EVD-badge-alert-fix-2026-10-04](../evidence/EVD-badge-alert-fix-2026-10-04.md)。
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |

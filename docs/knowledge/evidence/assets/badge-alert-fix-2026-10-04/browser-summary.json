@@ -1,0 +1,38 @@
+{
+  "before_commit": "fd6ae91efbe415a101607a483642209d2800b778",
+  "after_commit": "eb1eaa6e1ac58401c24a57f4074e1afb8df5f590",
+  "build": "make build-web (lib/main_mock.dart release)",
+  "browser": "Playwright Chromium, device_scale_factor=1, locale=zh-CN, fresh context per page, 8 s settle",
+  "cases": [
+    {
+      "page": "/review/tasks/{9001,9002,9005,9006,9007}",
+      "viewport": "1440x1000",
+      "before": "purpose badge shows only its first characters (首次/质/举/回/申)",
+      "after": "full labels 首次审核/质检/举报/回扫/申诉"
+    },
+    {
+      "page": "/review/tasks/9006",
+      "viewport": "1440x1000",
+      "before": "placeholder badge shows 占; alert title at 20px wraps",
+      "after": "占位 badge complete; alert title at 14px on one line"
+    },
+    {
+      "page": "/review/tasks/9006 after resize 1441 and 390",
+      "viewport": "1440x1000",
+      "before": "clipping persists after relayout (stale intrinsic width)",
+      "after": "not rerun; fresh loads above pass"
+    },
+    {
+      "page": "/ads/7001",
+      "viewport": "1440x1000",
+      "before": "info alert title at 20px",
+      "after": "14px"
+    },
+    {
+      "page": "/review/tasks/9006",
+      "viewport": "390x844",
+      "before": "alert title at 20px wraps to 3 lines",
+      "after": "14px, 2 lines; badge complete"
+    }
+  ]
+}
