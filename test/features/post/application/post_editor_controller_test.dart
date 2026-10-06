@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
@@ -39,6 +41,25 @@ class _RecordingPostRepository extends PostRepository {
     uploads++;
     return UploadedImage(mediaId: 50 + uploads, url: 'https://m/$uploads.png');
   }
+}
+
+// 本地图片已不可读（被移走或权限变化）：[failLength] 控制在取长度还是读内容时失败。
+class _UnreadableXFile extends XFile {
+  final bool failLength;
+
+  _UnreadableXFile({this.failLength = false}) : super('/gone/pixel.png');
+
+  @override
+  Future<int> length() async {
+    if (failLength) {
+      throw const FileSystemException('Cannot retrieve length of file');
+    }
+    return 68;
+  }
+
+  @override
+  Future<Uint8List> readAsBytes() async =>
+      throw const FileSystemException('Cannot open file');
 }
 
 void main() {
@@ -88,6 +109,27 @@ void main() {
     expect(repo.creates.last.images, ['https://m/1.png']);
     expect(repo.creates[0].idempotencyKey, repo.creates[1].idempotencyKey);
   });
+
+  for (final failLength in [false, true]) {
+    test('an unreadable local image reports a Chinese reason '
+        '(failLength: $failLength)', () async {
+      final repo = _RecordingPostRepository();
+      final controller = PostEditorController(repository: repo)
+        ..addLocalImage(XFile.fromData(_pixel, name: 'pixel.png'))
+        ..addLocalImage(_UnreadableXFile(failLength: failLength));
+
+      await expectLater(
+        controller.publish(title: 'T', content: 'C'),
+        throwsA(
+          isA<PostImageUploadException>()
+              .having((error) => error.failedIndex, 'failedIndex', 1)
+              .having((error) => error.reason, 'reason', '无法读取所选图片，请重新选择'),
+        ),
+      );
+      expect(repo.creates, isEmpty);
+      expect(controller.state.isSubmitting, isFalse);
+    });
+  }
 
   test('invalid drafts are rejected before any request', () async {
     final repo = _RecordingPostRepository();

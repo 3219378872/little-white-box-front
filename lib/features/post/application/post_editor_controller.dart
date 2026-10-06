@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,6 +20,9 @@ const postTagMaxLength = 32;
 
 // 单张图片上限，和媒体服务限制一致。
 const _maxImageBytes = 10 * 1024 * 1024;
+
+// 本地图片读不出来（文件被移走、权限变化等）时的原因；IO 异常原文不展示给用户。
+const _unreadableImageReason = '无法读取所选图片，请重新选择';
 
 /// 编辑器实例键：[session] 由页面在创建或切换 postId 时新建，
 /// 保证草稿、上传缓存与幂等键不会跨页面实例复用。
@@ -295,11 +299,24 @@ class PostEditorController extends StateNotifier<PostEditorState> {
       return const [];
     }
 
-    // 以路径、文件名与大小识别同一组选择，命中缓存则跳过重复上传。
-    final selectionFingerprint = jsonEncode([
-      for (final file in localImages)
-        {'path': file.path, 'name': file.name, 'length': await file.length()},
-    ]);
+    // 以路径、文件名与大小识别同一组选择，命中缓存则跳过重复上传；
+    // 取不到大小说明文件已不可读，直接按该图片失败处理。
+    final fingerprintParts = <Map<String, Object>>[];
+    for (var i = 0; i < localImages.length; i++) {
+      final file = localImages[i];
+      final int length;
+      try {
+        length = await file.length();
+      } catch (_) {
+        throw PostImageUploadException(i, _unreadableImageReason);
+      }
+      fingerprintParts.add({
+        'path': file.path,
+        'name': file.name,
+        'length': length,
+      });
+    }
+    final selectionFingerprint = jsonEncode(fingerprintParts);
     if (!mounted) return const [];
     if (_uploadedSelectionFingerprint == selectionFingerprint &&
         _uploadedLocalImages != null) {
@@ -312,8 +329,14 @@ class PostEditorController extends StateNotifier<PostEditorState> {
       final idx = i;
       final file = localImages[i];
       futures.add(() async {
+        // 读取本地内容单独兜底，避免把 IO 异常原文当作失败原因展示。
+        final Uint8List bytes;
         try {
-          final bytes = await file.readAsBytes();
+          bytes = await file.readAsBytes();
+        } catch (_) {
+          return (idx, null, _unreadableImageReason);
+        }
+        try {
           final name = file.name;
           // 识别不出 jpeg/png/webp 的文件在上传前拒绝。
           if (detectImageMime(name, bytes) == null) {
@@ -328,7 +351,8 @@ class PostEditorController extends StateNotifier<PostEditorState> {
           );
           return (idx, uploaded, null);
         } catch (e) {
-          return (idx, null, e.toString());
+          // 上传失败已在 API 边界转成中文，这里统一取可展示文案。
+          return (idx, null, friendlyErrorMessage(e));
         }
       }());
     }
@@ -339,7 +363,7 @@ class PostEditorController extends StateNotifier<PostEditorState> {
     results.sort((a, b) => a.$1.compareTo(b.$1));
     for (final r in results) {
       if (r.$2 == null) {
-        throw PostImageUploadException(r.$1, r.$3 ?? 'unknown');
+        throw PostImageUploadException(r.$1, r.$3 ?? '上传失败');
       }
     }
 
