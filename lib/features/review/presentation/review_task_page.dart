@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/formatters/time_formatter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_section.dart';
@@ -231,7 +232,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
                     child: Text(
                       remaining == Duration.zero
                           ? '持有已到期'
-                          : '持有剩余 ${_formatRemaining(remaining)}',
+                          : '持有剩余 ${formatMinutesSeconds(remaining)}',
                       key: const Key('review-lease-remaining'),
                       style: theme.typography.body.sm.copyWith(
                         color: expiring ? theme.colors.destructive : null,
@@ -289,12 +290,6 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
       ],
     ),
   );
-
-  static String _formatRemaining(Duration remaining) {
-    final minutes = remaining.inMinutes;
-    final seconds = remaining.inSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
 }
 
 /// 以文字标签区分首次审核、质检、申诉、举报与回扫，不只依赖颜色（FX-113）。

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/error_codes.dart';
 import '../../../core/api/idempotency.dart';
+import '../../../core/formatters/time_formatter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../core/widgets/app_toast.dart';
@@ -242,7 +243,5 @@ class _Qualifications extends StatelessWidget {
 /// UTC 日期 `YYYY-MM-DD`；0 表示未设置。
 String formatAdDate(int ms) {
   if (ms <= 0) return '未设置';
-  final date = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
-  return '${date.year}-${date.month.toString().padLeft(2, '0')}-'
-      '${date.day.toString().padLeft(2, '0')}';
+  return formatUtcDate(ms);
 }

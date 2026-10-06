@@ -73,4 +73,19 @@ void main() {
     );
     expect(formatConversationTime(0, now: now), isEmpty);
   });
+
+  test('formats UTC dates independent of the local zone', () {
+    // 23:30 UTC 在东八区已是次日，日期仍按 UTC 日界展示。
+    final lateUtc = DateTime.utc(2026, 3, 9, 23, 30).millisecondsSinceEpoch;
+    expect(formatUtcDate(lateUtc), '2026-03-09');
+  });
+
+  test('formats countdowns as unpadded minutes and padded seconds', () {
+    expect(
+      formatMinutesSeconds(const Duration(minutes: 4, seconds: 5)),
+      '4:05',
+    );
+    expect(formatMinutesSeconds(const Duration(seconds: 59)), '0:59');
+    expect(formatMinutesSeconds(const Duration(minutes: 75)), '75:00');
+  });
 }

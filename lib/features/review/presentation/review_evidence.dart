@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
+import '../../../core/formatters/time_formatter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_section.dart';
@@ -125,11 +126,10 @@ class _SnapshotView extends StatelessWidget {
     );
   }
 
+  // 资质有效期等证据日期按 UTC 展示，0 表示申请方未提供。
   static String _date(int ms) {
     if (ms <= 0) return '未提供';
-    final date = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-'
-        '${date.day.toString().padLeft(2, '0')}';
+    return formatUtcDate(ms);
   }
 }
 

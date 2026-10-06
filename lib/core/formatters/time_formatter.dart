@@ -44,4 +44,19 @@ String formatConversationTime(num timestamp, {DateTime? now}) {
   return '${value.month}/${value.day}';
 }
 
+/// 以 UTC 展示 `YYYY-MM-DD`，供广告有效期、审核证据等按 UTC 日界存储的日期使用。
+String formatUtcDate(int epochMilliseconds) {
+  final date = DateTime.fromMillisecondsSinceEpoch(
+    epochMilliseconds,
+    isUtc: true,
+  );
+  return '${date.year}-${_twoDigits(date.month)}-${_twoDigits(date.day)}';
+}
+
+/// 倒计时文案 `分:秒`，分钟不补零、秒补两位，如 `4:05`。
+String formatMinutesSeconds(Duration duration) {
+  final seconds = duration.inSeconds % Duration.secondsPerMinute;
+  return '${duration.inMinutes}:${_twoDigits(seconds)}';
+}
+
 String _twoDigits(int value) => value.toString().padLeft(2, '0');
