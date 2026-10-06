@@ -4,17 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/api/json_int64.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
-import '../../../core/widgets/load_more_footer.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../application/search_notifier.dart';
 import '../data/search_models.dart';
-import 'search_highlight.dart';
+import 'widgets/search_result_list.dart';
 import '../../../core/router/app_routes.dart';
 
+/// 搜索页：搜索框、范围标签与按阶段（空闲/加载/失败/成功）切换的结果区。
+///
+/// 传入 [onOpenPost]/[onOpenUser] 可接管结果导航（测试用），否则默认 push 详情路由。
 class SearchPage extends ConsumerStatefulWidget {
   final ValueChanged<Object>? onOpenPost;
   final ValueChanged<Object>? onOpenUser;
@@ -160,6 +160,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
+  // 空闲态：有最近搜索时展示可点击的历史关键词，否则给引导空态。
   Widget _buildIdle(SearchState state) {
     final theme = context.theme;
     if (state.recentKeywords.isEmpty) {
@@ -216,6 +217,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
+  // 结果区按搜索阶段切换；成功态在降级时先给横幅再列结果。
   Widget _buildBody(SearchState state) {
     return switch (state.phase) {
       SearchPhase.idle => _buildIdle(state),
@@ -246,7 +248,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     message: _emptySearchMessage(state.results),
                     icon: FLucideIcons.searchX,
                   )
-                : _SearchResultList(
+                : SearchResultList(
                     results: state.results,
                     scope: state.scope,
                     hasMore: state.hasMore,
@@ -266,6 +268,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     };
   }
 
+  // 零命中文案：帖子类型不可用时说明原因，而不是笼统的「没有结果」。
   String _emptySearchMessage(SearchResults results) {
     final unavailable = {
       for (final type in results.unavailableTypes) type.toLowerCase(),
@@ -274,247 +277,5 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       return '帖子搜索暂不可用';
     }
     return '没有找到相关结果';
-  }
-}
-
-class _SearchResultList extends StatelessWidget {
-  final SearchResults results;
-  final SearchScope scope;
-  final bool hasMore;
-  final bool isLoadingMore;
-  final String? loadMoreError;
-  final VoidCallback onLoadMore;
-  final ValueChanged<Object> onOpenPost;
-  final ValueChanged<Object> onOpenUser;
-  final ValueChanged<String> onSearchTag;
-  final String keyword;
-
-  const _SearchResultList({
-    required this.keyword,
-    required this.results,
-    required this.scope,
-    required this.hasMore,
-    required this.isLoadingMore,
-    required this.loadMoreError,
-    required this.onLoadMore,
-    required this.onOpenPost,
-    required this.onOpenUser,
-    required this.onSearchTag,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final children = <Widget>[];
-    if (results.posts.isNotEmpty) {
-      children.add(_sectionTitle(context, '帖子'));
-      children.addAll(results.posts.map((post) => _post(context, post)));
-    }
-    if (results.users.isNotEmpty) {
-      children.add(
-        _sectionTitle(context, scope == SearchScope.users ? '用户' : '相关用户'),
-      );
-      children.addAll(results.users.map(_user));
-    }
-    if (results.tags.isNotEmpty) {
-      children.add(
-        _sectionTitle(context, scope == SearchScope.tags ? '标签' : '相关标签'),
-      );
-      children.addAll(results.tags.map((tag) => _tag(context, tag)));
-      if (scope == SearchScope.tags && results.tags.length >= 20) {
-        children.add(
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
-            child: Text(
-              '只显示前 ${results.tags.length} 个标签',
-              style: context.theme.typography.body.sm.copyWith(
-                color: context.theme.colors.mutedForeground,
-              ),
-            ),
-          ),
-        );
-      }
-    }
-    // 结果尾部：手动加载下一页，失败时原地重试。
-    if (hasMore || isLoadingMore || loadMoreError != null) {
-      children.add(
-        LoadMoreFooter(
-          isLoading: isLoadingMore,
-          error: loadMoreError,
-          onLoadMore: onLoadMore,
-        ),
-      );
-    }
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppTheme.pageInset,
-        0,
-        AppTheme.pageInset,
-        AppTheme.space6,
-      ),
-      children: children,
-    );
-  }
-
-  Widget _sectionTitle(BuildContext context, String label) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, AppTheme.space4, 0, 0),
-      child: Semantics(
-        header: true,
-        child: Text(
-          label,
-          style: context.theme.typography.body.sm.copyWith(
-            color: context.theme.colors.mutedForeground,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _post(BuildContext context, SearchPostResult post) {
-    final theme = context.theme;
-    final mark = TextStyle(
-      color: theme.colors.primary,
-      fontWeight: FontWeight.w600,
-    );
-    final highlight = parseEmHighlight(post.contentHighlight.trim(), mark);
-    final avatar = CachedAvatar(
-      url: post.authorAvatar,
-      name: post.displayAuthor,
-      radius: 10,
-    );
-    return FTappable(
-      onPress: () => onOpenPost(post.id),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: theme.colors.border)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            FTappable(
-              onPress: jsonInt64IsPositive(post.authorId)
-                  ? () => onOpenUser(post.authorId)
-                  : null,
-              child: Row(
-                children: [
-                  avatar,
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      post.displayAuthor,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.typography.body.xs.copyWith(
-                        color: theme.colors.mutedForeground,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text.rich(
-              TextSpan(
-                children: highlightKeyword(
-                  post.title.isEmpty ? '未命名帖子' : post.title,
-                  keyword,
-                  mark,
-                ),
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: theme.typography.body.lg.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (highlight.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text.rich(
-                TextSpan(children: highlight),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.typography.body.sm.copyWith(
-                  color: theme.colors.secondaryForeground,
-                  height: 1.6,
-                ),
-              ),
-            ],
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                '${post.likeCount} 赞 · ${post.commentCount} 评论',
-                style: theme.typography.body.xs.copyWith(
-                  color: theme.colors.mutedForeground,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _user(SearchUserResult user) {
-    return FItem(
-      prefix: CachedAvatar(
-        url: user.avatarUrl,
-        name: user.displayName,
-        radius: 20,
-      ),
-      title: Text(
-        user.displayName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        user.bio.isEmpty ? '@${user.username}' : user.bio,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      details: Text('${user.followerCount} 关注者'),
-      suffix: const Icon(FLucideIcons.chevronRight),
-      onPress: () => onOpenUser(user.id),
-    );
-  }
-
-  // A plain row keeps tags on the same 16px inset as post results.
-  Widget _tag(BuildContext context, SearchTagResult tag) {
-    final theme = context.theme;
-    return FTappable(
-      onPress: () => onSearchTag(tag.name),
-      semanticsLabel: '${tag.name}，${tag.postCount} 篇帖子',
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: Row(
-          children: [
-            Icon(FLucideIcons.hash, size: 18, color: theme.colors.primary),
-            const SizedBox(width: AppTheme.space2),
-            Expanded(
-              child: Text(
-                tag.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.typography.body.md,
-              ),
-            ),
-            Text(
-              '${tag.postCount} 篇帖子',
-              style: theme.typography.body.xs.copyWith(
-                color: theme.colors.mutedForeground,
-              ),
-            ),
-            const SizedBox(width: AppTheme.space1),
-            Icon(
-              FLucideIcons.chevronRight,
-              size: 16,
-              color: theme.colors.mutedForeground,
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
