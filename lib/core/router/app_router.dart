@@ -27,6 +27,7 @@ import 'app_route_observer.dart';
 import 'public_routes.dart';
 import 'app_routes.dart';
 
+// 根导航器承载认证页与壳；壳导航器承载壳内页面，切换时保留侧栏/底栏。
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -40,6 +41,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: ref.read(authListenableProvider),
     redirect: (context, state) {
       final authState = ref.read(authNotifierProvider);
+      // 会话恢复完成前不做判定，避免已登录用户被短暂踢到登录页。
       if (authState.isLoading) return null;
 
       final isLoggedIn = authState.isAuthenticated;
@@ -99,6 +101,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ),
           ),
+          // 会话 ID 与对方用户 ID 缺失或非正时回到消息列表，不打开空线程。
           GoRoute(
             path: AppRoutes.messageThreadPattern,
             redirect: (context, state) {
@@ -124,6 +127,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ),
           ),
+          // 旧 Agent 入口只做重定向，保留历史书签可用。
           GoRoute(
             path: AppRoutes.legacyAssistantMemory,
             redirect: (context, state) => AppRoutes.assistantMemory,

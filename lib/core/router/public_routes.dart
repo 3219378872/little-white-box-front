@@ -12,6 +12,7 @@ const publicRoutes = [
   AppRoutes.register,
 ];
 
+/// 路由守卫据此判断 [location] 是否允许匿名访问；[location] 为不含查询串的路径。
 bool isPublicRoute(String location) {
   if (publicRoutes.contains(location)) {
     return true;

@@ -57,6 +57,7 @@ class MainShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final destination = _destinationFor(location);
+    // 导航角标合计私信与 Agent 线程的未读数。
     final messageUnread = ref.watch(
       unreadSummaryProvider.select((state) => state.summary.messageUnread),
     );
@@ -64,6 +65,7 @@ class MainShell extends ConsumerWidget {
       assistantThreadProvider.select((state) => state.thread.unreadCount),
     );
     final navUnread = messageUnread + assistantUnread;
+    // 断点：lg 及以上用侧栏（xl 以下折叠），md 及以上给内容加水平留白。
     final width = MediaQuery.sizeOf(context).width;
     final breakpoints = context.theme.breakpoints;
     final isDesktop = width >= breakpoints.lg;
@@ -105,6 +107,7 @@ class MainShell extends ConsumerWidget {
                   : child,
             ),
           ),
+          // 无界面的后台绑定，随壳挂载、随壳销毁。
           const AssistantThreadPollBinding(),
           const ReviewerAccessRefreshBinding(),
         ],
@@ -183,6 +186,8 @@ class _DesktopSidebar extends StatelessWidget {
       unreadSemanticsHint = '$messageUnread 条未读';
     }
 
+    // 单个导航项：折叠时只显示图标（未读用红点）并以 tooltip 提示名称，
+    // 展开时文字后跟未读胶囊；语义合并为一个节点供读屏使用。
     Widget item(
       _AppDestination destination,
       IconData icon,
@@ -229,6 +234,7 @@ class _DesktopSidebar extends StatelessWidget {
               : AppTheme.sidebarWidth,
         ),
       ),
+      // 头部品牌标识，折叠时只保留图标。
       header: Padding(
         padding: EdgeInsets.fromLTRB(
           collapsed ? 0 : 24,
@@ -400,6 +406,7 @@ class _UnreadNavigationIcon extends StatelessWidget {
       return iconWidget;
     }
 
+    // 折叠侧栏空间有限，只画红点。
     if (dot) {
       return Stack(
         clipBehavior: Clip.none,
