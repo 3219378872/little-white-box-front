@@ -14,6 +14,8 @@ import '../application/memory_notifier.dart';
 import '../data/assistant_models.dart';
 import '../../../core/router/app_routes.dart';
 
+/// 记忆管理页：查看各分区记忆与容量；授权有效时可新增、修改、删除并撤销最近一次
+/// 变更，否则只读。
 class MemoryPage extends ConsumerStatefulWidget {
   const MemoryPage({super.key});
 
@@ -21,6 +23,7 @@ class MemoryPage extends ConsumerStatefulWidget {
   ConsumerState<MemoryPage> createState() => _MemoryPageState();
 }
 
+// 记录当前打开的弹窗及其所属身份，账号切换时关闭弹窗，避免把输入写进新账号。
 class _MemoryPageState extends ConsumerState<MemoryPage> {
   BuildContext? _activeDialogContext;
   String? _activeDialogIdentity;
@@ -37,6 +40,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 登录身份变化时关闭旧账号打开的弹窗。
     ref.listen<String>(assistantUserKeyProvider, (_, _) {
       _dismissDialogForIdentityChange();
     });
@@ -55,6 +59,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
                 : context.go(AppRoutes.assistant),
           ),
         ],
+        // 授权有效时才提供新增与撤销入口。
         suffixes: [
           if (consent.canUseMemory)
             FHeaderAction(
@@ -72,6 +77,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
       ),
       child: Column(
         children: [
+          // 只读提示：未授权或授权待升级。
           if (consent.loaded && !consent.canUseMemory)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -88,6 +94,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
                 ),
               ),
             ),
+          // 各分区容量。
           if (state.capacities.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -103,6 +110,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
                 ],
               ),
             ),
+          // 列表区：加载、错误、空态或记忆条目。
           Expanded(
             child: state.isLoading && state.items.isEmpty
                 ? const LoadingView()
@@ -131,6 +139,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
                     },
                   ),
           ),
+          // 已有条目时的错误显示在底部，不替换列表。
           if (state.error != null && state.items.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -146,6 +155,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
     );
   }
 
+  // 新增记忆弹窗：选择分区并填写内容，确认后写入。
   Future<void> _add() async {
     final identity = ref.read(assistantUserKeyProvider);
     if (!_ownsIdentity(identity)) return;
@@ -241,6 +251,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
     }
   }
 
+  // 修改记忆弹窗，确认后按读取时的版本替换。
   Future<void> _edit(MemoryRecord record) async {
     final identity = ref.read(assistantUserKeyProvider);
     if (!_ownsIdentity(identity)) return;
@@ -314,6 +325,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
     }
   }
 
+  // 删除记忆（携带版本），之后可经撤销恢复。
   Future<void> _delete(MemoryRecord record) async {
     final identity = ref.read(assistantUserKeyProvider);
     if (!_ownsIdentity(identity)) return;
@@ -327,6 +339,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
     }
   }
 
+  // 撤销最近一次写入。
   Future<void> _undo() async {
     final identity = ref.read(assistantUserKeyProvider);
     if (!_ownsIdentity(identity)) return;
@@ -340,18 +353,21 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
     }
   }
 
+  // 异步操作返回后确认页面仍挂载且登录身份未变。
   bool _ownsIdentity(String identity) {
     return mounted &&
         identity.isNotEmpty &&
         ref.read(assistantUserKeyProvider) == identity;
   }
 
+  // 登记当前弹窗；登记时身份已变化则立即安排关闭。
   void _bindDialog(BuildContext dialogContext, String identity) {
     _activeDialogContext = dialogContext;
     _activeDialogIdentity = identity;
     _dismissDialogForIdentityChange();
   }
 
+  // 弹窗结束后注销登记（只注销同一身份的登记）。
   void _clearDialog(String identity) {
     if (_activeDialogIdentity != identity) return;
     _activeDialogContext = null;
@@ -359,6 +375,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
     _dialogDismissScheduled = false;
   }
 
+  // 身份已切换时在下一帧关闭仍打开的弹窗；同一时间只安排一次。
   void _dismissDialogForIdentityChange() {
     final dialogContext = _activeDialogContext;
     final identity = _activeDialogIdentity;
@@ -383,6 +400,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
   }
 }
 
+// 单条记忆：分区标签、版本号与内容；可写时提供修改与删除。
 class _MemoryTile extends StatelessWidget {
   final MemoryRecord record;
   final bool canWrite;
