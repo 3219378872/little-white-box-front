@@ -15,6 +15,10 @@ import 'ads_providers.dart';
 /// 单条广告最多 3 张创意图（与 ad-rpc 一致）。
 const maxAdCreatives = 3;
 
+/// 投放起止时刻的「不限」取值：ad-rpc 投放筛选把 0 视为不设起点或终点。
+/// 新建广告暂不提供投放时段设置，始终全时段投放。
+const adScheduleUnbounded = 0;
+
 /// 表单未通过客户端校验；不会发出任何请求，[message] 直接展示给用户。
 class AdFormInvalidException implements Exception {
   final String message;
@@ -303,8 +307,9 @@ class AdEditorCommands {
             mediaIds: draft.mediaIds,
             market: draft.market,
             industry: draft.industry,
-            startMs: 0,
-            endMs: 0,
+            // 新建广告不限投放时段。
+            startMs: adScheduleUnbounded,
+            endMs: adScheduleUnbounded,
             idempotencyKey: key,
           ),
         );
