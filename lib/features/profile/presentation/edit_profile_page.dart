@@ -8,9 +8,7 @@ import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
-import '../../../sdk/data/gateway.dart';
-import '../../auth/application/auth_notifier.dart';
-import '../application/profile_dependencies.dart';
+import '../application/edit_profile_controller.dart';
 import '../../../core/router/app_routes.dart';
 
 /// 编辑本人资料页：载入当前昵称与简介，保存后返回个人主页。
@@ -21,23 +19,24 @@ class EditProfilePage extends ConsumerStatefulWidget {
   ConsumerState<EditProfilePage> createState() => _EditProfilePageState();
 }
 
-// 持有表单输入与载入/保存状态。
+// 只持有输入框；载入、重试与保存由 EditProfileController 负责。
 class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   final _nicknameCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
-  // 头像本页不可修改，只用于预览并在保存时原样回传。
-  String _avatarUrl = '';
-  // 保存请求进行中。
-  bool _isLoading = false;
-  bool _isInitialized = false;
-  // 已安排过一次载入，防止 build 反复触发。
-  bool _loadRequested = false;
-  Object? _loadError;
 
   @override
   void initState() {
     super.initState();
-    _scheduleLoad();
+    // 资料每次载入成功时回填输入框，之后由用户编辑；页面释放时监听自动关闭。
+    ref.listenManual(
+      editProfileControllerProvider.select((state) => state.profile),
+      (previous, next) {
+        if (next == null || identical(previous, next)) return;
+        _nicknameCtrl.text = next.nickname;
+        _bioCtrl.text = next.bio;
+      },
+      fireImmediately: true,
+    );
   }
 
   @override
@@ -47,63 +46,13 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     super.dispose();
   }
 
-  // 读取当前用户资料并回填表单。
-  Future<void> _loadProfile() async {
-    final auth = ref.read(authNotifierProvider);
-    // 冷启动深链进入本页时身份可能仍在恢复中；返回后由 build 的 watch 再触发。
-    if (auth.isLoading || auth.userId == null) {
-      if (mounted) setState(() => _loadRequested = false);
-      return;
-    }
-    try {
-      final user = await ref
-          .read(userRepositoryProvider)
-          .getUserProfile(auth.userId!);
-      if (!mounted) return;
-      setState(() {
-        _nicknameCtrl.text = user.nickname;
-        _bioCtrl.text = user.bio;
-        _avatarUrl = user.avatarUrl;
-        _isInitialized = true;
-        _loadError = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      // 加载失败进入可重试的错误态，而不是永久停在进度圈。
-      setState(() => _loadError = e);
-    }
-  }
+  EditProfileController get _controller =>
+      ref.read(editProfileControllerProvider.notifier);
 
-  /// 身份就绪时安排一次资料加载；未就绪则等 build 的 watch 在恢复后重排再触发。
-  void _scheduleLoad() {
-    if (_isInitialized || _loadRequested || _loadError != null) return;
-    final auth = ref.read(authNotifierProvider);
-    if (auth.isLoading || auth.userId == null) return;
-    _loadRequested = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadProfile();
-    });
-  }
-
-  // 错误态重试：清掉错误后重新载入。
-  void _retryLoad() {
-    setState(() => _loadError = null);
-    _loadProfile();
-  }
-
-  // 保存资料：昵称与简介去首尾空白后提交，成功提示并返回。
+  // 保存成功提示并返回，失败留在本页提示原因。
   Future<void> _save() async {
-    setState(() => _isLoading = true);
     try {
-      await ref
-          .read(userRepositoryProvider)
-          .updateUserProfile(
-            UpdateProfileReq(
-              nickname: _nicknameCtrl.text.trim(),
-              avatarUrl: _avatarUrl,
-              bio: _bioCtrl.text.trim(),
-            ),
-          );
+      await _controller.save(nickname: _nicknameCtrl.text, bio: _bioCtrl.text);
       if (mounted) {
         showAppSuccess(context, '保存成功');
         context.canPop() ? context.pop() : context.go(AppRoutes.profile);
@@ -112,16 +61,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       if (mounted) {
         showAppError(context, '保存失败: ${friendlyErrorMessage(e)}');
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // watch 身份状态：冷启动深链进入时等恢复完成后自动重排并触发加载。
-    ref.watch(authNotifierProvider);
-    _scheduleLoad();
+    final state = ref.watch(editProfileControllerProvider);
     return FScaffold(
       childPad: false,
       header: FHeader.nested(
@@ -138,28 +83,28 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           FButton(
             size: .sm,
             mainAxisSize: MainAxisSize.min,
-            onPress: (_isLoading || !_isInitialized || _loadError != null)
-                ? null
-                : _save,
-            child: _isLoading
+            onPress: state.canSave ? _save : null,
+            child: state.isSaving
                 ? const FCircularProgress(size: .sm)
                 : const Text('保存'),
           ),
         ],
       ),
-      child: _buildBody(),
+      child: _buildBody(state),
     );
   }
 
   // 表单区：载入失败给重试，载入中给进度，否则展示头像预览与输入框。
-  Widget _buildBody() {
-    if (_loadError != null) {
+  Widget _buildBody(EditProfileState state) {
+    final loadError = state.loadError;
+    if (loadError != null) {
       return ErrorView(
-        message: '加载失败: ${friendlyErrorMessage(_loadError!)}',
-        onRetry: _retryLoad,
+        message: '加载失败: ${friendlyErrorMessage(loadError)}',
+        onRetry: _controller.load,
       );
     }
-    if (!_isInitialized) {
+    final profile = state.profile;
+    if (profile == null) {
       return const LoadingView();
     }
     return ListView(
@@ -167,7 +112,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       children: [
         Center(
           child: CachedAvatar(
-            url: _avatarUrl,
+            url: profile.avatarUrl,
             name: _nicknameCtrl.text,
             radius: 32,
           ),
