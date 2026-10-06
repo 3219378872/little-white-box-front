@@ -38,6 +38,7 @@ MemoryRecord _memoryRecordFromJson(Map<String, dynamic> map) {
   return (items, capacities);
 }
 
+// 单个分区的容量，数字字段同样宽松解析。
 MemoryCapacity _memoryCapacityFromJson(Map<String, dynamic> map) {
   return MemoryCapacity(
     target: map['target']?.toString() ?? '',
@@ -46,7 +47,7 @@ MemoryCapacity _memoryCapacityFromJson(Map<String, dynamic> map) {
   );
 }
 
-// 写入响应：entry 可缺省（如删除），changeId 用于撤销。
+// 写入响应：缺少 entry 时为 null，changeId 用于撤销。
 MemoryWriteResult _memoryWriteFromResponse(Map<String, dynamic> response) {
   final raw = response['entry'];
   return MemoryWriteResult(

@@ -1,11 +1,13 @@
 part of 'assistant_models.dart';
 
+// 研究类载荷的可选对象：null 表示缺省，非对象视为格式错误。
 T? _researchObject<T>(Object? value, T Function(Map<String, dynamic>) decode) {
   if (value == null) return null;
   if (value is! Map) throw const FormatException('invalid research object');
   return decode(Map<String, dynamic>.from(value));
 }
 
+// 研究类载荷的列表：null 视为空列表，元素必须是非空对象；结果不可变。
 List<T> _researchList<T>(
   Object? value,
   T Function(Map<String, dynamic>) decode,
@@ -21,6 +23,7 @@ List<T> _researchList<T>(
   );
 }
 
+/// 提问卡中的一个可选项。
 class AssistantQuestionOption {
   final String id;
   final String label;
@@ -32,6 +35,7 @@ class AssistantQuestionOption {
       );
 }
 
+/// 提问卡中的一个问题；[selection] 只能是 single 或 multiple。
 class AssistantQuestion {
   final String id;
   final String text;
@@ -57,6 +61,7 @@ class AssistantQuestion {
   }
 }
 
+/// 用户对一个问题的回答；[disposition] 是作答方式（如 answered），由提问卡填写。
 class AssistantQuestionAnswer {
   final String questionId;
   final List<String> selectedOptionIds;
@@ -78,6 +83,8 @@ class AssistantQuestionAnswer {
         text: _string(json['text']),
         disposition: _string(json['disposition']),
       );
+
+  /// 选项 ID 排序后序列化，使同一回答的指纹与请求体稳定。
   Map<String, dynamic> toJson() => {
     'questionId': questionId,
     'selectedOptionIds': [...selectedOptionIds]..sort(),
@@ -86,6 +93,8 @@ class AssistantQuestionAnswer {
   };
 }
 
+/// run 暂停时向用户发起的一组问题；[status] 为 pending 时等待作答，
+/// 过了 [deadlineMs] 视为过期，需走续答。
 class AssistantQuestionRequest {
   final String id;
   final Object runId;
@@ -103,7 +112,11 @@ class AssistantQuestionRequest {
     required this.questions,
     this.answers = const [],
   });
+
+  /// 仍在等待作答。
   bool get isPending => status == 'pending';
+
+  /// 服务端已标记过期，或仍为 pending 但本地时钟已过截止时间。
   bool get hasExpired =>
       status == 'expired' ||
       (isPending && DateTime.now().millisecondsSinceEpoch >= deadlineMs);
@@ -125,6 +138,7 @@ class AssistantQuestionRequest {
   }
 }
 
+/// 来源中被引用的一段摘录。
 class AssistantEvidence {
   final String id;
   final String kind;
@@ -145,6 +159,7 @@ class AssistantEvidence {
       );
 }
 
+/// 研究型回答引用的来源；[available] 为 false 时来源已失效，只展示占位。
 class AssistantResearchSource {
   final String handle;
   final String kind;
@@ -183,6 +198,7 @@ class AssistantResearchSource {
       );
 }
 
+/// 回答块对某个来源的引用，[evidenceIds] 指向该来源的摘录。
 class AssistantAnswerCitation {
   final String handle;
   final List<String> evidenceIds;
@@ -200,6 +216,7 @@ class AssistantAnswerCitation {
       );
 }
 
+/// 结构化回答中的一个段落块及其引用。
 class AssistantAnswerBlock {
   final String id;
   final String kind;
@@ -223,6 +240,7 @@ class AssistantAnswerBlock {
       );
 }
 
+/// 落库后的结构化回答（仅支持 version 1）：段落块加来源列表。
 class AssistantAnswerPresentation {
   final Object messageId;
   final Object runId;
@@ -234,6 +252,8 @@ class AssistantAnswerPresentation {
     required this.blocks,
     required this.sources,
   });
+
+  /// 解码并校验：来源最多 10 个且 handle 唯一，每个引用都必须指向已列出的来源。
   factory AssistantAnswerPresentation.fromJson(Map<String, dynamic> json) {
     if (_integer(json['version']) != 1) {
       throw const FormatException('unsupported answer presentation version');

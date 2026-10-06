@@ -266,11 +266,13 @@ class AssistantEventStreamClient {
     );
   }
 
+  // 续传游标可能是 int 或字符串编码的 int64，统一解析为 int。
   static int _asInt(Object? value) {
     if (value is num) return value.toInt();
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
+  // 未注入加载器时的默认 token 来源：SDK 持久化的会话。
   static Future<String?> _defaultAccessToken() async {
     return (await getTokens())?.accessToken;
   }

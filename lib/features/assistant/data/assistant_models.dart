@@ -2,6 +2,8 @@ import '../../../core/api/json_int64.dart';
 
 part 'assistant_research_models.dart';
 
+/// run 事件流中客户端认识的事件类型；无法识别的类型归为 [unknown] 并被跳过，
+/// 便于服务端新增事件而不打断旧客户端。
 enum AssistantEventType {
   runStarted,
   token,
@@ -19,10 +21,14 @@ enum AssistantEventType {
   unknown,
 }
 
+/// 服务端对新消息的处置：无活跃 run 时 started；模型请求中 redirected；
+/// 工具执行中 steered（作为补充输入）；其余阶段 queued。
 enum AssistantDisposition { started, redirected, steered, queued, unknown }
 
+/// 客户端认识的记忆分区（记忆页的 MEMORY / USER），其余目标在列表中丢弃。
 const memoryTargets = {'memory', 'user'};
 
+/// 随消息上传的图片附件：媒体 ID 与可访问地址。
 class AssistantAttachment {
   final Object mediaId;
   final String url;
@@ -32,6 +38,8 @@ class AssistantAttachment {
   Map<String, dynamic> toJson() => {'mediaId': mediaId, 'url': url};
 }
 
+/// 用户唯一 Assistant 线程的摘要：未读数、最新消息与当前活跃 run，
+/// 供入口角标轮询与会话页判断是否需要重载或续订。
 class AssistantThreadSummary {
   final AssistantQuestionRequest? questionRequest;
   final Object sessionId;
@@ -55,6 +63,7 @@ class AssistantThreadSummary {
     this.activeRunPhase = '',
   });
 
+  /// 服务端仍有未结束的 run。
   bool get hasActiveRun => jsonInt64IsPositive(activeRunId);
 
   factory AssistantThreadSummary.fromJson(Map<String, dynamic> json) {
@@ -75,6 +84,7 @@ class AssistantThreadSummary {
   }
 }
 
+/// 一条已持久化的历史消息；kind 区分普通回复、提问卡与记忆变更等。
 class AssistantHistoryMessage {
   final AssistantQuestionRequest? questionRequest;
   final AssistantAnswerPresentation? answerPresentation;
@@ -129,6 +139,7 @@ class AssistantHistoryMessage {
   }
 }
 
+/// 历史分页结果；[nextBeforeId] 是继续向前翻页的游标。
 class AssistantMessagePage {
   final List<AssistantHistoryMessage> messages;
   final bool hasMore;
@@ -141,6 +152,7 @@ class AssistantMessagePage {
   });
 }
 
+/// 发消息的受理结果：消息落在哪个会话与 run，以及服务端的处置方式。
 class AssistantPostResult {
   final Object messageId;
   final Object sessionId;
@@ -167,6 +179,7 @@ class AssistantPostResult {
   }
 }
 
+/// run 中的一次工具调用；callId 也用于确认/拒绝该调用。
 class AssistantToolCall {
   final String callId;
   final String tool;
@@ -195,6 +208,7 @@ class AssistantToolCall {
   }
 }
 
+/// 流式过程中推送的来源卡片；相等性只看 handle/kind/authorityId，用于去重。
 class AssistantSourceCard {
   final String handle;
   final String kind;
@@ -212,10 +226,13 @@ class AssistantSourceCard {
     this.payloadJson = '',
   });
 
+  /// 指向站内帖子且带有效帖子 ID，可跳转帖子详情。
   bool get isVerifiedPost => kind == 'post' && jsonInt64IsPositive(authorityId);
 
+  /// 作为推荐内容展示（含站内帖子）。
   bool get isRecommend => kind == 'recommend' || kind == 'post';
 
+  /// 站内帖子 ID；非站内帖子来源为 null。
   Object? get postId => isVerifiedPost ? jsonInt64Id(authorityId) : null;
 
   factory AssistantSourceCard.fromJson(Map<String, dynamic> json) {
@@ -247,6 +264,8 @@ class AssistantSourceCard {
   int get hashCode => Object.hash(handle, kind, authorityId);
 }
 
+/// SSE 推送的一条 run 事件；[seq] 是断线续传游标，[streamId] 区分同一 run
+/// 内被 response_reset 作废的输出流。
 class AssistantRunEvent {
   final AssistantQuestionRequest? questionRequest;
   final AssistantAnswerPresentation? answerPresentation;
@@ -278,9 +297,12 @@ class AssistantRunEvent {
     this.streamId = '',
   });
 
+  /// done/error 结束 run，连接层据此收尾订阅。
   bool get isTerminal =>
       type == AssistantEventType.done || type == AssistantEventType.error;
 
+  /// 解码并校验事件：各类型的必需字段缺失时抛 [FormatException]，
+  /// 由事件流转换为不可重试的协议错误。
   factory AssistantRunEvent.fromJson(Map<String, dynamic> json) {
     final rawType = _string(json['type']);
     final type = switch (rawType) {
@@ -299,6 +321,7 @@ class AssistantRunEvent {
       'error' => AssistantEventType.error,
       _ => AssistantEventType.unknown,
     };
+    // 未知类型只保留游标字段，其余载荷不解析。
     if (type == AssistantEventType.unknown) {
       return AssistantRunEvent(
         type: type,
@@ -324,6 +347,7 @@ class AssistantRunEvent {
     if (type == AssistantEventType.answerCommitted && answer == null) {
       throw const FormatException('missing assistant answer presentation');
     }
+    // 按事件类型校验必需载荷。
     final rawToolCall = json['toolCall'];
     final toolCall = rawToolCall is Map
         ? AssistantToolCall.fromJson(Map<String, dynamic>.from(rawToolCall))
@@ -371,6 +395,7 @@ class AssistantRunEvent {
   }
 }
 
+/// 一条用户记忆；[version] 用于替换/删除时的并发校验。
 class MemoryRecord {
   final Object id;
   final String target;
@@ -391,6 +416,7 @@ class MemoryRecord {
   String get idText => jsonInt64Id(id);
 }
 
+/// 某个记忆分区的已用与上限。
 class MemoryCapacity {
   final String target;
   final int used;
@@ -403,6 +429,7 @@ class MemoryCapacity {
   });
 }
 
+/// 记忆写入结果：可能带回最新记录，[changeId] 供撤销。
 class MemoryWriteResult {
   final MemoryRecord? entry;
   final Object changeId;
@@ -410,8 +437,10 @@ class MemoryWriteResult {
   const MemoryWriteResult({this.entry, this.changeId = 0});
 }
 
+// 宽松字符串解码：缺失为空串。
 String _string(Object? value) => value?.toString() ?? '';
 
+// 宽松整数解码：兼容数字字符串，无法解析时为 0。
 int _integer(Object? value) {
   if (value is num) return value.toInt();
   return int.tryParse(value?.toString() ?? '') ?? 0;

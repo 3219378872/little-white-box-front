@@ -15,6 +15,8 @@ export 'assistant_event_stream.dart' show AssistantStreamException;
 
 part 'assistant_memory_mapping.dart';
 
+/// Agent consent as returned by the Gateway `getAgentConsent` SDK call;
+/// versions compare the user's granted disclosure with the current one.
 class AgentConsentStatus {
   final bool granted;
   final int grantedAt;
@@ -30,9 +32,11 @@ class AgentConsentStatus {
     this.currentVersion = 0,
   });
 
+  /// Granted against an older disclosure version; the user must re-consent.
   bool get needsUpgrade =>
       granted && currentVersion > 0 && consentVersion < currentVersion;
 
+  /// Memory features require a consent that matches the current disclosure.
   bool get canUseMemory => granted && !needsUpgrade;
 
   factory AgentConsentStatus.fromSdk(GetAgentConsentResp resp) {
@@ -46,23 +50,33 @@ class AgentConsentStatus {
   }
 }
 
+/// Assistant backend contract used by the notifiers; tests inject fakes here.
 abstract interface class AssistantDataSource {
+  /// Answers a still-pending question request inside its run.
   Future<AssistantQuestionRequest> answerQuestions({
     required AssistantQuestionRequest question,
     required String requestId,
     required List<AssistantQuestionAnswer> answers,
   });
+
+  /// Resubmits answers to an expired question as a new message.
   Future<AssistantPostResult> continueQuestions({
     required AssistantQuestionRequest question,
     required String requestId,
     required List<AssistantQuestionAnswer> answers,
   });
+
+  /// Reads the current agent consent and disclosure versions.
   Future<AgentConsentStatus> loadAgentConsent();
 
+  /// Grants or revokes agent consent.
   Future<void> setAgentConsent({required bool granted});
 
+  /// Loads the user's single assistant thread summary (unread, active run).
   Future<AssistantThreadSummary> getThread();
 
+  /// Pages history: [afterId] fetches newer messages, [beforeId] older ones;
+  /// the two cursors are mutually exclusive.
   Future<AssistantMessagePage> listMessages({
     Object sessionId = 0,
     Object afterId = 0,
@@ -70,6 +84,7 @@ abstract interface class AssistantDataSource {
     int limit = 50,
   });
 
+  /// Posts a user message; [requestId] makes retries idempotent.
   Future<AssistantPostResult> postMessage({
     required String message,
     required String requestId,
@@ -77,33 +92,41 @@ abstract interface class AssistantDataSource {
     Object contextPostId = 0,
   });
 
+  /// Streams run events after [afterSeq] for resume after a disconnect.
   Stream<AssistantRunEvent> runEvents({
     required Object runId,
     Object afterSeq = 0,
   });
 
+  /// Marks the thread read and returns the remaining unread count.
   Future<int> markThreadRead();
 
+  /// Deletes the whole conversation history.
   Future<void> deleteHistory();
 
+  /// Asks the server to cancel an active run.
   Future<void> cancelRun(Object runId);
 
+  /// Approves or declines a tool call that is awaiting confirmation.
   Future<void> confirmRun({
     required Object runId,
     required String callId,
     required bool approved,
   });
 
+  /// Lists memory records and per-target capacity; an empty [target] means all.
   Future<(List<MemoryRecord>, List<MemoryCapacity>)> listMemory({
     String target = '',
   });
 
+  /// Adds a memory record; the returned change id enables undo.
   Future<MemoryWriteResult> addMemory({
     required String target,
     required String content,
     String requestId = '',
   });
 
+  /// Replaces a record's content; [version] guards against concurrent edits.
   Future<MemoryWriteResult> replaceMemory({
     required Object id,
     required String content,
@@ -111,14 +134,17 @@ abstract interface class AssistantDataSource {
     String requestId = '',
   });
 
+  /// Removes a record at [version]; only the change id is returned.
   Future<MemoryWriteResult> removeMemory({
     required Object id,
     required int version,
     String requestId = '',
   });
 
+  /// Reverts one memory change and returns the restored record.
   Future<MemoryRecord> undoMemoryChange(Object changeId);
 
+  /// Sends feedback with a reason on a recommended post.
   Future<void> submitRecommendFeedback({
     required Object postId,
     required String reason,
@@ -145,6 +171,7 @@ class AssistantRepository implements AssistantDataSource {
        ),
        _api = api;
 
+  // SDK getAgentConsent; int64 fields are narrowed to Dart ints.
   @override
   Future<AgentConsentStatus> loadAgentConsent() async {
     final resp = await apiCall<GetAgentConsentResp>(
@@ -154,6 +181,7 @@ class AssistantRepository implements AssistantDataSource {
     return AgentConsentStatus.fromSdk(resp);
   }
 
+  // SDK setAgentConsent; callers reload consent afterwards.
   @override
   Future<void> setAgentConsent({required bool granted}) async {
     await apiCall<SetAgentConsentResp>(
@@ -166,6 +194,7 @@ class AssistantRepository implements AssistantDataSource {
     );
   }
 
+  // GET /api/v2/assistant/thread; the summary is wrapped in `thread`.
   @override
   Future<AssistantThreadSummary> getThread() async {
     final response = await _api.get('/api/v2/assistant/thread');
@@ -176,6 +205,7 @@ class AssistantRepository implements AssistantDataSource {
     return AssistantThreadSummary.fromJson(Map<String, dynamic>.from(raw));
   }
 
+  // GET /api/v2/assistant/messages; only positive ids are sent as cursors.
   @override
   Future<AssistantMessagePage> listMessages({
     Object sessionId = 0,
@@ -207,6 +237,8 @@ class AssistantRepository implements AssistantDataSource {
     );
   }
 
+  // POST /api/v2/assistant/messages; length and request id are validated
+  // locally so a request that cannot succeed is never sent.
   @override
   Future<AssistantPostResult> postMessage({
     required String message,
@@ -234,6 +266,7 @@ class AssistantRepository implements AssistantDataSource {
     return AssistantPostResult.fromJson(response);
   }
 
+  // POST /api/v2/assistant/runs/{runId}/answers; returns the updated request.
   @override
   Future<AssistantQuestionRequest> answerQuestions({
     required AssistantQuestionRequest question,
@@ -253,6 +286,8 @@ class AssistantRepository implements AssistantDataSource {
     );
   }
 
+  // POST /api/v2/assistant/messages with a fixed prompt and `questionContext`,
+  // letting the server pick up the expired question in a new message.
   @override
   Future<AssistantPostResult> continueQuestions({
     required AssistantQuestionRequest question,
@@ -278,6 +313,8 @@ class AssistantRepository implements AssistantDataSource {
     Object afterSeq = 0,
   }) => _events.runEvents(runId: runId, afterSeq: afterSeq);
 
+  // POST /api/v2/assistant/thread/read; a missing or negative count is a
+  // protocol error.
   @override
   Future<int> markThreadRead() async {
     final response = await _api.post('/api/v2/assistant/thread/read', {});
@@ -289,11 +326,13 @@ class AssistantRepository implements AssistantDataSource {
     return count;
   }
 
+  // DELETE /api/v2/assistant/history.
   @override
   Future<void> deleteHistory() async {
     await _api.delete('/api/v2/assistant/history');
   }
 
+  // POST /api/v2/assistant/runs/{runId}/cancel.
   @override
   Future<void> cancelRun(Object runId) async {
     if (!jsonInt64IsPositive(runId)) {
@@ -302,6 +341,7 @@ class AssistantRepository implements AssistantDataSource {
     await _api.post('/api/v2/assistant/runs/${jsonInt64Id(runId)}/cancel', {});
   }
 
+  // POST /api/v2/assistant/runs/{runId}/confirm.
   @override
   Future<void> confirmRun({
     required Object runId,
@@ -317,6 +357,7 @@ class AssistantRepository implements AssistantDataSource {
     });
   }
 
+  // GET /api/v2/assistant/memory.
   @override
   Future<(List<MemoryRecord>, List<MemoryCapacity>)> listMemory({
     String target = '',
@@ -328,6 +369,7 @@ class AssistantRepository implements AssistantDataSource {
     return _memoryListFromResponse(response);
   }
 
+  // POST /api/v2/assistant/memory; unknown targets are rejected client-side.
   @override
   Future<MemoryWriteResult> addMemory({
     required String target,
@@ -343,6 +385,7 @@ class AssistantRepository implements AssistantDataSource {
     return _memoryWriteFromResponse(response);
   }
 
+  // PATCH /api/v2/assistant/memory/{id}.
   @override
   Future<MemoryWriteResult> replaceMemory({
     required Object id,
@@ -361,6 +404,8 @@ class AssistantRepository implements AssistantDataSource {
     return _memoryWriteFromResponse(response);
   }
 
+  // DELETE /api/v2/assistant/memory/{id}; version and request id travel in
+  // the query string.
   @override
   Future<MemoryWriteResult> removeMemory({
     required Object id,
@@ -377,6 +422,7 @@ class AssistantRepository implements AssistantDataSource {
     return MemoryWriteResult(changeId: response['changeId'] ?? 0);
   }
 
+  // POST /api/v2/assistant/memory/changes/{changeId}/undo.
   @override
   Future<MemoryRecord> undoMemoryChange(Object changeId) async {
     final response = await _api.post(
@@ -386,6 +432,7 @@ class AssistantRepository implements AssistantDataSource {
     return _undoneMemoryFromResponse(response);
   }
 
+  // POST /api/v2/assistant/recommend/feedback.
   @override
   Future<void> submitRecommendFeedback({
     required Object postId,
