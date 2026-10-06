@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:xiaobaihe_app/features/feed/presentation/widgets/feed_side_rail.dart';
-import 'package:xiaobaihe_app/features/profile/presentation/profile_page.dart';
+import 'package:xiaobaihe_app/features/profile/presentation/widgets/business_entries.dart';
 import 'package:xiaobaihe_app/features/review/application/reviewer_access.dart';
 import 'package:xiaobaihe_app/mock/mock_http.dart';
 import 'package:xiaobaihe_app/mock/mock_router.dart';

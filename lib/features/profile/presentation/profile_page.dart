@@ -5,19 +5,25 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
+import '../../../core/router/app_routes.dart';
 import '../../../core/widgets/app_toast.dart';
-import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../auth/application/auth_notifier.dart';
-import '../../review/application/reviewer_access.dart';
 import '../application/follow_controller.dart';
 import '../application/personalization_controller.dart';
 import '../application/user_posts_notifier.dart';
 import '../application/user_profile_providers.dart';
+import 'widgets/business_entries.dart';
+import 'widgets/profile_header.dart';
+import 'widgets/profile_shortcuts.dart';
+import 'widgets/profile_stats.dart';
+import 'widgets/profile_tabs.dart';
 import 'widgets/user_post_list.dart';
-import '../../../core/router/app_routes.dart';
 
+/// 个人主页：不带 [userId] 时展示当前登录用户，匿名时引导登录。
+///
+/// 以会话版本和目标用户作为内容 key，切换账号或用户时整体重建，避免沿用旧用户的状态。
 class ProfilePage extends ConsumerWidget {
   final Object? userId;
   const ProfilePage({super.key, this.userId});
@@ -57,6 +63,7 @@ class ProfilePage extends ConsumerWidget {
   }
 }
 
+// 已确定目标用户后的主页内容：头部资料区、吸顶标签栏与帖子/收藏列表。
 class _ProfileContent extends ConsumerStatefulWidget {
   final String userId;
   final bool isOwnProfile;
@@ -87,6 +94,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
     super.dispose();
   }
 
+  // 点标签与左右滑动双向同步：点标签时动画翻页，翻页回调再回写选中态。
   void _selectTab(int index) {
     if (index == _tabIndex) return;
     setState(() => _tabIndex = index);
@@ -141,7 +149,6 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
     final personalization = widget.isOwnProfile
         ? ref.watch(personalizationControllerProvider)
         : null;
-    final theme = context.theme;
     final canPop = context.canPop();
 
     return FScaffold(
@@ -171,6 +178,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
         data: (user) {
           final isFollowing = follow.resolve(user.isFollowing);
           final showFavoritesTab = widget.isOwnProfile || user.favoritesVisible;
+          // 收藏不公开的他人主页只有帖子列表，不显示标签栏。
           return NestedScrollView(
             floatHeaderSlivers: false,
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
@@ -179,69 +187,13 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                   padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
                   child: Column(
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CachedAvatar(
-                            url: user.avatarUrl,
-                            name: user.nickname.isNotEmpty
-                                ? user.nickname
-                                : user.username,
-                            radius: 30,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user.nickname.isNotEmpty
-                                      ? user.nickname
-                                      : user.username,
-                                  style: theme.typography.display.md,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (user.bio.isNotEmpty) ...[
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    user.bio,
-                                    style: theme.typography.body.sm.copyWith(
-                                      color: theme.colors.mutedForeground,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                      ProfileHeader(user: user),
                       const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _statColumn('帖子', user.postCount.toInt()),
-                          _statColumn('粉丝', user.followerCount.toInt()),
-                          _statColumn('关注', user.followingCount.toInt()),
-                        ],
-                      ),
+                      ProfileStats(user: user),
                       const SizedBox(height: 16),
+                      // 本人：快捷入口、商业入口与个性化开关；他人：关注按钮
                       if (widget.isOwnProfile) ...[
-                        Row(
-                          children: [
-                            _shortcut(
-                              FLucideIcons.userRoundPen,
-                              '编辑资料',
-                              AppRoutes.profileEdit,
-                            ),
-                            const SizedBox(width: 8),
-                            _shortcut(
-                              FLucideIcons.notebook,
-                              '记忆',
-                              AppRoutes.assistantMemory,
-                            ),
-                          ],
-                        ),
+                        const ProfileShortcuts(),
                         const SizedBox(height: 16),
                         const BusinessEntries(),
                         if (personalization?.enabled case final enabled?) ...[
@@ -275,50 +227,21 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                 ),
                 sliver: showFavoritesTab
                     ? PinnedHeaderSliver(
-                        child: ColoredBox(
-                          color: theme.colors.background,
-                          child: FTabs(
-                            control: FTabControl.lifted(
-                              index: _tabIndex,
-                              onChange: _selectTab,
-                            ),
-                            style: const FTabsStyleDelta.delta(spacing: 0),
-                            children: [
-                              FTabEntry(
-                                label: Text(
-                                  widget.isOwnProfile ? '我的帖子' : '帖子',
-                                ),
-                                child: const SizedBox.shrink(),
-                              ),
-                              FTabEntry(
-                                label: Text(
-                                  widget.isOwnProfile ? '我的收藏' : '收藏',
-                                ),
-                                child: const SizedBox.shrink(),
-                              ),
-                            ],
-                          ),
+                        child: ProfileTabBar(
+                          index: _tabIndex,
+                          onChange: _selectTab,
+                          isOwnProfile: widget.isOwnProfile,
                         ),
                       )
                     : const SliverToBoxAdapter(child: SizedBox.shrink()),
               ),
             ],
             body: showFavoritesTab
-                ? PageView(
+                ? ProfileTabPages(
+                    userId: widget.userId,
+                    index: _tabIndex,
                     controller: _pageController,
                     onPageChanged: _handlePageChanged,
-                    children: [
-                      UserPostList(
-                        userId: widget.userId,
-                        type: UserPostsListType.posts,
-                        active: _tabIndex == 0,
-                      ),
-                      UserPostList(
-                        userId: widget.userId,
-                        type: UserPostsListType.favorites,
-                        active: _tabIndex == 1,
-                      ),
-                    ],
                   )
                 : UserPostList(
                     userId: widget.userId,
@@ -328,86 +251,6 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
           );
         },
       ),
-    );
-  }
-
-  Widget _statColumn(String label, int count) {
-    final theme = context.theme;
-    return Column(
-      children: [
-        Text(
-          '$count',
-          style: theme.typography.display.lg.copyWith(
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        Text(
-          label,
-          style: theme.typography.body.xs.copyWith(
-            color: theme.colors.mutedForeground,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _shortcut(IconData icon, String label, String route) => Expanded(
-    child: FButton(
-      variant: FButtonVariant.secondary,
-      onPress: () => context.push(route),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 22),
-          const SizedBox(height: 8),
-          Text(label, textAlign: TextAlign.center),
-        ],
-      ),
-    ),
-  );
-}
-
-/// 「商业」分组：广告主控制台对已认证用户可见，审核工作台只对审核角色可见（FX-112）。
-class BusinessEntries extends ConsumerWidget {
-  const BusinessEntries({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final canReview = ref.watch(canReviewProvider);
-    final theme = context.theme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Semantics(
-          header: true,
-          child: Text(
-            '商业',
-            style: theme.typography.body.sm.copyWith(
-              color: theme.colors.mutedForeground,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        FItemGroup(
-          children: [
-            FItem(
-              key: const Key('profile-ads-console'),
-              prefix: const Icon(FLucideIcons.megaphone),
-              title: const Text('广告主控制台'),
-              suffix: const Icon(FLucideIcons.chevronRight),
-              onPress: () => context.push(AppRoutes.ads),
-            ),
-            if (canReview)
-              FItem(
-                key: const Key('profile-review-workbench'),
-                prefix: const Icon(FLucideIcons.clipboardCheck),
-                title: const Text('审核工作台'),
-                suffix: const Icon(FLucideIcons.chevronRight),
-                onPress: () => context.push(AppRoutes.review),
-              ),
-          ],
-        ),
-      ],
     );
   }
 }
