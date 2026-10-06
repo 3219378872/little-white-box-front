@@ -18,6 +18,8 @@ class AdPolicyCatalog {
   final List<AdPolicyCodeItem> codes;
   final List<String> markets;
   final List<String> industries;
+
+  /// 服务端声明政策码、市场与阈值仅为演示配置。
   final bool demo;
 
   const AdPolicyCatalog({
@@ -41,6 +43,7 @@ class AdPolicyCatalog {
 final adPolicyCatalogProvider = FutureProvider.autoDispose<AdPolicyCatalog?>((
   ref,
 ) async {
+  // 登录身份变化（登出、换号）时重建，不沿用上一身份的结果。
   ref.watch(authenticatedSessionIdentityProvider);
   try {
     final resp = await ref.read(adsRepositoryProvider).listPolicies();
@@ -58,11 +61,13 @@ final adPolicyCatalogProvider = FutureProvider.autoDispose<AdPolicyCatalog?>((
   }
 });
 
+/// 本人广告主主体，尚未申请时为 null；主体与资质写命令成功后被 invalidate。
 final myAdvertiserProvider = FutureProvider.autoDispose<AdvertiserItem?>((ref) {
   ref.watch(authenticatedSessionIdentityProvider);
   return ref.read(adsRepositoryProvider).getMyAdvertiser();
 });
 
+/// 按广告 ID 读取详情；保存与申诉命令完成后 invalidate 以读取最新版本与审核状态。
 final adDetailProvider = FutureProvider.autoDispose.family<AdItem, String>((
   ref,
   adId,
@@ -114,6 +119,7 @@ class AdsListState {
 /// 本人广告列表，按游标分页。
 class AdsListNotifier extends StateNotifier<AdsListState> {
   final AdsRepository _repository;
+  // 每次 loadInitial 递增；旧代请求的结果到达时直接丢弃。
   int _generation = 0;
 
   static const pageSize = 20;
@@ -150,6 +156,7 @@ class AdsListNotifier extends StateNotifier<AdsListState> {
   /// 按游标追加下一页；失败保留已加载条目与游标，可再次重试。
   Future<void> loadMore() async {
     if (state.isLoading || state.isLoadingMore || !state.hasMore) return;
+    // 翻页沿用当前代；期间若重新加载首屏，本次结果作废。
     final generation = _generation;
     final current = state;
     state = current.copyWith(isLoadingMore: true, clearError: true);
@@ -177,6 +184,7 @@ class AdsListNotifier extends StateNotifier<AdsListState> {
   }
 }
 
+/// 本人广告列表；登录身份变化时重建并重新加载首屏。
 final adsListProvider =
     StateNotifierProvider.autoDispose<AdsListNotifier, AdsListState>((ref) {
       ref.watch(authenticatedSessionIdentityProvider);

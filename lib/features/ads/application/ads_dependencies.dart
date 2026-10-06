@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/analytics/client_identity_store.dart';
 import '../data/ads_repository.dart';
 
-/// 广告主、广告与投放上报仓储；携带客户端身份用于曝光/点击归因。
+/// 广告主控制台与推荐流隐藏、举报共用的仓储；客户端身份供隐藏与举报按会话归属。
 final adsRepositoryProvider = Provider<AdsRepository>((ref) {
   return AdsRepository(identityStore: ref.read(clientIdentityStoreProvider));
 });

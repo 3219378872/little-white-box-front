@@ -30,6 +30,7 @@ class _IdempotentWrite {
   String? _key;
   String? _fingerprint;
 
+  // 以 [fingerprint] 标识一次逻辑提交；[send] 收到本次应携带的幂等键。
   Future<T> run<T>(
     String fingerprint,
     Future<T> Function(String key) send,
@@ -131,6 +132,7 @@ class AdvertiserCommands {
     if (markets.isEmpty) {
       throw const AdFormInvalidException('至少选择一个投放市场');
     }
+    // 以当前主体版本作并发基线（未申请时为 0）；市场排序后参与指纹，勾选顺序不影响幂等。
     final revision = current?.revision ?? 0;
     final sortedMarkets = markets.toList()..sort();
     await _apply.run(
@@ -237,6 +239,7 @@ class AdEditorCommands {
 
   /// 创建新广告或基于 [existing] 的版本提交修改；成功后刷新该广告详情并返回服务端结果。
   Future<AdItem> save(AdDraft draft, {AdItem? existing}) async {
+    // 客户端校验失败时不发请求。
     final invalid = validateAdDraft(
       title: draft.title,
       body: draft.body,
@@ -325,6 +328,7 @@ class AdAppealCommands {
     }
   }
 
+  // 页面已离开时 provider 已释放，跳过刷新。
   void _refreshDetail() {
     if (_ref.mounted) _ref.invalidate(adDetailProvider(adId));
   }
