@@ -103,7 +103,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       }
     } catch (e) {
       if (mounted) {
-        showAppError(context, '保存失败: $e');
+        showAppError(context, '保存失败: ${friendlyErrorMessage(e)}');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

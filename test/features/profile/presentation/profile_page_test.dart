@@ -117,6 +117,43 @@ void main() {
     expect(tester.getTopLeft(tab('帖子')).dy, greaterThan(pinnedTabTop));
   });
 
+  testWidgets('first-page post failures show a friendly message', (
+    tester,
+  ) async {
+    // 仓储抛出的普通异常不得把 "Exception: " 前缀原样展示给用户。
+    final router = GoRouter(
+      initialLocation: '/user/2',
+      routes: [
+        GoRoute(
+          path: '/user/:userId',
+          builder: (_, state) =>
+              ProfilePage(userId: int.parse(state.pathParameters['userId']!)),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      AppProviderScope(
+        overrides: [
+          userPostsRepositoryProvider.overrideWithValue(
+            _FailingUserPostsRepository(),
+          ),
+        ],
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: foruiTestBuilder,
+        ),
+      ),
+    );
+    for (var i = 0; i < 30 && find.text('网络不可用').evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(find.text('网络不可用'), findsOneWidget);
+    expect(find.textContaining('Exception'), findsNothing);
+  });
+
   testWidgets('keeps independent scroll positions for posts and favorites', (
     tester,
   ) async {
@@ -642,4 +679,14 @@ class _TestUserPostsRepository implements UserPostsRepository {
     required String cursor,
     required int pageSize,
   }) async => _response('收藏', cursor);
+}
+
+class _FailingUserPostsRepository extends _TestUserPostsRepository {
+  @override
+  Future<GetPostListResp> fetchUserPosts({
+    required Object userId,
+    required String cursor,
+    required int pageSize,
+    int sortBy = 1,
+  }) async => throw Exception('网络不可用');
 }

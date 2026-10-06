@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/cached_avatar.dart';
@@ -148,7 +149,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _personalizationEnabled = previous);
-      showAppError(context, '个性化设置失败: $e');
+      showAppError(context, '个性化设置失败: ${friendlyErrorMessage(e)}');
     } finally {
       if (mounted) setState(() => _personalizationBusy = false);
     }
@@ -175,7 +176,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _followOverride = previousOverride);
-      showAppError(context, '操作失败: $e');
+      showAppError(context, '操作失败: ${friendlyErrorMessage(e)}');
     } finally {
       if (mounted) setState(() => _followBusy = false);
     }
@@ -208,7 +209,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
       child: userAsync.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
-          message: e.toString(),
+          message: friendlyErrorMessage(e),
           onRetry: () => ref.invalidate(_userProfileProvider(widget.userId)),
         ),
         data: (user) {

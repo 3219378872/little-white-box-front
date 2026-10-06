@@ -112,7 +112,7 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
             SliverFillRemaining(
               hasScrollBody: false,
               child: ErrorView(
-                message: state.error.toString(),
+                message: friendlyErrorMessage(state.error!),
                 onRetry: () => notifier.loadFirstPage(),
               ),
             )
