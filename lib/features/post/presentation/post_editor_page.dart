@@ -1,32 +1,19 @@
-import 'dart:convert';
-
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/error_codes.dart';
-import '../../../core/api/json_int64.dart';
-import '../../../core/api/idempotency.dart';
-import '../../../core/api/image_mime.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_dialog.dart';
 import '../../../core/widgets/app_tag_badge.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/loading_view.dart';
-import '../../../sdk/data/gateway.dart';
-import '../data/post_repository.dart';
+import '../application/post_editor_controller.dart';
 import 'widgets/image_picker_grid.dart';
-import '../application/post_dependencies.dart';
 
-const _maxTitleLength = 120;
-const _maxContentLength = 20000;
-const _maxTagCount = 10;
-const _maxTagLength = 32;
-const _maxImageBytes = 10 * 1024 * 1024;
-
+/// 发帖与编辑页：持有标题/正文输入框，草稿、上传与提交命令交给 [PostEditorController]。
 class PostEditorPage extends ConsumerStatefulWidget {
   final Object? postId;
   const PostEditorPage({super.key, this.postId});
@@ -38,54 +25,25 @@ class PostEditorPage extends ConsumerStatefulWidget {
 class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   final _titleCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
-  final List<String> _tags = [];
   final _tagCtrl = TextEditingController();
-  final List<String> _networkImages = [];
-  final List<XFile> _localImages = [];
-  int _revision = 0;
-  bool _isLoading = false;
-  bool _isInitialized = false;
-  String? _createIdempotencyKey;
-  String? _createCommandFingerprint;
-  String? _uploadedSelectionFingerprint;
-  List<UploadedImage>? _uploadedLocalImages;
-  int _editorGeneration = 0;
+
+  // 每个页面实例（及每次切换 postId）独占一个 controller，旧编辑器的迟到结果随之失效。
+  Object _session = Object();
 
   bool get _isEditMode => widget.postId != null;
 
-  @override
-  void initState() {
-    super.initState();
-    if (_isEditMode) {
-      _loadExistingPost();
-    } else {
-      _isInitialized = true;
-    }
-  }
+  PostEditorKey get _editorKey => (postId: widget.postId, session: _session);
 
   @override
   void didUpdateWidget(covariant PostEditorPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.postId == widget.postId) return;
-    _editorGeneration++;
+    // 切换到另一篇帖子：清空输入并换新 controller，重新加载目标帖子。
+    _session = Object();
     _titleCtrl.clear();
     _contentCtrl.clear();
     _tagCtrl.clear();
-    _tags.clear();
-    _networkImages.clear();
-    _localImages.clear();
-    _revision = 0;
-    _isLoading = false;
-    _isInitialized = !_isEditMode;
-    _createIdempotencyKey = null;
-    _createCommandFingerprint = null;
-    _uploadedSelectionFingerprint = null;
-    _uploadedLocalImages = null;
-    if (_isEditMode) _loadExistingPost();
   }
-
-  bool _ownsEditor(int generation) =>
-      mounted && generation == _editorGeneration;
 
   @override
   void dispose() {
@@ -95,184 +53,47 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
     super.dispose();
   }
 
-  Future<void> _loadExistingPost() async {
-    final generation = _editorGeneration;
-    final postId = widget.postId!;
-    try {
-      final post = await ref.read(postRepositoryProvider).getPostDetail(postId);
-      if (!_ownsEditor(generation)) return;
-      setState(() {
-        _titleCtrl.text = post.title;
-        _contentCtrl.text = post.content;
-        _tags.addAll(post.tags);
-        _networkImages.addAll(post.images);
-        _revision = post.revision.toInt();
-        _isInitialized = true;
-      });
-    } catch (e) {
-      if (mounted && _ownsEditor(generation)) {
-        showAppError(context, '加载失败: ${friendlyErrorMessage(e)}');
-        context.pop();
-      }
+  // 原帖载入后一次性回填输入框；载入失败提示并退出编辑器。
+  void _onEditorChanged(PostEditorState? previous, PostEditorState next) {
+    if (previous?.original == null && next.original != null) {
+      _titleCtrl.text = next.original!.title;
+      _contentCtrl.text = next.original!.content;
+    }
+    if (previous?.loadError == null && next.loadError != null) {
+      showAppError(context, '加载失败: ${friendlyErrorMessage(next.loadError!)}');
+      context.pop();
     }
   }
 
   void _addTag() {
-    final tag = _tagCtrl.text.trim();
-    if (tag.isEmpty ||
-        tag.length > _maxTagLength ||
-        _tags.length >= _maxTagCount ||
-        _tags.contains(tag)) {
-      return;
-    }
-    setState(() => _tags.add(tag));
-    _tagCtrl.clear();
+    final added = ref
+        .read(postEditorControllerProvider(_editorKey).notifier)
+        .addTag(_tagCtrl.text);
+    if (added) _tagCtrl.clear();
   }
 
-  Future<List<UploadedImage>> _uploadLocalImages(
-    List<XFile> localImages,
-    PostRepository repo,
-    int generation,
-  ) async {
-    if (localImages.isEmpty) {
-      _uploadedSelectionFingerprint = null;
-      _uploadedLocalImages = null;
-      return const [];
-    }
-
-    final selectionFingerprint = jsonEncode([
-      for (final file in localImages)
-        {'path': file.path, 'name': file.name, 'length': await file.length()},
-    ]);
-    if (!_ownsEditor(generation)) return const [];
-    if (_uploadedSelectionFingerprint == selectionFingerprint &&
-        _uploadedLocalImages != null) {
-      return _uploadedLocalImages!;
-    }
-
-    final futures = <Future<(int, UploadedImage?, String?)>>[];
-    for (var i = 0; i < localImages.length; i++) {
-      final idx = i;
-      final file = localImages[i];
-      futures.add(() async {
-        try {
-          final bytes = await file.readAsBytes();
-          final name = file.name;
-          // 识别不出 jpeg/png/webp 的文件在上传前拒绝。
-          if (detectImageMime(name, bytes) == null) {
-            return (idx, null, '仅支持 JPEG、PNG 或 WebP');
-          }
-          if (bytes.length > _maxImageBytes) {
-            return (idx, null, '单张图片不能超过 10 MiB');
-          }
-          final uploaded = await repo.uploadImageMultipart(
-            bytes: bytes,
-            filename: name,
-          );
-          return (idx, uploaded, null);
-        } catch (e) {
-          return (idx, null, e.toString());
-        }
-      }());
-    }
-
-    final results = await Future.wait(futures);
-
-    results.sort((a, b) => a.$1.compareTo(b.$1));
-    for (final r in results) {
-      if (r.$2 == null) {
-        throw _UploadTransactionException(r.$1, r.$3 ?? 'unknown');
-      }
-    }
-
-    final uploaded = [for (final r in results) r.$2!];
-    if (_ownsEditor(generation)) {
-      _uploadedSelectionFingerprint = selectionFingerprint;
-      _uploadedLocalImages = uploaded;
-    }
-    return uploaded;
-  }
-
+  // 提交并按结果导航；各类失败在此转成提示，旧编辑器的结果由 controller 返回 null 屏蔽。
   Future<void> _publish({int status = 1}) async {
-    if (_isLoading || !_isInitialized) return;
-    final generation = _editorGeneration;
-    final postId = widget.postId;
-    final revision = _revision;
-    final repo = ref.read(postRepositoryProvider);
-    final title = _titleCtrl.text.trim();
-    final content = _contentCtrl.text.trim();
-    final tags = List<String>.of(_tags);
-    final networkImages = List<String>.of(_networkImages);
-    final localImages = List<XFile>.of(_localImages);
-    if (title.isEmpty || title.length > _maxTitleLength) {
-      showAppError(context, '标题需为 1～$_maxTitleLength 个字符');
-      return;
-    }
-    if (content.isEmpty || content.length > _maxContentLength) {
-      showAppError(context, '正文需为 1～$_maxContentLength 个字符');
-      return;
-    }
-    setState(() => _isLoading = true);
+    final controller = ref.read(
+      postEditorControllerProvider(_editorKey).notifier,
+    );
     try {
-      final uploaded = await _uploadLocalImages(localImages, repo, generation);
-      if (!_ownsEditor(generation)) return;
-      final allImages = [...networkImages, ...uploaded.map((item) => item.url)];
-      final mediaIds = [
-        ...uploaded.map((item) => item.mediaId).where(jsonInt64IsPositive),
-      ];
-
-      if (postId != null) {
-        if (revision <= 0) {
-          throw const ApiException('缺少帖子版本，请刷新后重试');
-        }
-        await repo.updateExistingPost(
-          postId,
-          UpdatePostV2Req(
-            postId: postId,
-            title: title,
-            content: content,
-            images: allImages,
-            tags: tags,
-            status: status,
-            expectedRevision: revision,
-            mediaIds: mediaIds,
-          ),
-        );
-        if (mounted && _ownsEditor(generation)) context.pop();
-      } else {
-        final commandFingerprint = jsonEncode({
-          'title': title,
-          'content': content,
-          'images': allImages,
-          'tags': tags,
-          'status': status,
-          'mediaIds': mediaIds.map(jsonInt64Id).toList(growable: false),
-        });
-        if (_createIdempotencyKey == null ||
-            _createCommandFingerprint != commandFingerprint) {
-          _createIdempotencyKey = newIdempotencyKey();
-          _createCommandFingerprint = commandFingerprint;
-        }
-        await repo.createNewPost(
-          CreatePostReq(
-            title: title,
-            content: content,
-            images: allImages,
-            tags: tags,
-            status: status,
-            idempotencyKey: _createIdempotencyKey!,
-            mediaIds: mediaIds,
-          ),
-        );
-        if (!_ownsEditor(generation)) return;
-        _createIdempotencyKey = null;
-        _createCommandFingerprint = null;
-        if (mounted) {
+      final outcome = await controller.publish(
+        title: _titleCtrl.text,
+        content: _contentCtrl.text,
+        status: status,
+      );
+      if (outcome == null || !mounted) return;
+      switch (outcome) {
+        case PostPublishOutcome.updated:
+          context.pop();
+        case PostPublishOutcome.created:
           context.go('/feed');
-        }
       }
-    } on _UploadTransactionException catch (e) {
-      if (mounted && _ownsEditor(generation)) {
+    } on PostDraftInvalidException catch (e) {
+      if (mounted) showAppError(context, e.message);
+    } on PostImageUploadException catch (e) {
+      if (mounted) {
         await showAppAlert(
           context: context,
           title: '图片上传失败',
@@ -280,7 +101,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
         );
       }
     } on ApiException catch (e) {
-      if (mounted && _ownsEditor(generation)) {
+      if (mounted) {
         showAppError(
           context,
           e.code == ErrorCodes.contentVersionConflict
@@ -289,17 +110,20 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
         );
       }
     } catch (e) {
-      if (mounted && _ownsEditor(generation)) {
+      if (mounted) {
         showAppError(context, '发布失败: ${friendlyErrorMessage(e)}');
       }
-    } finally {
-      if (_ownsEditor(generation)) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final key = _editorKey;
+    final editor = ref.watch(postEditorControllerProvider(key));
+    final controller = ref.read(postEditorControllerProvider(key).notifier);
+    ref.listen(postEditorControllerProvider(key), _onEditorChanged);
+    final canSubmit = !editor.isSubmitting && editor.isInitialized;
     return FScaffold(
       childPad: false,
       header: FHeader.nested(
@@ -316,22 +140,20 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
               variant: .ghost,
               size: .sm,
               mainAxisSize: MainAxisSize.min,
-              onPress: _isLoading || !_isInitialized
-                  ? null
-                  : () => _publish(status: 0),
+              onPress: canSubmit ? () => _publish(status: 0) : null,
               child: const Text('存草稿'),
             ),
           FButton(
             size: .sm,
             mainAxisSize: MainAxisSize.min,
-            onPress: _isLoading || !_isInitialized ? null : () => _publish(),
-            child: _isLoading
+            onPress: canSubmit ? () => _publish() : null,
+            child: editor.isSubmitting
                 ? const FCircularProgress(size: .sm)
                 : const Text('发布'),
           ),
         ],
       ),
-      child: !_isInitialized
+      child: !editor.isInitialized
           ? const LoadingView()
           : ListView(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
@@ -344,7 +166,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                     hint: '标题',
                     minLines: 1,
                     maxLines: 3,
-                    maxLength: _maxTitleLength,
+                    maxLength: postTitleMaxLength,
                   ),
                 ),
                 const FDivider(),
@@ -358,7 +180,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                     hint: '分享你的想法...',
                     minLines: 8,
                     maxLines: 20,
-                    maxLength: _maxContentLength,
+                    maxLength: postContentMaxLength,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -374,7 +196,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                             controller: _tagCtrl,
                           ),
                           hint: '标签',
-                          maxLength: _maxTagLength,
+                          maxLength: postTagMaxLength,
                           onSubmit: (_) => _addTag(),
                         ),
                       ),
@@ -387,18 +209,17 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                     ),
                   ],
                 ),
-                if (_tags.isNotEmpty) ...[
+                if (editor.tags.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
-                    children: _tags
+                    children: editor.tags
                         .asMap()
                         .entries
                         .map(
                           (e) => AppTagBadge(
                             label: e.value,
-                            onRemove: () =>
-                                setState(() => _tags.removeAt(e.key)),
+                            onRemove: () => controller.removeTag(e.key),
                           ),
                         )
                         .toList(),
@@ -416,7 +237,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                     Text('图片', style: theme.typography.body.sm),
                     const Spacer(),
                     Text(
-                      '${_networkImages.length + _localImages.length}/9',
+                      '${editor.networkImages.length + editor.localImages.length}/9',
                       style: theme.typography.body.xs.copyWith(
                         color: theme.colors.mutedForeground,
                       ),
@@ -425,26 +246,14 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                 ),
                 const SizedBox(height: 8),
                 ImagePickerGrid(
-                  networkImages: _networkImages,
-                  localImages: _localImages,
-                  onAdd: (file) => setState(() => _localImages.add(file)),
-                  onRemoveNetwork: (i) =>
-                      setState(() => _networkImages.removeAt(i)),
-                  onRemoveLocal: (i) =>
-                      setState(() => _localImages.removeAt(i)),
+                  networkImages: editor.networkImages,
+                  localImages: editor.localImages,
+                  onAdd: controller.addLocalImage,
+                  onRemoveNetwork: controller.removeNetworkImage,
+                  onRemoveLocal: controller.removeLocalImage,
                 ),
               ],
             ),
     );
   }
-}
-
-/// 图片批量上传的事务化异常
-class _UploadTransactionException implements Exception {
-  final int failedIndex;
-  final String reason;
-  const _UploadTransactionException(this.failedIndex, this.reason);
-
-  @override
-  String toString() => '第 ${failedIndex + 1} 张图片上传失败：$reason';
 }
