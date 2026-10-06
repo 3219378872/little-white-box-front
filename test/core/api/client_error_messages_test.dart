@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/core/analytics/client_identity_store.dart';
 import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
+import 'package:xiaobaihe_app/core/api/response_fields.dart';
 import 'package:xiaobaihe_app/features/ads/data/ads_repository.dart';
 import 'package:xiaobaihe_app/features/auth/data/auth_repository.dart';
 import 'package:xiaobaihe_app/features/comment/data/comment_repository.dart';
@@ -16,7 +17,7 @@ import 'package:xiaobaihe_app/sdk/api/api.dart';
 import '../../helpers/gateway_fake.dart';
 
 // 断言异常是只带中文用户文案的 ApiException：英文诊断不能出现在 message 里。
-Matcher _userMessage(String message) => isA<ApiException>()
+TypeMatcher<ApiException> _userMessage(String message) => isA<ApiException>()
     .having((error) => error.message, 'message', message)
     .having((error) => error.code, 'code', isNull);
 
@@ -145,6 +146,38 @@ void main() {
         uploadPostImage(),
         throwsA(_userMessage('请求失败，请稍后重试（HTTP 502）')),
       );
+    });
+  });
+
+  group('decodeResponse', () {
+    test('contract errors become the given Chinese message', () {
+      expect(
+        () => decodeResponse<int>(
+          '列表响应格式无效',
+          () => throw const FormatException('missing list'),
+        ),
+        throwsA(
+          _userMessage(
+            '列表响应格式无效',
+          ).having((error) => error.detail, 'detail', contains('missing list')),
+        ),
+      );
+      const Object notAString = 1;
+      expect(
+        () => decodeResponse('列表响应格式无效', () => notAString as String),
+        throwsA(_userMessage('列表响应格式无效')),
+      );
+    });
+
+    test('ApiException raised while decoding passes through', () {
+      expect(
+        () => decodeResponse<int>(
+          '列表响应格式无效',
+          () => throw const ApiException('撤销记忆响应格式无效'),
+        ),
+        throwsA(_userMessage('撤销记忆响应格式无效')),
+      );
+      expect(decodeResponse('列表响应格式无效', () => 3), 3);
     });
   });
 }

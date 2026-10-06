@@ -1,5 +1,6 @@
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
+import '../../../core/api/response_fields.dart';
 import '../../../core/api/v2_api_client.dart';
 import 'message_models.dart';
 
@@ -27,7 +28,8 @@ abstract interface class MessageDataSource {
 
 /// 走 Gateway v2 私信接口（`/api/v2/messages/...`）的实现。
 ///
-/// 发请求前先做本地参数校验，响应解析失败统一转成带中文文案的 [ApiException]。
+/// 发请求前先做本地参数校验，响应解析失败经 [decodeResponse] 统一转成带中文文案的
+/// [ApiException]；模型里的英文 FormatException 只作诊断，不展示。
 class MessageRepository implements MessageDataSource {
   final V2ApiClient _client;
 
@@ -45,17 +47,16 @@ class MessageRepository implements MessageDataSource {
       '/api/v2/messages/conversations',
       query: {'page': page, 'pageSize': pageSize},
     );
-    try {
-      return ConversationPage(
+    return decodeResponse(
+      '会话列表响应格式无效',
+      () => ConversationPage(
         conversations: _list(
           response['conversations'],
           ConversationSummary.fromJson,
         ),
         total: _integer(response['total']),
-      );
-    } on FormatException {
-      throw const ApiException('会话列表响应格式无效');
-    }
+      ),
+    );
   }
 
   @override
@@ -77,14 +78,13 @@ class MessageRepository implements MessageDataSource {
         'pageSize': pageSize,
       },
     );
-    try {
-      return MessagePage(
+    return decodeResponse(
+      '消息列表响应格式无效',
+      () => MessagePage(
         messages: _list(response['messages'], DirectMessage.fromJson),
         hasMore: response['hasMore'] == true,
-      );
-    } on FormatException {
-      throw const ApiException('消息列表响应格式无效');
-    }
+      ),
+    );
   }
 
   @override
@@ -135,11 +135,7 @@ class MessageRepository implements MessageDataSource {
   Future<UnreadSummary> getUnreadSummary() async {
     // GET /api/v2/messages/unread
     final response = await _client.get('/api/v2/messages/unread');
-    try {
-      return UnreadSummary.fromJson(response);
-    } on FormatException {
-      throw const ApiException('未读数量响应格式无效');
-    }
+    return decodeResponse('未读数量响应格式无效', () => UnreadSummary.fromJson(response));
   }
 
   // 分页参数本地校验，pageSize 上限 100。

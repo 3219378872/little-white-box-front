@@ -56,9 +56,11 @@ class SearchRepository implements SearchDataSource {
       ),
     };
 
-    // 按范围解析响应：综合页三类结果都必须存在，用户页额外读取 total。
-    try {
-      return switch (scope) {
+    // 按范围解析响应：综合页三类结果都必须存在，用户页额外读取 total；
+    // 任一条目解析失败都视为整页响应无效。
+    return decodeResponse(
+      '搜索响应格式无效',
+      () => switch (scope) {
         SearchScope.all => SearchResults(
           posts: _list(
             requiredResponseList(response, 'posts'),
@@ -88,11 +90,8 @@ class SearchRepository implements SearchDataSource {
             SearchTagResult.fromJson,
           ),
         ),
-      };
-    } on FormatException {
-      // 任一条目解析失败都视为整页响应无效。
-      throw const ApiException('搜索响应格式无效');
-    }
+      },
+    );
   }
 
   // 逐项解码结果数组；非对象元素视为格式错误。
