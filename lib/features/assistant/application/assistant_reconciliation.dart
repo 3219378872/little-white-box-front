@@ -203,11 +203,6 @@ int _asInt(Object? value) {
   return int.tryParse(value?.toString() ?? '') ?? 0;
 }
 
-String _defaultRequestId() {
-  final random = Random.secure();
-  final bytes = List<int>.generate(12, (_) => random.nextInt(256));
-  final suffix = bytes
-      .map((value) => value.toRadixString(16).padLeft(2, '0'))
-      .join();
-  return 'assistant-${DateTime.now().microsecondsSinceEpoch.toRadixString(16)}-$suffix';
-}
+// 助手运行的默认请求 ID：12 字节随机段，保持既有格式。
+String _defaultRequestId() =>
+    newPrefixedRequestId('assistant', randomBytes: 12);

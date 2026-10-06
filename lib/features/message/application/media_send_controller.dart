@@ -1,9 +1,8 @@
-import 'dart:math';
-
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/idempotency.dart';
 import '../../media/data/media_repository.dart';
 
 /// Owns one selection through upload retries and message retries.
@@ -35,8 +34,8 @@ class MediaSendController extends ChangeNotifier {
     _file = file;
     _kind = kind;
     filename = file.name;
-    _uploadKey =
-        'upload-${DateTime.now().microsecondsSinceEpoch}-${List.generate(16, (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
+    // 上传键沿用十进制时间戳，与既有格式保持一致。
+    _uploadKey = newPrefixedRequestId('upload', timestampRadix: 10);
     _uploaded = null;
     _send = send;
     _isCurrent = isCurrent;

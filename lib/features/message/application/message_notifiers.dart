@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/idempotency.dart';
 import '../../../core/api/json_int64.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/message_models.dart';
@@ -424,14 +424,8 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     return left.compareTo(right);
   }
 
-  static String _defaultKey() {
-    final random = Random.secure();
-    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
-    final suffix = bytes
-        .map((value) => value.toRadixString(16).padLeft(2, '0'))
-        .join();
-    return 'message-${DateTime.now().microsecondsSinceEpoch.toRadixString(16)}-$suffix';
-  }
+  // 发送私信的默认幂等键，前缀标明来自消息线程。
+  static String _defaultKey() => newPrefixedRequestId('message');
 }
 
 class MessageThreadKey {

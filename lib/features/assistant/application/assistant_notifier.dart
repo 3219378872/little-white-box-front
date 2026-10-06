@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/idempotency.dart';
 import '../../../core/api/json_int64.dart';
 import '../data/assistant_models.dart';
 import '../data/assistant_repository.dart';
