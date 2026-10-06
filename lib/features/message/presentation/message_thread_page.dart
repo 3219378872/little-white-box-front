@@ -18,7 +18,15 @@ import '../application/message_providers.dart';
 import '../application/message_thread_notifier.dart';
 import '../data/message_models.dart';
 import '../../media/application/media_dependencies.dart';
+import 'stick_to_latest_scroll.dart';
+import 'widgets/inline_error_bar.dart';
+import 'widgets/media_picker_bar.dart';
+import 'widgets/pending_media_row.dart';
+import 'widgets/thread_composer.dart';
 
+/// 与单个用户的私信线程页：消息列表、文本与媒体发送、发送/已读失败的重试入口。
+///
+/// 路由参数里的 ID 可能是 int 或十进制字符串，页面内统一按 [jsonInt64Id] 比较。
 class MessageThreadPage extends ConsumerStatefulWidget {
   final Object conversationId;
   final Object targetUserId;
@@ -37,9 +45,7 @@ class MessageThreadPage extends ConsumerStatefulWidget {
 
 class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
   final _controller = TextEditingController();
-  final _scrollController = ScrollController();
-  bool _pinToLatest = true;
-  int _seenMessageCount = 0;
+  final _scroll = StickToLatestScroll();
   late final MediaSendController _media;
   bool _selecting = false;
   int _ownerGeneration = 0;
@@ -49,7 +55,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     super.initState();
     _media = MediaSendController(ref.read(mediaRepositoryProvider))
       ..addListener(_mediaChanged);
-    _scrollController.addListener(_rememberPin);
+    // 登录会话或用户变化时作废进行中的媒体任务与输入，防止串号发送。
     ref.listenManual(authNotifierProvider, (previous, next) {
       if (previous != null &&
           (previous.sessionRevision != next.sessionRevision ||
@@ -75,34 +81,17 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
   void _resetOwner() {
     _ownerGeneration++;
     _selecting = false;
-    _seenMessageCount = 0;
-    _pinToLatest = true;
+    _scroll.reset();
     _controller.clear();
     _media.cancel();
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_rememberPin);
+    _scroll.dispose();
     _media.dispose();
     _controller.dispose();
-    _scrollController.dispose();
     super.dispose();
-  }
-
-  void _rememberPin() {
-    if (!_scrollController.hasClients) return;
-    final position = _scrollController.position;
-    _pinToLatest = position.maxScrollExtent - position.pixels <= 48;
-  }
-
-  void _revealLatest() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
-      final target = _scrollController.position.maxScrollExtent;
-      if ((_scrollController.offset - target).abs() < 1) return;
-      _scrollController.jumpTo(target);
-    });
   }
 
   MessageThreadKey _key(Object currentUserId) => MessageThreadKey(
@@ -111,18 +100,35 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     currentUserId: currentUserId,
   );
 
+  // 发送成功且输入框未被改动时才清空，避免吞掉用户在请求期间新输入的内容。
   Future<void> _send(MessageThreadKey key) async {
     final text = _controller.text;
     final sent = await ref.read(messageThreadProvider(key).notifier).send(text);
     if (!mounted || !sent) return;
     if (_controller.text == text) _controller.clear();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
+    _scroll.animateToLatestAfterFrame();
+  }
+
+  // 重发失败的文本：只有输入框仍是那条失败内容时才清空。
+  Future<void> _retryFailedSend(
+    MessageThreadNotifier notifier,
+    SendMessageCommand? command,
+  ) async {
+    final text = _controller.text;
+    final sent = await notifier.retryFailed();
+    if (sent &&
+        mounted &&
+        _controller.text == text &&
+        command?.content == text.trim()) {
+      _controller.clear();
+    }
   }
 
   void _mediaChanged() {
     if (mounted) setState(() {});
   }
 
+  // 选择 → 上传 → 发送一条媒体消息；任何一步之后页面、会话或登录身份变化都放弃后续步骤。
   Future<void> _sendMedia(MessageThreadKey key, MediaKind kind) async {
     final auth = ref.read(authNotifierProvider);
     final ownerGeneration = _ownerGeneration;
@@ -153,7 +159,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
                 msgType: selectedKind.messageType,
                 mediaId: uploaded.mediaId,
               );
-          if (sent && current()) _revealLatest();
+          if (sent && current()) _scroll.revealLatest();
           return sent;
         },
       );
@@ -166,15 +172,6 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     }
   }
 
-  void _scrollToEnd() {
-    if (!_scrollController.hasClients) return;
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authNotifierProvider);
@@ -182,6 +179,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
         ? '用户 ${widget.targetUserId}'
         : widget.targetUserName;
     final currentUserId = auth.userId;
+    // 身份恢复中或未登录：只渲染页头与加载态，不创建线程 provider。
     if (auth.isLoading || !jsonInt64IsPositive(currentUserId)) {
       return FScaffold(
         childPad: false,
@@ -200,12 +198,8 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     final key = _key(currentUserId!);
     final state = ref.watch(messageThreadProvider(key));
     final notifier = ref.read(messageThreadProvider(key).notifier);
-    final messageCount = state.messages.length;
-    if (messageCount != _seenMessageCount) {
-      final opened = _seenMessageCount == 0 && messageCount > 0;
-      _seenMessageCount = messageCount;
-      if (opened || _pinToLatest) _revealLatest();
-    }
+    _scroll.follow(state.messages.length);
+    final mediaLocked = _selecting || _media.busy || _media.hasPending;
 
     return FScaffold(
       childPad: false,
@@ -221,167 +215,48 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
       child: Column(
         children: [
           Expanded(child: _buildMessages(state, notifier, currentUserId)),
+          // 待发送媒体的失败由下方媒体行负责展示，避免同一失败出现两条横幅。
           if (state.sendError != null && !_media.hasPending)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: FAlert(
-                      variant: FAlertVariant.destructive,
-                      title: Text(state.sendError!),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FButton.icon(
-                    onPress: state.isSending
-                        ? null
-                        : () async {
-                            final text = _controller.text;
-                            final command = state.failedCommand;
-                            final sent = await notifier.retryFailed();
-                            if (sent &&
-                                mounted &&
-                                _controller.text == text &&
-                                command?.content == text.trim()) {
-                              _controller.clear();
-                            }
-                          },
-                    child: const Icon(
-                      FLucideIcons.refreshCw,
-                      semanticLabel: '重试发送',
-                    ),
-                  ),
-                ],
-              ),
+            InlineErrorBar(
+              message: state.sendError!,
+              retryLabel: '重试发送',
+              onRetry: state.isSending
+                  ? null
+                  : () => _retryFailedSend(notifier, state.failedCommand),
             ),
           if (state.readError != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: FAlert(
-                      variant: FAlertVariant.destructive,
-                      title: Text('标记已读失败: ${state.readError}'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FButton.icon(
-                    onPress: state.isMarkingRead
-                        ? null
-                        : notifier.retryMarkRead,
-                    child: state.isMarkingRead
-                        ? const FCircularProgress(size: .sm)
-                        : const Icon(
-                            FLucideIcons.refreshCw,
-                            semanticLabel: '重试标记已读',
-                          ),
-                  ),
-                ],
-              ),
+            InlineErrorBar(
+              message: '标记已读失败: ${state.readError}',
+              retryLabel: '重试标记已读',
+              retrying: state.isMarkingRead,
+              onRetry: state.isMarkingRead ? null : notifier.retryMarkRead,
             ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Row(
-              children: [
-                for (final kind in MediaKind.values) ...[
-                  FButton.icon(
-                    variant: FButtonVariant.ghost,
-                    onPress:
-                        state.isSending ||
-                            _selecting ||
-                            _media.busy ||
-                            _media.hasPending
-                        ? null
-                        : () => _sendMedia(key, kind),
-                    child: Icon(
-                      switch (kind) {
-                        MediaKind.image => FLucideIcons.image,
-                        MediaKind.video => FLucideIcons.video,
-                        MediaKind.audio => FLucideIcons.audioLines,
-                      },
-                      semanticLabel: switch (kind) {
-                        MediaKind.image => '发送图片',
-                        MediaKind.video => '发送视频',
-                        MediaKind.audio => '发送语音文件',
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                if (_media.busy || _selecting)
-                  const FCircularProgress(size: .sm),
-              ],
-            ),
+          MediaPickerBar(
+            enabled: !state.isSending && !mediaLocked,
+            busy: _media.busy || _selecting,
+            onPick: (kind) => _sendMedia(key, kind),
           ),
           if (_media.error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  Expanded(child: Text(_media.error!)),
-                  FButton.icon(
-                    onPress: _media.busy ? null : _media.retry,
-                    child: const Icon(
-                      FLucideIcons.refreshCw,
-                      semanticLabel: '重试媒体发送',
-                    ),
-                  ),
-                  FButton.icon(
-                    onPress: () {
-                      _media.cancel();
-                      notifier.discardFailedMedia();
-                    },
-                    child: const Icon(FLucideIcons.x, semanticLabel: '取消媒体发送'),
-                  ),
-                ],
-              ),
+            PendingMediaRow(
+              error: _media.error!,
+              busy: _media.busy,
+              onRetry: _media.retry,
+              onCancel: () {
+                _media.cancel();
+                notifier.discardFailedMedia();
+              },
             ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Semantics(
-                      label: '消息',
-                      child: FTextField.multiline(
-                        control: FTextFieldControl.managed(
-                          controller: _controller,
-                        ),
-                        hint: '输入消息',
-                        minLines: 1,
-                        maxLines: 4,
-                        maxLength: 1000,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FButton.icon(
-                    onPress:
-                        state.isSending ||
-                            _media.busy ||
-                            _media.hasPending ||
-                            _selecting ||
-                            !jsonInt64IsPositive(currentUserId)
-                        ? null
-                        : () => _send(key),
-                    child: state.isSending
-                        ? const FCircularProgress(size: .sm)
-                        : const Icon(FLucideIcons.send, semanticLabel: '发送'),
-                  ),
-                ],
-              ),
-            ),
+          ThreadComposer(
+            controller: _controller,
+            sending: state.isSending,
+            onSend: state.isSending || mediaLocked ? null : () => _send(key),
           ),
         ],
       ),
     );
   }
 
+  // 首屏加载/错误/空态之外渲染消息列表；还有更早消息时首行放“加载更早”按钮。
   Widget _buildMessages(
     MessageThreadState state,
     MessageThreadNotifier notifier,
@@ -397,7 +272,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
       return const EmptyView(message: '暂无消息', icon: FLucideIcons.messageCircle);
     }
     return ListView.builder(
-      controller: _scrollController,
+      controller: _scroll.controller,
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
       itemCount: state.messages.length + (state.hasMore ? 1 : 0),
       itemBuilder: (context, index) {
@@ -427,6 +302,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
   }
 }
 
+// 单条消息气泡：自己发的靠右用主色，对方的靠左用次色，底部附发送时间。
 class _MessageBubble extends StatelessWidget {
   final DirectMessage message;
   final bool own;
@@ -476,6 +352,7 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
+// 按消息类型渲染正文：图片直接显示，音视频交给系统打开，非 URL 的媒体内容提示不可用。
 class _MessageBody extends StatelessWidget {
   final DirectMessage message;
   final bool own;
