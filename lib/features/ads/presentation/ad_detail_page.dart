@@ -27,6 +27,9 @@ class AdContentDiff {
   const AdContentDiff(this.field, this.latest, this.approved);
 }
 
+/// 逐字段比较最新版本与过审版本，只返回有差异的字段。
+///
+/// 图片按内容摘要前 8 位比较，缺摘要时退回素材 ID。
 List<AdContentDiff> diffAdContent(
   AdContentItem latest,
   AdContentItem approved,
@@ -66,6 +69,7 @@ class AdDetailPage extends ConsumerWidget {
       header: FHeader.nested(
         title: const Text('广告详情'),
         prefixes: [
+          // 深链直接进入时没有可返回的页面，回到控制台首页。
           FHeaderAction.back(
             onPress: () =>
                 context.canPop() ? context.pop() : context.go(AppRoutes.ads),
@@ -91,6 +95,7 @@ class AdDetailPage extends ConsumerWidget {
   }
 }
 
+// 已加载广告的详情内容，持有申诉进行中的忙碌态。
 class _AdDetail extends ConsumerStatefulWidget {
   final AdItem ad;
 
@@ -136,13 +141,16 @@ class _AdDetailState extends ConsumerState<_AdDetail> {
     // 保持申诉命令存活，网络失败后的重试复用同一幂等键。
     ref.watch(adAppealCommandsProvider(jsonInt64Id(ad.adId)));
     final approved = ad.approved;
+    // 从未过审或最新版本即过审版本时不展示差异。
     final diffs = approved == null || ad.revision == ad.approvedRevision
         ? const <AdContentDiff>[]
         : diffAdContent(ad.latest, approved);
+    // 申诉复审期间不能编辑。
     final editable = ad.reviewStatus != 'appealing';
     return ListView(
       padding: const EdgeInsets.all(AppTheme.pageInset),
       children: [
+        // 状态概览：审核与投放状态、版本号与当前可投放性。
         AppSection(
           title: ad.latest.title,
           child: Column(
@@ -171,6 +179,7 @@ class _AdDetailState extends ConsumerState<_AdDetail> {
             ],
           ),
         ),
+        // 政策码原因；标题随投放状态区分暂停、下线与未通过。
         if (ad.policyCodes.isNotEmpty) ...[
           const SizedBox(height: AppTheme.space3),
           FAlert(
@@ -189,6 +198,7 @@ class _AdDetailState extends ConsumerState<_AdDetail> {
             ),
           ),
         ],
+        // 回扫暂停与申诉复审中各有专门说明。
         if (ad.servingStatus == 'paused' && ad.pauseReason == 'rescan') ...[
           const SizedBox(height: AppTheme.space3),
           const FAlert(
@@ -207,6 +217,7 @@ class _AdDetailState extends ConsumerState<_AdDetail> {
             subtitle: const Text('复审结论为最终结论，期间不能编辑。'),
           ),
         ],
+        // 申诉入口：已下线时针对过审版本，否则针对未通过的最新版本。
         if (ad.appealable) ...[
           const SizedBox(height: AppTheme.space3),
           FButton(
@@ -221,6 +232,7 @@ class _AdDetailState extends ConsumerState<_AdDetail> {
             ),
           ),
         ],
+        // 新版本审核期间，上一过审版本继续投放。
         if (ad.reviewStatus == 'pending_review' && ad.approvedRevision > 0) ...[
           const SizedBox(height: AppTheme.space3),
           const FAlert(
@@ -228,6 +240,7 @@ class _AdDetailState extends ConsumerState<_AdDetail> {
             title: Text('审核期间继续投放上一过审版本'),
           ),
         ],
+        // 最新版本与过审版本的逐字段差异。
         if (diffs.isNotEmpty) ...[
           const SizedBox(height: AppTheme.space3),
           AppSection(
@@ -264,6 +277,7 @@ class _AdDetailState extends ConsumerState<_AdDetail> {
           ),
         ],
         const SizedBox(height: AppTheme.space3),
+        // 最新版本的完整内容。
         AppSection(
           title: '最新内容',
           child: Column(
@@ -286,6 +300,7 @@ class _AdDetailState extends ConsumerState<_AdDetail> {
           ),
         ),
         const SizedBox(height: AppTheme.space4),
+        // 编辑返回后刷新详情；申诉中不可编辑。
         FButton(
           key: const Key('ad-edit'),
           prefix: const Icon(FLucideIcons.pencil),

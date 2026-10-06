@@ -23,6 +23,7 @@ class ReviewStatusBadge extends StatelessWidget {
   }
 }
 
+/// 投放状态标签：仅投放中使用强调色，其余状态用描边样式。
 class ServingStatusBadge extends StatelessWidget {
   final String status;
 

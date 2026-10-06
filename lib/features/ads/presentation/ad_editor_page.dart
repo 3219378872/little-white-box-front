@@ -40,6 +40,7 @@ class AdEditorPage extends ConsumerWidget {
       ),
       child: child,
     );
+    // 主体与（编辑时的）原广告都就绪后才展示表单；任一失败时一并重试。
     final loading =
         advertiser.isLoading || (existing != null && existing.isLoading);
     final error = advertiser.error ?? existing?.error;
@@ -55,6 +56,7 @@ class AdEditorPage extends ConsumerWidget {
         ),
       );
     }
+    // 尚未申请广告主时不能创建广告。
     final owner = advertiser.value;
     if (owner == null) {
       return scaffold(const EmptyView(message: '请先申请成为广告主'));
@@ -65,6 +67,7 @@ class AdEditorPage extends ConsumerWidget {
   }
 }
 
+// 广告编辑表单：新建时为空白表单，编辑时以最新版本预填。
 class _AdEditorForm extends ConsumerStatefulWidget {
   final AdvertiserItem advertiser;
   final AdItem? existing;
@@ -85,6 +88,7 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
   late List<Object> _mediaIds;
   bool _busy = false;
   bool _uploading = false;
+  // 每次选择图片或页面释放时递增，使进行中的上传结果作废。
   int _uploadGeneration = 0;
 
   AdItem? get _existing => widget.existing;
@@ -97,6 +101,7 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
     _body = TextEditingController(text: latest?.body ?? '');
     _cta = TextEditingController(text: latest?.cta ?? '');
     _landing = TextEditingController(text: latest?.landingUrl ?? 'https://');
+    // 市场缺省取主体第一个市场（主体无市场时为 US），行业缺省为一般商品与服务。
     final markets = widget.advertiser.markets;
     _market = latest?.market.isNotEmpty == true
         ? latest!.market
@@ -166,8 +171,9 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
       if (!mounted) return;
       showAppSuccess(context, '已提交审核');
       final id = jsonInt64Id(saved.adId);
+      // 编辑完成返回详情；新建或深链进入时替换为新广告的详情页。
       if (existing != null && context.canPop()) {
-        // The detail page below refreshes itself when the editor closes.
+        // 下层详情页在编辑器关闭后自行刷新。
         context.pop();
       } else {
         context.pushReplacement(AppRoutes.adDetail(id));
@@ -196,6 +202,7 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.pageInset),
       children: [
+        // 已有过审版本时提示：新版本审核期间旧版本继续投放。
         if (servingApproved) ...[
           const FAlert(
             key: Key('ad-editor-serving-notice'),
@@ -205,6 +212,7 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
           ),
           const SizedBox(height: AppTheme.space3),
         ],
+        // 文案字段；长度上限与客户端校验一致。
         AppSection(
           title: '广告内容',
           child: Column(
@@ -243,6 +251,7 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
           ),
         ),
         const SizedBox(height: AppTheme.space3),
+        // 创意图：已上传的缩略图可移除，未达上限时可继续添加。
         AppSection(
           title: '创意图片（${_mediaIds.length}/$maxAdCreatives）',
           child: Wrap(
@@ -272,6 +281,7 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
           ),
         ),
         const SizedBox(height: AppTheme.space3),
+        // 投放设置：市场限于主体已选市场，行业来自政策目录。
         AppSection(
           title: '投放设置',
           child: Column(
@@ -319,6 +329,7 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
           ),
         ),
         const SizedBox(height: AppTheme.space4),
+        // 图片上传未完成时不能提交，避免遗漏刚选择的图片。
         FButton(
           key: const Key('ad-submit'),
           onPress: _busy || _uploading ? null : _submit,
@@ -330,6 +341,7 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
   }
 }
 
+// 已上传创意图的缩略图：经私有素材接口读取字节预览，右上角可移除。
 class _CreativeTile extends ConsumerWidget {
   final String assetId;
   final VoidCallback onRemove;

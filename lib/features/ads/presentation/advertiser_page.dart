@@ -29,12 +29,14 @@ class AdvertiserPage extends ConsumerWidget {
       header: FHeader.nested(
         title: const Text('主体与资质'),
         prefixes: [
+          // 深链直接进入时没有可返回的页面，回到控制台首页。
           FHeaderAction.back(
             onPress: () =>
                 context.canPop() ? context.pop() : context.go(AppRoutes.ads),
           ),
         ],
       ),
+      // 资质列表与新增资质表单只在已有主体时展示。
       child: advertiser.when(
         loading: () => const LoadingView(),
         error: (error, _) => ErrorView(
@@ -58,6 +60,7 @@ class AdvertiserPage extends ConsumerWidget {
   }
 }
 
+// 主体申请/修改表单：未申请时为空白申请，已申请时预填当前主体。
 class _AdvertiserForm extends ConsumerStatefulWidget {
   final AdvertiserItem? advertiser;
 
@@ -127,6 +130,7 @@ class _AdvertiserFormState extends ConsumerState<_AdvertiserForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // 主体被拒时在表单顶部列出政策原因。
           if (advertiser != null && advertiser.policyCodes.isNotEmpty) ...[
             FAlert(
               variant: FAlertVariant.destructive,
@@ -148,6 +152,7 @@ class _AdvertiserFormState extends ConsumerState<_AdvertiserForm> {
           const SizedBox(height: AppTheme.space3),
           Text('投放市场', style: theme.typography.body.sm),
           const SizedBox(height: AppTheme.space2),
+          // 可选市场来自政策目录；目录不可用时回退本地演示列表。
           for (final market in catalog.markets)
             Padding(
               padding: const EdgeInsets.only(bottom: AppTheme.space2),
@@ -182,6 +187,7 @@ class _AdvertiserFormState extends ConsumerState<_AdvertiserForm> {
   }
 }
 
+// 已提交的资质列表，逐份展示市场、行业、有效期与审核状态。
 class _Qualifications extends StatelessWidget {
   final AdvertiserItem advertiser;
 

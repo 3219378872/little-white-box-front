@@ -14,6 +14,8 @@ import 'ad_labels.dart';
 /// 上传证件并提交一份目标市场的行业资质（FX-110）。
 class QualificationForm extends ConsumerStatefulWidget {
   final AdvertiserItem advertiser;
+
+  /// 当前时间来源；测试注入固定时刻以校验有效期。
   final DateTime Function() now;
 
   const QualificationForm({
@@ -34,6 +36,7 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
   String _documentName = '';
   bool _uploading = false;
   bool _busy = false;
+  // 每次选择证件或页面释放时递增，使进行中的上传结果作废。
   int _uploadGeneration = 0;
 
   @override
@@ -46,6 +49,7 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
   @override
   void didUpdateWidget(covariant QualificationForm oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // 主体市场变化后，已选市场不再可用时回落到第一个市场。
     final markets = widget.advertiser.markets;
     if (!markets.contains(_market)) {
       _market = markets.isEmpty ? null : markets.first;
@@ -101,7 +105,7 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
         now: widget.now(),
       );
       if (!mounted) return;
-      // A fresh form prevents a second tap from filing the same document again.
+      // 提交成功后清空证件与有效期，避免再次点击把同一份证件重复提交。
       setState(() {
         _document = null;
         _documentName = '';
@@ -130,6 +134,7 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // 目标市场只能从主体已选的投放市场中选择。
           Text('目标市场', style: theme.typography.body.sm),
           const SizedBox(height: AppTheme.space2),
           Wrap(
@@ -162,6 +167,7 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
             ],
           ),
           const SizedBox(height: AppTheme.space3),
+          // 有效期手动输入，提交时由命令层解析为 UTC 当日结束并要求晚于当前时刻。
           FTextField(
             key: const Key('qualification-valid-until'),
             control: FTextFieldControl.managed(controller: _validUntil),
@@ -170,6 +176,7 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
             maxLength: 10,
           ),
           const SizedBox(height: AppTheme.space3),
+          // 证件上传：上传中禁用按钮，完成后显示文件名。
           Row(
             children: [
               FButton(
@@ -203,6 +210,7 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
             ),
           ),
           const SizedBox(height: AppTheme.space3),
+          // 证件上传未完成时不能提交，避免带上旧证件或缺少证件。
           FButton(
             key: const Key('qualification-submit'),
             onPress: _busy || _uploading ? null : _submit,

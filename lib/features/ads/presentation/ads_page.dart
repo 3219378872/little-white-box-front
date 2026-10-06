@@ -25,6 +25,7 @@ class AdsPage extends ConsumerWidget {
     final advertiser = ref.watch(myAdvertiserProvider);
     final ads = ref.watch(adsListProvider);
     return FScaffold(
+      // 头部：刷新同时重读主体与广告列表。
       header: FHeader.nested(
         title: const Text('广告主控制台'),
         prefixes: [
@@ -42,6 +43,7 @@ class AdsPage extends ConsumerWidget {
           ),
         ],
       ),
+      // 主体读取失败时整页不可用；广告区块只对已申请的广告主展示。
       child: advertiser.when(
         loading: () => const LoadingView(),
         error: (error, _) => ErrorView(
@@ -54,6 +56,7 @@ class AdsPage extends ConsumerWidget {
             _AdvertiserSummary(advertiser: advertiser),
             const SizedBox(height: AppTheme.space4),
             if (advertiser != null) ...[
+              // 主体有过审版本才能新建广告；从新建页返回后刷新列表。
               if (advertiser.approvedRevision > 0)
                 FButton(
                   key: const Key('ads-new'),
@@ -79,6 +82,7 @@ class AdsPage extends ConsumerWidget {
   }
 }
 
+// 控制台顶部的主体概况：未申请时引导申请，已申请时展示审核状态、市场、资质数与未通过原因。
 class _AdvertiserSummary extends StatelessWidget {
   final AdvertiserItem? advertiser;
 
@@ -144,6 +148,7 @@ class _AdvertiserSummary extends StatelessWidget {
   }
 }
 
+// 本人广告列表区块：首屏加载、错误与空态，之后为条目与手动翻页。
 class _AdsList extends ConsumerWidget {
   final AdsListState state;
 
@@ -153,6 +158,7 @@ class _AdsList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final notifier = ref.read(adsListProvider.notifier);
+    // 尚无条目时用整块加载与错误视图；已有条目时错误显示在列表下方。
     if (state.isLoading && state.ads.isEmpty) {
       return const LoadingView();
     }
@@ -197,6 +203,7 @@ class _AdsList extends ConsumerWidget {
                   ),
                 ),
                 suffix: const Icon(FLucideIcons.chevronRight),
+                // 从详情返回后重新加载，反映编辑或申诉后的状态。
                 onPress: () async {
                   await context.push(AppRoutes.adDetail(ad.adId));
                   notifier.loadInitial();

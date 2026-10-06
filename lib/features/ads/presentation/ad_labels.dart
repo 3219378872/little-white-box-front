@@ -74,14 +74,17 @@ extension AdPolicyCatalogLabels on AdPolicyCatalog {
   String titleOf(String code) => titleFor(code) ?? adPolicyLabel(code);
 }
 
+/// 投放市场代码到中文名称；也是服务端未下发市场列表时的回退选项。
 const adMarketLabels = <String, String>{
   'US': '美国（英语）',
   'DE': '德国（德语）',
   'ID': '印度尼西亚（印尼语）',
 };
 
+/// 市场代码的中文名称；未知代码原样显示。
 String adMarketLabel(String market) => adMarketLabels[market] ?? market;
 
+/// 行业代码到中文名称；也是服务端未下发行业列表时的回退选项。
 const adIndustryLabels = <String, String>{
   'GENERAL': '一般商品与服务',
   'FINANCIAL': '金融服务',
@@ -94,12 +97,14 @@ const adIndustryLabels = <String, String>{
   'POLITICAL': '政治',
 };
 
+/// 行业代码的中文名称；未知代码原样显示。
 String adIndustryLabel(String industry) =>
     adIndustryLabels[industry] ?? industry;
 
 /// 需要提交目标市场资质的行业（演示矩阵）；酒精、博彩等禁投行业不提供资质入口。
 const qualificationIndustries = ['FINANCIAL', 'HEALTHCARE', 'WEIGHT'];
 
+/// 广告、主体与资质审核状态的中文标签；空值显示“未知”，其余未知值原样显示。
 String adReviewStatusLabel(String status) => switch (status) {
   'draft' => '草稿',
   'pending_review' => '审核中',
@@ -111,6 +116,7 @@ String adReviewStatusLabel(String status) => switch (status) {
   _ => status.isEmpty ? '未知' : status,
 };
 
+/// 广告投放状态的中文标签；空值显示“未知”，其余未知值原样显示。
 String adServingStatusLabel(String status) => switch (status) {
   'none' => '未投放',
   'serving' => '投放中',
@@ -164,6 +170,7 @@ String? reviewPurposeHint(String purpose) => switch (purpose) {
   _ => null,
 };
 
+/// 审核任务状态的中文标签；机审排队与执行中合并显示。
 String reviewTaskStatusLabel(String status) => switch (status) {
   'machine_pending' || 'machine_running' => '机审中',
   'human_pending' => '待人审',
@@ -173,6 +180,7 @@ String reviewTaskStatusLabel(String status) => switch (status) {
   _ => status,
 };
 
+/// 审核任务目的的中文标签。
 String reviewPurposeLabel(String purpose) => switch (purpose) {
   'initial' => '首次审核',
   'qa' => '质检',
@@ -182,18 +190,21 @@ String reviewPurposeLabel(String purpose) => switch (purpose) {
   _ => purpose,
 };
 
+/// 审核对象类型的中文标签：广告创意，或广告主主体连同资质。
 String reviewBizTypeLabel(String bizType) => switch (bizType) {
   'ad_creative' => '广告创意',
   'advertiser_qualification' => '广告主与资质',
   _ => bizType,
 };
 
+/// 审核结论的中文标签。
 String reviewVerdictLabel(String verdict) => switch (verdict) {
   'approve' => '通过',
   'reject' => '拒绝',
   _ => verdict,
 };
 
+/// 历史决策来源（机审、人审、质检）的中文标签。
 String reviewSourceLabel(String source) => switch (source) {
   'machine' => '机审',
   'human' => '人审',
