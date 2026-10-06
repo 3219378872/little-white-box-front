@@ -27,9 +27,17 @@ typedef ExternalUriOpener = Future<bool> Function(Uri uri);
 /// CTA。曝光沿用帖子卡片的 50% 可见、连续 1 秒判定，只上报曝光与点击，不上报停留。
 class SponsoredAdCard extends ConsumerStatefulWidget {
   final SponsoredSlot slot;
+
+  /// 所在列表是否可见；不可见时暂停曝光计时。
   final bool trackingActive;
+
+  /// 隐藏广告；乐观移除与失败恢复由页面与 feed notifier 处理。
   final Future<void> Function() onHide;
+
+  /// 以结构化原因代码举报广告。
   final Future<void> Function(String reason) onReport;
+
+  /// 测试注入的外部打开器；为空时用系统浏览器在新窗口打开。
   final ExternalUriOpener? openExternal;
 
   const SponsoredAdCard({
@@ -45,6 +53,7 @@ class SponsoredAdCard extends ConsumerStatefulWidget {
   ConsumerState<SponsoredAdCard> createState() => _SponsoredAdCardState();
 }
 
+// 持有曝光计时器并监听前后台切换；隐藏、举报与落地页跳转都在这里发起。
 class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
     with WidgetsBindingObserver {
   final _exposure = SponsoredExposureTimer();
@@ -88,6 +97,7 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
     super.dispose();
   }
 
+  // 可见比例达到阈值时尝试开始曝光计时，低于阈值时计时器自行取消。
   void _onVisibilityChanged(VisibilityInfo info) {
     if (_exposure.updateVisibility(info.visibleFraction)) {
       _scheduleExposure();
@@ -113,6 +123,7 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
     );
   }
 
+  // 行为上报异步执行且吞掉异常，不打断用户操作。
   void _trackSafely(Future<void> Function() track) {
     unawaited(() async {
       try {
@@ -154,6 +165,7 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
     unawaited(widget.onHide());
   }
 
+  // 举报：先在底部面板选择原因，取消选择则不提交；提交前同样停止曝光计时。
   Future<void> _report() async {
     final reason = await showFSheet<String>(
       context: context,
@@ -165,6 +177,7 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
     await widget.onReport(reason);
   }
 
+  // 展示「为什么看到这条广告」面板。
   Future<void> _showWhy() {
     return showFSheet<void>(
       context: context,
@@ -208,6 +221,7 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 头部：广告主名、「广告」标识与更多菜单。
                 Row(
                   children: [
                     // Name takes all free width so only long names truncate.
@@ -259,6 +273,7 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                      // 广告配图复用帖子卡片的预览布局，相对路径先解析为完整地址。
                       if (ad.images.isNotEmpty) ...[
                         const SizedBox(height: AppTheme.space3),
                         PostMediaPreview(
@@ -278,6 +293,7 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
     );
   }
 
+  // 底部行：落地页域名与 CTA 按钮（无文案时显示「了解更多」）。
   Widget _ctaRow(BuildContext context) {
     final theme = context.theme;
     final domainColor = AppTheme.sponsoredDomain(theme.colors);
@@ -306,6 +322,7 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
     );
   }
 
+  // 更多菜单：为什么看到、隐藏、举报；选择后先收起菜单再执行。
   Widget _menu() {
     return FPopoverMenu(
       menuAnchor: Alignment.topRight,

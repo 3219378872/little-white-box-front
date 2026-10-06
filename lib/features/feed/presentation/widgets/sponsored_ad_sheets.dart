@@ -15,6 +15,7 @@ class SponsoredWhySheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final why = ad.why;
+    // 一行「标签：值」，标签列定宽对齐。
     Widget row(String label, String value) => Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.space1),
       child: Row(
@@ -51,11 +52,13 @@ class SponsoredWhySheet extends StatelessWidget {
                 child: Text('为什么看到这条广告', style: theme.typography.display.sm),
               ),
               const SizedBox(height: AppTheme.space3),
+              // 逐项列出投放依据；首页场景显示为中文名，其余原样展示。
               row('广告主', ad.advertiserName),
               row('投放市场', why.market.isEmpty ? '未提供' : why.market),
               row('展示场景', why.scene == 'home' ? '首页推荐' : why.scene),
               row('个性化', why.personalized ? '是' : '否'),
               const SizedBox(height: AppTheme.space2),
+              // 按是否个性化给出一句说明。
               Text(
                 why.personalized
                     ? '这条广告参考了你的个性化信息。'
@@ -107,6 +110,7 @@ class SponsoredReportSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppTheme.space3),
+              // 原因选项：点选即以原因代码关闭面板。
               FItemGroup(
                 children: [
                   for (final (code, label) in adReportReasons)

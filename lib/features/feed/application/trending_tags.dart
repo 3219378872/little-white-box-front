@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/feed_models.dart';
 import 'feed_notifier.dart';
 
+/// A tag and the number of loaded recommend posts carrying it.
 class TrendingTag {
   final String name;
   final int postCount;
@@ -25,6 +26,7 @@ List<TrendingTag> rankTrendingTags(
   final firstSeen = <String, int>{};
   var order = 0;
   for (final entry in entries) {
+    // Count each tag once per post, keyed by its trimmed name.
     for (final raw in entry.post.tags.toSet()) {
       final tag = raw.trim();
       if (tag.isEmpty) continue;
@@ -32,6 +34,7 @@ List<TrendingTag> rankTrendingTags(
       firstSeen.putIfAbsent(tag, () => order++);
     }
   }
+  // Most frequent first; ties keep the order in which tags first appeared.
   final ranked = counts.entries.where((e) => e.value >= minPosts).toList()
     ..sort((a, b) {
       final byCount = b.value.compareTo(a.value);
@@ -44,6 +47,8 @@ List<TrendingTag> rankTrendingTags(
   ];
 }
 
+/// Trending tags for the desktop side rail, recomputed whenever the recommend
+/// feed's loaded entries change.
 final trendingTagsProvider = Provider.autoDispose<List<TrendingTag>>((ref) {
   final entries = ref.watch(
     feedNotifierProvider(FeedKind.recommend).select((state) => state.entries),

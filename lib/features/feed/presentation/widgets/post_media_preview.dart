@@ -33,6 +33,7 @@ class PostMediaPreview extends StatelessWidget {
     if (images.isEmpty) return const SizedBox.shrink();
     final count = images.length;
     final colors = context.theme.colors;
+    // One rounded tile; placeholder and error states keep the same footprint.
     Widget image(int index) => ClipRRect(
       borderRadius: AppTheme.imageRadius,
       child: CachedNetworkImage(
@@ -57,6 +58,7 @@ class PostMediaPreview extends StatelessWidget {
           if (count == 1) {
             return SizedBox(width: width, height: height, child: image(0));
           }
+          // Multi-image row: the last visible tile carries a `+N` overlay for hidden images.
           final tiles = count == 2 ? 2 : maxTiles;
           final extra = count - maxTiles;
           return SizedBox(

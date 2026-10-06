@@ -24,6 +24,7 @@ import 'widgets/sponsored_ad_card.dart';
 import '../../ads/application/ads_dependencies.dart';
 import '../../../core/router/app_routes.dart';
 
+/// 首页信息流：「关注 / 推荐」两个标签页（默认推荐），宽屏时右侧附加侧栏。
 class FeedPage extends ConsumerStatefulWidget {
   const FeedPage({super.key});
 
@@ -31,19 +32,23 @@ class FeedPage extends ConsumerStatefulWidget {
   ConsumerState<FeedPage> createState() => _FeedPageState();
 }
 
+// 记录当前标签，只让可见标签的列表触发续翻与曝光追踪。
 class _FeedPageState extends ConsumerState<FeedPage> {
   int _selectedTab = 1;
 
+  // 可用宽度容得下信息流列、间距与侧栏时才显示侧栏。
   static const _railBreakpoint =
       AppTheme.feedColumnWidth + AppTheme.space6 + AppTheme.sideRailWidth;
 
   @override
   Widget build(BuildContext context) {
+    // 窄于 lg 断点（没有桌面侧边栏）时，在标签栏右侧补搜索与消息入口。
     final showTools =
         MediaQuery.sizeOf(context).width < context.theme.breakpoints.lg;
     final theme = context.theme;
     final tabs = Stack(
       children: [
+        // 标签栏与两个信息流列表；右侧为快捷入口预留空间。
         FTabs(
           scrollable: true,
           style: FTabsStyleDelta.delta(
@@ -101,6 +106,7 @@ class _FeedPageState extends ConsumerState<FeedPage> {
             ),
           ),
         ),
+        // 窄屏快捷入口：搜索与消息。
         if (showTools)
           Positioned(
             top: 4,
@@ -122,6 +128,7 @@ class _FeedPageState extends ConsumerState<FeedPage> {
           ),
       ],
     );
+    // 宽屏：信息流列 + 侧栏并排；否则只有信息流。
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < _railBreakpoint) return tabs;
@@ -141,8 +148,10 @@ class _FeedPageState extends ConsumerState<FeedPage> {
   }
 }
 
+// 单个信息流列表：按加载状态切换骨架、错误、空态与列表，并处理续翻与广告操作。
 class _FeedContent extends ConsumerStatefulWidget {
   final FeedKind kind;
+  // 是否为当前可见标签；不可见时不续翻、不上报曝光。
   final bool active;
 
   const _FeedContent({required this.kind, required this.active});
@@ -151,11 +160,14 @@ class _FeedContent extends ConsumerStatefulWidget {
   ConsumerState<_FeedContent> createState() => _FeedContentState();
 }
 
+// 根据 feed notifier 状态选择展示形态，并把滚动、广告隐藏与举报转成 notifier 调用。
 class _FeedContentState extends ConsumerState<_FeedContent> {
+  // 距底部不足该距离时续翻。
   static const _loadMoreExtent = 200.0;
 
   @override
   Widget build(BuildContext context) {
+    // 关注流需要登录：身份恢复中显示加载，未登录给登录引导。
     if (widget.kind == FeedKind.follow) {
       final auth = ref.watch(authNotifierProvider);
       if (auth.isLoading) {
@@ -167,14 +179,17 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
     final feedState = ref.watch(feedNotifierProvider(widget.kind));
     final notifier = ref.read(feedNotifierProvider(widget.kind).notifier);
 
+    // 首屏失败：整体错误态。
     if (feedState.error != null && feedState.entries.isEmpty) {
       return ErrorView(message: feedState.error!, onRetry: notifier.refresh);
     }
 
+    // 首屏加载：骨架屏。
     if (feedState.isLoading && feedState.entries.isEmpty) {
       return const PostCardSkeletonList();
     }
 
+    // 首屏翻到上限仍无条目但还有更多：保持骨架并在下一帧自动续翻。
     if (feedState.entries.isEmpty &&
         feedState.hasMore &&
         feedState.error == null &&
@@ -188,6 +203,7 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
       return const PostCardSkeletonList();
     }
 
+    // 确实没有内容：可下拉刷新的空态。
     if (feedState.entries.isEmpty) {
       return ForuiPullToRefresh(
         onRefresh: notifier.refresh,
@@ -207,10 +223,12 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
       );
     }
 
+    // 有内容：帖子与广告混排列表，尾部按需追加状态行。
     final showFooter = _showFeedFooter(feedState);
     final rows = feedState.rows;
     return ForuiPullToRefresh(
       onRefresh: notifier.refresh,
+      // 同时监听尺寸变化与滚动：内容不足一屏时也能触发续翻。
       child: NotificationListener<ScrollMetricsNotification>(
         onNotification: _handleScrollMetrics,
         child: NotificationListener<ScrollNotification>(
@@ -233,18 +251,21 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
     );
   }
 
+  // 只处理列表自身（depth 0）的滚动通知。
   bool _handleScrollNotification(ScrollNotification notification) {
     if (notification.depth != 0) return false;
     _maybeLoadMore(notification.metrics);
     return false;
   }
 
+  // 列表尺寸变化（如追加内容后仍不满一屏）时同样检查是否需要续翻。
   bool _handleScrollMetrics(ScrollMetricsNotification notification) {
     if (notification.depth != 0) return false;
     _maybeLoadMore(notification.metrics);
     return false;
   }
 
+  // 接近底部且没有未处理的失败时，下一帧续翻；帧回调里再次确认仍可见、仍无失败。
   void _maybeLoadMore(ScrollMetrics metrics) {
     if (!widget.active || metrics.axis != Axis.vertical) return;
     if (metrics.extentAfter > _loadMoreExtent) return;
@@ -258,6 +279,7 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
     });
   }
 
+  // 续翻中、已到底或已有内容但加载失败时显示尾部行。
   bool _showFeedFooter(FeedState state) {
     return state.isLoadingMore ||
         !state.hasMore ||
@@ -274,6 +296,7 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
     );
   }
 
+  // 按行类型渲染帖子卡片或广告卡片；key 带请求 ID，换快照后重建以重新追踪曝光。
   Widget _feedRow(FeedRow row) {
     return switch (row) {
       FeedPostRow(:final entry) => PostCard(
@@ -326,6 +349,7 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
       showAppError(context, failure.restored ? '隐藏失败，广告已恢复' : '隐藏失败，请稍后重试');
       return;
     }
+    // 行为上报异步执行，不阻塞界面。
     unawaited(() async {
       try {
         await ref
@@ -342,6 +366,7 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
   }
 }
 
+// 关注标签在未登录时的占位：说明与登录按钮。
 class _FollowLoginRequired extends StatelessWidget {
   const _FollowLoginRequired();
 

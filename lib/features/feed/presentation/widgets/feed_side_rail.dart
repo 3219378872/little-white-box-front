@@ -15,6 +15,7 @@ import '../../../../core/router/app_routes.dart';
 class FeedSideRail extends ConsumerWidget {
   const FeedSideRail({super.key});
 
+  // Sends anonymous users to login instead of a page that needs an account.
   void _requireLogin(BuildContext context, WidgetRef ref, String location) {
     if (!ref.read(authNotifierProvider).isAuthenticated) {
       context.push(AppRoutes.login);
@@ -38,6 +39,7 @@ class FeedSideRail extends ConsumerWidget {
         bottom: AppTheme.space6,
       ),
       children: [
+        // Compose entry.
         FButton(
           key: const Key('feed-rail-compose'),
           prefix: const Icon(FLucideIcons.squarePen),
@@ -45,6 +47,7 @@ class FeedSideRail extends ConsumerWidget {
           child: const Text('发布帖子'),
         ),
         const SizedBox(height: AppTheme.space4),
+        // Agent entry with a one-line pitch.
         _RailSection(
           icon: FLucideIcons.sparkles,
           title: '小白盒 Agent',
@@ -76,6 +79,7 @@ class FeedSideRail extends ConsumerWidget {
             ],
           ),
         ),
+        // Business tools for signed-in users; review only for reviewer roles.
         if (authenticated) ...[
           const SizedBox(height: AppTheme.space4),
           _RailSection(
@@ -106,6 +110,7 @@ class FeedSideRail extends ConsumerWidget {
             ),
           ),
         ],
+        // Trending tags; tapping one runs a search for it and opens the search tab.
         if (tags.isNotEmpty) ...[
           const SizedBox(height: AppTheme.space4),
           _RailSection(
@@ -135,6 +140,7 @@ class FeedSideRail extends ConsumerWidget {
   }
 }
 
+// Muted card with an icon header, optional caption and body.
 class _RailSection extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -196,6 +202,7 @@ class _RailSection extends StatelessWidget {
   }
 }
 
+// Outlined tag chip showing the tag name and its loaded post count.
 class _TagChip extends StatelessWidget {
   final TrendingTag tag;
   final VoidCallback onPress;

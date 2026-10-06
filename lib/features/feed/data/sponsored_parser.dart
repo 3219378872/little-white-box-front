@@ -4,6 +4,8 @@ import 'feed_models.dart';
 /// 推荐流 `sponsored` 的逐槽解析结果。
 class SponsoredParseResult {
   final List<SponsoredSlot> slots;
+
+  /// 被丢弃的槽位数（格式错误或重复）。
   final int dropped;
 
   const SponsoredParseResult(this.slots, this.dropped);
@@ -19,6 +21,7 @@ SponsoredParseResult parseSponsoredSlots(
   required String requestId,
   required String scene,
 }) {
+  // 字段缺失表示本页没有广告；类型不对时整体计为一个丢弃。
   if (raw == null) return const SponsoredParseResult([], 0);
   if (raw is! List) return const SponsoredParseResult([], 1);
   final slots = <SponsoredSlot>[];
@@ -26,6 +29,7 @@ SponsoredParseResult parseSponsoredSlots(
   var dropped = 0;
   for (final item in raw) {
     final slot = _parseSlot(item, requestId: requestId, scene: scene);
+    // 同一页内重复的 slotId 只保留第一个。
     if (slot == null || !seen.add(slot.slotId)) {
       dropped++;
       continue;
@@ -35,6 +39,7 @@ SponsoredParseResult parseSponsoredSlots(
   return SponsoredParseResult(slots, dropped);
 }
 
+// 解析单个槽位：slotId 非空、afterPosition 为正整数且 ad 是对象，否则丢弃。
 SponsoredSlot? _parseSlot(
   Object? raw, {
   required String requestId,
@@ -67,6 +72,7 @@ SponsoredSlot? _parseSlot(
   );
 }
 
+// 解析广告主体：必填标识与文案齐全、显式标为 sponsored、落地页为 https 且主机与声明域名一致。
 SponsoredAd? _parseAd(Map<dynamic, dynamic> ad) {
   final adId = ad['adId'];
   final revision = ad['revision'];
@@ -87,6 +93,7 @@ SponsoredAd? _parseAd(Map<dynamic, dynamic> ad) {
       landing.host.toLowerCase() != landingDomain) {
     return null;
   }
+  // 图片与「为什么看到」是可选字段：非法图片地址被过滤，缺失时使用空值。
   final images = ad['images'];
   final why = ad['why'];
   return SponsoredAd(
@@ -111,6 +118,7 @@ SponsoredAd? _parseAd(Map<dynamic, dynamic> ad) {
   );
 }
 
+// 只接受站内相对路径或带主机的 http(s) 地址，拒绝带用户信息的 URL。
 bool _isWebUrl(String value) {
   final uri = Uri.tryParse(value);
   if (uri == null || uri.userInfo.isNotEmpty) return false;
@@ -118,4 +126,5 @@ bool _isWebUrl(String value) {
   return {'http', 'https'}.contains(uri.scheme) && uri.host.isNotEmpty;
 }
 
+// 只接受字符串字段并去首尾空白，其他类型视为缺失。
 String _text(Object? value) => value is String ? value.trim() : '';

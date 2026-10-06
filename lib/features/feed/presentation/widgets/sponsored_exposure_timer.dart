@@ -12,7 +12,9 @@ class SponsoredExposureTimer {
   static const exposureThreshold = Duration(seconds: 1);
 
   Timer? _timer;
+  // 当前广告位是否已曝光；只有 [reset] 才会清除。
   bool _reported = false;
+  // 最近一次可见比例，恢复计时时据此判断是否仍足够可见。
   double _lastVisibleFraction = 0;
 
   /// 记录最新可见比例；低于阈值时取消进行中的计时，返回当前是否达到阈值。

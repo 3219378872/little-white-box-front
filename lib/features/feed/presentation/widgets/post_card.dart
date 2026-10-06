@@ -21,9 +21,14 @@ import '../../../interaction/application/interaction_notifier.dart';
 import '../../../../sdk/data/gateway.dart';
 import '../../../../core/router/app_routes.dart';
 
+/// 信息流与个人页共用的帖子卡片：作者行、标题摘要、配图、标签与评论/点赞计数。
+///
+/// 带 [recommendationContext] 时额外上报曝光、点击与停留行为；个人页等场景不传则不追踪。
 class PostCard extends ConsumerStatefulWidget {
   final PostItem post;
   final FeedRecommendationContext? recommendationContext;
+
+  /// 所在列表是否可见；不可见（如切到另一标签）时暂停追踪。
   final bool trackingActive;
 
   const PostCard({
@@ -37,15 +42,19 @@ class PostCard extends ConsumerStatefulWidget {
   ConsumerState<PostCard> createState() => _PostCardState();
 }
 
+// 维护曝光计时与停留会话，并监听前后台切换以暂停/恢复追踪。
 class _PostCardState extends ConsumerState<PostCard>
     with WidgetsBindingObserver {
+  // 视为可见的最小可见比例与曝光所需的连续可见时长。
   static const _visibilityThreshold = 0.5;
   static const _exposureThreshold = Duration(seconds: 1);
 
+  // 曝光计时器、本次可见开始时间、停留计时起点与「本卡片已曝光」标记。
   Timer? _exposureTimer;
   DateTime? _visibleSince;
   DateTime? _dwellStartedAt;
   bool _exposureReported = false;
+  // 最近一次可见比例，恢复追踪时据此判断是否立即重新计时。
   double _lastVisibleFraction = 0;
 
   PostItem get post => widget.post;
@@ -66,6 +75,7 @@ class _PostCardState extends ConsumerState<PostCard>
         postIdChanged ||
         oldWidget.recommendationContext?.requestId !=
             widget.recommendationContext?.requestId;
+    // 换了帖子/快照或追踪被关闭：以旧参数结束上一段可见会话。
     if (contextChanged || oldWidget.trackingActive && !widget.trackingActive) {
       _endVisibilitySession(
         postId: oldWidget.post.id,
@@ -75,6 +85,7 @@ class _PostCardState extends ConsumerState<PostCard>
     if (!oldWidget.trackingActive && widget.trackingActive) {
       _restartVisibilityIfNeeded();
     }
+    // 新帖子或新快照重新计曝光。
     if (contextChanged) {
       _exposureTimer?.cancel();
       _exposureTimer = null;
@@ -84,6 +95,7 @@ class _PostCardState extends ConsumerState<PostCard>
     }
   }
 
+  // 切到后台结束可见会话，回到前台按最近可见比例恢复。
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) {
@@ -101,6 +113,7 @@ class _PostCardState extends ConsumerState<PostCard>
     super.dispose();
   }
 
+  // 点赞：匿名先去登录；以乐观态为当前值切换，失败由 interaction notifier 回滚并在此提示。
   Future<void> _toggleLike() async {
     if (!ref.read(authNotifierProvider).isAuthenticated) {
       context.push(AppRoutes.login);
@@ -119,6 +132,7 @@ class _PostCardState extends ConsumerState<PostCard>
     }
   }
 
+  // 打开详情：先上报点击并结束可见会话，再跳转。
   void _openPost() {
     final trackingContext = widget.recommendationContext;
     if (trackingContext != null) {
@@ -132,8 +146,8 @@ class _PostCardState extends ConsumerState<PostCard>
     context.push(AppRoutes.postDetail(post.id));
   }
 
-  /// 由 [VisibilityDetector] 在布局变化时回调，取代原先每卡 100ms 的
-  /// Timer.periodic 几何轮询。
+  // 可见比例变化回调（由 [VisibilityDetector] 在布局变化时触发）：可见过半开始计停留，
+  // 连续 1 秒上报一次曝光；低于阈值时结束本次可见会话（已曝光时上报停留）。
   void _onVisibilityChanged(VisibilityInfo info) {
     _lastVisibleFraction = info.visibleFraction;
     final trackingContext = widget.recommendationContext;
@@ -166,6 +180,7 @@ class _PostCardState extends ConsumerState<PostCard>
     });
   }
 
+  // 恢复追踪（回到前台或标签重新可见）：若卡片仍足够可见，重新开始停留与曝光计时。
   void _restartVisibilityIfNeeded() {
     if (!mounted ||
         !widget.trackingActive ||
@@ -195,6 +210,7 @@ class _PostCardState extends ConsumerState<PostCard>
     });
   }
 
+  // 结束一段可见会话：取消曝光计时；只有曝光过的会话才上报停留时长。
   void _endVisibilitySession({
     Object? postId,
     FeedRecommendationContext? recommendationContext,
@@ -217,6 +233,7 @@ class _PostCardState extends ConsumerState<PostCard>
     );
   }
 
+  // 行为上报异步执行且吞掉异常，不打断用户操作。
   void _trackSafely(Future<void> Function() track) {
     unawaited(() async {
       try {
@@ -241,6 +258,7 @@ class _PostCardState extends ConsumerState<PostCard>
       isLiked: post.isLiked,
     );
 
+    // 可见性检测包住整张卡片；key 带帖子与请求 ID，换快照时作为新目标追踪。
     return VisibilityDetector(
       key: Key(
         'post-exposure-${jsonInt64Id(post.id)}-'
@@ -270,6 +288,7 @@ class _PostCardState extends ConsumerState<PostCard>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 作者行：头像（进入主页）、昵称与发布时间。
               Row(
                 children: [
                   FTappable(
@@ -303,6 +322,7 @@ class _PostCardState extends ConsumerState<PostCard>
                 ],
               ),
               const SizedBox(height: AppTheme.space3),
+              // 标题与正文摘要：有标题时正文最多两行，否则三行。
               if (post.title.isNotEmpty)
                 Text(
                   post.title,
@@ -326,10 +346,12 @@ class _PostCardState extends ConsumerState<PostCard>
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+              // 配图预览
               if (post.images.isNotEmpty) ...[
                 const SizedBox(height: AppTheme.space3),
                 PostMediaPreview(images: post.images),
               ],
+              // 底栏：标签与评论/点赞计数（点赞可点）。
               const SizedBox(height: AppTheme.space2),
               Row(
                 children: [
@@ -368,6 +390,7 @@ class _PostCardState extends ConsumerState<PostCard>
     );
   }
 
+  // 计数项：图标加计数（超过 999 显示为 k），传入 onPress 时可点击。
   Widget _statItem(
     BuildContext context,
     IconData icon,

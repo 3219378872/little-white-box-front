@@ -1,10 +1,14 @@
 import '../../../sdk/data/gateway.dart';
 
+/// 首页信息流类型：推荐（匿名可看）与关注（需登录）。
 enum FeedKind { recommend, follow }
 
+/// 条目在本次信息流请求中的上下文，随曝光、点击、停留等行为上报给推荐系统。
 class FeedRecommendationContext {
   final String requestId;
   final String scene;
+
+  /// 条目在本轮请求快照中的位置（从 1 开始），广告槽位据此锚定。
   final int position;
   final double score;
   final String reason;
@@ -24,6 +28,7 @@ class FeedRecommendationContext {
   });
 }
 
+/// 信息流中的一条自然内容：帖子及其推荐上下文。
 class FeedEntry {
   final PostItem post;
   final FeedRecommendationContext context;
@@ -94,12 +99,14 @@ sealed class FeedRow {
   const FeedRow();
 }
 
+/// 自然内容行。
 final class FeedPostRow extends FeedRow {
   final FeedEntry entry;
 
   const FeedPostRow(this.entry);
 }
 
+/// 广告行。
 final class FeedAdRow extends FeedRow {
   final SponsoredSlot slot;
 
@@ -114,6 +121,7 @@ List<FeedRow> mergeFeedRows(
   if (sponsored.isEmpty) {
     return [for (final entry in entries) FeedPostRow(entry)];
   }
+  // 以「请求 ID:位置」为锚点分组，避免不同请求快照的同号位置互相串位。
   final byAnchor = <String, List<SponsoredSlot>>{};
   for (final slot in sponsored) {
     byAnchor
@@ -134,6 +142,7 @@ List<FeedRow> mergeFeedRows(
   return rows;
 }
 
+/// 关注流的复合游标：上一页最后一条的创建时间与帖子 ID；全 0 表示第一页。
 class FollowFeedCursor {
   final int createdAt;
   final Object postId;
@@ -141,6 +150,7 @@ class FollowFeedCursor {
   const FollowFeedCursor({this.createdAt = 0, this.postId = 0});
 }
 
+/// 仓储返回的一页信息流：自然条目、分页游标与广告槽位。
 class FeedPageResult {
   final List<FeedEntry> items;
   final bool hasMore;
