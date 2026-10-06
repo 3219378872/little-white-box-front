@@ -200,4 +200,38 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('post thumbnails load only same-origin /xbh-media/ paths', (
+    tester,
+  ) async {
+    // 返回卡片实际加载的缩略图地址；未渲染缩略图时为 null。
+    Future<String?> thumbnailFor(String raw) async {
+      await tester.pumpWidget(
+        wrap(
+          AssistantResearchSourceCard(
+            source: AssistantResearchSource(
+              handle: 'h1',
+              kind: 'post',
+              authorityId: '9',
+              title: '帖子',
+              url: '/post/9',
+              thumbnailUrl: raw,
+              available: true,
+            ),
+            index: 1,
+          ),
+        ),
+      );
+      final images = find.byType(Image);
+      if (images.evaluate().isEmpty) return null;
+      return (tester.widget<Image>(images).image as NetworkImage).url;
+    }
+
+    expect(await thumbnailFor('/xbh-media/a.png'), '/xbh-media/a.png');
+    expect(await thumbnailFor('xbh-media/a.png'), isNull);
+    expect(await thumbnailFor('/other/a.png'), isNull);
+    expect(await thumbnailFor('https://evil.example/xbh-media/a.png'), isNull);
+    expect(await thumbnailFor('//evil.example/xbh-media/a.png'), isNull);
+    expect(await thumbnailFor('javascript:/xbh-media/a.png'), isNull);
+    expect(await thumbnailFor(''), isNull);
+  });
 }

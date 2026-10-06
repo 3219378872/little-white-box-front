@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/api/json_int64.dart';
+import '../../../../core/api/media_url.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../sdk/vars/vars.dart';
 import '../../data/assistant_models.dart';
@@ -325,7 +326,8 @@ class _SourceActions extends StatelessWidget {
   }
 }
 
-// 只接受同源 /xbh-media/ 下的缩略图，避免来源卡片加载任意第三方图片；相对地址按 API 基址补全。
+// 只接受同源 /xbh-media/ 下的缩略图，避免来源卡片加载任意第三方图片；
+// 带主机的同源地址已完整，站内相对路径交给 resolveImageUrl 按 API 基址补全。
 String? _trustedThumbnail(String raw) {
   final uri = Uri.tryParse(raw);
   if (uri == null ||
@@ -337,5 +339,5 @@ String? _trustedThumbnail(String raw) {
   final origin = base.hasAuthority ? base : Uri.base;
   if (uri.hasAuthority && uri.authority != origin.authority) return null;
   if (uri.hasScheme && !{'http', 'https'}.contains(uri.scheme)) return null;
-  return uri.hasAuthority ? uri.toString() : apiUri(raw).toString();
+  return uri.hasAuthority ? uri.toString() : resolveImageUrl(raw);
 }
