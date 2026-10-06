@@ -14,7 +14,8 @@ import '../../../core/widgets/loading_view.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../media/data/media_repository.dart';
 import '../application/media_send_controller.dart';
-import '../application/message_notifiers.dart';
+import '../application/message_providers.dart';
+import '../application/message_thread_notifier.dart';
 import '../data/message_models.dart';
 import '../../media/application/media_dependencies.dart';
 

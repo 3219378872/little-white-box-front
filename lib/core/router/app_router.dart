@@ -14,7 +14,7 @@ import '../../features/ads/presentation/ad_editor_page.dart';
 import '../../features/ads/presentation/ads_page.dart';
 import '../../features/ads/presentation/advertiser_page.dart';
 import '../../features/feed/presentation/feed_page.dart';
-import '../../features/message/application/message_notifiers.dart';
+import '../../features/message/application/message_providers.dart';
 import '../../features/message/presentation/conversations_page.dart';
 import '../../features/message/presentation/message_thread_page.dart';
 import '../../features/post/presentation/post_detail_page.dart';

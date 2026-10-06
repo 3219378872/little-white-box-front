@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/message/application/message_dependencies.dart';
-import 'package:xiaobaihe_app/features/message/application/message_notifiers.dart';
+import 'package:xiaobaihe_app/features/message/application/message_providers.dart';
+import 'package:xiaobaihe_app/features/message/application/message_thread_notifier.dart';
+import 'package:xiaobaihe_app/features/message/application/unread_summary_notifier.dart';
 import 'package:xiaobaihe_app/features/message/data/message_models.dart';
 import 'package:xiaobaihe_app/features/message/data/message_repository.dart';
 

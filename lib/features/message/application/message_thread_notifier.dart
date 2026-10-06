@@ -5,149 +5,13 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/idempotency.dart';
 import '../../../core/api/json_int64.dart';
-import '../../../core/collections/unique_by.dart';
-import '../../auth/application/auth_notifier.dart';
 import '../data/message_models.dart';
 import '../data/message_repository.dart';
-import 'message_dependencies.dart';
 
+/// 生成发送私信的幂等键；测试注入可预测的键以断言重试复用同一键。
 typedef IdempotencyKeyFactory = String Function();
 
-class ConversationListState {
-  final List<ConversationSummary> conversations;
-  final bool isLoading;
-  final bool isLoadingMore;
-  final int page;
-  final int total;
-  final String? error;
-
-  const ConversationListState({
-    this.conversations = const [],
-    this.isLoading = false,
-    this.isLoadingMore = false,
-    this.page = 0,
-    this.total = 0,
-    this.error,
-  });
-
-  bool get hasMore => conversations.length < total;
-
-  ConversationListState copyWith({
-    List<ConversationSummary>? conversations,
-    bool? isLoading,
-    bool? isLoadingMore,
-    int? page,
-    int? total,
-    String? error,
-    bool clearError = false,
-  }) {
-    return ConversationListState(
-      conversations: conversations ?? this.conversations,
-      isLoading: isLoading ?? this.isLoading,
-      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      page: page ?? this.page,
-      total: total ?? this.total,
-      error: clearError ? null : (error ?? this.error),
-    );
-  }
-}
-
-class ConversationListNotifier extends StateNotifier<ConversationListState> {
-  final MessageDataSource _repository;
-  final int pageSize;
-  int _generation = 0;
-
-  ConversationListNotifier({
-    required MessageDataSource repository,
-    this.pageSize = 20,
-    bool loadImmediately = true,
-  }) : _repository = repository,
-       super(const ConversationListState()) {
-    if (loadImmediately) unawaited(loadInitial());
-  }
-
-  /// 首屏、重试与下拉刷新：重新读取第一页会话，新一代请求使进行中的翻页失效。
-  Future<void> loadInitial() async {
-    final generation = ++_generation;
-    state = state.copyWith(
-      isLoading: true,
-      isLoadingMore: false,
-      clearError: true,
-    );
-    try {
-      final result = await _repository.getConversations(pageSize: pageSize);
-      if (!mounted || generation != _generation) return;
-      state = ConversationListState(
-        conversations: _deduplicate(result.conversations),
-        page: 1,
-        total: result.total,
-      );
-    } catch (error) {
-      if (!mounted || generation != _generation) return;
-      state = state.copyWith(
-        isLoading: false,
-        error: friendlyErrorMessage(error),
-      );
-    }
-  }
-
-  Future<void> loadMore() async {
-    if (!state.hasMore || state.isLoading || state.isLoadingMore) return;
-    final generation = _generation;
-    final nextPage = state.page + 1;
-    state = state.copyWith(isLoadingMore: true, clearError: true);
-    try {
-      final result = await _repository.getConversations(
-        page: nextPage,
-        pageSize: pageSize,
-      );
-      if (!mounted || generation != _generation) return;
-      state = state.copyWith(
-        conversations: _deduplicate([
-          ...state.conversations,
-          ...result.conversations,
-        ]),
-        isLoadingMore: false,
-        page: nextPage,
-        total: result.total,
-      );
-    } catch (error) {
-      if (!mounted || generation != _generation) return;
-      state = state.copyWith(
-        isLoadingMore: false,
-        error: friendlyErrorMessage(error),
-      );
-    }
-  }
-
-  void markConversationRead(Object conversationId) {
-    state = state.copyWith(
-      conversations: [
-        for (final conversation in state.conversations)
-          if (jsonInt64Id(conversation.id) == jsonInt64Id(conversationId))
-            ConversationSummary(
-              id: conversation.id,
-              targetUserId: conversation.targetUserId,
-              targetUserName: conversation.targetUserName,
-              targetUserAvatar: conversation.targetUserAvatar,
-              lastMessage: conversation.lastMessage,
-              lastMessageTime: conversation.lastMessageTime,
-              unreadCount: 0,
-            )
-          else
-            conversation,
-      ],
-    );
-  }
-
-  // 同一会话只保留首次出现的一条，避免刷新与推送合并后重复显示。
-  static List<ConversationSummary> _deduplicate(
-    List<ConversationSummary> conversations,
-  ) {
-    return uniqueBy(conversations, (item) => jsonInt64Id(item.id));
-  }
-}
-
+/// 单个私信线程的消息、发送与已读状态；[failedCommand] 保留失败的发送命令供重试复用幂等键。
 class MessageThreadState {
   final List<DirectMessage> messages;
   final bool hasMore;
@@ -206,6 +70,7 @@ class MessageThreadState {
   }
 }
 
+/// 单个私信线程：加载与旧消息翻页、带幂等键的发送与重试、进入线程后的标记已读。
 class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
   final MessageDataSource _repository;
   final Object conversationId;
@@ -273,6 +138,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     }
   }
 
+  /// 已读失败不影响阅读，页面横幅上的重试按钮调用此处。
   Future<void> retryMarkRead() => _markRead();
 
   Future<void> _markRead() async {
@@ -292,6 +158,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     }
   }
 
+  /// 以最早一条消息为游标向前翻页。
   Future<void> loadOlder() async {
     if (!state.hasMore ||
         state.messages.isEmpty ||
@@ -322,6 +189,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     }
   }
 
+  /// 发送文本或已上传的媒体；与上次失败命令内容一致时复用其幂等键，避免重复投递。
   Future<bool> send(
     String content, {
     int msgType = MessageTypes.text,
@@ -354,6 +222,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     return _send(command);
   }
 
+  /// 用户取消失败的媒体发送时丢弃保留的命令，文本失败命令不受影响。
   void discardFailedMedia() {
     if (!state.isSending &&
         state.failedCommand != null &&
@@ -362,12 +231,14 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     }
   }
 
+  /// 原样重发上次失败的命令（同一幂等键）。
   Future<bool> retryFailed() async {
     final command = state.failedCommand;
     if (command == null || state.isSending) return false;
     return _send(command);
   }
 
+  // 先把命令记为待重试，成功后追加本地消息并清除；失败保留命令与错误供横幅展示。
   Future<bool> _send(SendMessageCommand command) async {
     state = state.copyWith(
       isSending: true,
@@ -406,6 +277,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     }
   }
 
+  // 按 ID 去重后按 int64 数值升序排列；服务端快照与本地发送重叠时后出现者覆盖。
   static List<DirectMessage> _ordered(List<DirectMessage> messages) {
     final byId = <String, DirectMessage>{
       for (final message in messages) jsonInt64Id(message.id): message,
@@ -418,6 +290,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     return ordered;
   }
 
+  // 等长十进制串按字典序比较即数值序，避免 int64 超出 JS 安全整数。
   static int _compareInt64Ids(String left, String right) {
     if (left.length != right.length) {
       return left.length.compareTo(right.length);
@@ -428,115 +301,3 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
   // 发送私信的默认幂等键，前缀标明来自消息线程。
   static String _defaultKey() => newPrefixedRequestId('message');
 }
-
-class MessageThreadKey {
-  final String conversationId;
-  final String targetUserId;
-  final String currentUserId;
-
-  MessageThreadKey({
-    required Object conversationId,
-    required Object targetUserId,
-    required Object currentUserId,
-  }) : conversationId = jsonInt64Id(conversationId),
-       targetUserId = jsonInt64Id(targetUserId),
-       currentUserId = jsonInt64Id(currentUserId);
-
-  @override
-  bool operator ==(Object other) {
-    return other is MessageThreadKey &&
-        other.conversationId == conversationId &&
-        other.targetUserId == targetUserId &&
-        other.currentUserId == currentUserId;
-  }
-
-  @override
-  int get hashCode => Object.hash(conversationId, targetUserId, currentUserId);
-}
-
-class UnreadSummaryState {
-  final UnreadSummary summary;
-  final bool isLoading;
-  final String? error;
-
-  const UnreadSummaryState({
-    this.summary = const UnreadSummary(),
-    this.isLoading = false,
-    this.error,
-  });
-}
-
-class UnreadSummaryNotifier extends StateNotifier<UnreadSummaryState> {
-  final MessageDataSource _repository;
-  int _generation = 0;
-
-  UnreadSummaryNotifier({
-    required MessageDataSource repository,
-    bool loadImmediately = true,
-  }) : _repository = repository,
-       super(const UnreadSummaryState()) {
-    if (loadImmediately) unawaited(refresh());
-  }
-
-  Future<void> refresh() async {
-    final generation = ++_generation;
-    state = UnreadSummaryState(summary: state.summary, isLoading: true);
-    try {
-      final summary = await _repository.getUnreadSummary();
-      if (!mounted || generation != _generation) return;
-      state = UnreadSummaryState(summary: summary);
-    } catch (error) {
-      if (!mounted || generation != _generation) return;
-      state = UnreadSummaryState(
-        summary: state.summary,
-        error: friendlyErrorMessage(error),
-      );
-    }
-  }
-}
-
-final conversationListProvider =
-    StateNotifierProvider<ConversationListNotifier, ConversationListState>((
-      ref,
-    ) {
-      final identity = ref.watch(authenticatedSessionIdentityProvider);
-      return ConversationListNotifier(
-        repository: ref.read(messageRepositoryProvider),
-        loadImmediately: identity != null,
-      );
-    });
-
-final unreadSummaryProvider =
-    StateNotifierProvider<UnreadSummaryNotifier, UnreadSummaryState>((ref) {
-      final identity = ref.watch(authenticatedSessionIdentityProvider);
-      return UnreadSummaryNotifier(
-        repository: ref.read(messageRepositoryProvider),
-        loadImmediately: identity != null,
-      );
-    });
-
-final messageThreadProvider = StateNotifierProvider.autoDispose
-    .family<MessageThreadNotifier, MessageThreadState, MessageThreadKey>((
-      ref,
-      key,
-    ) {
-      final identity = ref.watch(authenticatedSessionIdentityProvider);
-      final auth = ref.read(authNotifierProvider);
-      final ownsThread =
-          identity != null &&
-          jsonInt64IsPositive(auth.userId ?? 0) &&
-          jsonInt64Id(auth.userId!) == key.currentUserId;
-      return MessageThreadNotifier(
-        repository: ref.read(messageRepositoryProvider),
-        conversationId: key.conversationId,
-        targetUserId: key.targetUserId,
-        currentUserId: key.currentUserId,
-        loadImmediately: ownsThread,
-        onMarkedRead: () {
-          ref
-              .read(conversationListProvider.notifier)
-              .markConversationRead(key.conversationId);
-          unawaited(ref.read(unreadSummaryProvider.notifier).refresh());
-        },
-      );
-    });

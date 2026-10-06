@@ -10,7 +10,7 @@ import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/paginated_list.dart';
 import '../../assistant/application/assistant_thread_notifier.dart';
 import '../../assistant/data/assistant_models.dart';
-import '../application/message_notifiers.dart';
+import '../application/message_providers.dart';
 import '../data/message_models.dart';
 
 class MessagesShell extends StatelessWidget {

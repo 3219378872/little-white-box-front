@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
-import 'package:xiaobaihe_app/features/message/application/message_notifiers.dart';
+import 'package:xiaobaihe_app/features/message/application/unread_summary_notifier.dart';
 import 'package:xiaobaihe_app/core/api/json_int64.dart';
 import 'package:xiaobaihe_app/core/api/v2_api_client.dart';
 import 'package:xiaobaihe_app/features/message/data/message_models.dart';
