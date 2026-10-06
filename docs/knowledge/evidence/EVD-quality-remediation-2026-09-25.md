@@ -18,7 +18,7 @@ commands:
 artifacts:
 - docs/knowledge/evidence/assets/quality-remediation-2026-09-25/validation-summary.json
 observed_commit: 3c575d3d0d6a235cf2176e233cc98a73fd951c28
-updated_at: '2026-09-25'
+updated_at: 2026-10-06
 coverage:
 - requirements:
   - FX-001
@@ -94,7 +94,6 @@ coverage:
 - requirements:
   - FX-050
   - FX-051
-  - FX-086
   - FX-091
   - FX-092
   paths:
@@ -130,6 +129,8 @@ coverage:
 ---
 
 # 前端并发、分页与订阅错误修复验证
+
+> 2026-10-06：Watch 退役，`FX-082`、`FX-083`、`FX-086` 已从规格删除，本页覆盖组随之移除这些条款；原观察结果不变。
 
 验证在上述固定实现提交执行；本页、摘要和 IMP 引用随后提交。603 项 Flutter 测试通过，
 手写行覆盖率 8195/9812（83.5%），维护工具 52 项通过，格式与静态分析无问题，SDK 临时重生无漂移，

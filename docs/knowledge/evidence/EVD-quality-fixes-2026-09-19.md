@@ -15,7 +15,7 @@ commands:
 artifacts:
 - docs/knowledge/evidence/assets/quality-fixes-2026-09-19/validation-summary.json
 observed_commit: f9dbc113f097bffb664e6b8add7f7c9be4b3e89a
-updated_at: '2026-09-19'
+updated_at: 2026-10-06
 coverage:
 - requirements: [FX-001, FX-002, FX-010, FX-070, FQ-001, FQ-002, FQ-003, FQ-006, FQ-008]
   paths:
@@ -68,7 +68,7 @@ coverage:
   - pubspec.lock
   - analysis_options.yaml
   - web
-- requirements: [FX-050, FX-051, FX-086, FX-091, FX-092]
+- requirements: [FX-050, FX-051, FX-091, FX-092]
   paths:
   - lib/features/assistant
   - test/features/assistant
@@ -101,6 +101,8 @@ coverage:
 ---
 
 # 前端质量审查八项修复与回归验证
+
+> 2026-10-06：Watch 退役，`FX-082`、`FX-083`、`FX-086` 已从规格删除，本页覆盖组随之移除这些条款；原观察结果不变。
 
 上述命令在实现提交 `f9dbc113f097bffb664e6b8add7f7c9be4b3e89a` 上执行，验证前后受跟踪工作树干净。
 本证据和 IMP 引用在后续提交新增。工具链为 Flutter 3.47.2 / Dart 3.13.2；生成器为 goctl 1.10.1。

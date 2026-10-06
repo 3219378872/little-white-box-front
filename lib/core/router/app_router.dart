@@ -9,7 +9,6 @@ import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/assistant/presentation/assistant_page.dart';
 import '../../features/assistant/presentation/memory_page.dart';
-import '../../features/assistant/presentation/watch_page.dart';
 import '../../features/ads/presentation/ad_detail_page.dart';
 import '../../features/ads/presentation/ad_editor_page.dart';
 import '../../features/ads/presentation/ads_page.dart';
@@ -103,13 +102,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: '/messages/assistant/watch',
-            builder: (context, state) => const MessagesShell(
-              assistantSelected: true,
-              thread: WatchPage(),
-            ),
-          ),
-          GoRoute(
             path: '/messages/assistant',
             builder: (context, state) => MessagesShell(
               assistantSelected: true,
@@ -146,10 +138,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/assistant/memory',
             redirect: (context, state) => '/messages/assistant/memory',
-          ),
-          GoRoute(
-            path: '/assistant/watch',
-            redirect: (context, state) => '/messages/assistant/watch',
           ),
           GoRoute(
             path: '/assistant',

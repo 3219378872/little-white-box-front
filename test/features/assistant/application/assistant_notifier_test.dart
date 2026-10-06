@@ -236,8 +236,8 @@ void main() {
         id: 11,
         sessionId: 1,
         role: 'assistant',
-        kind: 'watch',
-        content: 'concurrent Watch message',
+        kind: 'message',
+        content: 'concurrent assistant message',
       ),
       AssistantHistoryMessage(
         id: 12,
@@ -259,7 +259,7 @@ void main() {
     );
     expect(
       notifier.state.messages.any(
-        (message) => message.text == 'concurrent Watch message',
+        (message) => message.text == 'concurrent assistant message',
       ),
       isTrue,
     );
@@ -283,7 +283,7 @@ void main() {
     );
     expect(
       notifier.state.messages.any(
-        (message) => message.text == 'concurrent Watch message',
+        (message) => message.text == 'concurrent assistant message',
       ),
       isTrue,
     );
@@ -341,7 +341,7 @@ void main() {
               id: 11,
               sessionId: 1,
               role: 'assistant',
-              kind: 'watch',
+              kind: 'message',
               content: 'refresh completed after send',
             ),
           ],
@@ -472,7 +472,7 @@ void main() {
           id: 11,
           sessionId: 1,
           role: 'assistant',
-          kind: 'watch',
+          kind: 'message',
           content: 'message inside the gap',
         ),
         AssistantHistoryMessage(
@@ -597,7 +597,7 @@ void main() {
           id: 14,
           sessionId: 1,
           role: 'assistant',
-          kind: 'watch',
+          kind: 'message',
           content: 'later message',
         ),
       ];
@@ -1188,7 +1188,7 @@ void main() {
             id: 2,
             sessionId: 1,
             role: 'assistant',
-            kind: 'watch',
+            kind: 'message',
             content: 'coalesced update',
           ),
         ],
@@ -1228,7 +1228,7 @@ void main() {
             id: 2,
             sessionId: 1,
             role: 'assistant',
-            kind: 'watch',
+            kind: 'message',
             content: 'first drain update',
           ),
         ],
@@ -1406,7 +1406,7 @@ void main() {
               id: 2,
               sessionId: 1,
               role: 'assistant',
-              kind: 'watch',
+              kind: 'message',
               content: 'recovered update',
             ),
           ],

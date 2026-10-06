@@ -11,7 +11,7 @@ const report = { browser: browser.version(), mode: 'isolated-mock-release', page
 const routes = [
   ['feed', '/feed'], ['post', '/post/1'], ['search', '/search'],
   ['messages', '/messages'], ['assistant', '/messages/assistant'],
-  ['memory', '/messages/assistant/memory'], ['watch', '/messages/assistant/watch'],
+  ['memory', '/messages/assistant/memory'],
   ['editor', '/post/new'], ['edit-profile', '/profile/edit'], ['profile', '/profile'],
 ];
 
@@ -90,12 +90,8 @@ try {
         await capture(page, variant, 'feed-return', errors, failures);
       }
       if (name === 'post') {
-        // Body and comments share one page; watch commands sit in the overflow menu.
+        // Body and comments share one page.
         assert.equal(await page.getByRole('button', { name: /^查看评论/ }).count(), 0);
-        await page.getByRole('button', { name: '更多操作', exact: true }).click();
-        await page.getByRole('menuitem', { name: /追踪作者新帖/ }).or(page.getByRole('button', { name: /追踪作者新帖/ })).first().waitFor();
-        await capture(page, variant, 'post-menu', errors, failures);
-        await page.keyboard.press('Escape');
         await page.mouse.move(variant.width / 2, variant.height / 2);
         const sort = page.getByRole('button', { name: /^按最新排序/ });
         for (let step = 0; step < 20 && !(await sort.isVisible()); step++) {
@@ -120,9 +116,8 @@ try {
         await type(page, '正文内容与多行输入\n保留当前业务的标题、正文和图片限制。', 1);
         await capture(page, variant, 'editor-draft', errors, failures);
       }
-      if (name === 'memory' || name === 'watch') {
-        const action = name === 'memory' ? '新增记忆' : '创建追踪';
-        await page.getByRole('button', { name: action, exact: true }).click();
+      if (name === 'memory') {
+        await page.getByRole('button', { name: '新增记忆', exact: true }).click();
         await capture(page, variant, `${name}-dialog`, errors, failures);
         await page.getByRole('button', { name: '取消', exact: true }).click();
       }

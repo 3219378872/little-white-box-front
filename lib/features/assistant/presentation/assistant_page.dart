@@ -235,7 +235,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
   Future<bool> _showAgentConsentDialog({bool upgrade = false}) async {
     var agreed = false;
     final status = ref.read(agentConsentNotifierProvider);
-    final version = status.currentVersion == 0 ? 2 : status.currentVersion;
+    final version = status.currentVersion == 0 ? 3 : status.currentVersion;
     await showFDialog<void>(
       context: context,
       builder: (dialogContext, dialogStyle, animation) => Padding(

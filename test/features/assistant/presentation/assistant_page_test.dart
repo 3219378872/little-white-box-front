@@ -773,65 +773,66 @@ void main() {
     expect(find.text('记忆变更已撤销'), findsOneWidget);
   });
 
-  testWidgets('open thread receives a new Watch message after thread refresh', (
-    tester,
-  ) async {
-    final source = FakeAssistantSource()
-      ..thread = const AssistantThreadSummary(sessionId: 1, lastMessageId: 1)
-      ..messages = const [
-        AssistantHistoryMessage(
-          id: 1,
-          sessionId: 1,
-          role: 'assistant',
-          content: 'existing',
+  testWidgets(
+    'open thread receives a new assistant message after thread refresh',
+    (tester) async {
+      final source = FakeAssistantSource()
+        ..thread = const AssistantThreadSummary(sessionId: 1, lastMessageId: 1)
+        ..messages = const [
+          AssistantHistoryMessage(
+            id: 1,
+            sessionId: 1,
+            role: 'assistant',
+            content: 'existing',
+          ),
+        ];
+      await tester.pumpWidget(
+        AppProviderScope(
+          overrides: [
+            assistantUserKeyProvider.overrideWithValue('test-user'),
+            assistantRepositoryProvider.overrideWithValue(source),
+          ],
+          child: const MaterialApp(
+            builder: foruiTestBuilder,
+            home: AssistantPage(),
+          ),
         ),
-      ];
-    await tester.pumpWidget(
-      AppProviderScope(
-        overrides: [
-          assistantUserKeyProvider.overrideWithValue('test-user'),
-          assistantRepositoryProvider.overrideWithValue(source),
-        ],
-        child: const MaterialApp(
-          builder: foruiTestBuilder,
-          home: AssistantPage(),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    expect(find.text('existing'), findsOneWidget);
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('existing'), findsOneWidget);
 
-    source
-      ..thread = const AssistantThreadSummary(
-        sessionId: 1,
-        lastMessageId: 2,
-        lastMessagePreview: 'Watch found a new post',
-      )
-      ..messages = const [
-        AssistantHistoryMessage(
-          id: 1,
+      source
+        ..thread = const AssistantThreadSummary(
           sessionId: 1,
-          role: 'assistant',
-          content: 'existing',
-        ),
-        AssistantHistoryMessage(
-          id: 2,
-          sessionId: 1,
-          role: 'assistant',
-          kind: 'watch',
-          content: 'Watch found a new post',
-          unread: true,
-        ),
-      ];
-    final context = tester.element(find.byType(AssistantPage));
-    await ProviderScope.containerOf(context)
-        .read(assistantThreadProvider.notifier)
-        .refresh();
-    await tester.pumpAndSettle();
+          lastMessageId: 2,
+          lastMessagePreview: 'new assistant reply',
+        )
+        ..messages = const [
+          AssistantHistoryMessage(
+            id: 1,
+            sessionId: 1,
+            role: 'assistant',
+            content: 'existing',
+          ),
+          AssistantHistoryMessage(
+            id: 2,
+            sessionId: 1,
+            role: 'assistant',
+            kind: 'message',
+            content: 'new assistant reply',
+            unread: true,
+          ),
+        ];
+      final context = tester.element(find.byType(AssistantPage));
+      await ProviderScope.containerOf(context)
+          .read(assistantThreadProvider.notifier)
+          .refresh();
+      await tester.pumpAndSettle();
 
-    expect(find.text('Watch found a new post'), findsOneWidget);
-  });
+      expect(find.text('new assistant reply'), findsOneWidget);
+    },
+  );
 
   testWidgets('retries an unchanged thread snapshot after send completes', (
     tester,

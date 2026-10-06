@@ -17,7 +17,7 @@ commands:
 - make test-coverage
 - flutter test test/features/assistant/data/assistant_repository_test.dart
 observed_commit: 97dc5909f797b8a498b3011cdb0bc482c85afa52
-updated_at: 2026-08-31
+updated_at: 2026-10-06
 coverage:
 - requirements:
   - FX-002
@@ -38,12 +38,13 @@ coverage:
 - requirements:
   - FX-050
   - FX-081
-  - FX-082
   - FX-085
   paths: []
 ---
 
 # 客户端会话隔离与 Assistant 写入并发整改 2026-08-31
+
+> 2026-10-06：Watch 退役，`FX-082`、`FX-083`、`FX-086` 已从规格删除，本页覆盖组随之移除这些条款；原观察结果不变。
 
 ## 范围
 

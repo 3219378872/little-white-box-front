@@ -102,8 +102,5 @@ try:
         device(description='记忆').click()
         capture(f'{mode}-memory')
         back()
-        device(description='追踪').click()
-        capture(f'{mode}-watch')
-        back()
 finally:
     device.shell(['cmd', 'uimode', 'night', 'no'])

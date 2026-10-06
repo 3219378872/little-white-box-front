@@ -290,8 +290,8 @@ MockRouterResponse _routeV2(
         'granted': granted,
         'grantedAt': granted ? DateTime.now().millisecondsSinceEpoch : 0,
         'revokedAt': granted ? 0 : DateTime.now().millisecondsSinceEpoch,
-        'consentVersion': granted ? 2 : 0,
-        'currentVersion': 2,
+        'consentVersion': granted ? 3 : 0,
+        'currentVersion': 3,
       };
       return _jsonResponse(const {});
     case 'api/v2/assistant/thread':
@@ -327,17 +327,6 @@ MockRouterResponse _routeV2(
       _requireMethod(method, 'POST');
       _requireAuth(auth);
       return _jsonResponse(_batchMemory(auth.userId, body ?? const {}));
-    case 'api/v2/assistant/watch':
-      _requireAuth(auth);
-      if (method == 'GET') {
-        return _jsonResponse({
-          'tasks': _assistantWatches[auth.userId] ?? const [],
-        });
-      }
-      _requireMethod(method, 'POST');
-      return _jsonResponse({
-        'task': _createWatch(auth.userId, body ?? const {}),
-      });
     case 'api/v2/assistant/recommend/feedback':
       _requireMethod(method, 'POST');
       _requireAuth(auth);
@@ -459,26 +448,6 @@ MockRouterResponse _routeV2(
       return _jsonResponse(
         _removeMemory(auth.userId, id, query, body ?? const {}),
       );
-    }
-    throw const _MockBiz(405, 1, '未知错误');
-  }
-
-  if (segments.length == 5 &&
-      segments[2] == 'assistant' &&
-      segments[3] == 'watch') {
-    _requireAuth(auth);
-    if (!RegExp(r'^\d+$').hasMatch(segments[4])) {
-      throw const _MockBiz(404, 4, '资源不存在');
-    }
-    final id = _pathId(segments[4]);
-    if (method == 'PATCH') {
-      return _jsonResponse({
-        'task': _updateWatch(auth.userId, id, body ?? const {}),
-      });
-    }
-    if (method == 'DELETE') {
-      _deleteWatch(auth.userId, id, body ?? const {});
-      return _jsonResponse(const {});
     }
     throw const _MockBiz(405, 1, '未知错误');
   }

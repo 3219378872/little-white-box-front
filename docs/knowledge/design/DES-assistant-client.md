@@ -8,7 +8,6 @@ owner: agent
 external_upstream:
 - little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-assistant-agent
 - little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-agent-memory
-- little-white-box-content-community@f706309f860621e7d9079333cf33e81557253b73:SPEC-agent-watch
 tracks:
 - FX-050
 - FX-051
@@ -22,11 +21,8 @@ tracks:
 - FX-059
 - FX-080
 - FX-081
-- FX-082
-- FX-083
 - FX-084
 - FX-085
-- FX-086
 - FX-087
 - FX-088
 - FX-089
@@ -40,7 +36,7 @@ tracks:
 - FX-097
 - FX-098
 - FX-099
-updated_at: 2026-09-25
+updated_at: 2026-10-06
 ---
 
 # Assistant 虚拟线程与研究交互设计
@@ -48,12 +44,12 @@ updated_at: 2026-09-25
 ## 入口、授权与线程
 
 Assistant 是消息页固定的「小白盒 Agent」虚拟线程，不是主导航 destination、普通机器人账号或模式
-开关。桌面在会话列表置顶，移动使用 `/messages/assistant`；记忆、Watch 及旧 `/assistant*` 入口均
+开关。桌面在会话列表置顶，移动使用 `/messages/assistant`；记忆及旧 `/assistant*` 入口均
 落到同一认证用户线程。会话列表与 thread 并行读取，thread 挂载时最迟每 30 秒刷新，导航未读为普通
 私信和 Assistant 未读之和。
 
-首次用户任务先读取授权版本并展示能力、数据、删除确认、记忆、Watch 和预算边界。取消不发送；授权
-不足或版本落后时重新披露，成功后可以复用原消息命令重试。consent、thread、消息、Memory 与 Watch
+首次用户任务先读取授权版本并展示能力、数据、删除确认、记忆和预算边界。取消不发送；授权
+不足或版本落后时重新披露，成功后可以复用原消息命令重试。consent、thread、消息与 Memory
 provider 都以 session identity 为边界，换号销毁旧缓存和 SSE。
 
 ## 命令、附件与异步 run
@@ -70,7 +66,7 @@ generation 或 requestId。状态模型、consent notifier、公共 repository/i
 发送命令包含 message、requestId、attachments 和可选 contextPostId。图片在发送前校验、上传、预览和
 移除，失败命令保留完整参数与 requestId。服务端返回 runId 与 started/redirected/steered/queued 后即
 进入异步展示，不等待模型完成。忙碌时仍可发送；redirect、steer 和有界 FIFO 由服务端结果决定，只有
-显式 Stop 调用 cancel。没有新会话入口；清历史不删除 MEMORY/USER 或 Watch。
+显式 Stop 调用 cancel。没有新会话入口；清历史不删除 MEMORY/USER。
 
 ## SSE 与 attempt 隔离
 
@@ -92,18 +88,16 @@ cursor，显示可恢复错误，不伪造取消或完成。
 展示层可按字素揭示 committed 前缀，但协议正文仍由 notifier 持有。终止、取消、reset 或禁用动画时
 立即对齐 committed；历史前缀不重新播放，揭示缓冲不持久化。
 
-## 记忆、Watch 与未读
+## 记忆与未读
 
 Memory 只列出用户可见的 MEMORY/USER 自然语言条目、version 和容量，支持 add/replace/remove/undo。
 每个写命令按操作与规范化参数生成稳定指纹，失败保留 requestId；undo 成功才清 changeId。隐藏画像、
 内部 score 或 suppressed 状态不进入 UI。
-Memory、Watch 与消息列表必须包含对应列表字段；显式 null 兼容 Go 空切片，缺失字段、非列表值或
+Memory 与消息列表必须包含对应列表字段；显式 null 兼容 Go 空切片，缺失字段、非列表值或
 非对象条目进入错误态。已读响应必须包含非负整数 unreadCount，不能在格式错误时推测为零。
 
-Watch 只管理四种支持条件的任务 CRUD，无独立命中收件箱。更新和删除携带 expectedVersion；版本冲突
-先刷新权威列表，再保留错误供用户决定。帖子可发起盯作者/盯修订；未授权引导到 Assistant，目标是
-当前用户本人时本地显示规定提示且不发送创建请求。Watch 命中作为 Assistant 主动消息进入线程并计
-未读；memory_changed 不计未读并提供 undo。进入线程后已读失败可独立重试。
+memory_changed 不计未读并提供 undo。进入线程后已读失败可独立重试。2026-10-06 后端退役 Watch，
+客户端删除追踪页、帖子追踪入口与相关 repository 方法。
 
 ## 结构化问答与来源
 
@@ -123,5 +117,5 @@ HTTP/HTTPS 地址。失效来源隐藏不可展示摘录并标注受影响引用
 | 入口、授权、线程 | `FX-050`、`FX-052`～`FX-054`、`FX-080`、`FX-088`、`FX-092`、`FX-093` |
 | 命令、附件、run | `FX-055`～`FX-058`、`FX-089`、`FX-091` |
 | SSE、attempt、揭示 | `FX-059`、`FX-090`、`FX-094` |
-| Memory、Watch | `FX-081`～`FX-087` |
+| Memory、反馈 | `FX-081`、`FX-084`、`FX-085`、`FX-087` |
 | 问答、答案、来源 | `FX-051`、`FX-084`、`FX-095`～`FX-099` |

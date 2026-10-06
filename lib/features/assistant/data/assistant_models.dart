@@ -23,13 +23,6 @@ enum AssistantDisposition { started, redirected, steered, queued, unknown }
 
 const memoryTargets = {'memory', 'user'};
 
-const watchConditionTargetTypes = {
-  'author_new_post': 'author',
-  'tag_new_post': 'tag',
-  'keyword_new_post': 'keyword',
-  'post_revised': 'post',
-};
-
 class AssistantAttachment {
   final Object mediaId;
   final String url;
@@ -415,30 +408,6 @@ class MemoryWriteResult {
   final Object changeId;
 
   const MemoryWriteResult({this.entry, this.changeId = 0});
-}
-
-class WatchTask {
-  final Object id;
-  final String conditionType;
-  final String targetType;
-  final Object targetId;
-  final String targetText;
-  final bool enabled;
-  final int version;
-  final int createdAt;
-
-  const WatchTask({
-    required this.id,
-    required this.conditionType,
-    required this.targetType,
-    this.targetId = 0,
-    this.targetText = '',
-    this.enabled = true,
-    this.version = 0,
-    this.createdAt = 0,
-  });
-
-  String get idText => jsonInt64Id(id);
 }
 
 String _string(Object? value) => value?.toString() ?? '';

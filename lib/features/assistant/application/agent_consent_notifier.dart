@@ -27,7 +27,7 @@ class AgentConsentState {
       currentVersion > 0 &&
       consentVersion < currentVersion;
 
-  bool get canUseMemoryWatch => loaded && granted && !needsUpgrade;
+  bool get canUseMemory => loaded && granted && !needsUpgrade;
 
   bool get canStartRun => loaded && granted && !needsUpgrade;
 

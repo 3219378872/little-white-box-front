@@ -19,7 +19,7 @@ commands:
 artifacts:
 - docs/knowledge/evidence/assets/review-remediation-2026-09-08/validation-summary.json
 observed_commit: 775df64d9e09800412469f76668f1822e233e24f
-updated_at: '2026-09-08'
+updated_at: 2026-10-06
 coverage:
 - requirements:
   - FX-001
@@ -94,7 +94,6 @@ coverage:
 - requirements:
   - FX-050
   - FX-051
-  - FX-086
   - FX-091
   - FX-092
   paths:
@@ -130,6 +129,8 @@ coverage:
 ---
 
 # 全面审查前端修复与确定性回归验证
+
+> 2026-10-06：Watch 退役，`FX-082`、`FX-083`、`FX-086` 已从规格删除，本页覆盖组随之移除这些条款；原观察结果不变。
 
 本页观察前端实现提交 `775df64d9e09800412469f76668f1822e233e24f`。开始验证时 task 工作树干净；
 先在该提交完成下列代码门禁，再新增本证据和实现映射，不以证据提交自指。设计承接见

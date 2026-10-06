@@ -479,55 +479,7 @@ void main() {
     },
   );
 
-  testWidgets('authenticated users can create author and revision watches', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({
-      'tokens': jsonEncode({
-        'access_token': _testJwt(userId: 1),
-        'access_expire': 0,
-        'refresh_token': '',
-        'refresh_expire': 0,
-        'refresh_after': 0,
-      }),
-    });
-    final harness = _Harness();
-    setApiClient(harness.client);
-    final source = FakeAssistantSource()
-      ..granted = true
-      ..consentVersion = 2
-      ..currentVersion = 2;
-
-    await tester.pumpWidget(
-      AppProviderScope(
-        overrides: [assistantRepositoryProvider.overrideWithValue(source)],
-        child: MaterialApp(
-          builder: foruiTestBuilder,
-          home: const PostDetailPage(postId: '9'),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // Watch commands live in the header's overflow menu.
-    expect(find.byKey(const Key('post-watch-author')), findsNothing);
-    await tester.tap(find.byKey(const Key('post-more')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('post-watch-author')), findsOneWidget);
-    expect(find.byKey(const Key('post-watch-revision')), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('post-watch-author')));
-    await tester.pumpAndSettle();
-    expect(source.lastCreateCondition, 'author_new_post');
-
-    await tester.tap(find.byKey(const Key('post-more')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('post-watch-revision')));
-    await tester.pumpAndSettle();
-    expect(source.lastCreateCondition, 'post_revised');
-  });
-
-  testWidgets('own posts hide follow and watch commands', (tester) async {
+  testWidgets('own posts hide the follow command', (tester) async {
     SharedPreferences.setMockInitialValues({
       'tokens': jsonEncode({
         'access_token': _testJwt(userId: 1),
@@ -555,9 +507,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('post-more')), findsNothing);
     expect(find.byKey(const Key('post-follow-author')), findsNothing);
-    expect(source.lastCreateCondition, isNull);
     expect(
       harness.client.requests.where(
         (r) => r.url.path.startsWith('/api/v1/user'),

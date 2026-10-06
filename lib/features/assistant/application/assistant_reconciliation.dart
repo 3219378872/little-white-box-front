@@ -118,9 +118,7 @@ bool _hasTerminalEventResponseForRun(
 
 bool _isTerminalAssistantResponse(AssistantMessage message) {
   return message.role == AssistantMessageRole.assistant &&
-      (message.kind.isEmpty ||
-          message.kind == 'message' ||
-          message.kind == 'watch');
+      (message.kind.isEmpty || message.kind == 'message');
 }
 
 List<AssistantMessage> _reconcileAcceptedUserMessage(

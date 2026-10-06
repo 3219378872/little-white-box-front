@@ -26,7 +26,7 @@ artifacts:
 - docs/knowledge/evidence/assets/media-uploads-2026-09-27/report.json
 - docs/knowledge/evidence/assets/media-uploads-2026-09-27/validation-summary.json
 observed_commit: 71ac5148862414511ef6118882737dc369f5b8ae
-updated_at: '2026-09-27'
+updated_at: 2026-10-06
 coverage:
 - requirements:
   - FX-001
@@ -106,7 +106,6 @@ coverage:
 - requirements:
   - FX-050
   - FX-051
-  - FX-086
   - FX-091
   - FX-092
   paths:
@@ -145,6 +144,8 @@ coverage:
 ---
 
 # 视频与音频私信上传交付验证
+
+> 2026-10-06：Watch 退役，`FX-082`、`FX-083`、`FX-086` 已从规格删除，本页覆盖组随之移除这些条款；原观察结果不变。
 
 观察前端提交 `71ac514`，对照后端 `8c7a639` 的公开 Gateway 契约。实现映射见
 [IMP-messaging-client](../implementation/IMP-messaging-client.md)，其余覆盖条款回链各自 IMP。

@@ -163,7 +163,6 @@ void main() {
       ['GET', '/api/v2/me/personalization', ''],
       ['GET', '/api/v2/feed/follow?pageSize=20', ''],
       ['GET', '/api/v2/assistant/memory', ''],
-      ['GET', '/api/v2/assistant/watch', ''],
       ['GET', '/api/v2/assistant/thread', ''],
       [
         'POST',
@@ -290,7 +289,7 @@ void main() {
     },
   );
 
-  test('assistant memory watch and feedback return typed payloads', () {
+  test('assistant memory and feedback return typed payloads', () {
     final headers = bearer();
     final memory = bodyOf(
       mock_router.dispatchResponse(
@@ -311,48 +310,11 @@ void main() {
     );
     expect(memory['capacities'], isA<List>());
 
-    final watches = bodyOf(
-      mock_router.dispatchResponse(
-        'GET',
-        '/api/v2/assistant/watch',
-        '',
-        headers: headers,
-      ),
-    );
-    expect(watches['tasks'], isA<List>());
-
-    final created = bodyOf(
-      mock_router.dispatchResponse(
-        'POST',
-        '/api/v2/assistant/watch',
-        jsonEncode({
-          'conditionType': 'tag_new_post',
-          'targetType': 'tag',
-          'targetText': '美食',
-        }),
-        headers: headers,
-      ),
-    );
-    expect((created['task'] as Map)['id'], greaterThan(0));
-    expect((created['task'] as Map)['conditionType'], 'tag_new_post');
-
-    final unknown = mock_router.dispatchResponse(
-      'POST',
-      '/api/v2/assistant/watch',
-      jsonEncode({
-        'conditionType': 'discussion_spike',
-        'targetType': 'post',
-        'targetId': 1,
-      }),
-      headers: headers,
-    );
-    expect(unknown.statusCode, 400);
-
     expect(
       mock_router
           .dispatchResponse(
             'GET',
-            '/api/v2/assistant/watch/hits',
+            '/api/v2/assistant/watch',
             '',
             headers: headers,
           )

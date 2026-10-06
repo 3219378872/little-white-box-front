@@ -52,14 +52,6 @@ extension _AssistantPageControls on _AssistantPageState {
             onPress: () => context.push('/messages/assistant/memory'),
           ),
         ),
-        FTooltip(
-          tipBuilder: (_, _) => const Text('追踪'),
-          child: FHeaderAction(
-            icon: const Icon(FLucideIcons.bell),
-            semanticsLabel: '追踪',
-            onPress: () => context.push('/messages/assistant/watch'),
-          ),
-        ),
         FPopoverMenu(
           menuAnchor: Alignment.topRight,
           childAnchor: Alignment.bottomRight,

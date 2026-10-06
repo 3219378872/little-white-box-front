@@ -13,7 +13,6 @@ import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../sdk/data/gateway.dart';
-import '../../assistant/application/assistant_notifier.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../comment/application/comment_notifier.dart';
 import '../../comment/presentation/widgets/comment_input.dart';
@@ -171,46 +170,6 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
-  Future<void> _createWatch({
-    required String conditionType,
-    required String targetType,
-    required Object targetId,
-    required Object authorId,
-  }) async {
-    final auth = ref.read(authNotifierProvider);
-    if (!auth.isAuthenticated) {
-      context.push('/auth/login');
-      throw const ApiException('请先登录');
-    }
-    if (jsonInt64IsPositive(auth.userId) &&
-        jsonInt64Id(authorId) == jsonInt64Id(auth.userId)) {
-      if (mounted) showAppError(context, '不能关注自己的动态');
-      return;
-    }
-    final consent = ref.read(agentConsentNotifierProvider.notifier);
-    await consent.ensureLoaded();
-    if (!mounted) return;
-    final status = ref.read(agentConsentNotifierProvider);
-    if (!status.granted || status.needsUpgrade) {
-      context.push('/messages/assistant');
-      return;
-    }
-    try {
-      await ref
-          .read(assistantRepositoryProvider)
-          .createWatch(
-            conditionType: conditionType,
-            targetType: targetType,
-            targetId: targetId,
-          );
-      if (mounted) showAppSuccess(context, '已创建追踪');
-    } catch (e) {
-      if (mounted) {
-        showAppError(context, '创建追踪失败: ${friendlyErrorMessage(e)}');
-      }
-    }
-  }
-
   Future<void> _submitComment(String content) async {
     final auth = ref.read(authNotifierProvider);
     if (!auth.isAuthenticated) {
@@ -237,7 +196,6 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = ref.watch(authNotifierProvider);
     final postAsync = ref.watch(_postDetailProvider(widget.postId));
     final post = postAsync.value;
     final theme = context.theme;
@@ -261,10 +219,6 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
             onPress: () =>
                 context.canPop() ? context.pop() : context.go('/feed'),
           ),
-        ],
-        suffixes: [
-          if (post != null && auth.isAuthenticated && !_isOwnPost(post))
-            _buildMoreMenu(post),
         ],
       ),
       child: postAsync.when(
@@ -291,55 +245,6 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildMoreMenu(GetPostResp post) {
-    return FPopoverMenu(
-      menuAnchor: Alignment.topRight,
-      childAnchor: Alignment.bottomRight,
-      menuBuilder: (context, controller, _) => [
-        FItemGroup(
-          children: [
-            FItem(
-              key: const Key('post-watch-author'),
-              prefix: const Icon(FLucideIcons.userRoundPlus),
-              title: const Text('追踪作者新帖'),
-              subtitle: const Text('作者发新帖时由 Agent 提醒'),
-              onPress: () {
-                controller.hide();
-                _createWatch(
-                  conditionType: 'author_new_post',
-                  targetType: 'author',
-                  targetId: post.authorId,
-                  authorId: post.authorId,
-                );
-              },
-            ),
-            FItem(
-              key: const Key('post-watch-revision'),
-              prefix: const Icon(FLucideIcons.history),
-              title: const Text('追踪本帖修订'),
-              subtitle: const Text('正文更新时由 Agent 提醒'),
-              onPress: () {
-                controller.hide();
-                _createWatch(
-                  conditionType: 'post_revised',
-                  targetType: 'post',
-                  targetId: post.id,
-                  authorId: post.authorId,
-                );
-              },
-            ),
-          ],
-        ),
-      ],
-      builder: (context, controller, _) => FHeaderAction(
-        key: const Key('post-more'),
-        icon: const Icon(FLucideIcons.ellipsis),
-        semanticsLabel: '更多操作',
-        onPress: controller.toggle,
       ),
     );
   }

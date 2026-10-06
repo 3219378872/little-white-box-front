@@ -282,12 +282,6 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                               '记忆',
                               '/messages/assistant/memory',
                             ),
-                            const SizedBox(width: 8),
-                            _shortcut(
-                              FLucideIcons.radar,
-                              '追踪',
-                              '/messages/assistant/watch',
-                            ),
                           ],
                         ),
                         const SizedBox(height: 16),

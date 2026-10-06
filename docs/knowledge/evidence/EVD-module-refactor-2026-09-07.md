@@ -29,7 +29,7 @@ artifacts:
 - docs/knowledge/evidence/assets/module-refactor-2026-09-07/browser-matrix/desktop-dark-comments.png
 - docs/knowledge/evidence/assets/module-refactor-2026-09-07/browser-research/desktop-light-answer.png
 observed_commit: 9e8c4b7bfb9515cf01d7a02cc0d535fd9c3732a7
-updated_at: '2026-09-07'
+updated_at: 2026-10-06
 coverage:
 - requirements:
   - FX-001
@@ -104,7 +104,6 @@ coverage:
 - requirements:
   - FX-050
   - FX-051
-  - FX-086
   - FX-091
   - FX-092
   paths:
@@ -140,6 +139,8 @@ coverage:
 ---
 
 # 客户端职责拆分与浏览器回归验证
+
+> 2026-10-06：Watch 退役，`FX-082`、`FX-083`、`FX-086` 已从规格删除，本页覆盖组随之移除这些条款；原观察结果不变。
 
 本页观察提交 9e8c4b7bfb9515cf01d7a02cc0d535fd9c3732a7。该提交保留 main 上已经完成的依赖升级，
 只按职责移动 Mock、Assistant notifier 与页面构建代码，保留原导入出口、单一 provider 身份、共享状态、

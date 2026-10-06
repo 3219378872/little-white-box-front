@@ -2,11 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
-import 'package:xiaobaihe_app/core/api/error_codes.dart';
 import 'package:xiaobaihe_app/features/assistant/application/assistant_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/application/assistant_thread_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/application/memory_notifier.dart';
-import 'package:xiaobaihe_app/features/assistant/application/watch_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_models.dart';
 
 import '../helpers/fake_assistant_source.dart';
@@ -210,24 +208,15 @@ void main() {
     expect(notifier.state.isStreaming, isFalse);
   });
 
-  test('clear history keeps memory and watches', () async {
+  test('clear history keeps memory', () async {
     final source = FakeAssistantSource()
       ..memories = const [
         MemoryRecord(id: 1, target: 'memory', content: '喜欢美食'),
-      ]
-      ..watches = const [
-        WatchTask(
-          id: 1,
-          conditionType: 'author_new_post',
-          targetType: 'author',
-          targetId: '2',
-        ),
       ];
     final notifier = AssistantNotifier(repository: source);
     await notifier.clearHistory();
     expect(source.historyDeletes, 1);
     expect(source.memories, isNotEmpty);
-    expect(source.watches, isNotEmpty);
   });
 
   test('consent upgrade is required when granted version is stale', () async {
@@ -265,108 +254,6 @@ void main() {
     await failing.load();
     expect(failing.state.error, contains('无权访问'));
   });
-
-  test('watch notifier creates toggles and deletes without hits', () async {
-    final source = FakeAssistantSource()
-      ..watches = [
-        const WatchTask(
-          id: 1,
-          conditionType: 'author_new_post',
-          targetType: 'author',
-          targetId: '2',
-          version: 3,
-        ),
-      ];
-    final list = WatchListNotifier(repository: source);
-    await list.load();
-    expect(list.state.items, hasLength(1));
-    await list.setEnabled(list.state.items.single, false);
-    expect(source.watches.single.enabled, isFalse);
-    expect(source.lastUpdateExpectedVersion, 3);
-    expect(list.state.items.single.version, 4);
-    await list.deleteTask(list.state.items.single);
-    expect(source.lastDeleteExpectedVersion, 4);
-    expect(source.watches, isEmpty);
-  });
-
-  test(
-    'watch update conflict refreshes the task and keeps the error',
-    () async {
-      const stale = WatchTask(
-        id: 1,
-        conditionType: 'author_new_post',
-        targetType: 'author',
-        targetId: '2',
-        version: 3,
-      );
-      final source = FakeAssistantSource()..watches = const [stale];
-      final list = WatchListNotifier(repository: source);
-      await list.load();
-      source
-        ..watches = const [
-          WatchTask(
-            id: 1,
-            conditionType: 'author_new_post',
-            targetType: 'author',
-            targetId: '2',
-            enabled: false,
-            version: 4,
-          ),
-        ]
-        ..updateWatchError = const ApiException(
-          '内容版本冲突',
-          code: ErrorCodes.contentVersionConflict,
-        );
-
-      await expectLater(
-        list.setEnabled(stale, false),
-        throwsA(isA<ApiException>()),
-      );
-
-      expect(source.lastUpdateExpectedVersion, 3);
-      expect(source.listWatchCalls, 2);
-      expect(list.state.items.single.version, 4);
-      expect(list.state.items.single.enabled, isFalse);
-      expect(list.state.error, '内容版本冲突');
-    },
-  );
-
-  test(
-    'watch delete conflict refreshes the task and keeps the error',
-    () async {
-      const stale = WatchTask(
-        id: 1,
-        conditionType: 'author_new_post',
-        targetType: 'author',
-        targetId: '2',
-        version: 4,
-      );
-      final source = FakeAssistantSource()..watches = const [stale];
-      final list = WatchListNotifier(repository: source);
-      await list.load();
-      source
-        ..watches = const [
-          WatchTask(
-            id: 1,
-            conditionType: 'author_new_post',
-            targetType: 'author',
-            targetId: '2',
-            version: 5,
-          ),
-        ]
-        ..deleteWatchError = const ApiException(
-          '内容版本冲突',
-          code: ErrorCodes.contentVersionConflict,
-        );
-
-      await expectLater(list.deleteTask(stale), throwsA(isA<ApiException>()));
-
-      expect(source.lastDeleteExpectedVersion, 4);
-      expect(source.listWatchCalls, 2);
-      expect(list.state.items.single.version, 5);
-      expect(list.state.error, '内容版本冲突');
-    },
-  );
 
   test(
     'thread notifier merges unread independently of message unread',
@@ -508,7 +395,7 @@ void main() {
   );
 
   test(
-    'latest history, older paging, and Watch push refresh stay ordered',
+    'latest history, older paging, and thread refresh stay ordered',
     () async {
       final history = [
         for (var id = 1; id <= 52; id++)
@@ -538,8 +425,7 @@ void main() {
           id: 53,
           sessionId: 1,
           role: 'assistant',
-          kind: 'watch',
-          content: 'Watch found a new post',
+          content: 'new assistant reply',
           unread: true,
         ),
       ];
@@ -549,7 +435,7 @@ void main() {
         ),
         isTrue,
       );
-      expect(notifier.state.messages.last.text, 'Watch found a new post');
+      expect(notifier.state.messages.last.text, 'new assistant reply');
     },
   );
 }

@@ -33,8 +33,6 @@ abstract final class ErrorCodes {
 
   static const int searchEmpty = 5001;
 
-  static const int cannotWatchSelf = 6005;
-
   static const int reviewLeaseLost = 7001;
   static const int reviewTaskSuperseded = 7002;
   static const int reviewRoleRequired = 7003;

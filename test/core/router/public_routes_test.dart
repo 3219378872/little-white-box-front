@@ -31,7 +31,6 @@ void main() {
       expect(isPublicRoute('/assistant'), isFalse);
       expect(isPublicRoute('/messages/assistant'), isFalse);
       expect(isPublicRoute('/messages/assistant/memory'), isFalse);
-      expect(isPublicRoute('/messages/assistant/watch'), isFalse);
       expect(isPublicRoute('/profile'), isFalse);
       expect(isPublicRoute('/profile/edit'), isFalse);
     });

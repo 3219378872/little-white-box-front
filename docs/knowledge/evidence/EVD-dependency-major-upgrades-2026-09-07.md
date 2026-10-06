@@ -17,7 +17,7 @@ commands:
 - make sdk-check BACKEND_API=/home/dev/projects/little/little-white-box-content-community/app/gateway/gateway.api
 - git show --check --format=fuller f3659ccc5be6ba1889e7e772866c3b65ea99ee37
 observed_commit: f3659ccc5be6ba1889e7e772866c3b65ea99ee37
-updated_at: 2026-09-07
+updated_at: 2026-10-06
 coverage:
 - requirements:
   - FX-001
@@ -72,7 +72,6 @@ coverage:
 - requirements:
   - FX-050
   - FX-051
-  - FX-086
   - FX-091
   - FX-092
   paths:
@@ -90,6 +89,8 @@ coverage:
 ---
 
 # 客户端主要依赖升级验证
+
+> 2026-10-06：Watch 退役，`FX-082`、`FX-083`、`FX-086` 已从规格删除，本页覆盖组随之移除这些条款；原观察结果不变。
 
 本页观察前端提交 `f3659ccc5be6ba1889e7e772866c3b65ea99ee37`。该提交将 `go_router` 升到 18.0.1、
 `flutter_riverpod` 升到 3.4.3、`cached_network_image` 升到 4.0.0、`connectivity_plus` 升到 7.3.1、

@@ -54,13 +54,13 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
           ),
         ],
         suffixes: [
-          if (consent.canUseMemoryWatch)
+          if (consent.canUseMemory)
             FHeaderAction(
               icon: const Icon(FLucideIcons.plus),
               semanticsLabel: '新增记忆',
               onPress: _add,
             ),
-          if (consent.canUseMemoryWatch && state.lastChangeId != null)
+          if (consent.canUseMemory && state.lastChangeId != null)
             FHeaderAction(
               icon: const Icon(FLucideIcons.rotateCcw),
               semanticsLabel: '撤销',
@@ -70,7 +70,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
       ),
       child: Column(
         children: [
-          if (consent.loaded && !consent.canUseMemoryWatch)
+          if (consent.loaded && !consent.canUseMemory)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: FAlert(
@@ -122,7 +122,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
                       final item = state.items[index];
                       return _MemoryTile(
                         record: item,
-                        canWrite: consent.canUseMemoryWatch,
+                        canWrite: consent.canUseMemory,
                         onEdit: () => _edit(item),
                         onDelete: () => _delete(item),
                       );

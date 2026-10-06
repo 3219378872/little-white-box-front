@@ -58,7 +58,6 @@ late Map<int, List<Map<String, dynamic>>> _messages;
 late Map<int, bool> _personalizationEnabled;
 late Map<int, Map<String, dynamic>> _agentConsent;
 late Map<int, List<Map<String, dynamic>>> _assistantMemories;
-late Map<int, List<Map<String, dynamic>>> _assistantWatches;
 late Map<int, Map<String, dynamic>> _assistantThreads;
 late Map<int, List<Map<String, dynamic>>> _assistantMessages;
 late Map<int, List<Map<String, dynamic>>> _assistantRunEvents;
@@ -68,7 +67,6 @@ late Map<int, List<Map<String, dynamic>>> _assistantMemoryChanges;
 late int _messageSeedTime;
 late Set<String> _usedRefreshTokens;
 int _mockJwtNonce = 0;
-int _nextWatchId = 1;
 int _nextAssistantMessageId = 1;
 int _nextAssistantRunId = 1;
 
@@ -184,11 +182,10 @@ void resetMockState() {
         'granted': true,
         'grantedAt': DateTime.now().millisecondsSinceEpoch,
         'revokedAt': 0,
-        'consentVersion': 2,
-        'currentVersion': 2,
+        'consentVersion': 3,
+        'currentVersion': 3,
       },
   };
-  _nextWatchId = 2;
   _nextAssistantMessageId = 1;
   _nextAssistantRunId = 1;
 
@@ -212,20 +209,6 @@ void resetMockState() {
         'version': 1,
         'createdAtMs': nowMs,
         'updatedAtMs': nowMs,
-      },
-    ],
-  };
-  _assistantWatches = {
-    1: [
-      {
-        'id': 1,
-        'conditionType': 'author_new_post',
-        'targetType': 'author',
-        'targetId': 2,
-        'targetText': '',
-        'enabled': true,
-        'version': 1,
-        'createdAt': nowMs,
       },
     ],
   };
@@ -256,10 +239,3 @@ void resetMockState() {
 void _ensureState() {
   if (!_seeded) resetMockState();
 }
-
-const _watchConditions = {
-  'author_new_post': 'author',
-  'tag_new_post': 'tag',
-  'keyword_new_post': 'keyword',
-  'post_revised': 'post',
-};

@@ -46,7 +46,7 @@ class AgentConsentStatus {
   bool get needsUpgrade =>
       granted && currentVersion > 0 && consentVersion < currentVersion;
 
-  bool get canUseMemoryWatch => granted && !needsUpgrade;
+  bool get canUseMemory => granted && !needsUpgrade;
 
   factory AgentConsentStatus.fromSdk(GetAgentConsentResp resp) {
     return AgentConsentStatus(
@@ -131,23 +131,6 @@ abstract interface class AssistantDataSource {
   });
 
   Future<MemoryRecord> undoMemoryChange(Object changeId);
-
-  Future<List<WatchTask>> listWatches();
-
-  Future<WatchTask> createWatch({
-    required String conditionType,
-    required String targetType,
-    Object targetId = 0,
-    String targetText = '',
-  });
-
-  Future<WatchTask> updateWatch({
-    required Object id,
-    required bool enabled,
-    required int expectedVersion,
-  });
-
-  Future<void> deleteWatch(Object id, {required int expectedVersion});
 
   Future<void> submitRecommendFeedback({
     required Object postId,
@@ -573,65 +556,6 @@ class AssistantRepository implements AssistantDataSource {
   }
 
   @override
-  Future<List<WatchTask>> listWatches() async {
-    final response = await _api.get('/api/v2/assistant/watch');
-    final raw = _requiredList(response, 'tasks');
-    return [for (final item in raw) _watchFromJson(_requiredObject(item))];
-  }
-
-  @override
-  Future<WatchTask> createWatch({
-    required String conditionType,
-    required String targetType,
-    Object targetId = 0,
-    String targetText = '',
-  }) async {
-    _requireKnownWatchCondition(
-      conditionType,
-      targetType,
-      targetId,
-      targetText,
-    );
-    final response = await _api.post('/api/v2/assistant/watch', {
-      'conditionType': conditionType,
-      'targetType': targetType,
-      if (jsonInt64IsPositive(targetId))
-        'targetId': jsonInt64JsonValue(targetId),
-      if (targetText.trim().isNotEmpty) 'targetText': targetText,
-    });
-    final raw = response['task'];
-    if (raw is! Map) {
-      throw const ApiException('创建追踪响应格式无效');
-    }
-    return _watchFromJson(Map<String, dynamic>.from(raw));
-  }
-
-  @override
-  Future<WatchTask> updateWatch({
-    required Object id,
-    required bool enabled,
-    required int expectedVersion,
-  }) async {
-    final response = await _api.patch(
-      '/api/v2/assistant/watch/${jsonInt64Id(id)}',
-      {'enabled': enabled, 'expectedVersion': expectedVersion},
-    );
-    final raw = response['task'];
-    if (raw is! Map) {
-      throw const ApiException('更新追踪响应格式无效');
-    }
-    return _watchFromJson(Map<String, dynamic>.from(raw));
-  }
-
-  @override
-  Future<void> deleteWatch(Object id, {required int expectedVersion}) async {
-    await _api.delete(
-      '/api/v2/assistant/watch/${jsonInt64Id(id)}',
-      body: {'expectedVersion': expectedVersion},
-    );
-  }
-
-  @override
   Future<void> submitRecommendFeedback({
     required Object postId,
     required String reason,
@@ -673,46 +597,6 @@ class AssistantRepository implements AssistantDataSource {
       throw const ApiException('Assistant 列表项格式无效');
     }
     return raw;
-  }
-
-  static void _requireKnownWatchCondition(
-    String conditionType,
-    String targetType,
-    Object targetId,
-    String targetText,
-  ) {
-    final expected = watchConditionTargetTypes[conditionType];
-    if (expected == null) {
-      throw const ApiException('未知的追踪条件类型');
-    }
-    if (targetType != expected) {
-      throw const ApiException('追踪目标类型与条件不匹配');
-    }
-    switch (conditionType) {
-      case 'author_new_post':
-      case 'post_revised':
-        if (!jsonInt64IsPositive(targetId)) {
-          throw const ApiException('追踪目标标识无效');
-        }
-      case 'tag_new_post':
-      case 'keyword_new_post':
-        if (targetText.trim().isEmpty) {
-          throw const ApiException('追踪关键词或标签不能为空');
-        }
-    }
-  }
-
-  static WatchTask _watchFromJson(Map<String, dynamic> json) {
-    return WatchTask(
-      id: json['id'] ?? 0,
-      conditionType: json['conditionType']?.toString() ?? '',
-      targetType: json['targetType']?.toString() ?? '',
-      targetId: json['targetId'] ?? 0,
-      targetText: json['targetText']?.toString() ?? '',
-      enabled: json['enabled'] == true,
-      version: _asInt(json['version']),
-      createdAt: _asInt(json['createdAt']),
-    );
   }
 
   static MemoryWriteResult _memoryWrite(Map<String, dynamic> response) {

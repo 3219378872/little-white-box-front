@@ -27,7 +27,7 @@ artifacts:
 - docs/knowledge/evidence/assets/ui-redesign-2026-09-26/mobile-dark-search.jpg
 - docs/knowledge/evidence/assets/ui-redesign-2026-09-26/mobile-light-agent-questions.jpg
 observed_commit: 58fa6a24f4c75c58e987331711b4ea49dc4aa34c
-updated_at: '2026-09-26'
+updated_at: 2026-10-06
 coverage:
 - requirements:
   - FX-001
@@ -103,7 +103,6 @@ coverage:
 - requirements:
   - FX-050
   - FX-051
-  - FX-086
   - FX-091
   - FX-092
   paths:
@@ -140,6 +139,8 @@ coverage:
 ---
 
 # 前端界面重构验证与改造前后对比
+
+> 2026-10-06：Watch 退役，`FX-082`、`FX-083`、`FX-086` 已从规格删除，本页覆盖组随之移除这些条款；原观察结果不变。
 
 观察提交 `58fa6a2`（基线 `34280c0`），Flutter 3.47.2 / Forui 0.26.0，SDK 对照后端 `09df815` 的
 `gateway.api`。实施映射见 [IMP-presentation-client](../implementation/IMP-presentation-client.md)，

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
 import 'package:xiaobaihe_app/core/api/json_int64.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_models.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_repository.dart';
@@ -68,8 +67,6 @@ class FakeAssistantSource implements AssistantDataSource {
   })?
   addMemoryHandler;
 
-  Future<List<WatchTask>> Function()? listWatchesHandler;
-
   Future<AssistantPostResult> Function({
     required String message,
     required String requestId,
@@ -85,7 +82,6 @@ class FakeAssistantSource implements AssistantDataSource {
   List<AssistantHistoryMessage> messages = const [];
   List<MemoryRecord> memories = const [];
   List<MemoryCapacity> capacities = const [];
-  List<WatchTask> watches = const [];
   Object? lastError;
   Object? cancelError;
   Object? confirmError;
@@ -100,12 +96,6 @@ class FakeAssistantSource implements AssistantDataSource {
   List<AssistantAttachment> lastAttachments = const [];
   String? lastFeedbackReason;
   Object? lastFeedbackPostId;
-  String? lastCreateCondition;
-  int lastUpdateExpectedVersion = 0;
-  int lastDeleteExpectedVersion = 0;
-  int listWatchCalls = 0;
-  Object? updateWatchError;
-  Object? deleteWatchError;
   String? lastPostedMessage;
   Object lastEventsAfterSeq = 0;
   Object lastEventsRunId = 0;
@@ -369,90 +359,6 @@ class FakeAssistantSource implements AssistantDataSource {
     return memories.isEmpty
         ? const MemoryRecord(id: 0, target: 'memory', content: '')
         : memories.first;
-  }
-
-  @override
-  Future<List<WatchTask>> listWatches() async {
-    listWatchCalls++;
-    if (lastError != null) throw lastError!;
-    if (listWatchesHandler != null) return listWatchesHandler!();
-    return watches;
-  }
-
-  @override
-  Future<WatchTask> createWatch({
-    required String conditionType,
-    required String targetType,
-    Object targetId = 0,
-    String targetText = '',
-  }) async {
-    lastCreateCondition = conditionType;
-    if (lastError != null) throw lastError!;
-    if (!watchConditionTargetTypes.containsKey(conditionType)) {
-      throw const FormatException('unknown watch');
-    }
-    final task = WatchTask(
-      id: watches.length + 1,
-      conditionType: conditionType,
-      targetType: targetType,
-      targetId: targetId,
-      targetText: targetText,
-      version: 1,
-    );
-    watches = [...watches, task];
-    return task;
-  }
-
-  @override
-  Future<WatchTask> updateWatch({
-    required Object id,
-    required bool enabled,
-    required int expectedVersion,
-  }) async {
-    if (lastError != null) throw lastError!;
-    lastUpdateExpectedVersion = expectedVersion;
-    if (updateWatchError != null) {
-      final error = updateWatchError!;
-      updateWatchError = null;
-      throw error;
-    }
-    WatchTask? updated;
-    final next = <WatchTask>[];
-    for (final task in watches) {
-      if (jsonInt64Id(task.id) != jsonInt64Id(id)) {
-        next.add(task);
-        continue;
-      }
-      updated = WatchTask(
-        id: task.id,
-        conditionType: task.conditionType,
-        targetType: task.targetType,
-        targetId: task.targetId,
-        targetText: task.targetText,
-        enabled: enabled,
-        version: task.version + 1,
-        createdAt: task.createdAt,
-      );
-      next.add(updated);
-    }
-    if (updated == null) throw const ApiException('资源不存在');
-    watches = next;
-    return updated;
-  }
-
-  @override
-  Future<void> deleteWatch(Object id, {required int expectedVersion}) async {
-    if (lastError != null) throw lastError!;
-    lastDeleteExpectedVersion = expectedVersion;
-    if (deleteWatchError != null) {
-      final error = deleteWatchError!;
-      deleteWatchError = null;
-      throw error;
-    }
-    watches = [
-      for (final task in watches)
-        if (jsonInt64Id(task.id) != jsonInt64Id(id)) task,
-    ];
   }
 
   @override

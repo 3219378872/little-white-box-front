@@ -14,7 +14,7 @@ commands:
 - make test-coverage
 - make knowledge-check
 observed_commit: 74c96f6e487df0e8c08a1154c4c2e9b3ebbcbb1d
-updated_at: 2026-09-05
+updated_at: 2026-10-06
 coverage:
 - requirements:
   - FX-002
@@ -35,7 +35,6 @@ coverage:
   - FX-058
   - FX-059
   - FX-081
-  - FX-082
   - FX-089
   - FX-090
   - FX-091
@@ -45,6 +44,8 @@ coverage:
 ---
 
 # 客户端异步生命周期与状态边界加固 2026-09-05
+
+> 2026-10-06：Watch 退役，`FX-082`、`FX-083`、`FX-086` 已从规格删除，本页覆盖组随之移除这些条款；原观察结果不变。
 
 ## 范围与环境
 

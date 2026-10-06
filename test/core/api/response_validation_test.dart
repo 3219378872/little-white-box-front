@@ -34,7 +34,6 @@ void main() {
         throwsA(isA<ApiException>()),
       );
       await expectLater(repository.listMemory(), throwsA(isA<ApiException>()));
-      await expectLater(repository.listWatches(), throwsA(isA<ApiException>()));
       await expectLater(
         repository.markThreadRead(),
         throwsA(isA<ApiException>()),
@@ -55,7 +54,6 @@ void main() {
       setApiClient(MockClient((_) async => http.Response('{}', 200)));
       final repository = AssistantRepository();
       await expectLater(repository.listMemory(), throwsA(isA<ApiException>()));
-      await expectLater(repository.listWatches(), throwsA(isA<ApiException>()));
       await expectLater(
         repository.listMessages(),
         throwsA(isA<ApiException>()),
@@ -70,14 +68,13 @@ void main() {
     setApiClient(
       MockClient(
         (_) async => http.Response(
-          '{"items":null,"capacities":null,"tasks":null,"messages":null,"unreadCount":0}',
+          '{"items":null,"capacities":null,"messages":null,"unreadCount":0}',
           200,
         ),
       ),
     );
     final repository = AssistantRepository();
     expect((await repository.listMemory()).$1, isEmpty);
-    expect(await repository.listWatches(), isEmpty);
     expect((await repository.listMessages()).messages, isEmpty);
     expect(await repository.markThreadRead(), 0);
   });

@@ -7,12 +7,12 @@ owner: agent
 code_paths:
 - lib/features/assistant
 - test/features/assistant
-updated_at: '2026-09-27'
+updated_at: 2026-10-06
 ---
 
 # Assistant 虚拟线程与研究交互实现映射
 
-REST/SSE 模型、repository、线程与 Memory/Watch 状态机、展示组件和对应测试均位于
+REST/SSE 模型、repository、线程与 Memory 状态机、展示组件和对应测试均位于
 `lib/features/assistant` 与 `test/features/assistant`。旧 EVD 说明实现演进，但只有仍为 `active` 的记录
 表示当前未关闭边界；历史 passed 记录不能支撑本表的当前对齐结论。
 
@@ -30,18 +30,15 @@ REST/SSE 模型、repository、线程与 Memory/Watch 状态机、展示组件�
 | FX-059 | DES-assistant-client | unknown | gap: Flutter browser SSE disconnect and unknown-event recovery are not currently verified |
 | FX-080 | DES-assistant-client | unknown | gap: consent-version upgrade is not currently verified against a real gateway |
 | FX-081 | DES-assistant-client | unknown | gap: current real Memory CRUD, capacity, failure, and undo coverage is partial |
-| FX-082 | DES-assistant-client | unknown | gap: current real Watch CRUD and version-conflict coverage is partial |
-| FX-083 | DES-assistant-client | unknown | gap: scheduled Watch delivery into the thread and unread convergence lack current end-to-end evidence |
 | FX-084 | DES-assistant-client | unknown | gap: source mutation and invalidation payload presentation lacks current end-to-end evidence |
 | FX-085 | DES-assistant-client | unknown | gap: memory_changed unread exclusion and real undo failure recovery lack current end-to-end evidence |
-| FX-086 | DES-assistant-client | unknown | gap: OpenAPI SDK 与工具链迁移，待新提交上的对应验收证据。 |
 | FX-087 | DES-assistant-client | unknown | gap: recommendation-source feedback lacks current real-gateway evidence |
 | FX-088 | DES-assistant-client | unknown | gap: 30-second thread polling and combined unread lack current timed integration evidence |
 | FX-089 | DES-assistant-client | unknown | gap: all asynchronous acceptance dispositions lack current real-gateway evidence |
 | FX-090 | DES-assistant-client | unknown | gap: Flutter browser replay, disconnect, and response_reset recovery remain partially verified |
 | FX-091 | DES-assistant-client | unknown | gap: OpenAPI SDK 与工具链迁移，待新提交上的对应验收证据。 |
 | FX-092 | DES-assistant-client | unknown | gap: OpenAPI SDK 与工具链迁移，待新提交上的对应验收证据。 |
-| FX-093 | DES-assistant-client | unknown | gap: thread read failure and Watch/Memory unread rules lack current real-gateway evidence |
+| FX-093 | DES-assistant-client | unknown | gap: thread read failure and Memory unread rules lack current real-gateway evidence |
 | FX-094 | DES-assistant-client | unknown | gap: current browser animation, history prefix, reset, and disableAnimations evidence is partial |
 | FX-095 | DES-assistant-client | unknown | gap: real-provider browser clarification workflow has not passed end to end |
 | FX-096 | DES-assistant-client | unknown | gap: real-provider pending-question recovery and explicit continuation have not passed end to end |

@@ -1233,48 +1233,6 @@ class AssistantToolCallInfo {
   };
 }
 
-class AssistantWatchTask {
-  final Object id;
-  final String conditionType;
-  final String targetType;
-  final Object targetId;
-  final String targetText;
-  final bool enabled;
-  final num version;
-  final num createdAt;
-  AssistantWatchTask({
-    required this.id,
-    required this.conditionType,
-    required this.targetType,
-    required this.targetId,
-    required this.targetText,
-    required this.enabled,
-    required this.version,
-    required this.createdAt,
-  });
-  factory AssistantWatchTask.fromJson(Map<String, dynamic> m) =>
-      AssistantWatchTask(
-        id: m['id'] ?? 0,
-        conditionType: m['conditionType']?.toString() ?? "",
-        targetType: m['targetType']?.toString() ?? "",
-        targetId: m['targetId'] ?? 0,
-        targetText: m['targetText']?.toString() ?? "",
-        enabled: m['enabled'] ?? false,
-        version: m['version'] ?? 0,
-        createdAt: m['createdAt'] ?? 0,
-      );
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'conditionType': conditionType,
-    'targetType': targetType,
-    'targetId': targetId,
-    'targetText': targetText,
-    'enabled': enabled,
-    'version': version,
-    'createdAt': createdAt,
-  };
-}
-
 class BatchAssistantMemoryReq {
   final String requestId;
   final List<AssistantMemoryOp> ops;
@@ -1605,44 +1563,6 @@ class CreateAdReq {
   };
 }
 
-class CreateAssistantWatchReq {
-  final String conditionType;
-  final String targetType;
-  final Object targetId;
-  final String targetText;
-  CreateAssistantWatchReq({
-    required this.conditionType,
-    required this.targetType,
-    required this.targetId,
-    required this.targetText,
-  });
-  factory CreateAssistantWatchReq.fromJson(Map<String, dynamic> m) =>
-      CreateAssistantWatchReq(
-        conditionType: m['conditionType']?.toString() ?? "",
-        targetType: m['targetType']?.toString() ?? "",
-        targetId: m['targetId'] ?? 0,
-        targetText: m['targetText']?.toString() ?? "",
-      );
-  Map<String, dynamic> toJson() => {
-    'conditionType': conditionType,
-    'targetType': targetType,
-    'targetId': targetId,
-    'targetText': targetText,
-  };
-}
-
-class CreateAssistantWatchResp {
-  final AssistantWatchTask task;
-  CreateAssistantWatchResp({required this.task});
-  factory CreateAssistantWatchResp.fromJson(Map<String, dynamic> m) =>
-      CreateAssistantWatchResp(
-        task: AssistantWatchTask.fromJson(
-          Map<String, dynamic>.from(m['task'] as Map? ?? const {}),
-        ),
-      );
-  Map<String, dynamic> toJson() => {'task': task.toJson()};
-}
-
 class CreateCommentReq {
   final Object postId;
   final Object parentId;
@@ -1742,28 +1662,6 @@ class DeleteAssistantHistoryResp {
   DeleteAssistantHistoryResp();
   factory DeleteAssistantHistoryResp.fromJson(Map<String, dynamic> m) =>
       DeleteAssistantHistoryResp();
-  Map<String, dynamic> toJson() => {};
-}
-
-class DeleteAssistantWatchReq {
-  final Object id;
-  final num expectedVersion;
-  DeleteAssistantWatchReq({required this.id, required this.expectedVersion});
-  factory DeleteAssistantWatchReq.fromJson(Map<String, dynamic> m) =>
-      DeleteAssistantWatchReq(
-        id: m['id'] ?? 0,
-        expectedVersion: m['expectedVersion'] ?? 0,
-      );
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'expectedVersion': expectedVersion,
-  };
-}
-
-class DeleteAssistantWatchResp {
-  DeleteAssistantWatchResp();
-  factory DeleteAssistantWatchResp.fromJson(Map<String, dynamic> m) =>
-      DeleteAssistantWatchResp();
   Map<String, dynamic> toJson() => {};
 }
 
@@ -2809,31 +2707,6 @@ class ListAssistantMessagesResp {
     'messages': messages.map((i) => i.toJson()).toList(),
     'hasMore': hasMore,
     'nextBeforeId': nextBeforeId,
-  };
-}
-
-class ListAssistantWatchReq {
-  ListAssistantWatchReq();
-  factory ListAssistantWatchReq.fromJson(Map<String, dynamic> m) =>
-      ListAssistantWatchReq();
-  Map<String, dynamic> toJson() => {};
-}
-
-class ListAssistantWatchResp {
-  final List<AssistantWatchTask> tasks;
-  ListAssistantWatchResp({required this.tasks});
-  factory ListAssistantWatchResp.fromJson(Map<String, dynamic> m) =>
-      ListAssistantWatchResp(
-        tasks: ((m['tasks'] ?? []) as List)
-            .map(
-              (i) => AssistantWatchTask.fromJson(
-                Map<String, dynamic>.from(i as Map),
-              ),
-            )
-            .toList(),
-      );
-  Map<String, dynamic> toJson() => {
-    'tasks': tasks.map((i) => i.toJson()).toList(),
   };
 }
 
@@ -4389,40 +4262,6 @@ class UpdateAdReq {
     'endMs': endMs,
     'idempotencyKey': idempotencyKey,
   };
-}
-
-class UpdateAssistantWatchReq {
-  final Object id;
-  final bool enabled;
-  final num expectedVersion;
-  UpdateAssistantWatchReq({
-    required this.id,
-    required this.enabled,
-    required this.expectedVersion,
-  });
-  factory UpdateAssistantWatchReq.fromJson(Map<String, dynamic> m) =>
-      UpdateAssistantWatchReq(
-        id: m['id'] ?? 0,
-        enabled: m['enabled'] ?? false,
-        expectedVersion: m['expectedVersion'] ?? 0,
-      );
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'enabled': enabled,
-    'expectedVersion': expectedVersion,
-  };
-}
-
-class UpdateAssistantWatchResp {
-  final AssistantWatchTask task;
-  UpdateAssistantWatchResp({required this.task});
-  factory UpdateAssistantWatchResp.fromJson(Map<String, dynamic> m) =>
-      UpdateAssistantWatchResp(
-        task: AssistantWatchTask.fromJson(
-          Map<String, dynamic>.from(m['task'] as Map? ?? const {}),
-        ),
-      );
-  Map<String, dynamic> toJson() => {'task': task.toJson()};
 }
 
 class UpdatePostResp {

@@ -12,7 +12,6 @@ Agent 将以你的身份执行以下操作，权限不超过你的账号：
 · UserState：get_my_favorites、get_my_likes、get_my_following、get_my_posts
 · Recommend：recommend_posts、similar_posts、compare_posts
 · Memory：读取和写入 MEMORY/USER 自然语言记忆
-· Watch：创建和管理条件追踪（命中只出现在小白盒 Agent 线程）
 · Write：create_post、update_post、delete_post——每次删除都会先向你逐次确认
 
 网络检索只作研究素材，不能当作社区证据。来源只展示服务端给出的来源卡。长任务受轮次、工具和时长预算约束。

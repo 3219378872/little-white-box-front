@@ -18,7 +18,7 @@ commands:
 - make check BACKEND_API=/home/dev/projects/little/little-white-box-content-community/app/gateway/gateway.api
 - git show --check --format=fuller 33d59320a4b7167d0497d9bfaeaba6ed9138e0ce
 observed_commit: 33d59320a4b7167d0497d9bfaeaba6ed9138e0ce
-updated_at: 2026-09-07
+updated_at: 2026-10-06
 coverage:
 - requirements:
   - FX-001
@@ -69,7 +69,6 @@ coverage:
 - requirements:
   - FX-050
   - FX-051
-  - FX-086
   - FX-091
   - FX-092
   paths:
@@ -87,6 +86,8 @@ coverage:
 ---
 
 # Dart 格式门禁与基线验证
+
+> 2026-10-06：Watch 退役，`FX-082`、`FX-083`、`FX-086` 已从规格删除，本页覆盖组随之移除这些条款；原观察结果不变。
 
 本页观察前端提交 `33d59320a4b7167d0497d9bfaeaba6ed9138e0ce`。该提交新增只读
 `make format-check`，以 `dart format --output=none --set-exit-if-changed lib test` 阻止格式偏移，
