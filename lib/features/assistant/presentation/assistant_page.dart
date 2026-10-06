@@ -16,12 +16,12 @@ import '../../../core/widgets/loading_view.dart';
 import '../application/assistant_notifier.dart';
 import '../application/assistant_thread_notifier.dart';
 import '../data/assistant_models.dart';
+import 'assistant_page_controls.dart';
 import 'assistant_runtime_widgets.dart';
 import 'assistant_research_widgets.dart';
 import 'streaming_markdown.dart';
 
 part 'assistant_message_widgets.dart';
-part 'assistant_page_controls.dart';
 
 final RegExp _citationMarkerPattern = RegExp(r'\[[A-Za-z][A-Za-z0-9_-]*:\d+\]');
 final RegExp _fullWidthMarkerPattern = RegExp('［post:[^］\\n]*］');
@@ -463,19 +463,43 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
       );
     });
 
+    final notifier = ref.read(assistantNotifierProvider.notifier);
+    // 外围控件只拿状态与回调；需要在点击时才读取 provider 的回调用闭包延迟读取。
     return FScaffold(
       childPad: false,
-      header: _buildAssistantHeader(state, consent),
+      header: AssistantPageHeader(
+        state: state,
+        consent: consent,
+        onClearHistory: () =>
+            ref.read(assistantNotifierProvider.notifier).clearHistory(),
+        onRevokeConsent: _revokeAuthorization,
+      ),
       child: Column(
         children: [
           if (state.hasMoreHistory ||
               state.isLoadingOlder ||
               state.historyError != null)
-            _buildHistoryControl(state),
+            AssistantHistoryControl(
+              state: state,
+              onLoadOlder: notifier.loadOlderMessages,
+            ),
           Expanded(child: _buildConversationBody(state)),
           if (state.messages.isNotEmpty && state.connectionError != null)
-            _buildConnectionStatus(state),
-          _buildComposer(state, consent),
+            AssistantConnectionStatus(
+              state: state,
+              onReconnect: notifier.reconnectActiveRun,
+            ),
+          AssistantComposer(
+            state: state,
+            controller: _controller,
+            sendBusy: _sendBusy,
+            onPickAttachment: _pickAttachment,
+            onSend: _send,
+            onStop: notifier.stop,
+            onRemoveAttachment: (mediaId) => ref
+                .read(assistantNotifierProvider.notifier)
+                .removePendingAttachment(mediaId),
+          ),
         ],
       ),
     );
