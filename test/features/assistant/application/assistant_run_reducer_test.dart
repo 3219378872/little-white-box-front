@@ -256,6 +256,43 @@ final _runEventScenarios = <_RunScenario>[
       ]);
     },
   ),
+  // 删帖确认被拒绝或过期时，后端以 rejected / expired 结果码把调用交还模型收尾
+  // （tool_confirmation.go）；这不是故障，且确认按钮必须收起。
+  _RunScenario(
+    'declined delete confirmations complete and close the confirmation',
+    events: [
+      for (final id in ['rejected', 'expired'])
+        _tool(
+          AssistantEventType.confirmRequired,
+          id,
+          summary: '确认删除帖子',
+          tool: 'delete_post',
+        ),
+      for (final id in ['rejected', 'expired'])
+        _tool(
+          AssistantEventType.toolResult,
+          id,
+          summary: id,
+          tool: 'delete_post',
+        ),
+      // 其他工具的同名 summary 不按删帖确认结果解释。
+      _tool(AssistantEventType.toolCall, 'other', summary: 'search_posts'),
+      _tool(AssistantEventType.toolResult, 'other', summary: 'rejected'),
+    ],
+    verify: (state, initial) {
+      final message = _response(state);
+      expect(message.hasPendingConfirmation, isFalse);
+      expect(
+        message.toolSteps.map((step) => step.status),
+        everyElement(AssistantToolStatus.completed),
+      );
+      expect(message.toolSteps.map((step) => step.summary), [
+        '已拒绝删除',
+        '确认已过期',
+        'rejected',
+      ]);
+    },
+  ),
   _RunScenario(
     'a failed tool step stays failed when the run completes',
     events: [

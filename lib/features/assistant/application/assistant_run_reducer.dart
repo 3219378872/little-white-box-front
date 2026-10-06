@@ -257,9 +257,9 @@ AssistantRunReduction reduceAssistantRunEvent(
 }
 
 // tool_result 的 summary 是后端执行结果码而非说明：成功与重放记为完成并保留原说明
-// （空 summary 不覆盖），参数无效与执行失败记为失败并换成中文说明；ask_questions
-// 携带的是追问状态，过期或取消不是工具故障，一律记为完成并换成中文说明；其他值
-// 视为真正的摘要，按原样覆盖。
+// （空 summary 不覆盖），参数无效与执行失败记为失败并换成中文说明；少数工具另有
+// 专属结果码（ask_questions 的追问状态、delete_post 的确认被拒或过期），它们都不是
+// 工具故障，一律记为完成并换成中文说明；其他值视为真正的摘要，按原样覆盖。
 (AssistantToolStatus, AssistantToolCall) _toolResultOutcome(
   AssistantToolCall call,
 ) {
@@ -269,17 +269,17 @@ AssistantRunReduction reduceAssistantRunEvent(
     summary: summary,
     payloadJson: call.payloadJson,
   );
-  if (call.tool == 'ask_questions') {
-    final label = switch (call.summary) {
-      'answered' => '已回答',
-      'superseded' => '已被新的提问取代',
-      'expired' => '已过期',
-      'cancelled' => '已取消',
-      _ => null,
-    };
-    if (label != null) {
-      return (AssistantToolStatus.completed, withSummary(label));
-    }
+  final toolLabel = switch ((call.tool, call.summary)) {
+    ('ask_questions', 'answered') => '已回答',
+    ('ask_questions', 'superseded') => '已被新的提问取代',
+    ('ask_questions', 'expired') => '已过期',
+    ('ask_questions', 'cancelled') => '已取消',
+    ('delete_post', 'rejected') => '已拒绝删除',
+    ('delete_post', 'expired') => '确认已过期',
+    _ => null,
+  };
+  if (toolLabel != null) {
+    return (AssistantToolStatus.completed, withSummary(toolLabel));
   }
   return switch (call.summary) {
     'success' || 'replay' => (AssistantToolStatus.completed, withSummary('')),

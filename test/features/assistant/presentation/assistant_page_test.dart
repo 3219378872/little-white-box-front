@@ -788,6 +788,68 @@ void main() {
     expect(find.text('取消'), findsNWidgets(2));
   });
 
+  testWidgets('an expired delete confirmation removes its buttons', (
+    tester,
+  ) async {
+    final events = StreamController<AssistantRunEvent>.broadcast();
+    addTearDown(events.close);
+    final source = FakeAssistantSource()
+      ..eventsHandler = ({required runId, required afterSeq}) => events.stream;
+    await tester.pumpWidget(
+      AppProviderScope(
+        overrides: [
+          assistantUserKeyProvider.overrideWithValue('test-user'),
+          assistantRepositoryProvider.overrideWithValue(source),
+        ],
+        child: const MaterialApp(
+          builder: foruiTestBuilder,
+          home: AssistantPage(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.enterText(find.byType(EditableText), '删掉帖子 9');
+    await tester.tap(find.byKey(const Key('assistant-send-or-stop')));
+    await tester.pump();
+    await tester.pump();
+
+    const call = AssistantToolCall(
+      callId: 'c1',
+      tool: 'delete_post',
+      summary: '确认删除帖子',
+    );
+    events.add(
+      const AssistantRunEvent(
+        type: AssistantEventType.confirmRequired,
+        toolCall: call,
+        seq: 1,
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('确认删除'), findsOneWidget);
+
+    // 确认超时后服务端以 expired 结果码收尾，卡片不能再提供确认操作。
+    events.add(
+      const AssistantRunEvent(
+        type: AssistantEventType.toolResult,
+        toolCall: AssistantToolCall(
+          callId: 'c1',
+          tool: 'delete_post',
+          summary: 'expired',
+        ),
+        seq: 2,
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('确认删除'), findsNothing);
+    expect(find.text('取消'), findsNothing);
+    expect(find.text('确认已过期'), findsOneWidget);
+    expect(find.text('expired'), findsNothing);
+  });
+
   testWidgets('memory_changed offers retryable undo', (tester) async {
     final source = FakeAssistantSource()
       ..eventsHandler = ({required runId, required afterSeq}) =>
