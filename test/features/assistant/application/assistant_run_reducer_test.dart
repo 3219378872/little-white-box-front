@@ -272,22 +272,6 @@ final _runEventScenarios = <_RunScenario>[
     },
   ),
   _RunScenario(
-    'unauthorized error keeps the active command for retry',
-    events: [
-      const AssistantRunEvent(
-        type: AssistantEventType.error,
-        runId: _runId,
-        text: '需要授权',
-        errorCode: 'AGENT_NOT_AUTHORIZED',
-      ),
-    ],
-    verify: (state, initial) {
-      expect(state.agentAuthorizationRequired, isTrue);
-      expect(state.pendingRetryMessage, _sentText);
-      expect(state.connectionError, '需要授权');
-    },
-  ),
-  _RunScenario(
     'source cards are de-duplicated on the response',
     events: [
       const AssistantRunEvent(
@@ -599,12 +583,7 @@ Future<(AssistantState, AssistantState)> _runThroughReducer(
   addTearDown(notifier.dispose);
   await _startRun(notifier, source, scenario);
   final initial = notifier.state;
-  var reduction = AssistantRunReduction(
-    state: initial,
-    activeCommand: scenario.start == _Start.send
-        ? const PendingAssistantCommand(message: _sentText, requestId: 'req-1')
-        : null,
-  );
+  var reduction = AssistantRunReduction(state: initial);
   for (final event in scenario.events) {
     reduction = reduceAssistantRunEvent(reduction, _runId, event);
   }
@@ -710,14 +689,12 @@ void main() {
     });
 
     test('terminal events clear the run bookkeeping', () {
-      const command = PendingAssistantCommand(message: '问', requestId: 'r');
       const current = AssistantRunReduction(
         state: streaming,
         streams: AssistantStreamTracking(
           activeStreamId: 's1',
           usesStreamIds: true,
         ),
-        activeCommand: command,
         activeRunFloorMessageId: 30,
       );
       for (final event in [
@@ -725,7 +702,6 @@ void main() {
         const AssistantRunEvent(type: AssistantEventType.error, runId: _runId),
       ]) {
         final next = reduceAssistantRunEvent(current, _runId, event);
-        expect(next.activeCommand, isNull);
         expect(next.activeRunFloorMessageId, 0);
         expect(next.streams.usesStreamIds, isFalse);
         expect(next.state.activeRunId, 0);

@@ -19,40 +19,32 @@ class AssistantStreamTracking {
 }
 
 /// run 事件 reducer 的输入与输出：界面状态加上会被事件改写的运行簿记
-/// （流跟踪、可重试命令、活动 run 的历史下限），供 notifier 整体回写。
+/// （流跟踪、活动 run 的历史下限），供 notifier 整体回写。
 class AssistantRunReduction {
   final AssistantState state;
   final AssistantStreamTracking streams;
-  // 授权失败时转为 pendingRetryCommand，供用户授权后原样重发。
-  final PendingAssistantCommand? activeCommand;
   final Object activeRunFloorMessageId;
 
   const AssistantRunReduction({
     required this.state,
     this.streams = AssistantStreamTracking.idle,
-    this.activeCommand,
     this.activeRunFloorMessageId = 0,
   });
 
   AssistantRunReduction copyWith({
     AssistantState? state,
     AssistantStreamTracking? streams,
-    PendingAssistantCommand? activeCommand,
-    bool clearActiveCommand = false,
     Object? activeRunFloorMessageId,
   }) {
     return AssistantRunReduction(
       state: state ?? this.state,
       streams: streams ?? this.streams,
-      activeCommand: clearActiveCommand
-          ? null
-          : (activeCommand ?? this.activeCommand),
       activeRunFloorMessageId:
           activeRunFloorMessageId ?? this.activeRunFloorMessageId,
     );
   }
 
-  // 终止事件结束 run：清空流跟踪、活动命令与历史下限。
+  // 终止事件结束 run：清空流跟踪与历史下限。
   AssistantRunReduction _endRun(AssistantState state) => AssistantRunReduction(
     state: state,
     streams: AssistantStreamTracking.idle,
@@ -234,13 +226,12 @@ AssistantRunReduction reduceAssistantRunEvent(
         ),
       );
     case AssistantEventType.error:
-      // 仅授权失败保留原命令，用户授权后可原样重发；其他错误不自动重试。
-      final needsAuthorization = event.errorCode == 'AGENT_NOT_AUTHORIZED';
-      final retryCommand = needsAuthorization ? reduction.activeCommand : null;
+      // run 内错误不会是授权拒绝（授权只在发送时以业务码 6001 拒绝，run 中途失效
+      // 按 CANCELLED 结束），因此清掉授权提示且不自动重试。
       return reduction._endRun(
         state.copyWith(
           sessionId: sessionId,
-          agentAuthorizationRequired: needsAuthorization,
+          agentAuthorizationRequired: false,
           messages: _updateResponseMessage(
             state.messages,
             responseId,
@@ -262,7 +253,6 @@ AssistantRunReduction reduceAssistantRunEvent(
           isStreaming: false,
           isQueued: false,
           connectionError: event.text,
-          pendingRetryCommand: retryCommand,
           clearActiveRun: true,
           clearLastDisposition: true,
         ),

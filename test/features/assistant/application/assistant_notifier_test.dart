@@ -4,7 +4,6 @@ import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
-import 'package:xiaobaihe_app/core/api/json_int64.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/application/assistant_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_models.dart';
@@ -1804,52 +1803,6 @@ void main() {
       isTrue,
     );
     expect(source.eventCalls, [0]);
-  });
-
-  test('active run takeover cannot retry the previous run command', () async {
-    final firstEvents = StreamController<AssistantRunEvent>.broadcast();
-    final secondEvents = StreamController<AssistantRunEvent>.broadcast();
-    addTearDown(firstEvents.close);
-    addTearDown(secondEvents.close);
-    final source = FakeAssistantSource()
-      ..eventsHandler = ({required runId, required afterSeq}) =>
-          jsonInt64Id(runId) == '21' ? firstEvents.stream : secondEvents.stream;
-    final notifier = AssistantNotifier(repository: source);
-    addTearDown(notifier.dispose);
-    await notifier.load();
-    expect(await notifier.send('old command'), isTrue);
-
-    source
-      ..thread = const AssistantThreadSummary(
-        sessionId: 1,
-        lastMessageId: 12,
-        activeRunId: 22,
-        activeRunStatus: 'running',
-        activeRunPhase: 'model_request',
-      )
-      ..messages = const [
-        AssistantHistoryMessage(
-          id: 12,
-          sessionId: 1,
-          runId: 22,
-          role: 'user',
-          content: 'new command from another tab',
-        ),
-      ];
-    expect(await notifier.refreshForThread(source.thread), isTrue);
-
-    secondEvents.add(
-      const AssistantRunEvent(
-        type: AssistantEventType.error,
-        text: 'authorization required',
-        errorCode: 'AGENT_NOT_AUTHORIZED',
-        seq: 1,
-      ),
-    );
-    await pumpEventQueue();
-
-    expect(notifier.state.agentAuthorizationRequired, isTrue);
-    expect(notifier.state.pendingRetryCommand, isNull);
   });
 
   test(

@@ -37,9 +37,6 @@ extension _AssistantHistory on AssistantNotifier {
             loadedMessages,
             thread.activeRunId,
           );
-      if (!resumeRun || !_sameRun(thread.activeRunId, _value.activeRunId)) {
-        _activeCommand = null;
-      }
       _activeRunFloorMessageId = resumeRun ? thread.lastMessageId : 0;
       if (resumeRun && history.isNotEmpty) {
         _advanceActiveRunFloor(history.last.id);
@@ -423,7 +420,6 @@ extension _AssistantHistory on AssistantNotifier {
             _idIsAfter(_activeRunFloorMessageId, thread.lastMessageId))) {
       return false;
     }
-    _activeCommand = null;
     _activeRunFloorMessageId = 0;
     _value = _value.copyWith(
       messages: _updateResponseMessage(

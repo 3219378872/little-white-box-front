@@ -109,27 +109,6 @@ void main() {
     expect(message.toolSteps.last.status, AssistantToolStatus.confirmed);
   });
 
-  test('AGENT_NOT_AUTHORIZED error raises authorization flag', () async {
-    final controller = StreamController<AssistantRunEvent>.broadcast();
-    addTearDown(controller.close);
-    final source = FakeAssistantSource()
-      ..eventsHandler = ({required runId, required afterSeq}) =>
-          controller.stream;
-    final notifier = AssistantNotifier(repository: source);
-    await notifier.send('hello');
-    controller.add(
-      const AssistantRunEvent(
-        type: AssistantEventType.error,
-        text: '需要授权',
-        errorCode: 'AGENT_NOT_AUTHORIZED',
-        seq: 1,
-      ),
-    );
-    await Future<void>.delayed(Duration.zero);
-    expect(notifier.state.agentAuthorizationRequired, isTrue);
-    expect(notifier.state.isStreaming, isFalse);
-  });
-
   // 网关以业务码 6001（AgentNotAuthorized）拒绝发送，文案为中文，不含常量名。
   test('send rejected with code 6001 asks for authorization', () async {
     final source = FakeAssistantSource()

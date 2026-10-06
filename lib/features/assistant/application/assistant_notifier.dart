@@ -57,9 +57,6 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   // Newest message id seen while the active run is open; a thread summary whose
   // last message is older than this is stale and must not settle the run.
   Object _activeRunFloorMessageId = 0;
-  // Command that started the active run; restored for retry when the run fails
-  // with AGENT_NOT_AUTHORIZED.
-  PendingAssistantCommand? _activeCommand;
   // Coalesces overlapping refreshMessages calls into one draining loop.
   Future<bool>? _refreshFuture;
   bool _refreshRequested = false;

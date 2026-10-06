@@ -139,7 +139,6 @@ extension _AssistantCommands on AssistantNotifier {
         clearPendingRetryCommand: true,
         clearHistoryError: sessionChanged,
       );
-      _activeCommand = terminalResponse ? null : command;
       if (terminalResponse) _activeRunFloorMessageId = 0;
       // 不再流式时，断开仍在跟随其他 run 的旧订阅。
       if (!shouldStream &&
@@ -342,7 +341,6 @@ extension _AssistantCommands on AssistantNotifier {
     if (!mounted || !_sameRun(_value.activeRunId, runId)) return true;
     await _cancelSubscription();
     if (!mounted || !_sameRun(_value.activeRunId, runId)) return true;
-    _activeCommand = null;
     _activeRunFloorMessageId = 0;
     final responseId = 'run-${jsonInt64Id(runId)}';
     _value = _value.copyWith(

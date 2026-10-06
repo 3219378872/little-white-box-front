@@ -161,14 +161,12 @@ extension _AssistantConnection on AssistantNotifier {
       AssistantRunReduction(
         state: _value,
         streams: _streams,
-        activeCommand: _activeCommand,
         activeRunFloorMessageId: _activeRunFloorMessageId,
       ),
       runId,
       event,
     );
     _streams = next.streams;
-    _activeCommand = next.activeCommand;
     _activeRunFloorMessageId = next.activeRunFloorMessageId;
     _value = next.state;
   }
@@ -195,7 +193,6 @@ extension _AssistantConnection on AssistantNotifier {
     if (_hasPersistedTerminalResponseForRun(_value.messages, runId)) {
       _subscribedRunId = 0;
       _resetStreamTracking();
-      _activeCommand = null;
       _activeRunFloorMessageId = 0;
       _value = _value.copyWith(
         isStreaming: false,
