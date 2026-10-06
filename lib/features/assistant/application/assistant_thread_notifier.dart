@@ -68,23 +68,6 @@ class AssistantThreadNotifier extends StateNotifier<AssistantThreadState> {
       );
     }
   }
-
-  /// 用已知的未读数更新摘要而不发请求；重建摘要时不保留
-  /// [AssistantThreadSummary.questionRequest]。
-  void applyUnread(int unreadCount) {
-    state = state.copyWith(
-      thread: AssistantThreadSummary(
-        sessionId: state.thread.sessionId,
-        unreadCount: unreadCount,
-        lastMessageId: state.thread.lastMessageId,
-        lastMessagePreview: state.thread.lastMessagePreview,
-        lastMessageAtMs: state.thread.lastMessageAtMs,
-        activeRunId: state.thread.activeRunId,
-        activeRunStatus: state.thread.activeRunStatus,
-        activeRunPhase: state.thread.activeRunPhase,
-      ),
-    );
-  }
 }
 
 /// 按登录身份重建，未登录时不立即加载。

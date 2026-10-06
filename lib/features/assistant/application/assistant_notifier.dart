@@ -136,13 +136,6 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   /// Manually re-attaches to the active run's event stream after a disconnect.
   bool reconnectActiveRun() => _reconnectRun();
 
-  /// Pure helper applying [update] to every message with [id].
-  static List<AssistantMessage> updateAll(
-    List<AssistantMessage> messages,
-    String id,
-    AssistantMessage Function(AssistantMessage) update,
-  ) => _updateAll(messages, id, update);
-
   /// Reconciles with a polled thread summary: reloads on session or run change,
   /// otherwise syncs the phase, fetches newer messages and settles finished
   /// runs. Returns whether anything changed.

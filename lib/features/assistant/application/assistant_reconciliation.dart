@@ -66,18 +66,6 @@ List<AssistantToolStep> _settleSteps(
   ];
 }
 
-// 对指定 ID 的消息应用 [update]。
-List<AssistantMessage> _updateAll(
-  List<AssistantMessage> messages,
-  String id,
-  AssistantMessage Function(AssistantMessage) update,
-) {
-  return [
-    for (final message in messages)
-      if (message.id == id) update(message) else message,
-  ];
-}
-
 // 按数字 ID 顺序插入；非数字 ID 的占位直接追加到末尾。
 void _insertNumericMessage(
   List<AssistantMessage> messages,
