@@ -28,6 +28,8 @@ const reviewLeaseWarning = Duration(minutes: 2);
 /// 审核任务详情：快照、机审证据、政策定义与结论表单，单列布局（FX-111、FX-113）。
 class ReviewTaskPage extends ConsumerStatefulWidget {
   final String taskId;
+
+  /// 当前时间来源；测试注入固定时刻以计算持有剩余时间。
   final DateTime Function() now;
 
   const ReviewTaskPage({
@@ -41,7 +43,9 @@ class ReviewTaskPage extends ConsumerStatefulWidget {
 }
 
 class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
+  // 每秒刷新剩余时间并检查是否需要提醒续期。
   Timer? _ticker;
+  // 已提醒过的到期时刻：同一到期时间只提醒一次，续期后可再次提醒。
   num? _warnedLeaseUntil;
 
   @override
@@ -63,11 +67,13 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
   ReviewTaskController get _controller =>
       ref.read(reviewTaskControllerProvider(widget.taskId).notifier);
 
+  // 距持有到期的剩余时间，已过期按 0 计。
   Duration _remaining(ReviewTaskItem task) {
     final ms = task.leaseUntilMs.toInt() - widget.now().millisecondsSinceEpoch;
     return Duration(milliseconds: ms < 0 ? 0 : ms);
   }
 
+  // 可操作且剩余时间不足阈值时提醒一次续期。
   void _maybeWarnLease() {
     final state = ref.read(reviewTaskControllerProvider(widget.taskId));
     final task = state.task;
@@ -81,10 +87,12 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
     showAppError(context, '持有剩余不足 2 分钟，请续期或尽快提交');
   }
 
+  // 续期成功给出提示；失败由控制器写入错误或关闭原因。
   Future<void> _renew() async {
     if (await _controller.renew() && mounted) showAppSuccess(context, '已续期');
   }
 
+  // 放弃成功后回到队列。
   Future<void> _release() async {
     if (await _controller.release() && mounted) context.go(AppRoutes.review);
   }
@@ -93,6 +101,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(reviewTaskControllerProvider(widget.taskId));
     final access = ref.watch(reviewerAccessProvider);
+    // 授权已撤销或服务端拒绝时整页显示无权限。
     final forbidden =
         access.hasValue && !access.value!.canReview ||
         state.closure == ReviewTaskClosure.forbidden;
@@ -110,11 +119,13 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
     );
   }
 
+  // 任务主体：加载、失败与已关闭各有占位；正常时依次为概览、状态提示、原结论、证据与结论表单。
   Widget _body(ReviewTaskState state) {
     final task = state.task;
     if (state.isLoading && task == null) {
       return const LoadingView();
     }
+    // 尚未取得任务：有关闭原因时只提示并返回队列，否则可重试。
     if (task == null) {
       return state.closure != null
           ? _closed(state.closure!)
@@ -134,6 +145,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
           const SizedBox(height: AppTheme.space3),
           _closureAlert(state.closure!),
         ],
+        // 已提交的结论回显。
         if (state.decision != null) ...[
           const SizedBox(height: AppTheme.space3),
           FAlert(
@@ -154,6 +166,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
           ),
         ],
         const SizedBox(height: AppTheme.space3),
+        // 质检与申诉任务先展示原结论。
         if (task.originalDecision != null) ...[
           OriginalDecisionSection(
             purpose: task.purpose,
@@ -164,6 +177,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
         ],
         ReviewEvidence(task: task),
         const SizedBox(height: AppTheme.space3),
+        // 可操作时展示结论表单；关闭或已提交后改为返回队列。
         if (state.editable)
           ReviewDecisionForm(
             policies: policies,
@@ -181,6 +195,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
     );
   }
 
+  // 任务概览：对象类型、市场、版本、状态与目的提示；持有中附剩余时间、续期与放弃。
   Widget _summary(ReviewTaskItem task, ReviewTaskState state) {
     final theme = context.theme;
     final remaining = _remaining(task);
@@ -217,6 +232,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
               title: Text(hint),
             ),
           ],
+          // 持有倒计时：临近到期时变红并作为 live region 播报。
           if (state.editable) ...[
             const SizedBox(height: AppTheme.space2),
             Row(
@@ -269,6 +285,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
     );
   }
 
+  // 关闭原因提示；主动放弃用常规样式，其余为警示。
   Widget _closureAlert(ReviewTaskClosure closure) => FAlert(
     key: Key('review-closure-${closure.name}'),
     variant: closure == ReviewTaskClosure.released
@@ -278,6 +295,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
     title: Text(reviewClosureMessage(closure)),
   );
 
+  // 未取得任务即已关闭时的整页提示。
   Widget _closed(ReviewTaskClosure closure) => Padding(
     padding: const EdgeInsets.all(AppTheme.pageInset),
     child: Column(

@@ -43,6 +43,7 @@ class ReviewEvidence extends StatelessWidget {
   }
 }
 
+// 送审快照：文案、落地页、市场与行业、资质证件与素材图。
 class _SnapshotView extends StatelessWidget {
   final String taskId;
   final ReviewSnapshotView snapshot;
@@ -82,6 +83,7 @@ class _SnapshotView extends StatelessWidget {
             label: '行业',
             text: adIndustryLabel(snapshot.industry),
           ),
+        // 资质证件与素材一样按任务经鉴权读取。
         for (final qualification in snapshot.qualifications)
           AppInfoRow(
             label: '资质',
@@ -179,6 +181,7 @@ class ReviewMediaTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final media = ref.watch(reviewMediaProvider((taskId, mediaId)));
+    // 统一尺寸与边框的容器，加载、失败与内容共用。
     Widget frame(Widget child) => SizedBox(
       width: size,
       height: size,
@@ -202,6 +205,7 @@ class ReviewMediaTile extends ConsumerWidget {
           ),
         ),
       ),
+      // 图片直接预览；PDF 等文件只显示类型与大小。
       data: (content) => content.isImage
           ? frame(
               Image.memory(
@@ -230,6 +234,7 @@ class ReviewMediaTile extends ConsumerWidget {
   }
 }
 
+// 机审阶段列表；没有记录时给出说明。
 class _StagesView extends StatelessWidget {
   final List<ReviewStageItem> stages;
 
@@ -254,6 +259,7 @@ class _StagesView extends StatelessWidget {
   }
 }
 
+// 单个机审阶段：组件版本、占位与影子标记、结果与展开的输出字段。
 class _StageTile extends StatelessWidget {
   final ReviewStageItem stage;
 

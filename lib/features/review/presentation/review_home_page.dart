@@ -52,6 +52,7 @@ class _ReviewHomePageState extends ConsumerState<ReviewHomePage> {
   @override
   Widget build(BuildContext context) {
     final access = ref.watch(reviewerAccessProvider);
+    // 保持命令实例存活，领取返回后的队列刷新才能生效。
     ref.watch(reviewQueueCommandsProvider);
     return FScaffold(
       header: FHeader.nested(
@@ -60,6 +61,7 @@ class _ReviewHomePageState extends ConsumerState<ReviewHomePage> {
           if (context.canPop())
             FHeaderAction.back(onPress: () => context.pop()),
         ],
+        // 刷新同时重读授权与队列计数。
         suffixes: [
           FHeaderAction(
             icon: const Icon(FLucideIcons.refreshCw),
@@ -71,6 +73,7 @@ class _ReviewHomePageState extends ConsumerState<ReviewHomePage> {
           ),
         ],
       ),
+      // 按授权决定展示工作台内容或无权限页。
       child: access.when(
         loading: () => const LoadingView(),
         error: (error, _) => ErrorView(
@@ -83,6 +86,7 @@ class _ReviewHomePageState extends ConsumerState<ReviewHomePage> {
     );
   }
 
+  // 有权限时的工作台：授权范围、领取下一单与按目的分组的队列。
   Widget _content(ReviewerAccess access) {
     final theme = context.theme;
     final queue = ref.watch(reviewQueueProvider);
@@ -121,6 +125,7 @@ class _ReviewHomePageState extends ConsumerState<ReviewHomePage> {
             padding: EdgeInsets.all(AppTheme.space4),
             child: LoadingView(),
           ),
+          // 队列接口判定无审核角色时与无权限页一致。
           error: (error, _) {
             if (error is ApiException &&
                 error.code == ErrorCodes.reviewRoleRequired) {
@@ -137,6 +142,7 @@ class _ReviewHomePageState extends ConsumerState<ReviewHomePage> {
     );
   }
 
+  // 按任务目的列出待处理数与最久等待；点击领取该目的的下一单。
   Widget _buckets(ReviewQueueResp queue) {
     final theme = context.theme;
     if (queue.buckets.isEmpty) {

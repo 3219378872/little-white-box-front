@@ -21,11 +21,14 @@ class ReviewerAccess {
     this.languages = const [],
   });
 
+  /// 未登录时的空授权。
   static const none = ReviewerAccess();
 
+  /// 档案已启用且至少拥有一个工作台角色。
   bool get canReview => active && roles.any(reviewWorkbenchRoles.contains);
 }
 
+/// 当前登录身份的审核授权；未登录时为 [ReviewerAccess.none]，身份变化时重新读取。
 final reviewerAccessProvider = FutureProvider<ReviewerAccess>((ref) async {
   final identity = ref.watch(authenticatedSessionIdentityProvider);
   if (identity == null) return ReviewerAccess.none;
@@ -62,6 +65,7 @@ class _ReviewerAccessRefreshBindingState
     _listener = AppLifecycleListener(
       onResume: () {
         if (!mounted) return;
+        // 未登录时没有授权可刷新。
         if (ref.read(authenticatedSessionIdentityProvider) == null) return;
         ref.invalidate(reviewerAccessProvider);
       },

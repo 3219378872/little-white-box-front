@@ -32,6 +32,7 @@ class ReviewQueueCommands {
       final task = await _ref
           .read(reviewRepositoryProvider)
           .claim(purpose: purpose);
+      // 队列为空说明首页计数已过时，顺带刷新。
       if (task == null) refreshQueue();
       return task;
     } on ApiException catch (error) {
@@ -48,6 +49,7 @@ class ReviewQueueCommands {
   }
 }
 
+/// 工作台首页的领取命令；随页面释放。
 final reviewQueueCommandsProvider = Provider.autoDispose<ReviewQueueCommands>(
   ReviewQueueCommands.new,
 );

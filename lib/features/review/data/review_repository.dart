@@ -9,6 +9,7 @@ import '../../../sdk/data/gateway.dart';
 class ReviewRepository {
   const ReviewRepository();
 
+  /// 当前用户的审核员档案：是否启用、角色、市场与语言（GET /api/v2/review/me）。
   Future<ReviewerProfileResp> getProfile() {
     return apiCall<ReviewerProfileResp>(
       (ok, fail, eventually) =>
@@ -16,6 +17,7 @@ class ReviewRepository {
     );
   }
 
+  /// 授权范围内各任务目的的待处理数与最久等待时长（GET /api/v2/review/queue）。
   Future<ReviewQueueResp> getQueue() {
     return apiCall<ReviewQueueResp>(
       (ok, fail, eventually) =>
@@ -24,6 +26,7 @@ class ReviewRepository {
   }
 
   /// 领取授权队列中的下一单；队列为空时返回 null。
+  /// 对应 POST /api/v2/review/tasks/claim；[purpose] 为空时不按目的过滤。
   Future<ReviewTaskItem?> claim({String purpose = ''}) async {
     final resp = await apiCall<ReviewTaskResp>(
       (ok, fail, eventually) => gw.claimReviewTask(
@@ -36,6 +39,7 @@ class ReviewRepository {
     return resp.found ? resp.task : null;
   }
 
+  /// 任务详情，含送审快照与机审阶段（GET /api/v2/review/tasks/{taskId}）；未找到时返回 null。
   Future<ReviewTaskItem?> getTask(Object taskId) async {
     final resp = await apiCall<ReviewTaskResp>(
       (ok, fail, eventually) =>
@@ -44,6 +48,7 @@ class ReviewRepository {
     return resp.found ? resp.task : null;
   }
 
+  /// 按 [leaseGeneration] 续期持有（POST /api/v2/review/tasks/{taskId}/renew），返回续期后的任务。
   Future<ReviewTaskItem?> renew(Object taskId, num leaseGeneration) async {
     final resp = await apiCall<ReviewTaskResp>(
       (ok, fail, eventually) => gw.renewReviewTask(
@@ -57,6 +62,7 @@ class ReviewRepository {
     return resp.found ? resp.task : null;
   }
 
+  /// 放弃持有，任务回到队列（POST /api/v2/review/tasks/{taskId}/release）。
   Future<void> release(Object taskId, num leaseGeneration) {
     return apiCall<ReviewActionResp>(
       (ok, fail, eventually) => gw.releaseReviewTask(
@@ -69,6 +75,7 @@ class ReviewRepository {
     );
   }
 
+  /// 提交审核结论（POST /api/v2/review/tasks/{taskId}/decision）；请求携带持有代次与幂等键。
   Future<ReviewDecisionResp> decide(
     Object taskId,
     SubmitReviewDecisionReq req,
@@ -85,6 +92,7 @@ class ReviewRepository {
   }
 
   /// 经鉴权接口读取快照中的图片或证件。
+  /// 对应 GET /api/v2/review/tasks/{taskId}/media/{mediaId}，内容以 base64 返回后在此解码。
   Future<ReviewMediaContent> media(Object taskId, Object mediaId) async {
     final resp = await apiCall<AdAssetContentResp>(
       (ok, fail, eventually) => gw.getReviewEvidenceMedia(
@@ -102,6 +110,7 @@ class ReviewRepository {
   }
 }
 
+/// 送审素材的类型与字节；非图片（如 PDF 证件）界面只展示类型与大小。
 class ReviewMediaContent {
   final String mimeType;
   final Uint8List bytes;

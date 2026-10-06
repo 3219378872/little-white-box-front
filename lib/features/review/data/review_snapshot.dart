@@ -11,6 +11,8 @@ class ReviewSnapshotView {
   final String language;
   final String industry;
   final List<ReviewSnapshotQualification> qualifications;
+
+  /// 是否成功解析为对象；为 false 时界面提示快照无法解析。
   final bool valid;
 
   const ReviewSnapshotView({
@@ -43,6 +45,7 @@ class ReviewSnapshotView {
     return uri == null ? '' : uri.host;
   }
 
+  /// 解析任务的 `snapshotJson`；无效 JSON 或非对象时返回 [valid] 为 false 的空快照。
   factory ReviewSnapshotView.parse(String raw) {
     Object? decoded;
     try {
@@ -51,6 +54,7 @@ class ReviewSnapshotView {
       return const ReviewSnapshotView();
     }
     if (decoded is! Map) return const ReviewSnapshotView();
+    // 兼容快照直接为顶层对象或嵌套在 `snapshot` 字段内两种形态。
     final nested = decoded['snapshot'];
     final map = nested is Map ? nested : decoded;
     final texts = map['texts'];
@@ -64,6 +68,7 @@ class ReviewSnapshotView {
             }
           : const {},
       landingUrl: _text(map['landingUrl']),
+      // 只保留正数素材 ID 的条目，后续按 ID 经鉴权读取内容。
       media: media is List
           ? media
                 .whereType<Map>()
@@ -100,6 +105,7 @@ class ReviewSnapshotView {
   }
 }
 
+/// 快照中的一张送审素材；内容需按任务经鉴权接口读取。
 class ReviewSnapshotMedia {
   final Object mediaId;
   final String sha256;
@@ -112,6 +118,7 @@ class ReviewSnapshotMedia {
   });
 }
 
+/// 快照中的一份资质；[documentMediaId] 非正数时没有证件，[validUntilMs] 为 0 表示未提供。
 class ReviewSnapshotQualification {
   final String market;
   final String industry;
@@ -149,4 +156,5 @@ List<MapEntry<String, String>> reviewStageOutputRows(String raw) {
 bool isPlaceholderComponent(String version) =>
     version.toLowerCase().contains('stub');
 
+// 快照字段类型不可信，非字符串一律视为空。
 String _text(Object? value) => value is String ? value : '';

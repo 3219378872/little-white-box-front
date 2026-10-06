@@ -6,6 +6,7 @@ import '../../../core/widgets/app_section.dart';
 import '../../ads/application/ads_providers.dart';
 import '../../ads/presentation/ad_labels.dart';
 
+/// 提交结论的回调，返回是否提交成功；签名与 `ReviewTaskController.submit` 一致。
 typedef ReviewDecisionSubmit = Future<bool> Function({
   required String verdict,
   required List<String> policyCodes,
@@ -42,9 +43,11 @@ class _ReviewDecisionFormState extends State<ReviewDecisionForm> {
     super.dispose();
   }
 
+  // 拒绝必须至少勾选一个政策码。
   bool get _canSubmit =>
       !widget.busy && (_verdict == 'approve' || _codes.isNotEmpty);
 
+  // 结果与错误由任务控制器的状态呈现，表单只负责收集输入。
   Future<void> _submit() async {
     await widget.onSubmit(
       verdict: _verdict,
@@ -63,6 +66,7 @@ class _ReviewDecisionFormState extends State<ReviewDecisionForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // 结论二选一：已选项用实心样式并在文字中标注，不只依赖颜色。
           Row(
             children: [
               Expanded(
@@ -90,6 +94,7 @@ class _ReviewDecisionFormState extends State<ReviewDecisionForm> {
               ),
             ],
           ),
+          // 拒绝时展示政策码多选（含定义）与相似违规种子提名。
           if (reject) ...[
             const SizedBox(height: AppTheme.space3),
             Text(
@@ -129,12 +134,14 @@ class _ReviewDecisionFormState extends State<ReviewDecisionForm> {
             ),
           ],
           const SizedBox(height: AppTheme.space3),
+          // 备注对两种结论都可选。
           FTextField(
             control: FTextFieldControl.managed(controller: _note),
             label: const Text('备注（可选）'),
             maxLines: 3,
             maxLength: 500,
           ),
+          // 演示政策目录时加以标注，避免当作正式政策。
           if (widget.policies.demo) ...[
             const SizedBox(height: AppTheme.space2),
             Text(
