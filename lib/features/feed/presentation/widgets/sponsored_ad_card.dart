@@ -6,11 +6,11 @@ import 'package:forui/forui.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+import '../../../../core/api/media_url.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_icon_button.dart';
 import '../../../../core/widgets/app_toast.dart';
-import '../../../../sdk/vars/vars.dart';
 import '../../../behavior/application/behavior_tracker.dart';
 import '../../../ads/data/ad_labels.dart';
 import '../../../behavior/data/behavior_event.dart';
@@ -278,7 +278,7 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
                       if (ad.images.isNotEmpty) ...[
                         const SizedBox(height: AppTheme.space3),
                         PostMediaPreview(
-                          images: ad.images.map(_resolveImage).toList(),
+                          images: ad.images.map(resolveImageUrl).toList(),
                         ),
                       ],
                       const SizedBox(height: AppTheme.space3),
@@ -366,11 +366,6 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
         onPress: controller.toggle,
       ),
     );
-  }
-
-  static String _resolveImage(String raw) {
-    final uri = Uri.parse(raw);
-    return uri.hasScheme ? raw : apiUri(raw).toString();
   }
 }
 
