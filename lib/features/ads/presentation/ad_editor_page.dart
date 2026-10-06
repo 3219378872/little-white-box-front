@@ -10,6 +10,7 @@ import '../../../core/api/error_codes.dart';
 import '../../../core/api/idempotency.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_choice_button.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
@@ -272,16 +273,6 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
         ref.watch(adPolicyCatalogProvider).value ?? AdPolicyCatalog.fallback;
     final existing = _existing;
     final servingApproved = existing != null && existing.approvedRevision > 0;
-    Widget choice(String label, bool selected, VoidCallback onPress, Key key) =>
-        FButton(
-          key: key,
-          size: FButtonSizeVariant.sm,
-          mainAxisSize: MainAxisSize.min,
-          variant: selected ? FButtonVariant.secondary : FButtonVariant.outline,
-          prefix: selected ? const Icon(FLucideIcons.check) : null,
-          onPress: onPress,
-          child: Text(label),
-        );
     return ListView(
       padding: const EdgeInsets.all(AppTheme.pageInset),
       children: [
@@ -373,11 +364,11 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
                 runSpacing: AppTheme.space2,
                 children: [
                   for (final market in widget.advertiser.markets)
-                    choice(
-                      adMarketLabel(market),
-                      _market == market,
-                      () => setState(() => _market = market),
-                      Key('ad-market-$market'),
+                    AppChoiceButton(
+                      key: Key('ad-market-$market'),
+                      label: adMarketLabel(market),
+                      selected: _market == market,
+                      onPress: () => setState(() => _market = market),
                     ),
                 ],
               ),
@@ -389,11 +380,11 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
                 runSpacing: AppTheme.space2,
                 children: [
                   for (final industry in catalog.industries)
-                    choice(
-                      adIndustryLabel(industry),
-                      _industry == industry,
-                      () => setState(() => _industry = industry),
-                      Key('ad-industry-$industry'),
+                    AppChoiceButton(
+                      key: Key('ad-industry-$industry'),
+                      label: adIndustryLabel(industry),
+                      selected: _industry == industry,
+                      onPress: () => setState(() => _industry = industry),
                     ),
                 ],
               ),

@@ -6,6 +6,7 @@ import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/error_codes.dart';
 import '../../../core/api/idempotency.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_choice_button.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../sdk/data/gateway.dart';
@@ -178,16 +179,6 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    Widget choice(String label, bool selected, VoidCallback onPress, Key key) =>
-        FButton(
-          key: key,
-          size: FButtonSizeVariant.sm,
-          mainAxisSize: MainAxisSize.min,
-          variant: selected ? FButtonVariant.secondary : FButtonVariant.outline,
-          prefix: selected ? const Icon(FLucideIcons.check) : null,
-          onPress: onPress,
-          child: Text(label),
-        );
     return AppSection(
       title: '提交行业资质',
       child: Column(
@@ -200,11 +191,11 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
             runSpacing: AppTheme.space2,
             children: [
               for (final market in widget.advertiser.markets)
-                choice(
-                  adMarketLabel(market),
-                  _market == market,
-                  () => setState(() => _market = market),
-                  Key('qualification-market-$market'),
+                AppChoiceButton(
+                  key: Key('qualification-market-$market'),
+                  label: adMarketLabel(market),
+                  selected: _market == market,
+                  onPress: () => setState(() => _market = market),
                 ),
             ],
           ),
@@ -216,11 +207,11 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
             runSpacing: AppTheme.space2,
             children: [
               for (final industry in qualificationIndustries)
-                choice(
-                  adIndustryLabel(industry),
-                  _industry == industry,
-                  () => setState(() => _industry = industry),
-                  Key('qualification-industry-$industry'),
+                AppChoiceButton(
+                  key: Key('qualification-industry-$industry'),
+                  label: adIndustryLabel(industry),
+                  selected: _industry == industry,
+                  onPress: () => setState(() => _industry = industry),
                 ),
             ],
           ),
