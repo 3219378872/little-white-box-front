@@ -6,6 +6,7 @@ import '../core/api/json_int64.dart';
 import 'mock_data.dart';
 
 part 'mock_ads.dart';
+part 'seeds/mock_ads_seed.dart';
 part 'mock_assistant_research.dart';
 
 part 'mock_state.dart';
