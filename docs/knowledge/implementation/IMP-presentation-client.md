@@ -8,6 +8,7 @@ code_paths:
 - lib/core/theme
 - lib/core/widgets
 - lib/core/router/app_router.dart
+- lib/core/router/app_routes.dart
 - lib/core/shell/main_shell.dart
 - lib/core/shell/auth_frame.dart
 - test/helpers/forui_test_builder.dart
