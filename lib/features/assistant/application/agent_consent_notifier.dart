@@ -6,6 +6,10 @@ import '../../../core/api/api_exceptions.dart';
 import '../data/assistant_repository.dart';
 import 'assistant_dependencies.dart';
 
+/// 服务端当前 Agent 披露版本（后端 CurrentAgentConsentVersion）；读回未带版本时，
+/// 授权弹窗展示与本地乐观授权都以它兜底，两处须保持一致。
+const agentConsentFallbackVersion = 3;
+
 /// Agent 授权状态；授权版本与当前披露版本比较，决定是否需要重新确认。
 class AgentConsentState {
   final bool loading;
@@ -113,7 +117,9 @@ class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
     if (mounted && !state.granted) {
       state = state.copyWith(
         granted: true,
-        consentVersion: state.currentVersion == 0 ? 2 : state.currentVersion,
+        consentVersion: state.currentVersion == 0
+            ? agentConsentFallbackVersion
+            : state.currentVersion,
       );
     }
   }

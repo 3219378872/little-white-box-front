@@ -6,6 +6,7 @@ import 'package:xiaobaihe_app/features/assistant/application/assistant_notifier.
 import 'package:xiaobaihe_app/features/assistant/application/assistant_thread_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/application/memory_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/data/assistant_models.dart';
+import 'package:xiaobaihe_app/features/assistant/data/assistant_repository.dart';
 
 import '../helpers/fake_assistant_source.dart';
 
@@ -232,6 +233,24 @@ void main() {
 
     await notifier.grant();
     expect(notifier.state.needsUpgrade, isFalse);
+    expect(notifier.state.canStartRun, isTrue);
+  });
+
+  test('grant falls back to the server disclosure version 3', () async {
+    // 读回尚未反映授权且未带版本时，本地兜底须与后端
+    // CurrentAgentConsentVersion（3）及授权弹窗展示的版本一致。
+    final source = FakeAssistantSource()
+      ..loadConsentHandler = () async => const AgentConsentStatus(
+        granted: false,
+        consentVersion: 0,
+        currentVersion: 0,
+      );
+    final notifier = AgentConsentNotifier(repository: source);
+    await notifier.ensureLoaded();
+
+    await notifier.grant();
+    expect(notifier.state.granted, isTrue);
+    expect(notifier.state.consentVersion, 3);
     expect(notifier.state.canStartRun, isTrue);
   });
 
