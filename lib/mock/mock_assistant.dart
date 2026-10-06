@@ -1,5 +1,6 @@
 part of 'mock_router.dart';
 
+// Agent 线程摘要（未读数、最近消息、进行中的运行），供消息页入口与轮询使用。
 Map<String, dynamic> _threadOf(int userId) {
   return _copyMap(
     _assistantThreads[userId] ??
@@ -16,12 +17,15 @@ Map<String, dynamic> _threadOf(int userId) {
   );
 }
 
+// 清零 Agent 线程未读数。
 Map<String, dynamic> _markAssistantRead(int userId) {
   final thread = _assistantThreads.putIfAbsent(userId, _emptyThread);
   thread['unreadCount'] = 0;
   return {'unreadCount': 0};
 }
 
+// Agent 消息分页：afterId 向后取更新的消息（增量同步），beforeId 向前取更早的消息，
+// 两者都不传时返回最新一页；向前翻页时返回 nextBeforeId 作为下一次的游标。
 Map<String, dynamic> _listAssistantMessages(
   int userId,
   Map<String, String> query,
@@ -59,10 +63,15 @@ Map<String, dynamic> _listAssistantMessages(
   };
 }
 
+// 发送 Agent 消息并决定处置方式，模拟服务端对进行中运行的四种处理：
+// 无运行时 started；工具执行中 steered（并入当前运行）；压缩、附件处理中或带附件时
+// queued（排队，上限 32）；其余情况 redirected（结束当前运行另起新运行）。
+// 消息含 `steer-me`、`queue-me` 时可强制触发对应分支，便于手动验证界面。
 Map<String, dynamic> _postAssistantMessage(
   int userId,
   Map<String, dynamic> body,
 ) {
+  // 协议 v2 下含「比较/选择/先搜索」、带 questionContext 或已有进行中的调研运行时走调研流程。
   final researchMessage = body['message']?.toString() ?? '';
   if (body['clientProtocolVersion'] == 2 &&
       (researchMessage.contains('比较') ||
@@ -102,6 +111,7 @@ Map<String, dynamic> _postAssistantMessage(
       _completeRun(activeRunId);
     }
   }
+  // 落库用户消息，再按处置方式排队、并入当前运行或启动新运行，最后更新线程摘要。
   final messageId = _nextAssistantMessageId++;
   final nowMs = DateTime.now().millisecondsSinceEpoch;
   final stored = {
@@ -147,6 +157,9 @@ Map<String, dynamic> _postAssistantMessage(
   };
 }
 
+// 一次性生成整个运行的 SSE 事件序列：开始、按 6 个字素切块的回答 token、来源卡片，
+// 消息含「删除/delete」时追加工具调用与待确认，含 `memory` 时追加记忆变更；
+// 含 `steer-me` 或 `hang` 时不发 done，用于模拟仍在进行的运行。
 void _startRun(int userId, int runId, int sessionId, String message) {
   final sourcePost = _publishedPosts().isEmpty
       ? <String, dynamic>{'id': 1, 'title': '示例帖', 'revision': 1, 'authorId': 2}
@@ -244,6 +257,7 @@ void _startRun(int userId, int runId, int sessionId, String message) {
   };
 }
 
+// 以 SSE 返回运行事件；afterSeq 查询参数或 Last-Event-ID 头指定断线续传起点，只补发其后的事件。
 MockRouterResponse _streamAssistantRunEvents(
   int userId,
   int runId,
@@ -279,6 +293,7 @@ MockRouterResponse _streamAssistantRunEvents(
   );
 }
 
+// 取消运行：调研运行进入 cancelled 终态，普通运行结束并清除线程上的活动运行。
 void _cancelAssistantRun(int userId, int runId) {
   final run = _assistantRuns[runId];
   if (run == null || run['userId'] != userId) {
@@ -292,6 +307,7 @@ void _cancelAssistantRun(int userId, int runId) {
   _completeRun(runId);
 }
 
+// 确认待执行的工具调用：只校验参数与运行归属，不产生后续事件。
 void _confirmAssistantRun(int userId, int runId, Map<String, dynamic> body) {
   final callId = body['callId']?.toString() ?? '';
   if (callId.isEmpty) throw const _MockBiz(400, 2, '参数错误');
@@ -301,6 +317,7 @@ void _confirmAssistantRun(int userId, int runId, Map<String, dynamic> body) {
   }
 }
 
+// 标记运行完成，若它仍是线程的活动运行则一并清除。
 void _completeRun(int runId) {
   final run = _assistantRuns[runId];
   if (run == null) return;
@@ -314,6 +331,7 @@ void _completeRun(int runId) {
   }
 }
 
+// 清空 Agent 历史：删除该用户的运行与事件、消息，并重置线程摘要与待回答的追问。
 void _deleteAssistantHistory(int userId) {
   final runs = [
     for (final entry in _assistantRuns.entries)
@@ -332,6 +350,7 @@ void _deleteAssistantHistory(int userId) {
   thread.remove('questionRequest');
 }
 
+// 新用户的空线程摘要。
 Map<String, dynamic> _emptyThread() => {
   'sessionId': 1,
   'unreadCount': 0,

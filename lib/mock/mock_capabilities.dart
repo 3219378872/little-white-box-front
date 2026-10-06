@@ -1,5 +1,6 @@
 part of 'mock_router.dart';
 
+// Agent 授权状态；种子用户默认已授权，未播种的用户视为未授权。
 Map<String, dynamic> _consentOf(int userId) {
   return _copyMap(
     _agentConsent[userId] ??
@@ -13,6 +14,7 @@ Map<String, dynamic> _consentOf(int userId) {
   );
 }
 
+// 记忆列表，可按 target（memory 为 Agent 记忆、user 为用户画像）过滤，并附各分区容量。
 Map<String, dynamic> _listMemory(int userId, String? target) {
   final items = [
     for (final item
@@ -23,6 +25,7 @@ Map<String, dynamic> _listMemory(int userId, String? target) {
   return {'items': items, 'capacities': _memoryCapacities(userId)};
 }
 
+// 各分区已用字符数与上限，供记忆页展示容量条。
 List<Map<String, dynamic>> _memoryCapacities(int userId) {
   final items = _assistantMemories[userId] ?? const <Map<String, dynamic>>[];
   int used(String target) => items
@@ -34,6 +37,7 @@ List<Map<String, dynamic>> _memoryCapacities(int userId) {
   ];
 }
 
+// 新增记忆条目，并记录一条可撤销的变更。
 Map<String, dynamic> _addMemory(int userId, Map<String, dynamic> body) {
   final target = body['target']?.toString() ?? '';
   final content = body['content']?.toString().trim() ?? '';
@@ -55,6 +59,7 @@ Map<String, dynamic> _addMemory(int userId, Map<String, dynamic> body) {
   return {'entry': _copyMap(entry), 'changeId': changeId};
 }
 
+// 修改记忆：传入 version 时做乐观并发校验，不一致返回 409；成功后版本加一并记录变更。
 Map<String, dynamic> _replaceMemory(
   int userId,
   int id,
@@ -81,6 +86,7 @@ Map<String, dynamic> _replaceMemory(
   return {'entry': _copyMap(items[index]), 'changeId': changeId};
 }
 
+// 删除记忆：版本可从查询参数或请求体读取，校验规则同 [_replaceMemory]。
 Map<String, dynamic> _removeMemory(
   int userId,
   int id,
@@ -103,6 +109,7 @@ Map<String, dynamic> _removeMemory(
   return {'changeId': changeId};
 }
 
+// 批量执行 add/replace/remove，按顺序逐条应用；中途失败时之前的操作不回滚。
 Map<String, dynamic> _batchMemory(int userId, Map<String, dynamic> body) {
   final ops = body['ops'];
   if (ops is! List || ops.isEmpty) throw const _MockBiz(400, 2, '参数错误');
@@ -130,6 +137,7 @@ Map<String, dynamic> _batchMemory(int userId, Map<String, dynamic> body) {
   return {'entries': entries, 'changeIds': changeIds};
 }
 
+// 记录变更前后快照（新增时 before 为空、删除时 after 为空），返回供撤销用的变更 ID。
 int _recordMemoryChange(
   int userId,
   Map<String, dynamic>? before,
@@ -144,6 +152,7 @@ int _recordMemoryChange(
   return changeId;
 }
 
+// 撤销一次变更：移除变更后的条目并恢复变更前快照；每个变更只能撤销一次。
 Map<String, dynamic> _undoMemory(int userId, int changeId) {
   final changes = _assistantMemoryChanges[userId];
   if (changes == null) throw const _MockBiz(404, 4, '资源不存在');

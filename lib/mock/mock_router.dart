@@ -19,6 +19,7 @@ part 'mock_assistant.dart';
 part 'mock_capabilities.dart';
 part 'mock_helpers.dart';
 
+/// Mock 网关的一次响应，由 [MockHttpClient] 转成 `http.StreamedResponse`。
 class MockRouterResponse {
   final String body;
   final int statusCode;
@@ -31,6 +32,7 @@ class MockRouterResponse {
   });
 }
 
+// 处理函数抛出的业务错误，由 [dispatchResponse] 统一转成 `{code, message}` 错误响应。
 class _MockBiz implements Exception {
   final int statusCode;
   final int code;
@@ -39,6 +41,8 @@ class _MockBiz implements Exception {
   const _MockBiz(this.statusCode, this.code, this.message);
 }
 
+// 从 Authorization 头解析出的身份；[state] 取 anonymous/invalid/expired/authenticated，
+// 并像网关 OptionalAuth 一样回写到 `x-auth-state` 响应头。
 class _Auth {
   final String state;
   final int userId;
@@ -48,6 +52,7 @@ class _Auth {
   bool get isAuthenticated => state == 'authenticated' && userId > 0;
 }
 
+/// 只取响应体的便捷入口，供只关心 JSON 内容的测试使用。
 String dispatch(
   String method,
   String path,
@@ -57,6 +62,10 @@ String dispatch(
   return dispatchResponse(method, path, requestBody, headers: headers).body;
 }
 
+/// Mock 网关总入口：首次调用时播种内存状态，解析鉴权与 JSON 请求体后按 `/api/v1`、
+/// `/api/v2` 分派到各处理函数；业务错误与未预期异常都转成网关格式的错误响应。
+///
+/// multipart 请求体由 [MockHttpClient] 替换为 `<multipart-N-files>` 占位串，不做 JSON 解析。
 MockRouterResponse dispatchResponse(
   String method,
   String path,
@@ -85,6 +94,7 @@ MockRouterResponse dispatchResponse(
     }
   }
 
+  // 先拒绝非对象 JSON，再按版本前缀分派；其余路径一律 404。
   try {
     if (malformed) {
       throw const _MockBiz(400, 2, '参数错误');
@@ -121,6 +131,8 @@ MockRouterResponse dispatchResponse(
   }
 }
 
+// v1 路由：认证、帖子/评论读取、用户资料、点赞收藏关注与图片上传。
+// 先按完整路径精确匹配，再处理带路径 ID 的路由。
 MockRouterResponse _routeV1(
   String method,
   List<String> segments,
@@ -199,6 +211,7 @@ MockRouterResponse _routeV1(
       return _jsonResponse(_uploadImage());
   }
 
+  // 带路径 ID 的读取与删除：帖子详情、评论列表/回复、删除评论、用户资料与用户帖子/收藏。
   if (segments.length == 4 && segments[2] == 'post') {
     _requireMethod(method, 'GET');
     return _withAuthState(
@@ -250,6 +263,8 @@ MockRouterResponse _routeV1(
   throw const _MockBiz(404, 4, '资源不存在');
 }
 
+// v2 路由：Feed、行为上报、搜索、Agent、个性化、发帖与私信，
+// 精确路径之后依次尝试广告、审核子路由，最后匹配带路径 ID 的路由。
 MockRouterResponse _routeV2(
   String method,
   List<String> segments,
@@ -371,11 +386,13 @@ MockRouterResponse _routeV2(
       return _jsonResponse(_unreadSummary());
   }
 
+  // 广告与审核子路由不匹配时返回 null，继续向下匹配。
   final ads = _routeAds(method, segments, query, body, auth, headers);
   if (ads != null) return ads;
   final review = _routeReview(method, segments, body, auth);
   if (review != null) return review;
 
+  // 带路径 ID 的路由：编辑/删除帖子、会话消息与已读、Agent 运行控制、记忆撤销与修改。
   if (segments.length == 4 && segments[2] == 'post') {
     _requireAuth(auth);
     final postId = _pathId(segments[3]);
@@ -456,6 +473,7 @@ MockRouterResponse _routeV2(
   throw const _MockBiz(404, 4, '资源不存在');
 }
 
+// 为可选鉴权的公开接口附上 `x-auth-state`，与网关 OptionalAuth 的行为一致。
 MockRouterResponse _withAuthState(_Auth auth, MockRouterResponse response) {
   return MockRouterResponse(
     body: response.body,
@@ -464,6 +482,7 @@ MockRouterResponse _withAuthState(_Auth auth, MockRouterResponse response) {
   );
 }
 
+// 网关格式的错误响应；同时带上鉴权状态，便于测试区分匿名与令牌失效。
 MockRouterResponse _errorResponse(
   int statusCode,
   int code,
@@ -480,6 +499,7 @@ MockRouterResponse _errorResponse(
   );
 }
 
+// 成功响应直接返回业务载荷，不套 `{code, data}` 信封。
 MockRouterResponse _jsonResponse(
   Map<String, dynamic> payload, {
   int statusCode = 200,

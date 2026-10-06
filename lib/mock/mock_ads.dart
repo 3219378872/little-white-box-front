@@ -85,6 +85,8 @@ List<Map<String, dynamic>> _mockSponsoredSlots(
   return slots;
 }
 
+// `/api/v2/ads/**` 路由，非广告路径返回 null 交回上层继续匹配。
+// 举报与隐藏允许匿名（以 sessionId 识别观看者），其余接口要求登录。
 MockRouterResponse? _routeAds(
   String method,
   List<String> segments,
@@ -95,6 +97,7 @@ MockRouterResponse? _routeAds(
 ) {
   if (segments.length < 3 || segments[2] != 'ads') return null;
   final rest = segments.sublist(3);
+  // 举报：同时对该观看者隐藏广告；counted 表示是否为首次计数的举报。
   if (rest.length == 2 && rest[1] == 'report') {
     _requireMethod(method, 'POST');
     final sessionId = body?['sessionId']?.toString().trim() ?? '';
@@ -119,11 +122,13 @@ MockRouterResponse? _routeAds(
     return _jsonResponse({'ok': true});
   }
   _requireAuth(auth);
+  // 广告控制台：列表与创建。
   if (rest.isEmpty) {
     if (method == 'GET') return _jsonResponse(_listMockAds(auth.userId));
     _requireMethod(method, 'POST');
     return _jsonResponse({'ad': _writeMockAd(auth.userId, null, body ?? {})});
   }
+  // 广告主资料、资质与投放政策（政策表为演示数据）。
   switch (rest.join('/')) {
     case 'advertiser':
       if (method == 'GET') {
@@ -167,6 +172,7 @@ MockRouterResponse? _routeAds(
         'demo': true,
       });
   }
+  // 素材上传与读取：上传只登记归属与类型，读取总是返回占位 PNG。
   if (rest.length == 2 && rest[0] == 'assets') {
     if (method == 'POST') {
       if (rest[1] != 'creative' && rest[1] != 'document') {
@@ -196,6 +202,7 @@ MockRouterResponse? _routeAds(
     _requireMethod(method, 'POST');
     return _jsonResponse({'ad': _appealMockAd(auth.userId, _pathId(rest[0]))});
   }
+  // 单个广告的读取与编辑，仅限广告所有者。
   if (rest.length == 1) {
     final adId = _pathId(rest[0]);
     if (method == 'GET') {
@@ -207,6 +214,7 @@ MockRouterResponse? _routeAds(
   throw const _MockBiz(404, 4, '资源不存在');
 }
 
+// 当前用户的全部广告，一次返回不分页。
 Map<String, dynamic> _listMockAds(int userId) => {
   'ads': [
     for (final ad in _ads.values)
@@ -216,6 +224,7 @@ Map<String, dynamic> _listMockAds(int userId) => {
   'hasMore': false,
 };
 
+// 举报原因白名单。
 const _mockReportReasons = {
   'misleading',
   'scam',
@@ -225,6 +234,7 @@ const _mockReportReasons = {
   'other',
 };
 
+// 对外的广告对象：去掉内部归属字段，补上是否可申诉。
 Map<String, dynamic> _publicAd(Map<String, dynamic> ad) =>
     Map<String, dynamic>.from(ad)
       ..remove('owner')
@@ -247,6 +257,7 @@ int _mockAppealTarget(Map<String, dynamic> ad) {
   return target > appealed ? target : 0;
 }
 
+// 提交申诉：无可申诉版本时返回 409/7106，成功后进入 appealing 并记下已申诉版本。
 Map<String, dynamic> _appealMockAd(int userId, int adId) {
   final ad = _ads[adId];
   if (ad == null || ad['owner'] != userId) {
@@ -261,6 +272,7 @@ Map<String, dynamic> _appealMockAd(int userId, int adId) {
   return _publicAd(ad);
 }
 
+// 读取自己的广告，他人或不存在的广告一律按不存在处理。
 Map<String, dynamic> _ownedAd(int userId, int adId) {
   final ad = _ads[adId];
   if (ad == null || ad['owner'] != userId) {
@@ -269,6 +281,7 @@ Map<String, dynamic> _ownedAd(int userId, int adId) {
   return _publicAd(ad);
 }
 
+// 申请或更新广告主资料：expectedRevision 乐观并发，提交后重新进入待审。
 Map<String, dynamic> _applyMockAdvertiser(
   int userId,
   Map<String, dynamic> body,
@@ -299,6 +312,7 @@ Map<String, dynamic> _applyMockAdvertiser(
   return next;
 }
 
+// 追加行业资质：需要已是广告主且版本匹配，资质文件必须是本人上传的素材。
 Map<String, dynamic> _addMockQualification(
   int userId,
   Map<String, dynamic> body,
@@ -337,6 +351,8 @@ Map<String, dynamic> _addMockQualification(
   return next;
 }
 
+// 创建（[adId] 为 null）或编辑广告：幂等键重放返回首次结果；要求广告主已过审、
+// 落地页为 https、行业不在受限列表；编辑需版本匹配，保存后版本加一并重新待审。
 Map<String, dynamic> _writeMockAd(
   int userId,
   int? adId,
@@ -404,6 +420,8 @@ Map<String, dynamic> _writeMockAd(
   return _publicAd(ad);
 }
 
+// `/api/v2/review/**` 路由，非审核路径返回 null。只有固定的审核员（用户 1）具备角色，
+// 其他登录用户只能访问 `me`；续租、释放与提交结论要求持有有效租约。
 MockRouterResponse? _routeReview(
   String method,
   List<String> segments,
@@ -424,6 +442,7 @@ MockRouterResponse? _routeReview(
     });
   }
   if (!reviewer) throw const _MockBiz(403, 7003, '需要审核角色');
+  // 队列概览：按用途统计待审数量与最久等待时长。
   if (rest == 'queue') {
     _requireMethod(method, 'GET');
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -443,6 +462,7 @@ MockRouterResponse? _routeReview(
       'policyVersion': 'ads-2026-10-01',
     });
   }
+  // 领取任务：取第一个匹配用途的待审任务并加租约。
   if (rest == 'tasks/claim') {
     _requireMethod(method, 'POST');
     final purpose = body?['purpose']?.toString() ?? '';
@@ -469,6 +489,7 @@ MockRouterResponse? _routeReview(
         'contentBase64': base64Encode(_mockPng),
       });
     }
+    // 续租、释放与提交结论。
     if (parts.length == 3) {
       _requireMethod(method, 'POST');
       _requireMockLease(task, auth.userId, body);
@@ -490,6 +511,7 @@ MockRouterResponse? _routeReview(
   throw const _MockBiz(404, 4, '资源不存在');
 }
 
+// 领取任务：租约代数加一，旧代数的后续操作会被判为持有失效。
 void _leaseMockTask(Map<String, dynamic> task, int userId) {
   task['status'] = 'claimed';
   task['claimer'] = userId;
@@ -499,6 +521,8 @@ void _leaseMockTask(Map<String, dynamic> task, int userId) {
       .millisecondsSinceEpoch;
 }
 
+// 校验任务操作的前提：已决任务 409/7004，预置作废任务 410/7002，
+// 非本人持有、租约代数不符或预置持有失效时 409/7001。
 void _requireMockLease(
   Map<String, dynamic> task,
   int userId,
@@ -520,6 +544,7 @@ void _requireMockLease(
   }
 }
 
+// 提交审核结论：拒绝必须附政策代码；质检任务的结论来源记为 qa。
 Map<String, dynamic> _decideMockTask(
   Map<String, dynamic> task,
   Map<String, dynamic> body,
@@ -548,6 +573,7 @@ Map<String, dynamic> _decideMockTask(
   };
 }
 
+// 对外的任务对象：去掉持有人与预置失败标记等内部字段。
 Map<String, dynamic> _publicTask(Map<String, dynamic> task) =>
     Map<String, dynamic>.from(task)
       ..remove('claimer')

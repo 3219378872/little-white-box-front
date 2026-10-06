@@ -1,7 +1,9 @@
 // Mock 种子数据 — 用于前端可用性测试
 
+// 种子时间以加载时刻为基准倒推（秒），让相对时间展示保持「刚刚/几小时前」。
 final int _now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
+/// 三个种子用户；用户 1 是 mock 模式默认登录账号，用户 3 的收藏设为私密以覆盖 3007 分支。
 final Map<int, Map<String, dynamic>> seedUsers = {
   1: {
     'id': 1,
@@ -41,6 +43,7 @@ final Map<int, Map<String, dynamic>> seedUsers = {
   },
 };
 
+/// 8 篇种子帖子，作者在三个用户间轮换，供 Feed、详情、搜索与个人主页展示。
 final List<Map<String, dynamic>> seedPosts = [
   {
     'id': 1,
@@ -188,6 +191,7 @@ final List<Map<String, dynamic>> seedPosts = [
   },
 ];
 
+/// 按帖子 ID 分组的种子评论；帖子 1 额外生成大量顶级评论与楼中楼，用于分页与回复展开。
 final Map<int, List<Map<String, dynamic>>> seedComments = {
   1: [
     {

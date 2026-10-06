@@ -1,5 +1,7 @@
 part of 'mock_router.dart';
 
+// 推荐 Feed：requestId 必填，匿名访问还需 anonymousId；按已发布帖子顺序以偏移游标分页，
+// 附带伪造的排序分、召回来源与实验信息，`adSlots=1` 时插入赞助位。
 MockRouterResponse _recommendFeed(Map<String, String> query, _Auth auth) {
   final requestId = query['requestId']?.trim() ?? '';
   final pageSize = _queryInt(query, 'pageSize', defaultValue: 20);
@@ -50,6 +52,8 @@ MockRouterResponse _recommendFeed(Map<String, String> query, _Auth auth) {
   });
 }
 
+// 关注 Feed：只含已关注作者的已发布帖子，按 (createdAt, postId) 倒序，
+// 以上一页最后一条的这两个值作为复合游标。
 MockRouterResponse _followFeed(Map<String, String> query, _Auth auth) {
   final pageSize = _queryInt(query, 'pageSize', defaultValue: 20);
   final cursorCreatedAt = _queryInt(query, 'cursorCreatedAt', defaultValue: 0);
@@ -95,6 +99,8 @@ MockRouterResponse _followFeed(Map<String, String> query, _Auth auth) {
   });
 }
 
+// 行为批量上报：逐条校验并返回每条的受理结果，同一 clientEventId 重放得到同一 eventId；
+// 整批以 202 返回，单条拒绝不影响其余事件。
 MockRouterResponse _behaviorEvents(Map<String, dynamic>? body, _Auth auth) {
   final anonymousId = body?['anonymousId']?.toString().trim() ?? '';
   if (!auth.isAuthenticated && anonymousId.isEmpty) {
@@ -134,6 +140,7 @@ MockRouterResponse _behaviorEvents(Map<String, dynamic>? body, _Auth auth) {
   }, statusCode: 202);
 }
 
+// 单条事件的拒绝原因，合法时返回 null；曝光事件额外要求 requestId、scene 与从 1 开始的位置。
 String? _behaviorRejectReason(
   Map<String, dynamic> event,
   String clientEventId,
@@ -176,6 +183,8 @@ String? _behaviorRejectReason(
   return null;
 }
 
+// 综合搜索：关键词对帖子标题/正文/标签与用户名/昵称/简介做不区分大小写的包含匹配，
+// [usersOnly] 时只返回用户结果；帖子与用户共用同一页码偏移。
 MockRouterResponse _search(
   Map<String, String> query, {
   bool includePosts = false,
@@ -219,6 +228,7 @@ MockRouterResponse _search(
   });
 }
 
+// 标签联想：按包含关键词的已发布帖子数排序。
 MockRouterResponse _searchTags(Map<String, String> query) {
   final limit = _queryInt(query, 'limit', defaultValue: 20);
   if (limit <= 0 || limit > 100) throw const _MockBiz(400, 2, '参数错误');
@@ -227,6 +237,7 @@ MockRouterResponse _searchTags(Map<String, String> query) {
   return _jsonResponse({'tags': _matchingTags(keyword.toLowerCase(), limit)});
 }
 
+// 把帖子投影成 Feed 条目；[feedType] 1 为关注流、2 为推荐流，[extra] 追加推荐解释字段。
 Map<String, dynamic> _feedItem(
   Map<String, dynamic> post,
   int viewerId, {
@@ -254,6 +265,7 @@ Map<String, dynamic> _feedItem(
   };
 }
 
+// 搜索结果中的帖子摘要，正文截取前 120 字作为高亮片段。
 Map<String, dynamic> _searchPost(Map<String, dynamic> post) {
   final content = post['content']?.toString() ?? '';
   return {
@@ -271,6 +283,7 @@ Map<String, dynamic> _searchPost(Map<String, dynamic> post) {
   };
 }
 
+// 搜索结果中的用户摘要。
 Map<String, dynamic> _searchUser(Map<String, dynamic> user) {
   return {
     'id': user['id'],
@@ -282,6 +295,7 @@ Map<String, dynamic> _searchUser(Map<String, dynamic> user) {
   };
 }
 
+// 统计已发布帖子中包含关键词的标签及其帖子数，按帖子数倒序取前 [limit] 个。
 List<Map<String, dynamic>> _matchingTags(String normalized, int limit) {
   final tagCounts = <String, int>{};
   for (final post in _publishedPosts()) {
@@ -307,6 +321,7 @@ String _encodeCursorPage(int page) {
   return base64Url.encode(raw).replaceAll('=', '');
 }
 
+// 空游标为第 1 页；无法解码时按参数错误拒绝。
 int _decodeCursorPage(String cursor) {
   if (cursor.isEmpty) return 1;
   try {
@@ -319,10 +334,12 @@ int _decodeCursorPage(String cursor) {
   }
 }
 
+// 推荐流游标：`mock_` 前缀加 base64url 编码的偏移量。
 String _encodeRecommendCursor(int offset) {
   return 'mock_${base64Url.encode(utf8.encode('$offset')).replaceAll('=', '')}';
 }
 
+// 解析推荐流游标，格式不对返回 null，由调用方按参数错误处理。
 int? _decodeRecommendCursor(String cursor) {
   if (!cursor.startsWith('mock_')) return null;
   try {

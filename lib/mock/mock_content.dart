@@ -1,5 +1,6 @@
 part of 'mock_router.dart';
 
+// v1 帖子列表：只含已发布帖子，sortBy 2 按点赞数、否则按发布时间倒序，游标分页。
 Map<String, dynamic> _postList(Map<String, String> query, _Auth auth) {
   final cursor = query['cursor'] ?? '';
   final pageSize = _clampPageSize(
@@ -17,6 +18,7 @@ Map<String, dynamic> _postList(Map<String, String> query, _Auth auth) {
   return _pagedPosts(sorted, cursor, pageSize, auth.userId);
 }
 
+// 帖子详情：未发布（草稿）只对作者可见，其他人按不存在处理。
 Map<String, dynamic> _getPost(int postId, _Auth auth) {
   final post = _findPost(postId);
   if (_statusOf(post) != 1 &&
@@ -26,6 +28,7 @@ Map<String, dynamic> _getPost(int postId, _Auth auth) {
   return _postItem(post, auth.userId);
 }
 
+// 发帖：同一幂等键重放时返回首次创建的帖子，不重复创建；status 0 为草稿、1 为发布。
 Map<String, dynamic> _createPost(int userId, Map<String, dynamic> body) {
   final key = body['idempotencyKey']?.toString().trim() ?? '';
   if (key.isNotEmpty && _postIdempotencyKeys.containsKey(key)) {
@@ -67,6 +70,8 @@ Map<String, dynamic> _createPost(int userId, Map<String, dynamic> body) {
   return {'postId': id, 'status': status, 'revision': 1};
 }
 
+// 编辑帖子：仅作者可改，expectedRevision 必须等于当前版本（乐观并发），
+// 未传的字段沿用原值，成功后版本号加一。
 Map<String, dynamic> _updatePost(
   int userId,
   int postId,
@@ -109,6 +114,7 @@ Map<String, dynamic> _updatePost(
   return {'status': status, 'revision': revision + 1};
 }
 
+// 删除帖子：作者与版本校验同 [_updatePost]，评论一并移除。
 void _deletePost(int userId, int postId, Map<String, dynamic> body) {
   final idx = _postIndex(postId);
   final current = _posts[idx];
@@ -123,6 +129,7 @@ void _deletePost(int userId, int postId, Map<String, dynamic> body) {
   _comments.remove(postId);
 }
 
+// 顶级评论列表：页码分页，sortBy 2 按点赞数、否则按时间倒序。
 Map<String, dynamic> _commentList(int postId, Map<String, String> query) {
   _findPost(postId);
   final page = _clampPage(_queryInt(query, 'page', defaultValue: 1));
@@ -153,6 +160,7 @@ Map<String, dynamic> _commentList(int postId, Map<String, String> query) {
   };
 }
 
+// 某条顶级评论下的全部回复，按时间正序；评论 ID 全局唯一，找到即返回。
 List<Map<String, dynamic>> _repliesOf(int parentId) {
   for (final entry in _comments.entries) {
     final replies =
@@ -167,6 +175,7 @@ List<Map<String, dynamic>> _repliesOf(int parentId) {
   return const <Map<String, dynamic>>[];
 }
 
+// 顶级评论附带回复总数与前 3 条回复预览。
 Map<String, dynamic> _withReplyPreview(Map<String, dynamic> comment) {
   final replies = _repliesOf((comment['id'] as num).toInt());
   return {
@@ -176,12 +185,14 @@ Map<String, dynamic> _withReplyPreview(Map<String, dynamic> comment) {
   };
 }
 
+// 回复本身不再嵌套回复。
 Map<String, dynamic> _stripNested(Map<String, dynamic> reply) => {
   ...reply,
   'replyCount': 0,
   'replies': const <Map<String, dynamic>>[],
 };
 
+// 楼中楼分页：只接受顶级评论 ID，回复的回复按不存在处理。
 Map<String, dynamic> _commentReplies(int commentId, Map<String, String> query) {
   final page = _clampPage(_queryInt(query, 'page', defaultValue: 1));
   final pageSize = _clampPageSize(
@@ -204,6 +215,7 @@ Map<String, dynamic> _commentReplies(int commentId, Map<String, String> query) {
   };
 }
 
+// 发表评论或回复（parentId 非 0）；同一幂等键重放返回首次创建的评论 ID。
 Map<String, dynamic> _createComment(int userId, Map<String, dynamic> body) {
   final postId = (body['postId'] as num?)?.toInt() ?? 0;
   final content = body['content']?.toString() ?? '';
@@ -232,6 +244,7 @@ Map<String, dynamic> _createComment(int userId, Map<String, dynamic> body) {
   return {'commentId': id};
 }
 
+// 删除评论：仅评论作者可删。
 MockRouterResponse _deleteComment(int userId, int commentId) {
   for (final entry in _comments.entries) {
     final idx = entry.value.indexWhere((comment) => comment['id'] == commentId);
@@ -239,7 +252,7 @@ MockRouterResponse _deleteComment(int userId, int commentId) {
     if ((entry.value[idx]['userId'] as num).toInt() != userId) {
       throw const _MockBiz(403, 1007, '权限不足');
     }
-    // 与后端契约一致：删除顶级评论时级联软删其全部楼中楼回复
+    // 与后端契约一致：删除顶级评论时其全部楼中楼回复一并删除（mock 直接移除，不做软删标记）
     entry.value.removeWhere(
       (comment) =>
           (comment['id'] as num).toInt() == commentId ||
@@ -250,6 +263,7 @@ MockRouterResponse _deleteComment(int userId, int commentId) {
   throw const _MockBiz(404, 4, '资源不存在');
 }
 
+// 把内存帖子投影成网关帖子对象，按 [viewerId] 计算点赞/收藏态，评论数取实时值。
 Map<String, dynamic> _postItem(Map<String, dynamic> post, int viewerId) {
   final postId = (post['id'] as num).toInt();
   return {
@@ -273,6 +287,7 @@ Map<String, dynamic> _postItem(Map<String, dynamic> post, int viewerId) {
   };
 }
 
+// 帖子游标分页的公共实现；游标内编码页码。
 Map<String, dynamic> _pagedPosts(
   List<Map<String, dynamic>> posts,
   String cursor,
@@ -294,13 +309,16 @@ Map<String, dynamic> _pagedPosts(
   };
 }
 
+// 已发布（status 1）的帖子。
 List<Map<String, dynamic>> _publishedPosts() {
   return _posts.where((post) => _statusOf(post) == 1).toList();
 }
 
+// 种子帖子未写 status 时视为已发布。
 int _statusOf(Map<String, dynamic> post) =>
     (post['status'] as num?)?.toInt() ?? 1;
 
+// 按 ID 查帖子，不存在抛 404/2001。
 Map<String, dynamic> _findPost(int postId) {
   return _posts.firstWhere(
     (post) => (post['id'] as num).toInt() == postId,
@@ -308,6 +326,7 @@ Map<String, dynamic> _findPost(int postId) {
   );
 }
 
+// 按 ID 查帖子下标，供原地替换或删除。
 int _postIndex(int postId) {
   final idx = _posts.indexWhere(
     (post) => (post['id'] as num).toInt() == postId,
@@ -316,6 +335,7 @@ int _postIndex(int postId) {
   return idx;
 }
 
+// 跨帖子按 ID 查评论。
 Map<String, dynamic> _findComment(int commentId) {
   for (final entry in _comments.entries) {
     for (final comment in entry.value) {
@@ -325,6 +345,7 @@ Map<String, dynamic> _findComment(int commentId) {
   throw const _MockBiz(404, 4, '资源不存在');
 }
 
+// 帖子字段校验：标题 1~120 字、正文 1~20000 字、图片不超过 9 张、标签不超过 10 个。
 void _validatePostFields(
   String title,
   String content,

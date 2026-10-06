@@ -1,11 +1,13 @@
 part of 'mock_router.dart';
 
+// 线程当前的活动运行若是调研运行则返回它，否则 null。
 Map<String, dynamic>? _activeResearchRun(int userId) {
   final id = _assistantThreads[userId]?['activeRunId'];
   final run = _assistantRuns[id];
   return run?['research'] == true ? run : null;
 }
 
+// 追问超过回答期限时把运行终止为 expired；在读取事件流时惰性检查。
 void _expireResearch(int runId) {
   final question = _assistantRuns[runId]?['question'] as Map<String, dynamic>?;
   if (question != null &&
@@ -15,6 +17,8 @@ void _expireResearch(int runId) {
   }
 }
 
+// 以 [status] 结束待回答的追问并发出 questions_resolved；运行尚未终结时再发 error 事件
+// （取消记为 cancelled，其余记为 error），并清除线程上的活动运行与追问。
 void _terminateResearch(int runId, String status, String code, String text) {
   final run = _assistantRuns[runId]!;
   final question = run['question'] as Map<String, dynamic>?;
@@ -42,6 +46,7 @@ void _terminateResearch(int runId, String status, String code, String text) {
   }
 }
 
+// 向运行事件序列追加一条事件，seq 按序递增，供 SSE 续传。
 void _researchEvent(int runId, String type, Map<String, dynamic> data) {
   final events = _assistantRunEvents.putIfAbsent(runId, () => []);
   events.add({
@@ -53,6 +58,9 @@ void _researchEvent(int runId, String type, Map<String, dynamic> data) {
   });
 }
 
+// 调研流程的发消息：需要 Agent 授权；同一 requestId 重放返回首次受理结果，
+// 内容不同则 409。已有调研运行时，新消息作为 steered 并入并取代待答追问后直接出结果；
+// 否则启动新运行，带 questionContext 或含「先搜索」时直接出结果，其余先发一个追问等待回答。
 Map<String, dynamic> _postResearchMessage(
   int userId,
   Map<String, dynamic> body,
@@ -131,6 +139,7 @@ Map<String, dynamic> _postResearchMessage(
     _finishResearch(runId);
     return accepted;
   }
+  // 发出单题多选追问（30 分钟内回答），运行与线程进入 waiting_input。
   final questionMessageId = _nextAssistantMessageId++;
   final question = <String, dynamic>{
     'id': 'q-$runId',
@@ -181,6 +190,8 @@ Map<String, dynamic> _postResearchMessage(
   return accepted;
 }
 
+// 回答追问：同一请求体重放直接返回当前追问；追问已回答或过期返回 409；
+// 校验答案选项与处置方式后标记 answered 并生成结果。
 Map<String, dynamic> _answerResearchQuestions(
   int userId,
   int runId,
@@ -242,6 +253,8 @@ Map<String, dynamic> _answerResearchQuestions(
   return {'questionRequest': _copyMap(question)};
 }
 
+// 生成调研结果：取前两篇已发布帖子作为来源与引用块（无帖子时给出局限说明），
+// 依次发出工具调用、工具结果、答案提交与 done 事件，写入回答消息并完成运行。
 void _finishResearch(int runId) {
   final run = _assistantRuns[runId]!;
   final userId = run['userId'] as int;

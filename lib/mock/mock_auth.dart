@@ -1,5 +1,7 @@
 part of 'mock_router.dart';
 
+// 登录：loginType 2 为验证码登录，任意合法手机号与非空验证码都登录为用户 1；
+// 其余按用户名密码校验，`admin` 是用户 1 的别名。
 Map<String, dynamic> _login(Map<String, dynamic> body) {
   final loginType = (body['loginType'] as num?)?.toInt() ?? 0;
   if (loginType == 2) {
@@ -33,6 +35,7 @@ Map<String, dynamic> _login(Map<String, dynamic> body) {
   };
 }
 
+// 注册：校验用户名长度、密码强度、手机号格式与重名，成功后直接签发令牌。
 Map<String, dynamic> _register(Map<String, dynamic> body) {
   final username = body['username']?.toString() ?? '';
   final password = body['password']?.toString() ?? '';
@@ -98,6 +101,7 @@ Map<String, dynamic> _refreshTokens(Map<String, dynamic> body) {
   return mockTokenPairForUser(userId.toInt());
 }
 
+// 发送验证码只校验手机号与用途，不真正发送；验证码在登录/注册时不做比对。
 MockRouterResponse _sendVerifyCode(Map<String, dynamic> body) {
   final phone = body['phone']?.toString() ?? '';
   final type = (body['type'] as num?)?.toInt() ?? 0;
@@ -107,6 +111,7 @@ MockRouterResponse _sendVerifyCode(Map<String, dynamic> body) {
   return _jsonResponse(const {});
 }
 
+// 密码需 8~64 位且同时包含大小写字母与数字。
 void _assertPasswordStrength(String password) {
   if (password.length < 8 || password.length > 64) {
     throw const _MockBiz(400, 2, '密码过长或过短');
@@ -131,6 +136,7 @@ void _assertPasswordStrength(String password) {
 
 bool _isPhone(String phone) => RegExp(r'^1[3-9]\d{9}$').hasMatch(phone);
 
+// 解析 Bearer 令牌：缺失为 anonymous，格式或载荷不对为 invalid，过期为 expired。
 _Auth _parseAuth(Map<String, String> headers) {
   var authorization = '';
   for (final entry in headers.entries) {
@@ -156,6 +162,7 @@ _Auth _parseAuth(Map<String, String> headers) {
   return _Auth('authenticated', userId.toInt());
 }
 
+// 只解码载荷不验签（mock 令牌签名是固定占位串）。
 Map<String, dynamic>? _decodeJwtPayload(String token) {
   try {
     final parts = token.split('.');
@@ -170,8 +177,10 @@ Map<String, dynamic>? _decodeJwtPayload(String token) {
   }
 }
 
+/// 不带过期时间的访问令牌，供 mock 入口与测试直接以指定用户登录。
 String mockAccessTokenForUser(int userId) => _buildFakeJwt(userId);
 
+/// 已过期的访问令牌，供测试覆盖 expired 鉴权状态与刷新流程。
 String mockExpiredTokenForUser(int userId) => _buildFakeJwt(
   userId,
   exp: DateTime.now().millisecondsSinceEpoch ~/ 1000 - 10,
@@ -186,9 +195,11 @@ Map<String, String> mockTokenPairForUser(int userId) {
   };
 }
 
+/// 7 天有效的刷新令牌，供 mock 入口写入初始会话。
 String mockRefreshTokenForUser(int userId) =>
     mockTokenPairForUser(userId)['refreshToken']!;
 
+// 构造 `alg: none` 的三段式假 JWT，载荷含 userId、可选 exp 与唯一 jti。
 String _buildFakeJwt(int userId, {int? exp}) {
   // 唯一 jti 模拟真实网关的一次性令牌：同秒内轮换也产出不同字符串。
   final nonce = ++_mockJwtNonce;

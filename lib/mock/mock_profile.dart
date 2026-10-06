@@ -1,5 +1,6 @@
 part of 'mock_router.dart';
 
+// 点赞/取消点赞帖子（targetType 1）：不能赞自己的帖子，重复点赞或取消未赞的都报业务错误。
 MockRouterResponse _like(
   int userId,
   Map<String, dynamic> body, {
@@ -28,6 +29,7 @@ MockRouterResponse _like(
   return _jsonResponse(const {});
 }
 
+// 收藏/取消收藏：重复收藏或取消未收藏的报业务错误，收藏数不低于 0。
 MockRouterResponse _favorite(
   int userId,
   Map<String, dynamic> body, {
@@ -54,6 +56,7 @@ MockRouterResponse _favorite(
   return _jsonResponse(const {});
 }
 
+// 用户资料，登录时附带当前用户是否已关注。
 Map<String, dynamic> _getUser(int userId, _Auth auth) {
   final user = _users[userId];
   if (user == null) throw const _MockBiz(404, 1001, '用户不存在');
@@ -65,6 +68,7 @@ Map<String, dynamic> _getUser(int userId, _Auth auth) {
   };
 }
 
+// 只更新请求中出现的资料字段。
 MockRouterResponse _updateProfile(int userId, Map<String, dynamic> body) {
   final user = _users[userId]!;
   if (body.containsKey('nickname')) user['nickname'] = body['nickname'];
@@ -73,6 +77,7 @@ MockRouterResponse _updateProfile(int userId, Map<String, dynamic> body) {
   return _jsonResponse(const {});
 }
 
+// 关注/取关：不能关注自己；重复操作幂等，只在关系实际变化时更新双方计数。
 MockRouterResponse _follow(
   int userId,
   Map<String, dynamic> body, {
@@ -99,6 +104,7 @@ MockRouterResponse _follow(
   return _jsonResponse(const {});
 }
 
+// 用户帖子列表：作者本人可见草稿，其余人只见已发布帖子。
 Map<String, dynamic> _userPosts(
   int userId,
   Map<String, String> query,
@@ -125,9 +131,11 @@ Map<String, dynamic> _userPosts(
   );
 }
 
+// 用户帖子页大小，默认 20、上限 50。
 int _userPostsPageSize(Map<String, String> query) =>
     _clampPageSize(_queryInt(query, 'pageSize', defaultValue: 20));
 
+// 用户收藏列表：收藏设为私密时只对本人可见，页大小上限 100。
 Map<String, dynamic> _userFavorites(
   int userId,
   Map<String, String> query,
@@ -152,6 +160,7 @@ Map<String, dynamic> _userFavorites(
   return _pagedPosts(filtered, query['cursor'] ?? '', pageSize, auth.userId);
 }
 
+// 图片上传不保存文件，返回随机的占位图地址。
 Map<String, dynamic> _uploadImage() {
   final seed = DateTime.now().microsecondsSinceEpoch % 10000;
   return {

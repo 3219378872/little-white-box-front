@@ -1,16 +1,18 @@
 part of 'mock_router.dart';
 
-/// In-memory Gateway mock aligned with `app/gateway/gateway.api`.
+/// In-memory Gateway mock aligned with the backend `app/gateway/openapi.yaml`.
 ///
 /// Success bodies are the typed payloads (no `{code,desc,data}` wrapper).
 /// Errors use `{code, message}` and the same HTTP statuses as `errx`.
 
+/// 所有种子账号的登录密码，供 mock 模式手动登录与测试使用。
 const mockDevPassword = '123456';
 
 /// 与真实网关对齐：access token 30 分钟，refresh token 7 天。
 const int _mockAccessTtlSeconds = 30 * 60;
 const int _mockRefreshTtlSeconds = 7 * 24 * 60 * 60;
 
+// 客户端可直接上报的行为；其余受支持行为（点赞、收藏、关注等）不接受客户端上报。
 const _clientAllowedActions = {
   'exposure',
   'click',
@@ -33,8 +35,10 @@ const _supportedActions = {
   'unfollow',
 };
 
+// 需要携带时长的行为。
 const _durationActions = {'dwell', 'play', 'view'};
 
+// 自增 ID 起点高于种子数据，避免与种子实体冲突。
 int _nextPostId = 100;
 int _nextCommentId = 200;
 int _nextMessageId = 10000;
@@ -42,6 +46,8 @@ int _nextConversationId = 100;
 int _nextUserId = 10;
 int _nextMediaId = 1000;
 
+// 内存数据库：由 [resetMockState] 从种子复制，处理函数直接读写；
+// 各类幂等键表把请求 ID 映射到已创建实体，模拟重放返回同一结果。
 late List<Map<String, dynamic>> _posts;
 late Map<int, List<Map<String, dynamic>>> _comments;
 late Map<int, Map<String, dynamic>> _users;
@@ -75,6 +81,8 @@ int _nextChangeId = 1;
 
 bool _seeded = false;
 
+/// 把全部内存状态恢复为种子数据；测试在 setUp 中调用以隔离用例，
+/// 首次请求时也会经 [_ensureState] 自动调用。
 void resetMockState() {
   _nextPostId = 100;
   _nextCommentId = 200;
@@ -94,6 +102,7 @@ void resetMockState() {
     for (final user in _users.values)
       user['username'] as String: mockDevPassword,
   };
+  // 用户 1（默认登录账号）预置点赞与关注关系；私信会话与 Agent 记忆也只为它播种。
   _likedByUser = {
     1: {
       for (final post in _posts)
@@ -236,6 +245,7 @@ void resetMockState() {
   _seeded = true;
 }
 
+// 惰性初始化：首个请求到达时才播种。
 void _ensureState() {
   if (!_seeded) resetMockState();
 }

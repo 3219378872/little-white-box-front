@@ -1,5 +1,6 @@
 part of 'mock_router.dart';
 
+// 会话列表：按最近消息时间倒序、页码分页；所有会话都属于默认用户 1。
 Map<String, dynamic> _conversationList(Map<String, String> query) {
   final page = _queryInt(query, 'page', defaultValue: 1);
   final pageSize = _queryInt(query, 'pageSize', defaultValue: 20);
@@ -18,6 +19,7 @@ Map<String, dynamic> _conversationList(Map<String, String> query) {
   };
 }
 
+// 会话消息：按 ID 倒序，lastId 为向更早翻页的游标（0 表示从最新开始）。
 Map<String, dynamic> _conversationMessages(
   int conversationId,
   Map<String, String> query,
@@ -40,11 +42,13 @@ Map<String, dynamic> _conversationMessages(
   };
 }
 
+// 标记会话已读，清零未读数。
 MockRouterResponse _markRead(int conversationId) {
   _conversation(conversationId)['unreadCount'] = 0;
   return _jsonResponse(const {});
 }
 
+// 导航角标用的未读汇总，私信未读为各会话之和。
 Map<String, dynamic> _unreadSummary() {
   final messageUnread = _conversations.fold<int>(
     0,
@@ -54,6 +58,7 @@ Map<String, dynamic> _unreadSummary() {
   return {'messageUnread': messageUnread, 'notificationUnread': 0};
 }
 
+// 发送私信：必须带幂等键，重放返回首次的消息 ID；与对方尚无会话时新建会话。
 Map<String, dynamic> _sendMessage(int userId, Map<String, dynamic> body) {
   final receiverId = (body['receiverId'] as num?)?.toInt();
   final content = body['content']?.toString().trim() ?? '';
@@ -112,6 +117,7 @@ Map<String, dynamic> _sendMessage(int userId, Map<String, dynamic> body) {
   return {'messageId': messageId};
 }
 
+// 按 ID 查会话，不存在返回 404。
 Map<String, dynamic> _conversation(int conversationId) {
   return _conversations.firstWhere(
     (item) => item['id'] == conversationId,
