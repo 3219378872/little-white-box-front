@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../../../core/analytics/client_identity_store.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
+import '../../../core/collections/unique_by.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/feed_models.dart';
 import '../data/feed_repository.dart';
@@ -131,14 +132,13 @@ class FeedNotifier extends StateNotifier<FeedState> {
         positionOffset: state.entries.length,
       );
       if (!mounted || generation != _generation) return;
-      final seen = state.entries
-          .map((entry) => jsonInt64Id(entry.post.id))
-          .toSet();
-      final additions = result.items
-          .where((entry) => seen.add(jsonInt64Id(entry.post.id)))
-          .toList();
+      // 追加新页时丢弃已展示的帖子，保持现有条目顺序不变。
       state = state.copyWith(
-        entries: [...state.entries, ...additions],
+        entries: appendUniqueBy(
+          state.entries,
+          result.items,
+          (entry) => jsonInt64Id(entry.post.id),
+        ),
         sponsored: _appendSponsored(state.sponsored, result.sponsored),
         hasMore: result.hasMore,
         isLoadingMore: false,
@@ -255,20 +255,18 @@ class FeedNotifier extends StateNotifier<FeedState> {
     );
   }
 
+  // 新页广告槽位按槽位键追加，已展示的槽位保持原位。
   static List<SponsoredSlot> _appendSponsored(
     List<SponsoredSlot> current,
     List<SponsoredSlot> additions,
   ) {
     if (additions.isEmpty) return current;
-    final seen = current.map((slot) => slot.key).toSet();
-    return [...current, ...additions.where((slot) => seen.add(slot.key))];
+    return appendUniqueBy(current, additions, (slot) => slot.key);
   }
 
+  // 同一帖子在推荐与关注合流中可能重复，只保留首次出现的位置。
   static List<FeedEntry> _dedupe(List<FeedEntry> items) {
-    final seen = <String>{};
-    return items
-        .where((entry) => seen.add(jsonInt64Id(entry.post.id)))
-        .toList();
+    return uniqueBy(items, (entry) => jsonInt64Id(entry.post.id));
   }
 }
 

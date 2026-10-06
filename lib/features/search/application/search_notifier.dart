@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/collections/unique_by.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/search_models.dart';
 import '../data/search_repository.dart';
@@ -194,23 +195,18 @@ class SearchNotifier extends StateNotifier<SearchState> {
     };
   }
 
+  // 把下一页结果并入已展示结果，帖子、用户、标签各自按键去重。
   SearchResults _merge(SearchResults base, SearchResults page) {
-    final postIds = <String>{};
-    final userIds = <String>{};
-    final tagNames = <String>{};
     return SearchResults(
-      posts: [
-        for (final post in [...base.posts, ...page.posts])
-          if (postIds.add(post.id.toString())) post,
-      ],
-      users: [
-        for (final user in [...base.users, ...page.users])
-          if (userIds.add(user.id.toString())) user,
-      ],
-      tags: [
-        for (final tag in [...base.tags, ...page.tags])
-          if (tagNames.add(tag.name)) tag,
-      ],
+      posts: uniqueBy([
+        ...base.posts,
+        ...page.posts,
+      ], (post) => post.id.toString()),
+      users: uniqueBy([
+        ...base.users,
+        ...page.users,
+      ], (user) => user.id.toString()),
+      tags: uniqueBy([...base.tags, ...page.tags], (tag) => tag.name),
       total: page.total > 0 ? page.total : base.total,
       degraded: base.degraded || page.degraded,
       unavailableTypes: {

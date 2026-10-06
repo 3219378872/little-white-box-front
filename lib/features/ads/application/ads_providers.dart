@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
+import '../../../core/collections/unique_by.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/ad_labels.dart';
@@ -148,12 +149,13 @@ class AdsListNotifier extends StateNotifier<AdsListState> {
         pageSize: pageSize,
       );
       if (!mounted || generation != _generation) return;
-      final seen = current.ads.map((ad) => jsonInt64Id(ad.adId)).toSet();
+      // 游标翻页可能与已加载页重叠，按广告 ID 去重后追加。
       state = AdsListState(
-        ads: [
-          ...current.ads,
-          ...page.ads.where((ad) => seen.add(jsonInt64Id(ad.adId))),
-        ],
+        ads: appendUniqueBy(
+          current.ads,
+          page.ads,
+          (ad) => jsonInt64Id(ad.adId),
+        ),
         loading: false,
         hasMore: page.hasMore,
         cursor: page.nextCursor,

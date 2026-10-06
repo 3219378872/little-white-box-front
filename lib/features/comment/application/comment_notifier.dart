@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/idempotency.dart';
 import '../../../core/api/json_int64.dart';
+import '../../../core/collections/unique_by.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/comment_repository.dart';
@@ -252,8 +253,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
           : const <CommentItem>[];
       final merged = [...existing, ...resp.list];
       // 去重（幂等保护：同页重复返回时以先到者为准）
-      final seen = <String>{};
-      final deduped = merged.where((r) => seen.add(jsonInt64Id(r.id))).toList();
+      final deduped = uniqueBy(merged, (r) => jsonInt64Id(r.id));
       final threadReplies = Map<String, List<CommentItem>>.of(
         state.threadReplies,
       )..[id] = deduped;

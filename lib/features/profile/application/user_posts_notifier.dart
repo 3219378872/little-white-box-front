@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/json_int64.dart';
+import '../../../core/collections/unique_by.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/user_repository.dart';
@@ -191,9 +192,9 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
     }
   }
 
+  // 按帖子 ID 去重，翻页边界上重复返回的帖子只保留首个。
   static List<PostItem> _deduplicate(List<PostItem> items) {
-    final seen = <String>{};
-    return items.where((item) => seen.add(jsonInt64Id(item.id))).toList();
+    return uniqueBy(items, (item) => jsonInt64Id(item.id));
   }
 }
 

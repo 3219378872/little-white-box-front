@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/idempotency.dart';
 import '../../../core/api/json_int64.dart';
+import '../../../core/collections/unique_by.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/message_models.dart';
 import '../data/message_repository.dart';
@@ -138,13 +139,11 @@ class ConversationListNotifier extends StateNotifier<ConversationListState> {
     );
   }
 
+  // 同一会话只保留首次出现的一条，避免刷新与推送合并后重复显示。
   static List<ConversationSummary> _deduplicate(
     List<ConversationSummary> conversations,
   ) {
-    final seen = <String>{};
-    return conversations
-        .where((item) => seen.add(jsonInt64Id(item.id)))
-        .toList();
+    return uniqueBy(conversations, (item) => jsonInt64Id(item.id));
   }
 }
 
