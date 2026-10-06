@@ -70,7 +70,7 @@ updated_at: 2026-10-01
 - 卡片整体语义标签为「广告，由某某推广」。右上角溢出菜单提供「为什么看到这条广告」「隐藏」「举报」，
   图标按钮都有可访问名称与 tooltip（`FQ-004`）。
 - 点击卡片或 CTA 先记点击事件，再用 `url_launcher` 外部打开过审落地页（`FX-102`），复用
-  `lib/features/assistant/presentation/assistant_research_widgets.dart` 中已有的安全外链写法，不内嵌网页。
+  `lib/features/assistant/presentation/research/assistant_research_source_card.dart` 中已有的安全外链写法，不内嵌网页。
   域名始终显示在 CTA 行，因此打开前不再弹确认框；打开失败时提示目标域名。
 - 样式只在 `lib/core/theme/app_theme.dart` 增加广告标识与 CTA 的令牌，覆盖亮暗主题。
   `test/architecture/forui_migration_test.dart` 禁止页面引入 Material 组件词，标识用 `FBadge` 而非 Chip。
