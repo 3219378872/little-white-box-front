@@ -52,6 +52,8 @@ class AppTheme {
   static const sponsoredCtaSize = FButtonSizeVariant.sm;
   static Color sponsoredDomain(FColors colors) => colors.mutedForeground;
 
+  /// Borderless, transparent field for the post editor so the title and body
+  /// read as page text; [title] switches to the display size.
   static FTextFieldStyleDelta editorField(
     BuildContext context, {
     bool title = false,
@@ -72,19 +74,54 @@ class AppTheme {
   }
 
   /// Shared Android-reference tokens; business pages keep the same theme owner.
+  /// Every Forui override lives in the private builders below so a component's
+  /// look is changed in one place for both brightnesses and both form factors.
   static final FThemeData foruiLight = _foruiTheme(FTheme.neutral.light);
 
   static final FThemeData foruiDark = _foruiTheme(FTheme.neutral.dark);
 
+  // Assembles one Forui theme from a neutral base: palette, typography and
+  // global style first, then each restyled component reads from those three so
+  // light and dark differ only in the palette.
   static FThemeData _foruiTheme(FPlatformThemeData base) {
+    // Touch platforms get Forui's larger hit targets; everything else desktop.
     final touch = const <TargetPlatform>{
       .android,
       .iOS,
       .fuchsia,
     }.contains(defaultTargetPlatform);
     final variant = touch ? base.touch : base.desktop;
-    final dark = variant.colors.brightness == Brightness.dark;
-    final colors = variant.colors.copyWith(
+    final colors = _colors(variant.colors);
+    final typography = _typography(colors);
+    final style = _style(colors, typography, touch);
+    return FThemeData(
+      colors: colors,
+      typography: typography,
+      style: style,
+      sidebarStyle: _sidebarStyle(
+        colors,
+        typography,
+        style,
+        variant.icons,
+        touch,
+      ),
+      alertStyles: _alertStyles(colors, typography, style, touch),
+      badgeStyles: _badgeStyles(colors, typography),
+      textFieldStyles: _textFieldStyles(colors, typography, style, touch),
+      tabsStyle: _tabsStyle(colors, typography, style),
+      bottomNavigationBarStyle: _bottomNavigationBarStyle(
+        colors,
+        typography,
+        style,
+      ),
+      touch: touch,
+    );
+  }
+
+  // Brand palette over Forui's neutral colors; the only light/dark fork.
+  static FColors _colors(FColors neutral) {
+    final dark = neutral.brightness == Brightness.dark;
+    return neutral.copyWith(
       background: dark ? const Color(0xFF101112) : Colors.white,
       foreground: dark ? const Color(0xFFE1E2E3) : _seedColor,
       primary: dark ? accentDark : accentLight,
@@ -98,6 +135,11 @@ class AppTheme {
       mutedForeground: dark ? const Color(0xFF9B9FA2) : const Color(0xFF6B7075),
       border: dark ? const Color(0xFF27292C) : const Color(0xFFF0F1F2),
     );
+  }
+
+  // Android-reference type scale: zero letter spacing, even leading, and
+  // display sizes capped at page-title weight rather than Forui's hero sizes.
+  static FTypography _typography(FColors colors) {
     TextStyle text(
       double size, {
       FontWeight weight = FontWeight.w400,
@@ -121,7 +163,7 @@ class AppTheme {
       xl: text(20),
       xl2: text(24),
     );
-    final typography = FTypography(
+    return FTypography(
       body: body,
       display: body.copyWith(
         sm: text(20, weight: FontWeight.w600),
@@ -131,24 +173,176 @@ class AppTheme {
         xl2: text(24, weight: FontWeight.w700),
       ),
     );
-    final style =
-        FStyle.inherit(
-          colors: colors,
-          typography: typography,
-          touch: touch,
-        ).copyWith(
-          borderRadius: const FBorderRadius(
-            xs2: tagRadius,
-            xs: tagRadius,
-            sm: controlRadius,
-            md: controlRadius,
-            lg: cardRadius,
-            xl: cardRadius,
-            xl2: cardRadius,
-            xl3: cardRadius,
+  }
+
+  // Global style: maps Forui's radius scale onto the tag/control/card radii
+  // and drops shadows so surfaces stay flat.
+  static FStyle _style(FColors colors, FTypography typography, bool touch) =>
+      FStyle.inherit(
+        colors: colors,
+        typography: typography,
+        touch: touch,
+      ).copyWith(
+        borderRadius: const FBorderRadius(
+          xs2: tagRadius,
+          xs: tagRadius,
+          sm: controlRadius,
+          md: controlRadius,
+          lg: cardRadius,
+          xl: cardRadius,
+          xl2: cardRadius,
+          xl3: cardRadius,
+        ),
+        shadow: const [],
+      );
+
+  // Desktop sidebar: fixed width, roomier rows, and an accent-tinted selected
+  // item instead of Forui's neutral highlight.
+  static FSidebarStyle _sidebarStyle(
+    FColors colors,
+    FTypography typography,
+    FStyle style,
+    FIcons icons,
+    bool touch,
+  ) {
+    final body = typography.body;
+    return FSidebarStyle.inherit(
+      colors: colors,
+      typography: typography,
+      icons: icons,
+      style: style,
+      touch: touch,
+    ).copyWith(
+      constraints: const BoxConstraints.tightFor(width: sidebarWidth),
+      headerPadding: const EdgeInsetsGeometryDelta.value(
+        EdgeInsets.fromLTRB(0, 12, 0, 4),
+      ),
+      groupStyle: FSidebarGroupStyleDelta.delta(
+        itemStyle: FSidebarItemStyleDelta.delta(
+          padding: const EdgeInsetsGeometryDelta.value(
+            EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           ),
-          shadow: const [],
-        );
+          iconSpacing: 12,
+          borderRadius: controlRadius,
+          textStyle: FVariants.from(
+            body.sm.copyWith(
+              color: colors.foreground,
+              fontWeight: FontWeight.w500,
+              height: 1,
+            ),
+            variants: {
+              [FTappableVariant.selected]: TextStyleDelta.delta(
+                color: colors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            },
+          ),
+          iconStyle: FVariants.from(
+            IconThemeData(color: colors.foreground, size: 20),
+            variants: {
+              [FTappableVariant.selected]: IconThemeDataDelta.delta(
+                color: colors.primary,
+              ),
+            },
+          ),
+          backgroundColor: FVariants(
+            colors.background,
+            variants: {
+              [FTappableVariant.hovered, FTappableVariant.pressed]:
+                  colors.secondary,
+              [FTappableVariant.selected]: accentSoft(colors),
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Alerts sit inside cards; Forui titles them with display.sm, which this
+  // theme sets to the 20px page-title size, so step them down to body.sm.
+  static FVariants<
+    FAlertVariantConstraint,
+    FAlertVariant,
+    FAlertStyle,
+    FAlertStyleDelta
+  >
+  _alertStyles(
+    FColors colors,
+    FTypography typography,
+    FStyle style,
+    bool touch,
+  ) =>
+      FAlertStyles.inherit(
+        colors: colors,
+        typography: typography,
+        style: style,
+        touch: touch,
+      ).apply([
+        .all(
+          FAlertStyleDelta.delta(
+            titleTextStyle: TextStyleDelta.delta(
+              fontSize: typography.body.sm.fontSize,
+            ),
+          ),
+        ),
+      ]);
+
+  // Compact tag-radius badges; every variant shares one shape and only swaps
+  // its color pair, so tags and the sponsored badge line up.
+  static FVariants<
+    FBadgeVariantConstraint,
+    FBadgeVariant,
+    FBadgeStyle,
+    FBadgeStyleDelta
+  >
+  _badgeStyles(FColors colors, FTypography typography) {
+    FBadgeStyle badge(
+      Color background,
+      Color foreground, {
+      bool outline = false,
+    }) => FBadgeStyle(
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: tagRadius,
+        border: outline ? Border.all(color: colors.border) : null,
+      ),
+      labelTextStyle: typography.body.xs.copyWith(color: foreground),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+    );
+    return FVariants(
+      badge(colors.primary, colors.primaryForeground),
+      variants: {
+        [FBadgeVariant.secondary]: badge(
+          colors.secondary,
+          colors.secondaryForeground,
+        ),
+        [FBadgeVariant.outline]: badge(
+          colors.background,
+          colors.foreground,
+          outline: true,
+        ),
+        [FBadgeVariant.destructive]: badge(
+          colors.destructive.withValues(alpha: .1),
+          colors.destructive,
+        ),
+      },
+    );
+  }
+
+  // Filled, borderless text fields at every size; the outline only appears
+  // for focus (accent) and error (destructive).
+  static FVariants<
+    FTextFieldSizeVariantConstraint,
+    FTextFieldSizeVariant,
+    FTextFieldStyle,
+    FTextFieldStyleDelta
+  >
+  _textFieldStyles(
+    FColors colors,
+    FTypography typography,
+    FStyle style,
+    bool touch,
+  ) {
     final fields = FTextFieldSizeStyles.inherit(
       colors: colors,
       typography: typography,
@@ -158,7 +352,7 @@ class AppTheme {
     FTextFieldStyle filledField(FTextFieldStyle field) => field.copyWith(
       color: FVariants.all(colors.muted),
       contentTextStyle: FVariants.from(
-        body.sm,
+        typography.body.sm,
         variants: {
           [FTextFieldVariant.disabled]: TextStyleDelta.delta(
             color: colors.disable(colors.foreground),
@@ -182,166 +376,70 @@ class AppTheme {
         },
       ),
     );
-    FBadgeStyle badge(
-      Color background,
-      Color foreground, {
-      bool outline = false,
-    }) => FBadgeStyle(
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: tagRadius,
-        border: outline ? Border.all(color: colors.border) : null,
-      ),
-      labelTextStyle: body.xs.copyWith(color: foreground),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-    );
-    final sidebar =
-        FSidebarStyle.inherit(
-          colors: colors,
-          typography: typography,
-          icons: variant.icons,
-          style: style,
-          touch: touch,
-        ).copyWith(
-          constraints: const BoxConstraints.tightFor(width: sidebarWidth),
-          headerPadding: const EdgeInsetsGeometryDelta.value(
-            EdgeInsets.fromLTRB(0, 12, 0, 4),
-          ),
-          groupStyle: FSidebarGroupStyleDelta.delta(
-            itemStyle: FSidebarItemStyleDelta.delta(
-              padding: const EdgeInsetsGeometryDelta.value(
-                EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-              ),
-              iconSpacing: 12,
-              borderRadius: controlRadius,
-              textStyle: FVariants.from(
-                body.sm.copyWith(
-                  color: colors.foreground,
-                  fontWeight: FontWeight.w500,
-                  height: 1,
-                ),
-                variants: {
-                  [FTappableVariant.selected]: TextStyleDelta.delta(
-                    color: colors.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                },
-              ),
-              iconStyle: FVariants.from(
-                IconThemeData(color: colors.foreground, size: 20),
-                variants: {
-                  [FTappableVariant.selected]: IconThemeDataDelta.delta(
-                    color: colors.primary,
-                  ),
-                },
-              ),
-              backgroundColor: FVariants(
-                colors.background,
-                variants: {
-                  [FTappableVariant.hovered, FTappableVariant.pressed]:
-                      colors.secondary,
-                  [FTappableVariant.selected]: accentSoft(colors),
-                },
-              ),
-            ),
-          ),
-        );
-    return FThemeData(
-      colors: colors,
-      typography: typography,
-      style: style,
-      sidebarStyle: sidebar,
-      // Alerts sit inside cards; Forui titles them with display.sm, which this
-      // theme sets to the 20px page-title size, so step them down to body.sm.
-      alertStyles:
-          FAlertStyles.inherit(
-            colors: colors,
-            typography: typography,
-            style: style,
-            touch: touch,
-          ).apply([
-            .all(
-              FAlertStyleDelta.delta(
-                titleTextStyle: TextStyleDelta.delta(
-                  fontSize: body.sm.fontSize,
-                ),
-              ),
-            ),
-          ]),
-      badgeStyles: FVariants(
-        badge(colors.primary, colors.primaryForeground),
-        variants: {
-          [FBadgeVariant.secondary]: badge(
-            colors.secondary,
-            colors.secondaryForeground,
-          ),
-          [FBadgeVariant.outline]: badge(
-            colors.background,
-            colors.foreground,
-            outline: true,
-          ),
-          [FBadgeVariant.destructive]: badge(
-            colors.destructive.withValues(alpha: .1),
-            colors.destructive,
-          ),
-        },
-      ),
-      textFieldStyles: FVariants(
-        filledField(fields.md),
-        variants: {
-          [FTextFieldSizeVariant.sm]: filledField(fields.sm),
-          [FTextFieldSizeVariant.md]: filledField(fields.md),
-          [FTextFieldSizeVariant.lg]: filledField(fields.lg),
-        },
-      ),
-      tabsStyle:
-          FTabsStyle.inherit(
-            colors: colors,
-            typography: typography,
-            style: style,
-          ).copyWith(
-            decoration: const DecorationDelta.value(BoxDecoration()),
-            padding: const EdgeInsetsGeometryDelta.value(EdgeInsets.zero),
-            minHeight: 46,
-            spacing: 0,
-            indicatorSize: FTabBarIndicatorSize.label,
-            indicatorDecoration: DecorationDelta.value(
-              BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: colors.primary, width: 2),
-                ),
-              ),
-            ),
-            labelTextStyle: FVariants.from(
-              body.md.copyWith(color: colors.mutedForeground),
-              variants: {
-                [FTabVariant.selected]: TextStyleDelta.delta(
-                  color: colors.foreground,
-                  fontWeight: FontWeight.w600,
-                ),
-              },
-            ),
-          ),
-      bottomNavigationBarStyle:
-          FBottomNavigationBarStyle.inherit(
-            colors: colors,
-            typography: typography,
-            style: style,
-          ).copyWith(
-            decoration: DecorationDelta.value(
-              BoxDecoration(
-                color: colors.background,
-                border: Border(top: BorderSide(color: colors.border)),
-              ),
-            ),
-            padding: const EdgeInsetsGeometryDelta.value(
-              EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-            ),
-          ),
-      touch: touch,
+    return FVariants(
+      filledField(fields.md),
+      variants: {
+        [FTextFieldSizeVariant.sm]: filledField(fields.sm),
+        [FTextFieldSizeVariant.md]: filledField(fields.md),
+        [FTextFieldSizeVariant.lg]: filledField(fields.lg),
+      },
     );
   }
 
+  // Underline tabs: no track or padding, a 2px accent line under the label,
+  // and the selected label promoted from muted to foreground.
+  static FTabsStyle _tabsStyle(
+    FColors colors,
+    FTypography typography,
+    FStyle style,
+  ) => FTabsStyle.inherit(colors: colors, typography: typography, style: style)
+      .copyWith(
+        decoration: const DecorationDelta.value(BoxDecoration()),
+        padding: const EdgeInsetsGeometryDelta.value(EdgeInsets.zero),
+        minHeight: 46,
+        spacing: 0,
+        indicatorSize: FTabBarIndicatorSize.label,
+        indicatorDecoration: DecorationDelta.value(
+          BoxDecoration(
+            border: Border(bottom: BorderSide(color: colors.primary, width: 2)),
+          ),
+        ),
+        labelTextStyle: FVariants.from(
+          typography.body.md.copyWith(color: colors.mutedForeground),
+          variants: {
+            [FTabVariant.selected]: TextStyleDelta.delta(
+              color: colors.foreground,
+              fontWeight: FontWeight.w600,
+            ),
+          },
+        ),
+      );
+
+  // Mobile bottom bar: page-colored with a hairline top border instead of a
+  // raised surface, plus tighter padding.
+  static FBottomNavigationBarStyle _bottomNavigationBarStyle(
+    FColors colors,
+    FTypography typography,
+    FStyle style,
+  ) =>
+      FBottomNavigationBarStyle.inherit(
+        colors: colors,
+        typography: typography,
+        style: style,
+      ).copyWith(
+        decoration: DecorationDelta.value(
+          BoxDecoration(
+            color: colors.background,
+            border: Border(top: BorderSide(color: colors.border)),
+          ),
+        ),
+        padding: const EdgeInsetsGeometryDelta.value(
+          EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        ),
+      );
+
+  /// Material theme for the app shell (`MaterialApp`); widgets style through
+  /// Forui, so this only keeps the seed palette and page background in step.
   static ThemeData light() {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: _seedColor,
@@ -358,6 +456,7 @@ class AppTheme {
     return _buildTheme(colorScheme);
   }
 
+  // Shared Material 3 shell theme; matches the Forui page background.
   static ThemeData _buildTheme(ColorScheme colorScheme) {
     return ThemeData(
       useMaterial3: true,
