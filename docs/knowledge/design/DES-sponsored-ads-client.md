@@ -106,7 +106,8 @@ updated_at: 2026-10-01
   （回扫、质检、举报）、最新 revision 与过审快照的差异，以及申诉入口（每个 revision 一次）。
 - `/ads/advertiser`：申请广告主、上传与提交资质；素材与证件走现有 multipart 上传通道，目标为 ad-rpc 的私有
   素材接口 `/api/v2/ads/assets/{creative|document}`（2 MiB 上限，编辑时经 `/api/v2/ads/assets/{assetId}`
-  读取本人素材预览）。资质有效期以 `YYYY-MM-DD` 输入，按当日 UTC 结束时刻提交。
+  读取本人素材预览）。素材与证件上传按「文件名 + 大小 + 内容摘要」指纹复用幂等键：重新选中同一文件重试沿用
+  原键，换文件换新键，成功或收到业务错误码后作废。资质有效期以 `YYYY-MM-DD` 输入，按当日 UTC 结束时刻提交。
 
 申诉：只在广告视图的 `appealable` 为真时显示按钮（「对未通过的 rN 申诉」或「对下线的 rN 申诉」），二次确认说明
 每个版本只能申诉一次、由另一名审核员复审且结论为最终结论，确认后经 `POST /api/v2/ads/{adId}/appeal` 提交并刷新

@@ -24,7 +24,7 @@ class AdFormInvalidException implements Exception {
   String toString() => message;
 }
 
-// 广告写命令的幂等键：同一输入的网络重试复用同一键；输入变化换新键，
+// 广告写命令与素材上传的幂等键：同一输入的网络重试复用同一键；输入变化换新键，
 // 成功或收到业务错误码（服务端已给出结论）后作废，下次提交视为新命令。
 class _IdempotentWrite {
   String? _key;
@@ -49,6 +49,26 @@ class _IdempotentWrite {
       rethrow;
     }
   }
+}
+
+// 以文件名、大小与内容摘要识别同一份素材：Web 每次选择都会得到新的 blob 路径，
+// 重新选中同一文件重试时只能按内容判断。
+Future<String> _assetFingerprint(XFile file) async {
+  final length = await file.length();
+  // 空文件与超限文件由上传层本地拒绝、不会发出请求，无需读取内容。
+  if (length <= 0 || length > maxAdAssetBytes) return '${file.name}|$length';
+  return '${file.name}|$length|${_fnv1a32(await file.readAsBytes())}';
+}
+
+// 32 位 FNV-1a 摘要；乘法拆成移位与小乘数，保证 Web 端双精度运算结果与 VM 一致。
+int _fnv1a32(List<int> bytes) {
+  var hash = 0x811c9dc5;
+  for (final byte in bytes) {
+    final mixed = (hash ^ byte) & 0xffffffff;
+    // 乘以 FNV 素数 0x01000193 = 2^24 + 0x193。
+    hash = (((mixed << 24) & 0xffffffff) + mixed * 0x193) & 0xffffffff;
+  }
+  return hash;
 }
 
 /// 广告文案的客户端校验；返回首个错误，服务端仍做最终校验。
@@ -115,6 +135,7 @@ class AdvertiserCommands {
   final Ref _ref;
   final _apply = _IdempotentWrite();
   final _qualification = _IdempotentWrite();
+  final _document = _IdempotentWrite();
 
   AdvertiserCommands(this._ref);
 
@@ -156,16 +177,19 @@ class AdvertiserCommands {
     return _ref.read(adAssetPickerProvider).pick(AdAssetKind.document);
   }
 
-  /// 上传资质证件；[isCurrent] 为 false 时上传层丢弃迟到结果。
+  /// 上传资质证件；同一文件的失败重试复用幂等键，[isCurrent] 为 false 时上传层丢弃迟到结果。
   Future<AdAssetResp> uploadDocument(
     XFile file, {
     required bool Function() isCurrent,
-  }) {
-    return _repository.uploadAsset(
-      kind: AdAssetKind.document,
-      file: file,
-      idempotencyKey: newIdempotencyKey(24),
-      isCurrent: isCurrent,
+  }) async {
+    return _document.run(
+      await _assetFingerprint(file),
+      (key) => _repository.uploadAsset(
+        kind: AdAssetKind.document,
+        file: file,
+        idempotencyKey: key,
+        isCurrent: isCurrent,
+      ),
     );
   }
 
@@ -216,6 +240,7 @@ class AdvertiserCommands {
 class AdEditorCommands {
   final Ref _ref;
   final _save = _IdempotentWrite();
+  final _creative = _IdempotentWrite();
 
   AdEditorCommands(this._ref);
 
@@ -226,16 +251,19 @@ class AdEditorCommands {
     return _ref.read(adAssetPickerProvider).pick(AdAssetKind.creative);
   }
 
-  /// 上传创意图；[isCurrent] 为 false 时上传层丢弃迟到结果。
+  /// 上传创意图；同一文件的失败重试复用幂等键，[isCurrent] 为 false 时上传层丢弃迟到结果。
   Future<AdAssetResp> uploadCreative(
     XFile file, {
     required bool Function() isCurrent,
-  }) {
-    return _repository.uploadAsset(
-      kind: AdAssetKind.creative,
-      file: file,
-      idempotencyKey: newIdempotencyKey(24),
-      isCurrent: isCurrent,
+  }) async {
+    return _creative.run(
+      await _assetFingerprint(file),
+      (key) => _repository.uploadAsset(
+        kind: AdAssetKind.creative,
+        file: file,
+        idempotencyKey: key,
+        isCurrent: isCurrent,
+      ),
     );
   }
 

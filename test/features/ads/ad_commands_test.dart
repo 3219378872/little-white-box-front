@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,6 +38,17 @@ class _ScriptedAdsRepository extends AdsRepository {
   Future<AdItem> appealAd(Object adId, String idempotencyKey) async {
     await _next(idempotencyKey);
     return AdItem.fromJson({'adId': adId});
+  }
+
+  @override
+  Future<AdAssetResp> uploadAsset({
+    required AdAssetKind kind,
+    required XFile file,
+    required String idempotencyKey,
+    bool Function()? isCurrent,
+  }) async {
+    await _next(idempotencyKey);
+    return AdAssetResp.fromJson({'assetId': keys.length});
   }
 
   @override
@@ -134,6 +148,72 @@ void main() {
     expect(repository.keys, isEmpty);
     await submit('2026-10-01');
     expect(repository.keys, hasLength(1));
+  });
+
+  // 每次选择都得到新的 XFile 实例，模拟用户重新选中同一份或另一份文件。
+  XFile picked(List<int> bytes, {String name = 'license.pdf'}) =>
+      XFile.fromData(Uint8List.fromList(bytes), name: name);
+
+  // 上传脚本：网络失败 → 重选同一文件；成功 → 再传同一文件；换内容；换文件名。
+  List<ApiException?> uploadScript() => [
+    const ApiException('offline'),
+    null,
+    null,
+    null,
+    null,
+  ];
+
+  // 断言同一文件的网络重试复用键，成功、换内容或换文件名后都换新键。
+  void expectUploadKeys(List<String> keys) {
+    expect(keys, hasLength(5));
+    expect(keys[1], keys[0]);
+    expect(keys[2], isNot(keys[1]));
+    expect(keys[3], isNot(keys[2]));
+    expect(keys[4], isNot(keys[3]));
+  }
+
+  test('document upload retries reuse the key for the same file', () async {
+    final repository = _ScriptedAdsRepository(uploadScript());
+    final container = containerWith(repository);
+    final subscription = container.listen(
+      advertiserCommandsProvider,
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+    final commands = subscription.read();
+
+    Future<AdAssetResp> upload(XFile file) =>
+        commands.uploadDocument(file, isCurrent: () => true);
+
+    await expectLater(upload(picked([1, 2, 3])), throwsA(isA<ApiException>()));
+    await upload(picked([1, 2, 3]));
+    await upload(picked([1, 2, 3]));
+    await upload(picked([1, 2, 4]));
+    await upload(picked([1, 2, 4], name: 'other.pdf'));
+
+    expectUploadKeys(repository.keys);
+  });
+
+  test('creative upload retries reuse the key for the same file', () async {
+    final repository = _ScriptedAdsRepository(uploadScript());
+    final container = containerWith(repository);
+    final subscription = container.listen(
+      adEditorCommandsProvider(null),
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+    final commands = subscription.read();
+
+    Future<AdAssetResp> upload(XFile file) =>
+        commands.uploadCreative(file, isCurrent: () => true);
+
+    await expectLater(upload(picked([5, 6])), throwsA(isA<ApiException>()));
+    await upload(picked([5, 6]));
+    await upload(picked([5, 6]));
+    await upload(picked([5, 7]));
+    await upload(picked([5, 7], name: 'other.png'));
+
+    expectUploadKeys(repository.keys);
   });
 
   test('appeal reuses the key only across network failures', () async {
