@@ -8,14 +8,14 @@ import '../data/assistant_repository.dart';
 import 'assistant_notifier.dart';
 
 class MemoryListState {
-  final bool loading;
+  final bool isLoading;
   final String? error;
   final List<MemoryRecord> items;
   final List<MemoryCapacity> capacities;
   final Object? lastChangeId;
 
   const MemoryListState({
-    this.loading = false,
+    this.isLoading = false,
     this.error,
     this.items = const [],
     this.capacities = const [],
@@ -23,7 +23,7 @@ class MemoryListState {
   });
 
   MemoryListState copyWith({
-    bool? loading,
+    bool? isLoading,
     String? error,
     bool clearError = false,
     List<MemoryRecord>? items,
@@ -32,7 +32,7 @@ class MemoryListState {
     bool clearLastChangeId = false,
   }) {
     return MemoryListState(
-      loading: loading ?? this.loading,
+      isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
       items: items ?? this.items,
       capacities: capacities ?? this.capacities,
@@ -58,12 +58,12 @@ class MemoryListNotifier extends StateNotifier<MemoryListState> {
 
   Future<void> load() async {
     final generation = ++_loadGeneration;
-    state = state.copyWith(loading: true, clearError: true);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       final result = await _repository.listMemory();
       if (!_isCurrentLoad(generation)) return;
       state = state.copyWith(
-        loading: false,
+        isLoading: false,
         clearError: true,
         items: result.$1,
         capacities: result.$2,
@@ -71,7 +71,7 @@ class MemoryListNotifier extends StateNotifier<MemoryListState> {
     } catch (error) {
       if (!_isCurrentLoad(generation)) return;
       state = state.copyWith(
-        loading: false,
+        isLoading: false,
         items: state.items,
         capacities: state.capacities,
         error: friendlyErrorMessage(error),

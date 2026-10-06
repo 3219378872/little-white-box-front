@@ -75,7 +75,7 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
   void _reloadIfActive() {
     if (!widget.active) return;
     final state = ref.read(userPostsProvider(_key));
-    if (state.isLoading || state.isRefreshing) return;
+    if (state.isLoading || state.isLoadingMore || state.isRefreshing) return;
     ref.read(userPostsProvider(_key).notifier).refresh();
   }
 
@@ -85,7 +85,7 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
     if (notification.depth == 0 &&
         notification.metrics.axis == Axis.vertical &&
         notification.metrics.extentAfter <= 300) {
-      ref.read(userPostsProvider(_key).notifier).loadNextPage();
+      ref.read(userPostsProvider(_key).notifier).loadMore();
     }
     return false;
   }
@@ -103,7 +103,7 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
           SliverOverlapInjector(
             handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
           ),
-          if (state.isLoading && state.items.isEmpty)
+          if ((state.isLoading || state.isLoadingMore) && state.items.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
               child: LoadingView(),
@@ -113,7 +113,7 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
               hasScrollBody: false,
               child: ErrorView(
                 message: friendlyErrorMessage(state.error!),
-                onRetry: () => notifier.loadFirstPage(),
+                onRetry: () => notifier.loadInitial(),
               ),
             )
           else if (state.items.isEmpty)
@@ -137,7 +137,9 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
             SliverList.builder(
               itemCount:
                   state.items.length +
-                  ((state.isLoading || state.error != null || !state.hasMore)
+                  ((state.isLoadingMore ||
+                          state.error != null ||
+                          !state.hasMore)
                       ? 1
                       : 0),
               itemBuilder: (context, index) {
@@ -145,9 +147,9 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
                   // 尾部：续翻中、续翻失败重试或已到底。
                   final error = state.error;
                   return LoadMoreFooter(
-                    isLoading: state.isLoading,
+                    isLoading: state.isLoadingMore,
                     error: error == null ? null : friendlyErrorMessage(error),
-                    onRetry: notifier.loadNextPage,
+                    onRetry: notifier.loadMore,
                     showEnd: true,
                   );
                 }
@@ -158,7 +160,8 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
       ),
     );
 
-    if ((state.isLoading || state.error != null) && state.items.isEmpty) {
+    if ((state.isLoading || state.isLoadingMore || state.error != null) &&
+        state.items.isEmpty) {
       return scrollView;
     }
 

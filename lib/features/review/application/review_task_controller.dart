@@ -21,16 +21,16 @@ String reviewClosureMessage(ReviewTaskClosure closure) => switch (closure) {
 
 class ReviewTaskState {
   final ReviewTaskItem? task;
-  final bool loading;
-  final bool busy;
+  final bool isLoading;
+  final bool isBusy;
   final String? error;
   final ReviewTaskClosure? closure;
   final ReviewDecisionResp? decision;
 
   const ReviewTaskState({
     this.task,
-    this.loading = true,
-    this.busy = false,
+    this.isLoading = true,
+    this.isBusy = false,
     this.error,
     this.closure,
     this.decision,
@@ -44,8 +44,8 @@ class ReviewTaskState {
 
   ReviewTaskState copyWith({
     ReviewTaskItem? task,
-    bool? loading,
-    bool? busy,
+    bool? isLoading,
+    bool? isBusy,
     String? error,
     bool clearError = false,
     ReviewTaskClosure? closure,
@@ -53,8 +53,8 @@ class ReviewTaskState {
   }) {
     return ReviewTaskState(
       task: task ?? this.task,
-      loading: loading ?? this.loading,
-      busy: busy ?? this.busy,
+      isLoading: isLoading ?? this.isLoading,
+      isBusy: isBusy ?? this.isBusy,
       error: clearError ? null : (error ?? this.error),
       closure: closure ?? this.closure,
       decision: decision ?? this.decision,
@@ -83,17 +83,17 @@ class ReviewTaskController extends StateNotifier<ReviewTaskState> {
   }
 
   Future<void> load() async {
-    state = state.copyWith(loading: true, clearError: true);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       final task = await _repository.getTask(taskId);
       if (!mounted) return;
       if (task == null) {
-        state = state.copyWith(loading: false, error: '任务不存在或无权查看');
+        state = state.copyWith(isLoading: false, error: '任务不存在或无权查看');
         return;
       }
       state = state.copyWith(
         task: task,
-        loading: false,
+        isLoading: false,
         closure: switch (task.status) {
           'superseded' => ReviewTaskClosure.superseded,
           'decided' => ReviewTaskClosure.decided,
@@ -104,7 +104,7 @@ class ReviewTaskController extends StateNotifier<ReviewTaskState> {
       if (!mounted) return;
       final closure = _closureOf(error);
       state = state.copyWith(
-        loading: false,
+        isLoading: false,
         closure: closure,
         error: closure == null ? friendlyErrorMessage(error) : null,
       );
@@ -179,17 +179,17 @@ class ReviewTaskController extends StateNotifier<ReviewTaskState> {
   }
 
   Future<bool> _leaseCommand(Future<void> Function() command) async {
-    if (!state.editable || state.busy) return false;
-    state = state.copyWith(busy: true, clearError: true);
+    if (!state.editable || state.isBusy) return false;
+    state = state.copyWith(isBusy: true, clearError: true);
     try {
       await command();
-      if (mounted) state = state.copyWith(busy: false);
+      if (mounted) state = state.copyWith(isBusy: false);
       return true;
     } catch (error) {
       if (!mounted) return false;
       final closure = _closureOf(error);
       state = state.copyWith(
-        busy: false,
+        isBusy: false,
         closure: closure,
         error: closure == null ? friendlyErrorMessage(error) : null,
       );

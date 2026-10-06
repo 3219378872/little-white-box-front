@@ -103,7 +103,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
               ),
             ),
           Expanded(
-            child: state.loading && state.items.isEmpty
+            child: state.isLoading && state.items.isEmpty
                 ? const LoadingView()
                 : state.error != null && state.items.isEmpty
                 ? ErrorView(

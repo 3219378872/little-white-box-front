@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/legacy.dart';
 
+import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/idempotency.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/collections/unique_by.dart';
@@ -15,8 +16,17 @@ import 'comment_dependencies.dart';
 /// 后端契约：列表只含顶级评论，子评论经内嵌预览 + 楼中楼接口按需加载。
 class CommentState {
   final List<CommentItem> comments;
+
+  /// 首屏（含重试、切排序）加载中。
   final bool isLoading;
-  final bool hasError;
+
+  /// 触底翻页加载中。
+  final bool isLoadingMore;
+
+  /// 最近一次列表加载失败的提示；为空表示没有未处理的失败。
+  final String? error;
+
+  /// 失败发生在首屏：重试应从第 1 页重建，而不是续拉下一页。
   final bool initialLoadFailed;
   final bool hasMore;
   final int sortBy;
@@ -35,7 +45,8 @@ class CommentState {
   const CommentState({
     this.comments = const [],
     this.isLoading = false,
-    this.hasError = false,
+    this.isLoadingMore = false,
+    this.error,
     this.initialLoadFailed = false,
     this.hasMore = true,
     this.sortBy = 1,
@@ -51,7 +62,9 @@ class CommentState {
   CommentState copyWith({
     List<CommentItem>? comments,
     bool? isLoading,
-    bool? hasError,
+    bool? isLoadingMore,
+    String? error,
+    bool clearError = false,
     bool? initialLoadFailed,
     bool? hasMore,
     int? sortBy,
@@ -67,7 +80,8 @@ class CommentState {
     return CommentState(
       comments: comments ?? this.comments,
       isLoading: isLoading ?? this.isLoading,
-      hasError: hasError ?? this.hasError,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      error: clearError ? null : (error ?? this.error),
       initialLoadFailed: initialLoadFailed ?? this.initialLoadFailed,
       hasMore: hasMore ?? this.hasMore,
       sortBy: sortBy ?? this.sortBy,
@@ -106,9 +120,11 @@ class CommentNotifier extends StateNotifier<CommentState> {
   /// 首屏/重试/切排序：从第 1 页重建列表。
   Future<void> loadInitial() async {
     final generation = ++_generation;
+    // 新一代请求使进行中的翻页失效，一并释放它的加载标记。
     state = state.copyWith(
       isLoading: true,
-      hasError: false,
+      isLoadingMore: false,
+      clearError: true,
       initialLoadFailed: false,
       loadingReplies: const {},
     );
@@ -125,14 +141,14 @@ class CommentNotifier extends StateNotifier<CommentState> {
         comments: resp.list,
         hasMore: resp.list.length >= _pageSize,
         isLoading: false,
-        hasError: false,
+        clearError: true,
       );
-    } catch (_) {
+    } catch (error) {
       // 失败不得伪装成空评论区（FX-001）；给出可重试的错误态。
       if (!mounted || generation != _generation) return;
       state = state.copyWith(
         isLoading: false,
-        hasError: true,
+        error: friendlyErrorMessage(error),
         initialLoadFailed: true,
       );
     }
@@ -140,10 +156,16 @@ class CommentNotifier extends StateNotifier<CommentState> {
 
   /// 触底加载下一页。
   Future<void> loadMore() async {
-    if (!state.hasMore || state.isLoading || state.hasError) return;
+    // 有未处理的失败时不随滚动自动重发，等用户点重试。
+    if (!state.hasMore ||
+        state.isLoading ||
+        state.isLoadingMore ||
+        state.error != null) {
+      return;
+    }
     final page = _page + 1;
     final generation = _generation;
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoadingMore: true);
     try {
       final resp = await _repository.fetchComments(
         postId: postId,
@@ -156,18 +178,21 @@ class CommentNotifier extends StateNotifier<CommentState> {
       state = state.copyWith(
         comments: [...state.comments, ...resp.list],
         hasMore: resp.list.length >= _pageSize,
-        isLoading: false,
+        isLoadingMore: false,
       );
-    } catch (_) {
+    } catch (error) {
       if (!mounted || generation != _generation) return;
-      state = state.copyWith(isLoading: false, hasError: true);
+      state = state.copyWith(
+        isLoadingMore: false,
+        error: friendlyErrorMessage(error),
+      );
     }
   }
 
   Future<void> retry() async {
     if (state.comments.isNotEmpty && !state.initialLoadFailed) {
-      if (state.hasError) {
-        state = state.copyWith(hasError: false);
+      if (state.error != null) {
+        state = state.copyWith(clearError: true);
       }
       await loadMore();
       return;
@@ -181,7 +206,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
       sortBy: value,
       comments: [],
       hasMore: true,
-      hasError: false,
+      clearError: true,
     );
     await loadInitial();
   }

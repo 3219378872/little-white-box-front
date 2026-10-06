@@ -390,7 +390,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
       return const LoadingView();
     }
     if (state.error != null && state.messages.isEmpty) {
-      return ErrorView(message: state.error!, onRetry: notifier.refresh);
+      return ErrorView(message: state.error!, onRetry: notifier.loadInitial);
     }
     if (state.messages.isEmpty) {
       return const EmptyView(message: '暂无消息', icon: FLucideIcons.messageCircle);

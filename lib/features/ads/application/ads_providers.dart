@@ -71,22 +71,44 @@ final adDetailProvider = FutureProvider.autoDispose.family<AdItem, String>((
   return ref.read(adsRepositoryProvider).getAd(adId);
 });
 
+/// 本人广告列表：[isLoading] 为首屏加载，[isLoadingMore] 为翻页，[error] 为最近一次失败。
 class AdsListState {
   final List<AdItem> ads;
-  final bool loading;
-  final bool loadingMore;
+  final bool isLoading;
+  final bool isLoadingMore;
   final bool hasMore;
+
+  /// 下一页游标；与 [hasMore] 一起由服务端分页结果给出。
   final String cursor;
   final String? error;
 
   const AdsListState({
     this.ads = const [],
-    this.loading = true,
-    this.loadingMore = false,
+    this.isLoading = true,
+    this.isLoadingMore = false,
     this.hasMore = false,
     this.cursor = '',
     this.error,
   });
+
+  AdsListState copyWith({
+    List<AdItem>? ads,
+    bool? isLoading,
+    bool? isLoadingMore,
+    bool? hasMore,
+    String? cursor,
+    String? error,
+    bool clearError = false,
+  }) {
+    return AdsListState(
+      ads: ads ?? this.ads,
+      isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      cursor: cursor ?? this.cursor,
+      error: clearError ? null : (error ?? this.error),
+    );
+  }
 }
 
 /// 本人广告列表，按游标分页。
@@ -98,18 +120,20 @@ class AdsListNotifier extends StateNotifier<AdsListState> {
 
   AdsListNotifier(this._repository, {bool loadImmediately = true})
     : super(const AdsListState()) {
-    if (loadImmediately) refresh();
+    if (loadImmediately) loadInitial();
   }
 
-  Future<void> refresh() async {
+  /// 首屏、重试与返回列表时重新读取第一页；新一代请求使进行中的旧请求失效。
+  Future<void> loadInitial() async {
     final generation = ++_generation;
+    // 保留已有条目，避免刷新时列表闪空。
     state = AdsListState(ads: state.ads);
     try {
       final page = await _repository.listAds(pageSize: pageSize);
       if (!mounted || generation != _generation) return;
       state = AdsListState(
         ads: page.ads,
-        loading: false,
+        isLoading: false,
         hasMore: page.hasMore,
         cursor: page.nextCursor,
       );
@@ -117,23 +141,18 @@ class AdsListNotifier extends StateNotifier<AdsListState> {
       if (!mounted || generation != _generation) return;
       state = AdsListState(
         ads: state.ads,
-        loading: false,
+        isLoading: false,
         error: friendlyErrorMessage(error),
       );
     }
   }
 
+  /// 按游标追加下一页；失败保留已加载条目与游标，可再次重试。
   Future<void> loadMore() async {
-    if (state.loading || state.loadingMore || !state.hasMore) return;
+    if (state.isLoading || state.isLoadingMore || !state.hasMore) return;
     final generation = _generation;
     final current = state;
-    state = AdsListState(
-      ads: current.ads,
-      loading: false,
-      loadingMore: true,
-      hasMore: current.hasMore,
-      cursor: current.cursor,
-    );
+    state = current.copyWith(isLoadingMore: true, clearError: true);
     try {
       final page = await _repository.listAds(
         cursor: current.cursor,
@@ -141,25 +160,19 @@ class AdsListNotifier extends StateNotifier<AdsListState> {
       );
       if (!mounted || generation != _generation) return;
       // 游标翻页可能与已加载页重叠，按广告 ID 去重后追加。
-      state = AdsListState(
+      state = current.copyWith(
         ads: appendUniqueBy(
           current.ads,
           page.ads,
           (ad) => jsonInt64Id(ad.adId),
         ),
-        loading: false,
         hasMore: page.hasMore,
         cursor: page.nextCursor,
+        clearError: true,
       );
     } catch (error) {
       if (!mounted || generation != _generation) return;
-      state = AdsListState(
-        ads: current.ads,
-        loading: false,
-        hasMore: current.hasMore,
-        cursor: current.cursor,
-        error: friendlyErrorMessage(error),
-      );
+      state = current.copyWith(error: friendlyErrorMessage(error));
     }
   }
 }

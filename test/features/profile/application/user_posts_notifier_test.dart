@@ -130,12 +130,12 @@ void main() {
       key: const UserPostsKey(userId: 1, type: UserPostsListType.posts),
     );
     addTearDown(notifier.dispose);
-    final initial = notifier.loadFirstPage();
+    final initial = notifier.loadInitial();
     repo.pending
         .removeAt(0)
         .complete(GetPostListResp(list: [_post(1)], nextCursor: 'page-2'));
     await initial;
-    final more = notifier.loadNextPage();
+    final more = notifier.loadMore();
     final refresh = notifier.refresh();
     repo.pending.removeLast().completeError(StateError('refresh failed'));
     await refresh;
@@ -143,9 +143,10 @@ void main() {
     await more;
     expect(notifier.state.items.map((item) => item.id), [1]);
     expect(notifier.state.isLoading, isFalse);
+    expect(notifier.state.isLoadingMore, isFalse);
     expect(notifier.state.isRefreshing, isFalse);
     expect(notifier.state.error, isNotNull);
-    final retry = notifier.loadNextPage();
+    final retry = notifier.loadMore();
     expect(repo.pending, hasLength(1));
     repo.completeNext([_post(2)]);
     await retry;
@@ -161,31 +162,31 @@ void main() {
       repo = _FakeUserPostsRepo();
     });
 
-    test('loadFirstPage 成功时填充 items', () async {
+    test('loadInitial 成功时填充 items', () async {
       repo.addPage([_post(1), _post(2)]);
       final n = UserPostsNotifier(
         repo: repo,
         key: const UserPostsKey(userId: 1, type: UserPostsListType.posts),
       );
-      await n.loadFirstPage();
+      await n.loadInitial();
       expect(n.state.items.length, 2);
       expect(n.state.cursor, '');
       expect(n.state.hasMore, isFalse);
       expect(n.state.error, isNull);
     });
 
-    test('loadNextPage 追加 items 而非覆盖', () async {
+    test('loadMore 追加 items 而非覆盖', () async {
       repo.addPage(List.generate(20, (i) => _post(i + 1)), hasMore: true);
       repo.addPage([_post(21), _post(22)]);
       final n = UserPostsNotifier(
         repo: repo,
         key: const UserPostsKey(userId: 1, type: UserPostsListType.posts),
       );
-      await n.loadFirstPage();
+      await n.loadInitial();
       expect(n.state.items.length, 20);
       expect(n.state.hasMore, isTrue);
 
-      await n.loadNextPage();
+      await n.loadMore();
       expect(n.state.items.length, 22);
       expect(n.state.hasMore, isFalse);
       // 翻页请求必须携带上一页返回的游标。
@@ -199,42 +200,42 @@ void main() {
         repo: repo,
         key: const UserPostsKey(userId: 1, type: UserPostsListType.favorites),
       );
-      await n.loadFirstPage();
+      await n.loadInitial();
       expect(n.state.items.map((item) => item.id), [9]);
       expect(n.state.hasMore, isFalse);
       expect(repo.seenCursors, ['', 'c2']);
     });
 
-    test('loadNextPage 在 hasMore=false 时不发请求', () async {
+    test('loadMore 在 hasMore=false 时不发请求', () async {
       repo.addPage([_post(1)]);
       final n = UserPostsNotifier(
         repo: repo,
         key: const UserPostsKey(userId: 1, type: UserPostsListType.posts),
       );
-      await n.loadFirstPage();
+      await n.loadInitial();
       final callsBefore = repo.calls;
-      await n.loadNextPage();
+      await n.loadMore();
       expect(repo.calls, callsBefore);
     });
 
-    test('loadNextPage 失败保留数据与游标，重试成功后清错并追加', () async {
+    test('loadMore 失败保留数据与游标，重试成功后清错并追加', () async {
       repo.addPage(List.generate(20, (i) => _post(i + 1)), hasMore: true);
       repo.addPage([_post(21)]);
       final n = UserPostsNotifier(
         repo: repo,
         key: const UserPostsKey(userId: 1, type: UserPostsListType.posts),
       );
-      await n.loadFirstPage();
+      await n.loadInitial();
 
       repo.shouldFail = true;
-      await n.loadNextPage();
+      await n.loadMore();
       expect(n.state.items.length, 20);
       expect(n.state.error, isNotNull);
       expect(n.state.hasMore, isTrue);
 
       // 失败后重试必须复用原游标（不跳页），成功后清掉错误态。
       repo.shouldFail = false;
-      await n.loadNextPage();
+      await n.loadMore();
       expect(n.state.error, isNull);
       expect(n.state.items.length, 21);
       expect(repo.seenCursors, ['', 'c2', 'c2']);
@@ -246,7 +247,7 @@ void main() {
         repo: repo,
         key: const UserPostsKey(userId: 1, type: UserPostsListType.posts),
       );
-      await n.loadFirstPage();
+      await n.loadInitial();
       repo.pages.clear();
       repo.addPage([_post(99)]);
       await n.refresh();
@@ -261,31 +262,31 @@ void main() {
         repo: repo,
         key: const UserPostsKey(userId: 1, type: UserPostsListType.posts),
       );
-      await n.loadFirstPage();
+      await n.loadInitial();
       repo.shouldFail = true;
       await n.refresh();
       expect(n.state.items.length, 2);
       expect(n.state.isRefreshing, isFalse);
     });
 
-    test('loadFirstPage 失败时设置 error 字段', () async {
+    test('loadInitial 失败时设置 error 字段', () async {
       repo.shouldFail = true;
       final n = UserPostsNotifier(
         repo: repo,
         key: const UserPostsKey(userId: 1, type: UserPostsListType.posts),
       );
-      await n.loadFirstPage();
+      await n.loadInitial();
       expect(n.state.error, isNotNull);
       expect(n.state.items, isEmpty);
     });
 
-    test('较新的 refresh 会丢弃进行中的 loadFirstPage', () async {
+    test('较新的 refresh 会丢弃进行中的 loadInitial', () async {
       final queued = _QueuedUserPostsRepo();
       final n = UserPostsNotifier(
         repo: queued,
         key: const UserPostsKey(userId: 1, type: UserPostsListType.posts),
       );
-      final first = n.loadFirstPage();
+      final first = n.loadInitial();
       final refresh = n.refresh();
       queued.completeLast([_post(99)]);
       await refresh;

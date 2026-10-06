@@ -111,7 +111,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
 
   Widget _body(ReviewTaskState state) {
     final task = state.task;
-    if (state.loading && task == null) {
+    if (state.isLoading && task == null) {
       return const LoadingView();
     }
     if (task == null) {
@@ -166,7 +166,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
         if (state.editable)
           ReviewDecisionForm(
             policies: policies,
-            busy: state.busy,
+            busy: state.isBusy,
             onSubmit: _controller.submit,
           )
         else if (state.closure != null || state.decision != null)
@@ -248,7 +248,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
                   size: FButtonSizeVariant.sm,
                   variant: FButtonVariant.outline,
                   mainAxisSize: MainAxisSize.min,
-                  onPress: state.busy ? null : _renew,
+                  onPress: state.isBusy ? null : _renew,
                   child: const Text('续期'),
                 ),
                 const SizedBox(width: AppTheme.space2),
@@ -257,7 +257,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
                   size: FButtonSizeVariant.sm,
                   variant: FButtonVariant.ghost,
                   mainAxisSize: MainAxisSize.min,
-                  onPress: state.busy ? null : _release,
+                  onPress: state.isBusy ? null : _release,
                   child: const Text('放弃'),
                 ),
               ],

@@ -36,7 +36,7 @@ class AdsPage extends ConsumerWidget {
             semanticsLabel: '刷新',
             onPress: () {
               ref.invalidate(myAdvertiserProvider);
-              ref.read(adsListProvider.notifier).refresh();
+              ref.read(adsListProvider.notifier).loadInitial();
             },
           ),
         ],
@@ -59,7 +59,7 @@ class AdsPage extends ConsumerWidget {
                   prefix: const Icon(FLucideIcons.plus),
                   onPress: () async {
                     await context.push('/ads/new');
-                    ref.read(adsListProvider.notifier).refresh();
+                    ref.read(adsListProvider.notifier).loadInitial();
                   },
                   child: const Text('新建广告'),
                 )
@@ -152,11 +152,11 @@ class _AdsList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final notifier = ref.read(adsListProvider.notifier);
-    if (state.loading && state.ads.isEmpty) {
+    if (state.isLoading && state.ads.isEmpty) {
       return const LoadingView();
     }
     if (state.error != null && state.ads.isEmpty) {
-      return ErrorView(message: state.error!, onRetry: notifier.refresh);
+      return ErrorView(message: state.error!, onRetry: notifier.loadInitial);
     }
     if (state.ads.isEmpty) {
       return Text(
@@ -198,7 +198,7 @@ class _AdsList extends ConsumerWidget {
                 suffix: const Icon(FLucideIcons.chevronRight),
                 onPress: () async {
                   await context.push('/ads/${jsonInt64Id(ad.adId)}');
-                  notifier.refresh();
+                  notifier.loadInitial();
                 },
               ),
           ],
@@ -215,7 +215,7 @@ class _AdsList extends ConsumerWidget {
         // 手动翻页；失败文案已在上方展示。
         if (state.hasMore)
           LoadMoreFooter(
-            isLoading: state.loadingMore,
+            isLoading: state.isLoadingMore,
             onLoadMore: notifier.loadMore,
           ),
       ],

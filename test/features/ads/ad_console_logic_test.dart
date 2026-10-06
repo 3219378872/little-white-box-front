@@ -110,7 +110,7 @@ void main() {
       ]);
       final notifier = AdsListNotifier(repository, loadImmediately: false);
 
-      await notifier.refresh();
+      await notifier.loadInitial();
       await notifier.loadMore();
       await notifier.loadMore();
 
@@ -122,7 +122,7 @@ void main() {
         ListAdsResp(ads: [ad(1)], nextCursor: 'c1', hasMore: true),
       ]);
       final second = AdsListNotifier(failing, loadImmediately: false);
-      await second.refresh();
+      await second.loadInitial();
       await second.loadMore();
       expect(second.state.ads.map((item) => item.adId), [1]);
       expect(second.state.error, isNotNull);

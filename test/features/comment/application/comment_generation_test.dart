@@ -87,7 +87,7 @@ void main() {
         repository.requests.last.complete(_comments(100));
         await retry;
         expect(notifier.state.comments.single.id, 100);
-        expect(notifier.state.hasError, isFalse);
+        expect(notifier.state.error, isNull);
       },
     );
   }
@@ -216,7 +216,7 @@ void main() {
         await initial;
         expect(notifier.state.comments.single.id, 2);
         expect(notifier.state.sortBy, 2);
-        expect(notifier.state.hasError, isFalse);
+        expect(notifier.state.error, isNull);
         expect(notifier.state.isLoading, isFalse);
       },
     );

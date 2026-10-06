@@ -48,7 +48,7 @@ void main() {
         loadImmediately: false,
       );
 
-      await notifier.refresh();
+      await notifier.loadInitial();
       await notifier.loadOlder();
 
       expect(notifier.state.messages.map((item) => item.id), [1, 2, 3]);
@@ -83,7 +83,7 @@ void main() {
         loadImmediately: false,
       );
 
-      final load = notifier.refresh();
+      final load = notifier.loadInitial();
       await pumpEventQueue();
       expect(await notifier.send('new message'), isTrue);
 
@@ -116,7 +116,7 @@ void main() {
         loadImmediately: false,
       );
       addTearDown(notifier.dispose);
-      final load = notifier.refresh();
+      final load = notifier.loadInitial();
       await notifier.send('new message');
       repository.pendingLoad.complete(
         MessagePage(messages: [message(1), message(99)], hasMore: false),

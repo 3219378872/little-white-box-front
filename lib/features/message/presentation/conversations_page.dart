@@ -89,7 +89,7 @@ class ConversationsPage extends ConsumerWidget {
         ),
         Expanded(
           child: state.error != null && state.conversations.isEmpty
-              ? ErrorView(message: state.error!, onRetry: notifier.refresh)
+              ? ErrorView(message: state.error!, onRetry: notifier.loadInitial)
               : PaginatedListView<ConversationSummary>(
                   items: state.conversations,
                   hasMore: state.hasMore,
@@ -99,7 +99,7 @@ class ConversationsPage extends ConsumerWidget {
                   onLoadMore: notifier.loadMore,
                   onRefresh: () async {
                     await Future.wait([
-                      notifier.refresh(),
+                      notifier.loadInitial(),
                       unreadNotifier.refresh(),
                       assistantNotifier.refresh(),
                     ]);

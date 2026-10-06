@@ -239,7 +239,7 @@ void main() {
 
     expect(notifier.state.items.single.content, '新记忆');
     expect(notifier.state.lastChangeId, 2);
-    expect(notifier.state.loading, isFalse);
+    expect(notifier.state.isLoading, isFalse);
   });
 
   test('overlapping commands retain their own retry requestIds', () async {

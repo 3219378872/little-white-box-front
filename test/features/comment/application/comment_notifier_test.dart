@@ -137,7 +137,7 @@ void main() {
       loadImmediately: false,
     );
     await notifier.loadInitial();
-    expect(notifier.state.hasError, isTrue);
+    expect(notifier.state.error, isNotNull);
     expect(notifier.state.comments, isEmpty);
     expect(notifier.state.isLoading, isFalse);
   });
@@ -323,11 +323,11 @@ void main() {
     expect(notifier.state.hasMore, isTrue);
 
     await notifier.loadMore();
-    expect(notifier.state.hasError, isTrue);
+    expect(notifier.state.error, isNotNull);
     expect(notifier.state.comments, hasLength(20));
 
     await notifier.retry();
-    expect(notifier.state.hasError, isFalse);
+    expect(notifier.state.error, isNull);
     expect(notifier.state.comments, hasLength(21));
     expect(repo.calls.where((c) => c.startsWith('list:')), [
       'list:1:1',

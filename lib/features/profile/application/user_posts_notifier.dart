@@ -25,6 +25,8 @@ class UserPostsKey {
   int get hashCode => Object.hash(jsonInt64Id(userId), type);
 }
 
+/// 个人页帖子/收藏列表：[isLoading] 为首屏加载，[isLoadingMore] 为翻页，
+/// [isRefreshing] 为保留现有条目的下拉/回访刷新。
 class UserPostsState {
   final List<PostItem> items;
 
@@ -32,14 +34,18 @@ class UserPostsState {
   final String cursor;
   final bool hasMore;
   final bool isLoading;
+  final bool isLoadingMore;
   final bool isRefreshing;
-  final Object? error;
+
+  /// 最近一次失败的原始错误文本；展示时再经 friendlyErrorMessage 处理。
+  final String? error;
 
   const UserPostsState({
     this.items = const [],
     this.cursor = '',
     this.hasMore = true,
     this.isLoading = false,
+    this.isLoadingMore = false,
     this.isRefreshing = false,
     this.error,
   });
@@ -49,8 +55,9 @@ class UserPostsState {
     String? cursor,
     bool? hasMore,
     bool? isLoading,
+    bool? isLoadingMore,
     bool? isRefreshing,
-    Object? error,
+    String? error,
     bool clearError = false,
   }) {
     return UserPostsState(
@@ -58,6 +65,7 @@ class UserPostsState {
       cursor: cursor ?? this.cursor,
       hasMore: hasMore ?? this.hasMore,
       isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       isRefreshing: isRefreshing ?? this.isRefreshing,
       error: clearError ? null : (error ?? this.error),
     );
@@ -107,10 +115,12 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
     return resp;
   }
 
-  Future<void> loadFirstPage() async {
+  /// 首屏与错误重试：从第一页重建列表，新一代请求使进行中的翻页与刷新失效。
+  Future<void> loadInitial() async {
     final generation = ++_generation;
     state = state.copyWith(
       isLoading: true,
+      isLoadingMore: false,
       isRefreshing: false,
       clearError: true,
     );
@@ -125,15 +135,21 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
       );
     } catch (e) {
       if (!mounted || generation != _generation) return;
-      state = state.copyWith(isLoading: false, error: e);
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
-  Future<void> loadNextPage() async {
-    if (!state.hasMore || state.isLoading || state.isRefreshing) return;
+  /// 按游标追加下一页；失败保留已加载条目与游标，由用户点重试再发。
+  Future<void> loadMore() async {
+    if (!state.hasMore ||
+        state.isLoading ||
+        state.isLoadingMore ||
+        state.isRefreshing) {
+      return;
+    }
     final generation = _generation;
     // 与 feed/message 的 loadMore 一致：显式重试时先清掉上一次的失败态。
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(isLoadingMore: true, clearError: true);
     try {
       final resp = await _fetchVisible(state.cursor);
       if (!mounted || generation != _generation) return;
@@ -141,19 +157,22 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
         items: _deduplicate([...state.items, ...resp.list]),
         cursor: resp.nextCursor,
         hasMore: _hasMoreFrom(resp),
-        isLoading: false,
+        isLoadingMore: false,
       );
     } catch (e) {
       if (!mounted || generation != _generation) return;
-      state = state.copyWith(isLoading: false, error: e);
+      state = state.copyWith(isLoadingMore: false, error: e.toString());
     }
   }
 
+  /// 保留现有条目重新读取第一页（下拉刷新、切回标签、从子页面返回）。
   Future<void> refresh() async {
     final generation = ++_generation;
+    // 新一代请求让进行中的首屏/翻页失效，同时释放它们的加载标记。
     state = state.copyWith(
       isRefreshing: true,
       isLoading: false,
+      isLoadingMore: false,
       clearError: true,
     );
     try {
@@ -164,16 +183,11 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
         cursor: resp.nextCursor,
         hasMore: _hasMoreFrom(resp),
         isRefreshing: false,
-        isLoading: false,
         clearError: true,
       );
     } catch (error) {
       if (!mounted || generation != _generation) return;
-      state = state.copyWith(
-        isRefreshing: false,
-        isLoading: false,
-        error: error,
-      );
+      state = state.copyWith(isRefreshing: false, error: error.toString());
     }
   }
 
@@ -191,6 +205,6 @@ final userPostsProvider = StateNotifierProvider.autoDispose
         repo: ref.read(userPostsRepositoryProvider),
         key: key,
       );
-      notifier.loadFirstPage();
+      notifier.loadInitial();
       return notifier;
     });

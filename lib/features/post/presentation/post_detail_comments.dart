@@ -6,9 +6,9 @@ extension _PostDetailComments on _PostDetailPageState {
     final topLevel = comments.comments;
     return [
       // 评论列表
-      if (topLevel.isEmpty && !comments.isLoading)
+      if (topLevel.isEmpty && !comments.isLoading && !comments.isLoadingMore)
         SliverToBoxAdapter(
-          child: comments.hasError
+          child: comments.error != null
               ? ErrorView(
                   message: '评论加载失败',
                   onRetry: () => ref
@@ -24,8 +24,8 @@ extension _PostDetailComments on _PostDetailPageState {
               // tail 位置：优先显示加载中，其次加载失败重试，最后"没有更多了"；
               // 列表为空时的失败已由上方 ErrorView 承担，尾部不再重复重试入口。
               return LoadMoreFooter(
-                isLoading: comments.isLoading,
-                error: comments.hasError && topLevel.isNotEmpty
+                isLoading: comments.isLoading || comments.isLoadingMore,
+                error: comments.error != null && topLevel.isNotEmpty
                     ? '评论加载失败'
                     : null,
                 onRetry: () => ref
@@ -39,7 +39,8 @@ extension _PostDetailComments on _PostDetailPageState {
           childCount:
               topLevel.length +
               ((comments.isLoading ||
-                      comments.hasError ||
+                      comments.isLoadingMore ||
+                      comments.error != null ||
                       (!comments.hasMore && topLevel.isNotEmpty))
                   ? 1
                   : 0),

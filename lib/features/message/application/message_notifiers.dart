@@ -63,10 +63,11 @@ class ConversationListNotifier extends StateNotifier<ConversationListState> {
     bool loadImmediately = true,
   }) : _repository = repository,
        super(const ConversationListState()) {
-    if (loadImmediately) unawaited(refresh());
+    if (loadImmediately) unawaited(loadInitial());
   }
 
-  Future<void> refresh() async {
+  /// 首屏、重试与下拉刷新：重新读取第一页会话，新一代请求使进行中的翻页失效。
+  Future<void> loadInitial() async {
     final generation = ++_generation;
     state = state.copyWith(
       isLoading: true,
@@ -229,10 +230,11 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
        _createKey = createKey ?? _defaultKey,
        _onMarkedRead = onMarkedRead,
        super(const MessageThreadState()) {
-    if (loadImmediately) unawaited(refresh());
+    if (loadImmediately) unawaited(loadInitial());
   }
 
-  Future<void> refresh() async {
+  /// 首屏与重试：读取最新一页消息，新一代请求使进行中的旧消息翻页失效。
+  Future<void> loadInitial() async {
     final generation = ++_loadGeneration;
     final previousIds = state.messages
         .map((item) => jsonInt64Id(item.id))
