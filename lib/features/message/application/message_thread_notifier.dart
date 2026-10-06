@@ -14,13 +14,21 @@ typedef IdempotencyKeyFactory = String Function();
 /// 单个私信线程的消息、发送与已读状态；[failedCommand] 保留失败的发送命令供重试复用幂等键。
 class MessageThreadState {
   final List<DirectMessage> messages;
+
+  /// 是否还有更早的消息可向前翻页。
   final bool hasMore;
   final bool isLoading;
   final bool isLoadingOlder;
   final bool isSending;
+
+  /// 首屏或翻页读取失败的提示。
   final String? error;
+
+  /// 最近一次发送失败的提示，页面以横幅展示并提供重试。
   final String? sendError;
   final bool isMarkingRead;
+
+  /// 标记已读失败的提示；不影响阅读与发送。
   final String? readError;
   final SendMessageCommand? failedCommand;
 
@@ -37,6 +45,7 @@ class MessageThreadState {
     this.failedCommand,
   });
 
+  /// 复制并覆盖字段；可空字段需借对应的 `clear*` 参数显式清空。
   MessageThreadState copyWith({
     List<DirectMessage>? messages,
     bool? hasMore,
@@ -77,9 +86,13 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
   final Object targetUserId;
   final Object currentUserId;
   final int pageSize;
+  // 新发送命令的幂等键生成器；测试可注入固定键。
   final IdempotencyKeyFactory _createKey;
+  // 已读成功回调，由 provider 用来同步会话列表与未读汇总。
   final void Function()? _onMarkedRead;
+  // 读取代次：首屏重载使在途的旧消息翻页作废。
   int _loadGeneration = 0;
+  // 已读代次：只采纳最近一次标记已读请求的结果。
   int _readGeneration = 0;
 
   MessageThreadNotifier({
@@ -101,6 +114,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
   /// 首屏与重试：读取最新一页消息，新一代请求使进行中的旧消息翻页失效。
   Future<void> loadInitial() async {
     final generation = ++_loadGeneration;
+    // 记下发起时已有的消息，用于区分读取期间新发出的消息。
     final previousIds = state.messages
         .map((item) => jsonInt64Id(item.id))
         .toSet();
@@ -128,6 +142,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
         isLoading: false,
         clearError: true,
       );
+      // 首屏读取成功后标记已读。
       await _markRead();
     } catch (error) {
       if (!mounted || generation != _loadGeneration) return;
@@ -141,6 +156,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
   /// 已读失败不影响阅读，页面横幅上的重试按钮调用此处。
   Future<void> retryMarkRead() => _markRead();
 
+  // 标记会话已读；成功后通知外部同步未读数，失败只记录错误供横幅重试。
   Future<void> _markRead() async {
     final generation = ++_readGeneration;
     state = state.copyWith(isMarkingRead: true, clearReadError: true);
@@ -166,6 +182,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
         state.isLoadingOlder) {
       return;
     }
+    // 翻页不开新代次；游标取当前最早一条消息的 ID。
     final generation = _loadGeneration;
     state = state.copyWith(isLoadingOlder: true, clearError: true);
     try {
@@ -195,6 +212,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     int msgType = MessageTypes.text,
     Object mediaId = 0,
   }) async {
+    // 内容为空、超长、正在发送或线程身份无效时直接拒绝。
     final normalized = content.trim();
     if (normalized.isEmpty ||
         (msgType == MessageTypes.text && normalized.length > 1000) ||
@@ -204,6 +222,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
         !jsonInt64IsPositive(currentUserId)) {
       return false;
     }
+    // 内容、类型与媒体都和上次失败命令一致时复用它（及其幂等键），否则生成新命令。
     final failed = state.failedCommand;
     final command =
         failed != null &&
@@ -248,6 +267,7 @@ class MessageThreadNotifier extends StateNotifier<MessageThreadState> {
     try {
       final id = await _repository.sendMessage(command);
       if (!mounted) return true;
+      // 服务端只返回消息 ID，本地按命令拼出消息立即上屏；下次读取时以服务端快照为准。
       final sent = DirectMessage(
         id: id,
         conversationId: conversationId,

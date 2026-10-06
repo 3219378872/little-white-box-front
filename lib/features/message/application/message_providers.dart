@@ -66,6 +66,7 @@ final messageThreadProvider = StateNotifierProvider.autoDispose
     ) {
       final identity = ref.watch(authenticatedSessionIdentityProvider);
       final auth = ref.read(authNotifierProvider);
+      // 键里的当前用户必须就是登录用户，切号瞬间的旧键不触发读取与标记已读。
       final ownsThread =
           identity != null &&
           jsonInt64IsPositive(auth.userId ?? 0) &&
@@ -76,6 +77,7 @@ final messageThreadProvider = StateNotifierProvider.autoDispose
         targetUserId: key.targetUserId,
         currentUserId: key.currentUserId,
         loadImmediately: ownsThread,
+        // 已读成功后同步会话列表与未读角标。
         onMarkedRead: () {
           ref
               .read(conversationListProvider.notifier)

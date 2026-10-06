@@ -1,6 +1,7 @@
 import '../../../core/api/json_int64.dart';
 import '../../../core/api/response_fields.dart';
 
+/// 会话列表中的一项：对方用户、最后一条消息与当前账号的未读数。
 class ConversationSummary {
   final Object id;
   final Object targetUserId;
@@ -20,6 +21,7 @@ class ConversationSummary {
     required this.unreadCount,
   });
 
+  /// 解析会话；会话 ID 或对方用户 ID 不是正整数时抛 [FormatException]。
   factory ConversationSummary.fromJson(Map<String, dynamic> json) {
     final id = json['id'];
     final targetUserId = json['targetUserId'];
@@ -38,6 +40,7 @@ class ConversationSummary {
   }
 }
 
+/// 一条私信；媒体消息的 [content] 是媒体 URL，[mediaId] 指向已上传的媒体。
 class DirectMessage {
   final Object id;
   final Object conversationId;
@@ -61,6 +64,7 @@ class DirectMessage {
     this.mediaId = 0,
   });
 
+  /// 解析私信；任一身份字段不是正整数时抛 [FormatException]。
   factory DirectMessage.fromJson(Map<String, dynamic> json) {
     final id = json['id'];
     final conversationId = json['conversationId'];
@@ -86,6 +90,7 @@ class DirectMessage {
   }
 }
 
+/// 一页会话及服务端给出的会话总数（用于判断是否还有下一页）。
 class ConversationPage {
   final List<ConversationSummary> conversations;
   final int total;
@@ -93,6 +98,7 @@ class ConversationPage {
   const ConversationPage({required this.conversations, required this.total});
 }
 
+/// 一页消息及是否还有更早的消息。
 class MessagePage {
   final List<DirectMessage> messages;
   final bool hasMore;
@@ -100,6 +106,7 @@ class MessagePage {
   const MessagePage({required this.messages, required this.hasMore});
 }
 
+/// 私信与通知的未读汇总，两项都是必填计数，缺失视为格式错误。
 class UnreadSummary {
   final int messageUnread;
   final int notificationUnread;
@@ -114,6 +121,7 @@ class UnreadSummary {
   }
 }
 
+/// 一次发送私信的完整命令；失败重试时原样复用，以保证幂等键不变。
 class SendMessageCommand {
   final Object receiverId;
   final String content;
@@ -130,6 +138,7 @@ class SendMessageCommand {
   });
 }
 
+/// 私信消息类型取值，与服务端 msgType 一致。
 abstract final class MessageTypes {
   static const int text = 1;
   static const int image = 2;
@@ -137,8 +146,10 @@ abstract final class MessageTypes {
   static const int audio = 4;
 }
 
+// 宽松读取字符串字段，缺失时为空串。
 String _string(Object? value) => value?.toString() ?? '';
 
+// 宽松读取计数/时间字段：兼容数字与数字字符串，无法解析时记为 0。
 int _integer(Object? value) {
   if (value is num) return value.toInt();
   return int.tryParse(value?.toString() ?? '') ?? 0;

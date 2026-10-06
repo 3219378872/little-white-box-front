@@ -8,8 +8,11 @@ import '../data/message_repository.dart';
 
 /// 导航未读角标的数据快照；刷新失败时保留上次汇总只附带错误。
 class UnreadSummaryState {
+  /// 最近一次成功读取的汇总；未读到前全为 0。
   final UnreadSummary summary;
   final bool isLoading;
+
+  /// 最近一次刷新失败的提示。
   final String? error;
 
   const UnreadSummaryState({
@@ -35,6 +38,7 @@ class UnreadSummaryNotifier extends StateNotifier<UnreadSummaryState> {
   /// 重新拉取未读汇总；并发刷新只采纳最新一次的结果。
   Future<void> refresh() async {
     final generation = ++_generation;
+    // 刷新期间保留旧汇总，角标不闪烁归零。
     state = UnreadSummaryState(summary: state.summary, isLoading: true);
     try {
       final summary = await _repository.getUnreadSummary();

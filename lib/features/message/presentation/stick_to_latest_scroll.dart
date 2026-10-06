@@ -14,8 +14,11 @@ class StickToLatestScroll {
   // 距底部不超过该距离即视为贴底。
   static const _pinDistance = 48.0;
 
+  // 用户当前是否停在底部附近。
   bool _pinToLatest = true;
+  // 上次报告的消息数，用于识别新消息到达。
   int _seenCount = 0;
+  // 释放后忽略已排队的帧回调。
   bool _disposed = false;
 
   /// 切换会话或账号时回到“首次打开”状态，下一批消息到达后直接跳到底部。

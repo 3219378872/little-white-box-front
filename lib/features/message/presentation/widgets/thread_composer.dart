@@ -3,6 +3,7 @@ import 'package:forui/forui.dart';
 
 /// 线程页底部的文本输入与发送按钮；输入内容由页面持有的 [controller] 管理，便于发送成功后清空。
 class ThreadComposer extends StatelessWidget {
+  /// 页面持有的输入控制器。
   final TextEditingController controller;
 
   /// 文本发送进行中，发送按钮显示进度圈。

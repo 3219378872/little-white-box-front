@@ -13,8 +13,14 @@ class ConversationListState {
   final List<ConversationSummary> conversations;
   final bool isLoading;
   final bool isLoadingMore;
+
+  /// 已加载到的页码，翻页时据此请求下一页。
   final int page;
+
+  /// 服务端返回的会话总数。
   final int total;
+
+  /// 最近一次加载失败的提示；列表为空时页面整体显示错误态。
   final String? error;
 
   const ConversationListState({
@@ -28,6 +34,7 @@ class ConversationListState {
 
   bool get hasMore => conversations.length < total;
 
+  /// 复制并覆盖字段；[error] 需显式传 `clearError` 才清空。
   ConversationListState copyWith({
     List<ConversationSummary>? conversations,
     bool? isLoading,
@@ -74,6 +81,7 @@ class ConversationListNotifier extends StateNotifier<ConversationListState> {
     try {
       final result = await _repository.getConversations(pageSize: pageSize);
       if (!mounted || generation != _generation) return;
+      // 首屏成功时整体替换为新快照，顺带清掉加载与错误标记。
       state = ConversationListState(
         conversations: _deduplicate(result.conversations),
         page: 1,
@@ -88,8 +96,10 @@ class ConversationListNotifier extends StateNotifier<ConversationListState> {
     }
   }
 
+  /// 加载下一页会话（列表触底时触发）；无更多或正在加载时忽略。
   Future<void> loadMore() async {
     if (!state.hasMore || state.isLoading || state.isLoadingMore) return;
+    // 续翻不开新代次：期间若有首屏/刷新，本次结果作废。
     final generation = _generation;
     final nextPage = state.page + 1;
     state = state.copyWith(isLoadingMore: true, clearError: true);
@@ -138,7 +148,7 @@ class ConversationListNotifier extends StateNotifier<ConversationListState> {
     );
   }
 
-  // 同一会话只保留首次出现的一条，避免刷新与推送合并后重复显示。
+  // 同一会话只保留首次出现的一条，避免翻页期间列表顺序变化导致跨页重复显示。
   static List<ConversationSummary> _deduplicate(
     List<ConversationSummary> conversations,
   ) {

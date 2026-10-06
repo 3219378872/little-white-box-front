@@ -14,14 +14,19 @@ import '../application/message_providers.dart';
 import '../data/message_models.dart';
 import '../../../core/router/app_routes.dart';
 
+/// 消息模块的外壳：窄屏只显示会话列表或当前线程，宽屏（≥ lg 断点）左列表右线程并排。
 class MessagesShell extends StatelessWidget {
+  /// 当前打开的线程页；为空时宽屏右侧显示选择提示。
   final Widget? thread;
+
+  /// 当前是否选中 Agent 会话，用于高亮置顶的 Agent 入口。
   final bool assistantSelected;
 
   const MessagesShell({super.key, this.thread, this.assistantSelected = false});
 
   @override
   Widget build(BuildContext context) {
+    // 宽屏判断沿用主题的 lg 断点。
     final isDesktop =
         MediaQuery.sizeOf(context).width >= context.theme.breakpoints.lg;
     if (!isDesktop) {
@@ -50,7 +55,9 @@ class MessagesShell extends StatelessWidget {
   }
 }
 
+/// 会话列表页：顶部通知未读角标、置顶的 Agent 会话与可分页、下拉刷新的私信会话列表。
 class ConversationsPage extends ConsumerWidget {
+  /// 接管会话点击（测试用）；为空时 push 到线程路由。
   final ValueChanged<ConversationSummary>? onOpenConversation;
   final bool assistantSelected;
 
@@ -71,6 +78,7 @@ class ConversationsPage extends ConsumerWidget {
     final selected = assistantSelected || _assistantRouteSelected(context);
     return Column(
       children: [
+        // 头部：标题与通知未读数。
         FHeader(
           title: const Text('消息'),
           suffixes: [
@@ -83,12 +91,14 @@ class ConversationsPage extends ConsumerWidget {
               ),
           ],
         ),
+        // 置顶的 Agent 会话入口。
         _AssistantPin(
           thread: assistant.thread,
           selected: selected,
           onPress: () => context.go(AppRoutes.assistant),
         ),
         Expanded(
+          // 列表为空且加载失败时整体显示错误态，否则交给分页列表（含翻页失败的尾部重试）。
           child: state.error != null && state.conversations.isEmpty
               ? ErrorView(message: state.error!, onRetry: notifier.loadInitial)
               : PaginatedListView<ConversationSummary>(
@@ -98,6 +108,7 @@ class ConversationsPage extends ConsumerWidget {
                   isLoadingMore: state.isLoadingMore,
                   error: state.error,
                   onLoadMore: notifier.loadMore,
+                  // 下拉刷新同时更新会话、未读汇总与 Agent 会话摘要。
                   onRefresh: () async {
                     await Future.wait([
                       notifier.loadInitial(),
@@ -136,6 +147,7 @@ class ConversationsPage extends ConsumerWidget {
     );
   }
 
+  // 当前路由位于 Agent 页面时视为选中；无路由（如测试）时回退到构造参数。
   bool _assistantRouteSelected(BuildContext context) {
     final route = GoRouter.maybeOf(context);
     if (route == null) return assistantSelected;
@@ -144,6 +156,7 @@ class ConversationsPage extends ConsumerWidget {
     );
   }
 
+  // 打开会话线程，带上对方 ID 与昵称供线程页使用。
   void _open(BuildContext context, ConversationSummary conversation) {
     final callback = onOpenConversation;
     if (callback != null) {
@@ -160,6 +173,7 @@ class ConversationsPage extends ConsumerWidget {
   }
 }
 
+// 会话列表顶部固定的 Agent 会话：展示最后一条预览与未读数，选中时加深底色。
 class _AssistantPin extends StatelessWidget {
   final AssistantThreadSummary thread;
   final bool selected;
@@ -214,6 +228,7 @@ class _AssistantPin extends StatelessWidget {
   }
 }
 
+// 会话项右侧：最后消息时间与未读角标。
 class _ConversationDetails extends StatelessWidget {
   final ConversationSummary conversation;
 

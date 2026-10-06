@@ -8,7 +8,11 @@ class PendingMediaRow extends StatelessWidget {
 
   /// 重试进行中时禁用重试按钮；取消始终可用。
   final bool busy;
+
+  /// 重试上传或发送，已上传的媒体不会重传。
   final VoidCallback onRetry;
+
+  /// 放弃这条待发送媒体。
   final VoidCallback onCancel;
 
   const PendingMediaRow({

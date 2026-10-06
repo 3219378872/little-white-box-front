@@ -29,8 +29,13 @@ import '../../../core/router/app_routes.dart';
 ///
 /// 路由参数里的 ID 可能是 int 或十进制字符串，页面内统一按 [jsonInt64Id] 比较。
 class MessageThreadPage extends ConsumerStatefulWidget {
+  /// 会话 ID，来自路由参数。
   final Object conversationId;
+
+  /// 对方用户 ID，发送消息时作为接收者。
   final Object targetUserId;
+
+  /// 对方昵称，仅用于页头；为空时显示「用户 {id}」。
   final String targetUserName;
 
   const MessageThreadPage({
@@ -44,11 +49,14 @@ class MessageThreadPage extends ConsumerStatefulWidget {
   ConsumerState<MessageThreadPage> createState() => _MessageThreadPageState();
 }
 
+// 持有输入草稿、贴底滚动与媒体发送任务，并在会话或登录身份变化时整体重置它们。
 class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
   final _controller = TextEditingController();
   final _scroll = StickToLatestScroll();
   late final MediaSendController _media;
+  // 正在打开系统文件选择器，期间锁定媒体入口。
   bool _selecting = false;
+  // 页面归属代次：会话、对方用户或登录身份变化时递增，作废进行中的选择与发送。
   int _ownerGeneration = 0;
 
   @override
@@ -69,6 +77,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
   @override
   void didUpdateWidget(covariant MessageThreadPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // 同一页面实例被复用到另一个会话时，重置归属。
     if (jsonInt64Id(oldWidget.conversationId) !=
             jsonInt64Id(widget.conversationId) ||
         jsonInt64Id(oldWidget.targetUserId) !=
@@ -95,6 +104,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     super.dispose();
   }
 
+  // 以当前登录用户构造线程 provider 的键。
   MessageThreadKey _key(Object currentUserId) => MessageThreadKey(
     conversationId: widget.conversationId,
     targetUserId: widget.targetUserId,
@@ -125,6 +135,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     }
   }
 
+  // 媒体任务进度或错误变化时重建。
   void _mediaChanged() {
     if (mounted) setState(() {});
   }
@@ -143,6 +154,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
         ref.read(authNotifierProvider).sessionRevision ==
             auth.sessionRevision &&
         ref.read(authNotifierProvider).userId == auth.userId;
+    // 选择文件，再把上传与发送交给媒体任务；发送回调里再次确认归属未变。
     setState(() => _selecting = true);
     try {
       final file = await ref.read(mediaPickerProvider).pick(kind);
@@ -200,7 +212,9 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     final key = _key(currentUserId!);
     final state = ref.watch(messageThreadProvider(key));
     final notifier = ref.read(messageThreadProvider(key).notifier);
+    // 每次构建报告消息数，让贴底滚动决定是否跟随新消息。
     _scroll.follow(state.messages.length);
+    // 有媒体在选择、上传或待重试时，锁住媒体入口与文本发送，避免两条发送交错。
     final mediaLocked = _selecting || _media.busy || _media.hasPending;
 
     return FScaffold(
@@ -217,6 +231,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
       ),
       child: Column(
         children: [
+          // 消息列表
           Expanded(child: _buildMessages(state, notifier, currentUserId)),
           // 待发送媒体的失败由下方媒体行负责展示，避免同一失败出现两条横幅。
           if (state.sendError != null && !_media.hasPending)
@@ -227,6 +242,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
                   ? null
                   : () => _retryFailedSend(notifier, state.failedCommand),
             ),
+          // 标记已读失败横幅
           if (state.readError != null)
             InlineErrorBar(
               message: '标记已读失败: ${state.readError}',
@@ -234,6 +250,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
               retrying: state.isMarkingRead,
               onRetry: state.isMarkingRead ? null : notifier.retryMarkRead,
             ),
+          // 媒体入口、待发送媒体的失败行与文本输入框。
           MediaPickerBar(
             enabled: !state.isSending && !mediaLocked,
             busy: _media.busy || _selecting,
@@ -279,6 +296,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
       itemCount: state.messages.length + (state.hasMore ? 1 : 0),
       itemBuilder: (context, index) {
+        // 首行：加载更早消息。
         if (state.hasMore && index == 0) {
           return Center(
             child: FButton.icon(
@@ -368,6 +386,7 @@ class _MessageBody extends StatelessWidget {
     final foreground = own
         ? theme.colors.primaryForeground
         : theme.colors.secondaryForeground;
+    // 媒体消息的正文应是 http(s) URL，否则无法渲染。
     final looksLikeUrl =
         message.content.startsWith('http://') ||
         message.content.startsWith('https://');
@@ -401,6 +420,7 @@ class _MessageBody extends StatelessWidget {
         child: Text(message.msgType == MessageTypes.video ? '打开视频' : '播放语音文件'),
       );
     }
+    // 媒体消息缺少有效 URL 时给出提示，而不是把原始内容当文本展示。
     if (message.msgType != MessageTypes.text && !looksLikeUrl) {
       return Text(
         '媒体不可用',
