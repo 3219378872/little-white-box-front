@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
+/// 只有一个确认按钮的提示框，用于无需用户抉择、只需知晓的阻断性说明（如发帖时图片上传失败）。
 Future<void> showAppAlert({
   required BuildContext context,
   required String title,
@@ -53,6 +54,7 @@ Future<bool> showAppConfirm({
   required String confirmLabel,
   String cancelLabel = '取消',
 }) async {
+  // 只有点确认才置 true；取消、点遮罩或返回键关闭都视为未确认。
   var confirmed = false;
   await showFDialog<void>(
     context: context,

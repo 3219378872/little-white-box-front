@@ -18,6 +18,7 @@ class SystemFontsRefresh extends StatefulWidget {
   State<SystemFontsRefresh> createState() => _SystemFontsRefreshState();
 }
 
+// Bumps a generation counter that keys the subtree on every font change.
 class _SystemFontsRefreshState extends State<SystemFontsRefresh> {
   int _generation = 0;
 
@@ -33,6 +34,7 @@ class _SystemFontsRefreshState extends State<SystemFontsRefresh> {
     super.dispose();
   }
 
+  // Fires after a fallback font finishes loading; forces a fresh subtree.
   void _onSystemFontsChanged() {
     if (mounted) setState(() => _generation++);
   }

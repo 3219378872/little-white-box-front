@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
+/// 整页或整块加载失败时的居中错误态；提供 [onRetry] 时显示「重试」按钮。
 class ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
@@ -38,6 +39,7 @@ class ErrorView extends StatelessWidget {
   }
 }
 
+/// 列表或页面无数据时的居中空态。
 class EmptyView extends StatelessWidget {
   final String message;
   final IconData icon;

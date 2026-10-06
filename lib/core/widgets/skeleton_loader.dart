@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
+/// 骨架屏容器：把 [child] 的所有像素统一染成在次要色与背景色之间往返的闪烁色，
+/// 子组件只需摆出占位形状。
 class SkeletonLoader extends StatefulWidget {
   final Widget child;
 
@@ -10,6 +12,7 @@ class SkeletonLoader extends StatefulWidget {
   State<SkeletonLoader> createState() => _SkeletonLoaderState();
 }
 
+// 驱动闪烁动画；系统关闭动画时停在静态色。
 class _SkeletonLoaderState extends State<SkeletonLoader>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
@@ -51,6 +54,7 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
   }
 }
 
+/// 与帖子卡片布局对应的单条骨架（作者行、标题、摘要、互动计数）。
 class PostCardSkeleton extends StatelessWidget {
   const PostCardSkeleton({super.key});
 
@@ -118,6 +122,7 @@ class PostCardSkeleton extends StatelessWidget {
   }
 }
 
+/// Feed 首屏加载时展示的若干条帖子骨架。
 class PostCardSkeletonList extends StatelessWidget {
   final int count;
   const PostCardSkeletonList({super.key, this.count = 5});

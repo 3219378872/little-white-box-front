@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
+/// 经图片缓存加载的圆形头像；无地址或图片不可用时显示名称首字或默认人像。
 class CachedAvatar extends StatelessWidget {
   final String? url;
 
@@ -38,6 +39,7 @@ class CachedAvatar extends StatelessWidget {
     );
   }
 
+  // 兜底内容：有名称取首个字素（兼容 emoji 等组合字符），否则显示人像图标。
   Widget _fallback() {
     final trimmed = name?.trim() ?? '';
     if (trimmed.isEmpty) {
@@ -53,6 +55,7 @@ class CachedAvatar extends StatelessWidget {
     );
   }
 
+  // 兜底背景色：同一名称在各端始终取到同一色板颜色，无名称时用浅灰。
   Color _fallbackColor() {
     final trimmed = name?.trim() ?? '';
     if (trimmed.isEmpty) return const Color(0xFFE5E7EB);

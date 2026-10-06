@@ -6,6 +6,8 @@ import 'forui_pull_to_refresh.dart';
 import 'load_more_footer.dart';
 import 'loading_view.dart';
 
+/// 通用的下拉刷新 + 滚动到底自动翻页列表，首屏加载、空态、错误态与尾部状态都由它处理；
+/// 数据与分页状态由调用方的 notifier 持有，本组件只负责展示与触发回调。
 class PaginatedListView<T> extends StatefulWidget {
   final List<T> items;
   final bool hasMore;
@@ -34,6 +36,7 @@ class PaginatedListView<T> extends StatefulWidget {
   State<PaginatedListView<T>> createState() => _PaginatedListViewState<T>();
 }
 
+// 持有滚动控制器，接近底部时触发 [PaginatedListView.onLoadMore]。
 class _PaginatedListViewState<T> extends State<PaginatedListView<T>> {
   final _scrollController = ScrollController();
 
@@ -49,6 +52,7 @@ class _PaginatedListViewState<T> extends State<PaginatedListView<T>> {
     super.dispose();
   }
 
+  // 距底部 200px 内请求下一页；重复触发的去重由调用方负责。
   void _onScroll() {
     // 加载更多失败后停在原地等待用户点重试，不随滚动反复重发同一游标。
     if (widget.error != null) return;
@@ -60,10 +64,12 @@ class _PaginatedListViewState<T> extends State<PaginatedListView<T>> {
 
   @override
   Widget build(BuildContext context) {
+    // 首屏加载中。
     if (widget.isLoading && widget.items.isEmpty) {
       return const LoadingView();
     }
 
+    // 无数据：首屏失败给整页错误态，否则给可下拉刷新的空态。
     if (widget.items.isEmpty) {
       if (widget.error != null) {
         return ErrorView(message: widget.error!, onRetry: widget.onRefresh);
@@ -82,6 +88,7 @@ class _PaginatedListViewState<T> extends State<PaginatedListView<T>> {
       );
     }
 
+    // 有数据：列表 + 尾部状态行（仍有下一页、加载中或翻页失败时出现）。
     final showTail =
         widget.hasMore || widget.isLoadingMore || (widget.error != null);
     return ForuiPullToRefresh(

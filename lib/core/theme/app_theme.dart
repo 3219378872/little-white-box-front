@@ -14,6 +14,7 @@ class AppTheme {
   static const space4 = 16.0;
   static const space6 = 24.0;
 
+  // Page edge inset and the default gap between stacked content blocks.
   static const pageInset = space4;
   static const contentGap = space2;
 
@@ -32,7 +33,11 @@ class AppTheme {
   /// Brand accent: selected tabs, primary buttons, links and active states.
   static const accentLight = Color(0xFF2563EB);
   static const accentDark = Color(0xFF60A5FA);
+
+  /// Inline link color; fixed to the light accent in both brightnesses.
   static const link = accentLight;
+
+  /// Card shape shared by assistant cards and `AppSection` panels.
   static const assistantCard = FCardStyleDelta.delta(
     decoration: DecorationDelta.boxDelta(borderRadius: cardRadius),
   );
@@ -50,6 +55,8 @@ class AppTheme {
 
   /// Sponsored CTA row: landing domain stays visible next to the button.
   static const sponsoredCtaSize = FButtonSizeVariant.sm;
+
+  /// Muted color for the landing domain shown beside the sponsored CTA.
   static Color sponsoredDomain(FColors colors) => colors.mutedForeground;
 
   /// Borderless, transparent field for the post editor so the title and body
@@ -448,6 +455,7 @@ class AppTheme {
     return _buildTheme(colorScheme);
   }
 
+  /// Dark counterpart of [light] from the same seed.
   static ThemeData dark() {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: _seedColor,

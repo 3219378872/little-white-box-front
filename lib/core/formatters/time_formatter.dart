@@ -1,3 +1,4 @@
+// 绝对值不低于此值按毫秒解释，否则按秒（秒级时间戳要到公元 5138 年才会达到）。
 const _unixMillisecondsThreshold = 100000000000;
 
 /// Converts current millisecond timestamps and legacy second timestamps to a
@@ -10,6 +11,8 @@ DateTime dateTimeFromUnixTimestamp(num timestamp) {
   return DateTime.fromMillisecondsSinceEpoch(milliseconds).toLocal();
 }
 
+/// Feed、详情与评论共用的相对时间：一分钟内「刚刚」，30 天内按分/时/天，
+/// 更早显示 `MM-DD`，[includeYear] 为 true 时带年份。
 String formatRelativeTime(
   num timestamp, {
   DateTime? now,
@@ -26,12 +29,14 @@ String formatRelativeTime(
   return includeYear ? '${date.year}-$monthDay' : monthDay;
 }
 
+/// 消息气泡内的 `HH:mm`；非正时间戳视为缺失返回空串。
 String formatClockTime(num timestamp) {
   if (timestamp <= 0) return '';
   final value = dateTimeFromUnixTimestamp(timestamp);
   return '${_twoDigits(value.hour)}:${_twoDigits(value.minute)}';
 }
 
+/// 会话列表的最近消息时间：当天显示 `HH:mm`，否则显示 `月/日`；非正时间戳返回空串。
 String formatConversationTime(num timestamp, {DateTime? now}) {
   if (timestamp <= 0) return '';
   final value = dateTimeFromUnixTimestamp(timestamp);
@@ -59,4 +64,5 @@ String formatMinutesSeconds(Duration duration) {
   return '${duration.inMinutes}:${_twoDigits(seconds)}';
 }
 
+// 补足两位，保证日期与时钟文本等宽对齐。
 String _twoDigits(int value) => value.toString().padLeft(2, '0');

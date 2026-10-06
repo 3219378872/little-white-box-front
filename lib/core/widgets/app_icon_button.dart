@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
+/// 带 tooltip 与读屏标签的 44×44 图标按钮，[selected] 时以次要底色表示激活态；
+/// 用于页头与卡片上的图标操作。
 class AppIconButton extends StatelessWidget {
   final IconData icon;
   final String label;

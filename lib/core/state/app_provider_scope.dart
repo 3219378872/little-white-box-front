@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/misc.dart';
 /// states instead of silent retries (FQ-006).
 Duration? disableProviderRetry(int retryCount, Object error) => null;
 
+/// 应用与 Widget 测试统一使用的 [ProviderScope]，固定关闭自动重试，测试通过 [overrides] 注入替身。
 class AppProviderScope extends StatelessWidget {
   const AppProviderScope({
     super.key,
@@ -26,6 +27,7 @@ class AppProviderScope extends StatelessWidget {
   }
 }
 
+/// 与 [AppProviderScope] 配置一致的 [ProviderContainer]，供无 Widget 树的测试使用。
 ProviderContainer createAppProviderContainer({
   List<Override> overrides = const [],
 }) {
