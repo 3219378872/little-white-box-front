@@ -49,6 +49,7 @@ class _AssistantResearchAnswerState extends State<AssistantResearchAnswer> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 正文：逐块渲染，推断与体验块加小标题，引用角标放在块尾。
         for (final block in widget.answer.blocks) ...[
           if (block.kind == 'inference' || block.kind == 'experience')
             Padding(
@@ -71,6 +72,7 @@ class _AssistantResearchAnswerState extends State<AssistantResearchAnswer> {
             _CitationLinks(block: block, sources: sources, onReveal: _reveal),
           const SizedBox(height: 12),
         ],
+        // 来源卡片：按 sources 顺序编号，与引用角标的序号一致。
         for (var i = 0; i < sources.length; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),

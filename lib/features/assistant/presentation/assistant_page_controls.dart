@@ -58,12 +58,14 @@ class AssistantPageHeader extends StatelessWidget {
             ),
         ],
       ),
+      // 左侧：返回；无可返回页面时回到消息列表。
       prefixes: [
         FHeaderAction.back(
           onPress: () =>
               context.canPop() ? context.pop() : context.go(AppRoutes.messages),
         ),
       ],
+      // 右侧：记忆入口与更多菜单（授权状态、清除历史、撤销授权）。
       suffixes: [
         FTooltip(
           tipBuilder: (_, _) => const Text('记忆'),
@@ -133,7 +135,7 @@ class AssistantPageHeader extends StatelessWidget {
   }
 }
 
-/// Agent 输入区：待发送图片、附件按钮、多行输入框，以及运行中才出现的停止按钮和发送按钮。
+/// Agent 输入区：待发送图片、附件按钮、多行输入框与发送按钮；运行中额外出现停止按钮。
 class AssistantComposer extends StatelessWidget {
   final AssistantState state;
   final TextEditingController controller;
@@ -166,6 +168,7 @@ class AssistantComposer extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // 待发送图片。
             if (state.pendingAttachments.isNotEmpty) ...[
               const SizedBox(height: 8),
               _PendingAttachmentRow(
@@ -177,6 +180,7 @@ class AssistantComposer extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                // 输入行：添加附件、输入框、停止（仅运行中）与发送。
                 FButton.icon(
                   key: const Key('assistant-add-attachment'),
                   variant: .ghost,
@@ -225,6 +229,7 @@ class AssistantComposer extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                 ],
+                // 发送在请求在途、历史加载中或页面发送流程未结束时禁用。
                 FButton.icon(
                   key: const Key('assistant-send-or-stop'),
                   variant: FButtonVariant.primary,

@@ -133,6 +133,7 @@ class _AssistantQuestionCardState extends State<AssistantQuestionCard> {
           ) <=
           2000;
 
+  // 提交草稿；过期或已停止的问题以续答方式提交。
   Future<void> _submit(bool skip) async {
     if (!_editable) return;
     setState(() => _busy = true);
@@ -144,6 +145,7 @@ class _AssistantQuestionCardState extends State<AssistantQuestionCard> {
     if (mounted) setState(() => _busy = false);
   }
 
+  // 选中选项即视为 answered；单选题先清空已选项。
   void _choose(String questionId, String option, bool selected, bool multiple) {
     setState(() {
       _dispositions[questionId] = 'answered';
@@ -167,6 +169,7 @@ class _AssistantQuestionCardState extends State<AssistantQuestionCard> {
             'cancelled' => '已停止',
             _ => '补充条件',
           };
+    // 已答/已转向默认收起为摘要，可展开查看。
     if (_collapsed) {
       return _CollapsedQuestionCard(
         request: widget.question,
@@ -206,6 +209,7 @@ class _AssistantQuestionCardState extends State<AssistantQuestionCard> {
                   ),
               ],
             ),
+            // 每道题的编辑区。
             for (final question in widget.question.questions)
               _QuestionEditor(
                 question: question,
@@ -229,6 +233,7 @@ class _AssistantQuestionCardState extends State<AssistantQuestionCard> {
                   }
                 }),
               ),
+            // 可编辑或提交中时显示操作区。
             if (_editable || _busy)
               _QuestionActions(
                 requestId: widget.question.id,

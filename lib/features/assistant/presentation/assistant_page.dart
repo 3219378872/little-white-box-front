@@ -24,6 +24,8 @@ import '../../../core/router/app_routes.dart';
 
 part 'assistant_message_widgets.dart';
 
+// 模型回复可能夹带的引用标记（[kind:id]、全角［post:…］）与工具证据行（SOURCE、
+// COMMUNITY_CONTENT_JSON=、Community sources 标题）；来源已由卡片展示，渲染前剥掉。
 final RegExp _citationMarkerPattern = RegExp(r'\[[A-Za-z][A-Za-z0-9_-]*:\d+\]');
 final RegExp _fullWidthMarkerPattern = RegExp('［post:[^］\\n]*］');
 final RegExp _evidenceSourceLinePattern = RegExp(
@@ -41,8 +43,10 @@ final RegExp _evidenceHeaderLinePattern = RegExp(
 final RegExp _repeatedSpacePattern = RegExp(r' {2,}');
 final RegExp _repeatedBlankLinePattern = RegExp(r'\n{3,}');
 
+// 附件图片上限 10 MiB，超出时本地拦截、不上传。
 const _maxImageBytes = 10 * 1024 * 1024;
 
+/// 渲染助手回复前清理正文：去掉证据行与引用标记，压缩多余空格与空行。
 String stripCitationMarkers(String text) {
   final withoutEvidenceBlocks = text
       .replaceAll(_evidenceJsonLinePattern, '')
@@ -61,6 +65,8 @@ String stripCitationMarkers(String text) {
   return cleaned.replaceAll(_repeatedBlankLinePattern, '\n\n').trim();
 }
 
+/// Agent 会话页：历史消息、流式回复、工具确认与输入区。[contextPostId] 让发送
+/// 带上帖子上下文（路由查询参数传入）；[onOpenSource] 可替换来源的默认跳转。
 class AssistantPage extends ConsumerStatefulWidget {
   final ValueChanged<AssistantSourceCard>? onOpenSource;
   final Object contextPostId;
@@ -71,15 +77,19 @@ class AssistantPage extends ConsumerStatefulWidget {
   ConsumerState<AssistantPage> createState() => _AssistantPageState();
 }
 
+// 持有输入框、滚动与发送流程状态；异步回调返回后都复核登录身份，防止账号切换后串号。
 class _AssistantPageState extends ConsumerState<AssistantPage> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   var _loadedIdentity = '';
+  // 用户停在底部附近时，新内容到来自动滚到底。
   var _pinnedToBottom = true;
   var _scrollScheduled = false;
+  // 发送流程代次：身份切换后，旧流程结束时不再复位 _sendBusy。
   var _sendAttempt = 0;
   var _sendBusy = false;
 
+  // 登录身份变化（含首次构建）时，在下一帧清空输入并加载授权与历史。
   void _scheduleLoad(String identity) {
     if (identity == _loadedIdentity) return;
     _loadedIdentity = identity;
@@ -98,6 +108,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     });
   }
 
+  // 异步操作返回后确认页面仍挂载且登录身份未变。
   bool _ownsAssistantIdentity(String identity) {
     return mounted &&
         identity.isNotEmpty &&
@@ -111,6 +122,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     super.dispose();
   }
 
+  // 发送或 run 因未授权失败后弹出授权确认，同意则授权并重发待重试命令。
   Future<void> _recoverAuthorization() async {
     final identity = ref.read(assistantUserKeyProvider);
     if (!_ownsAssistantIdentity(identity)) return;
@@ -126,6 +138,8 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     }
   }
 
+  // 发送：先确保授权（未授权或需升级时弹窗征求同意），再交给 notifier；
+  // 受理后只在输入框内容未被改动时清空。
   Future<void> _send() async {
     if (_sendBusy) return;
     final identity = ref.read(assistantUserKeyProvider);
@@ -139,6 +153,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
       await ref.read(agentConsentNotifierProvider.notifier).ensureLoaded();
       if (!_ownsAssistantIdentity(identity)) return;
       final status = ref.read(agentConsentNotifierProvider);
+      // 授权门槛：未授权或授权版本落后时先征得同意。
       if (!status.canStartRun) {
         final agreed = await _showAgentConsentDialog(
           upgrade: status.needsUpgrade,
@@ -169,6 +184,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     }
   }
 
+  // 二次确认后撤销 Agent 授权。
   Future<void> _revokeAuthorization() async {
     final identity = ref.read(assistantUserKeyProvider);
     if (!_ownsAssistantIdentity(identity)) return;
@@ -225,6 +241,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     }
   }
 
+  // 授权披露弹窗，返回用户是否同意；[upgrade] 为 true 时用升级授权的文案。
   Future<bool> _showAgentConsentDialog({bool upgrade = false}) async {
     var agreed = false;
     final status = ref.read(agentConsentNotifierProvider);
@@ -273,6 +290,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     return agreed;
   }
 
+  // 对站内帖子来源提交「不喜欢」推荐反馈。
   Future<void> _dislikeCard(AssistantSourceCard card) async {
     final identity = ref.read(assistantUserKeyProvider);
     if (!card.isVerifiedPost ||
@@ -294,6 +312,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     }
   }
 
+  // 从相册选图，校验大小后上传，成功后加入待发附件。
   Future<void> _pickAttachment() async {
     final identity = ref.read(assistantUserKeyProvider);
     if (!_ownsAssistantIdentity(identity)) return;
@@ -328,6 +347,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     }
   }
 
+  // 打开来源：优先交给外部回调，否则站内帖子进详情页。
   void _openSource(AssistantSourceCard source) {
     final callback = widget.onOpenSource;
     if (callback != null) {
@@ -339,18 +359,22 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     }
   }
 
+  // 来源卡片是否提供「打开帖子」。
   bool _canOpen(AssistantSourceCard source) {
     return widget.onOpenSource != null || source.isVerifiedPost;
   }
 
+  // 打字机露出新字时直接跳到底部（逐帧触发，不做滚动动画）。
   void _onRevealed() {
     _schedulePinScroll(jump: true);
   }
 
+  // 末条消息新增或替换时平滑滚到底部。
   void _onStructuralMessageChange() {
     _schedulePinScroll(jump: false);
   }
 
+  // 仅在用户贴底时滚动；同一帧内的多次请求合并为一次。
   void _schedulePinScroll({required bool jump}) {
     if (!_pinnedToBottom || _scrollScheduled) return;
     _scrollScheduled = true;
@@ -372,6 +396,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     });
   }
 
+  // 会话主体：首次加载、空态/错误态与消息列表。
   Widget _buildConversationBody(AssistantState state) {
     if (!state.isLoaded || (state.isLoadingHistory && state.messages.isEmpty)) {
       return const LoadingView(key: Key('assistant-initial-loading'));
@@ -391,6 +416,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
         icon: FLucideIcons.sparkles,
       );
     }
+    // 用户滚动时记录是否仍贴底（距底部 48 像素以内）。
     return NotificationListener<UserScrollNotification>(
       onNotification: (notification) {
         if (!_scrollController.hasClients) return false;
@@ -404,6 +430,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
         itemCount: state.messages.length,
         itemBuilder: (context, index) {
           final message = state.messages[index];
+          // 活跃 run 的回复占位在流式期间也显示进行中。
           final runKey = 'run-${jsonInt64Id(state.activeRunId)}';
           final isStreaming =
               message.isStreaming ||
@@ -441,6 +468,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
     final state = ref.watch(assistantNotifierProvider);
     final consent = ref.watch(agentConsentNotifierProvider);
     _scheduleLoad(identity);
+    // 发送或 run 因未授权失败时发起授权恢复；末条消息变化时贴底滚动。
     ref.listen<AssistantState>(assistantNotifierProvider, (previous, next) {
       if (previous != null &&
           !previous.agentAuthorizationRequired &&
@@ -455,6 +483,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
         _onStructuralMessageChange();
       }
     });
+    // 线程摘要轮询结果交给 notifier 对账（阶段、新消息、run 结束）。
     ref.listen<AssistantThreadState>(assistantThreadProvider, (previous, next) {
       if (next.isLoading) return;
       unawaited(
@@ -477,6 +506,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
       ),
       child: Column(
         children: [
+          // 顶部：加载更早消息。
           if (state.hasMoreHistory ||
               state.isLoadingOlder ||
               state.historyError != null)
@@ -484,12 +514,15 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
               state: state,
               onLoadOlder: notifier.loadOlderMessages,
             ),
+          // 中部：会话列表。
           Expanded(child: _buildConversationBody(state)),
+          // 已有消息时的连接错误条；没有消息时错误由会话主体展示。
           if (state.messages.isNotEmpty && state.connectionError != null)
             AssistantConnectionStatus(
               state: state,
               onReconnect: notifier.reconnectActiveRun,
             ),
+          // 底部：输入区。
           AssistantComposer(
             state: state,
             controller: _controller,

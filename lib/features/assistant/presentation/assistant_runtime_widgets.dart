@@ -5,6 +5,7 @@ import '../../../core/api/json_int64.dart';
 import '../application/assistant_notifier.dart';
 import '../data/assistant_models.dart';
 
+/// 授权与升级弹窗共用的披露文案，列出 Agent 可代用户调用的工具类别。
 const agentConsentDisclosure = '''
 Agent 将以你的身份执行以下操作，权限不超过你的账号：
 
@@ -17,6 +18,8 @@ Agent 将以你的身份执行以下操作，权限不超过你的账号：
 网络检索只作研究素材，不能当作社区证据。来源只展示服务端给出的来源卡。长任务受轮次、工具和时长预算约束。
 你可以随时撤销授权；确认后立即生效。''';
 
+/// 流式回复附带的来源卡片：可打开的来源提供「打开帖子」，推荐类站内帖子提供
+/// 「不喜欢 / 不感兴趣」，两者都提交同一个反馈回调。
 class AssistantSourceCards extends StatelessWidget {
   final AssistantMessage message;
   final bool Function(AssistantSourceCard) canOpen;
@@ -33,6 +36,7 @@ class AssistantSourceCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 没有来源时不占位。
     if (message.sources.isEmpty) return const SizedBox.shrink();
     final theme = context.theme;
     return Column(
@@ -50,6 +54,7 @@ class AssistantSourceCards extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 标题行：图标区分网页、推荐与普通来源；无标题时退回 kind:authorityId。
                   Row(
                     children: [
                       Icon(
@@ -71,6 +76,7 @@ class AssistantSourceCards extends StatelessWidget {
                       ),
                     ],
                   ),
+                  // 来源 handle，便于与正文引用对照。
                   if (source.handle.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
@@ -80,6 +86,7 @@ class AssistantSourceCards extends StatelessWidget {
                       ),
                     ),
                   ],
+                  // 操作行。
                   if (canOpen(source) || source.isRecommend) ...[
                     const SizedBox(height: 8),
                     Wrap(

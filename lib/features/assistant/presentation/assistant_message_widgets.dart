@@ -1,5 +1,6 @@
 part of 'assistant_page.dart';
 
+// Icon per agent tool; unknown tools fall back to a wrench.
 IconData _toolIcon(String tool) {
   return switch (tool) {
     'search_posts' => FLucideIcons.fileSearch2,
@@ -11,6 +12,7 @@ IconData _toolIcon(String tool) {
   };
 }
 
+// Status text beside a tool step that is not running.
 String _toolStatusLabel(AssistantToolStatus status) {
   return switch (status) {
     AssistantToolStatus.running => '执行中…',
@@ -24,6 +26,8 @@ String _toolStatusLabel(AssistantToolStatus status) {
   };
 }
 
+// One conversation row: user bubbles on the right, assistant replies as
+// unboxed markdown on the left, system notices on a muted background.
 class _AssistantMessageBubble extends StatelessWidget {
   final AnswerQuestion? onAnswerQuestion;
   final AssistantMessage message;
@@ -88,6 +92,7 @@ class _AssistantMessageBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // User attachments above the text.
                   if (own && message.attachments.isNotEmpty) ...[
                     Wrap(
                       spacing: 6,
@@ -109,6 +114,7 @@ class _AssistantMessageBubble extends StatelessWidget {
                     ),
                     if (bodyText.isNotEmpty) const SizedBox(height: 8),
                   ],
+                  // Tool steps; ask_questions is shown as the question card instead.
                   if (message.toolSteps.isNotEmpty) ...[
                     for (final step in message.toolSteps.where(
                       (step) => step.tool != 'ask_questions',
@@ -117,6 +123,8 @@ class _AssistantMessageBubble extends StatelessWidget {
                     if (bodyText.isNotEmpty || isStreaming)
                       const SizedBox(height: 8),
                   ],
+                  // Body, by priority: question card, structured research answer, plain user
+                  // text, streaming markdown, final markdown.
                   if (message.questionRequest != null &&
                       onAnswerQuestion != null)
                     AssistantQuestionCard(
@@ -153,18 +161,21 @@ class _AssistantMessageBubble extends StatelessWidget {
                         color: foreground,
                       ),
                     ),
+                  // Progress indicator while a plain reply is still streaming.
                   if (isStreaming &&
                       message.questionRequest == null &&
                       message.answerPresentation == null) ...[
                     if (bodyText.isNotEmpty) const SizedBox(height: 8),
                     const FCircularProgress(size: .sm),
                   ],
+                  // Source cards pushed during streaming.
                   AssistantSourceCards(
                     message: message,
                     canOpen: canOpenSource,
                     onOpen: onOpenSource,
                     onDislike: onDislikeCard ?? (_) {},
                   ),
+                  // Undo entry on memory change notices.
                   if (message.isMemoryChanged &&
                       jsonInt64IsPositive(message.changeId)) ...[
                     const SizedBox(height: 8),
@@ -186,6 +197,7 @@ class _AssistantMessageBubble extends StatelessWidget {
                       ),
                     ),
                   ],
+                  // Footnote for stopped or degraded replies.
                   if (message.degraded || message.isCanceled) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -205,6 +217,8 @@ class _AssistantMessageBubble extends StatelessWidget {
   }
 }
 
+// One tool step row; a step awaiting confirmation adds cancel and confirm
+// buttons, and delete_post gets a warning icon.
 class _ToolStepEntry extends StatelessWidget {
   final AssistantToolStep step;
   final void Function(String callId, bool approved)? onConfirm;
