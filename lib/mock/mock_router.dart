@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:characters/characters.dart';
+import 'package:flutter/foundation.dart';
 
 import '../core/api/json_int64.dart';
 import 'mock_data.dart';
@@ -126,8 +127,10 @@ MockRouterResponse dispatchResponse(
     throw const _MockBiz(404, 4, '资源不存在');
   } on _MockBiz catch (error) {
     return _errorResponse(error.statusCode, error.code, error.message, auth);
-  } catch (error) {
-    return _errorResponse(500, 3, error.toString(), auth);
+  } catch (error, stackTrace) {
+    // 与后端 errx.SystemError 一致只回「系统错误」；原始异常只打到开发日志。
+    debugPrint('[Mock] unexpected error: $error\n$stackTrace');
+    return _errorResponse(500, 3, '系统错误', auth);
   }
 }
 

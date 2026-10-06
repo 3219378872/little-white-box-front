@@ -111,6 +111,20 @@ void main() {
     expect(response.statusCode, 200);
   });
 
+  test('unexpected mock failures return the backend system error text', () {
+    // targetId 类型不对会在路由里抛 TypeError，兜底应与后端 errx.SystemError 一致。
+    final response = mock_router.dispatchResponse(
+      'POST',
+      '/api/v1/like',
+      jsonEncode({'targetId': 'x', 'targetType': 1}),
+      headers: {
+        'Authorization': 'Bearer ${mock_router.mockAccessTokenForUser(1)}',
+      },
+    );
+    expect(response.statusCode, 500);
+    expect(jsonDecode(response.body), {'code': 3, 'message': '系统错误'});
+  });
+
   test('like and write routes require Bearer auth', () {
     final unauthorized = mock_router.dispatchResponse(
       'POST',
