@@ -146,6 +146,30 @@ void main() {
     expect(asset.assetId, 81);
   });
 
+  test('sniffs the asset type when the name and picker give none', () async {
+    // 无扩展名、未声明 MIME 的 WebP 素材按文件头识别，而不是一律当作 JPEG。
+    final client = ScriptedGatewayClient.always({
+      'assetId': 82,
+      'kind': 'creative',
+      'sha256': 'x',
+      'mimeType': 'image/webp',
+      'size': 12,
+    });
+    setApiClient(client);
+
+    await adsRepository().uploadAsset(
+      kind: AdAssetKind.creative,
+      file: XFile.fromData(
+        Uint8List.fromList(utf8.encode('RIFF\x00\x00\x00\x00WEBP')),
+        name: 'creative',
+      ),
+      idempotencyKey: 'upload-2',
+    );
+
+    final request = client.requests.single as http.MultipartRequest;
+    expect(request.files.single.contentType.mimeType, 'image/webp');
+  });
+
   test('oversized assets are rejected before upload', () async {
     final client = ScriptedGatewayClient.always(const {});
     setApiClient(client);

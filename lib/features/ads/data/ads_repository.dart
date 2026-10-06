@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
@@ -8,6 +9,7 @@ import 'package:image_picker/image_picker.dart' show ImagePicker, ImageSource;
 import '../../../core/analytics/client_identity_store.dart';
 import '../../../core/api/api_adapter.dart';
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/image_mime.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../sdk/api/gateway.dart' as gw;
 import '../../../sdk/data/gateway.dart';
@@ -157,6 +159,9 @@ class AdsRepository {
     if (length <= 0 || length > maxAdAssetBytes) {
       throw const ApiException('文件须为 1 字节至 2 MiB');
     }
+    // 读取文件头，供无扩展名且选择器未声明类型时识别格式。
+    // openRead 的 end 不能超过文件长度，小文件只读到末尾。
+    final head = await _readHead(file, min(length, imageMimeSniffLength));
     return apiPostMultipart<AdAssetResp>(
       path: gw.uploadAdAssetPath(kind.path),
       fieldName: 'file',
@@ -165,7 +170,7 @@ class AdsRepository {
       length: length,
       fields: {'idempotencyKey': idempotencyKey},
       isCurrent: isCurrent,
-      contentType: adAssetMimeType(file.name, file.mimeType),
+      contentType: adAssetMimeType(file.name, file.mimeType, head),
       decodeData: (data) {
         final asset = AdAssetResp.fromJson(data);
         if (!jsonInt64IsPositive(asset.assetId)) {
@@ -185,6 +190,15 @@ class AdsRepository {
     return base64Decode(resp.contentBase64);
   }
 
+  // 只读取前 [length] 字节，避免为识别类型把整份素材读入内存。
+  static Future<List<int>> _readHead(XFile file, int length) async {
+    final head = <int>[];
+    await for (final chunk in file.openRead(0, length)) {
+      head.addAll(chunk);
+    }
+    return head;
+  }
+
   static AdvertiserItem _requireAdvertiser(AdvertiserResp resp) {
     final advertiser = resp.advertiser;
     if (!resp.found || advertiser == null) {
@@ -202,16 +216,25 @@ class AdsRepository {
   }
 }
 
-/// 按扩展名推断素材 MIME；服务端仍以内容嗅探为准。
-String adAssetMimeType(String filename, String? declared) {
+/// 推断素材上传声明的 MIME；服务端仍以内容嗅探为准。
+///
+/// 依次采用选择器声明的类型、PDF（扩展名或 `%PDF` 文件头）、共享的图片识别，
+/// 图片识别不出时回退 `image/jpeg`。
+String adAssetMimeType(String filename, String? declared, List<int> head) {
   if (declared != null && declared.isNotEmpty) return declared;
-  return switch (filename.toLowerCase().split('.').last) {
-    'png' => 'image/png',
-    'webp' => 'image/webp',
-    'pdf' => 'application/pdf',
-    _ => 'image/jpeg',
-  };
+  if (filename.toLowerCase().split('.').last == 'pdf' || _hasPdfHeader(head)) {
+    return 'application/pdf';
+  }
+  return inferImageMime(filename, head);
 }
+
+// PDF 文件以 `%PDF` 开头。
+bool _hasPdfHeader(List<int> head) =>
+    head.length >= 4 &&
+    head[0] == 0x25 &&
+    head[1] == 0x50 &&
+    head[2] == 0x44 &&
+    head[3] == 0x46;
 
 /// 选择广告创意图片或资质证件。
 class AdAssetPicker {

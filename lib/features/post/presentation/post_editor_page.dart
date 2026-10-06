@@ -10,6 +10,7 @@ import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/error_codes.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/api/idempotency.dart';
+import '../../../core/api/image_mime.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_dialog.dart';
 import '../../../core/widgets/app_tag_badge.dart';
@@ -23,7 +24,6 @@ const _maxContentLength = 20000;
 const _maxTagCount = 10;
 const _maxTagLength = 32;
 const _maxImageBytes = 10 * 1024 * 1024;
-const _allowedImageTypes = {'image/jpeg', 'image/png', 'image/webp'};
 
 final _postRepoProvider = Provider((ref) => PostRepository());
 
@@ -158,8 +158,8 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
         try {
           final bytes = await file.readAsBytes();
           final name = file.name;
-          final mime = _inferLocalImageMime(name, bytes);
-          if (!_allowedImageTypes.contains(mime)) {
+          // 识别不出 jpeg/png/webp 的文件在上传前拒绝。
+          if (detectImageMime(name, bytes) == null) {
             return (idx, null, '仅支持 JPEG、PNG 或 WebP');
           }
           if (bytes.length > _maxImageBytes) {
@@ -437,33 +437,6 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
             ),
     );
   }
-}
-
-String _inferLocalImageMime(String filename, List<int> bytes) {
-  final ext = filename.toLowerCase().split('.').last;
-  switch (ext) {
-    case 'jpg':
-    case 'jpeg':
-      return 'image/jpeg';
-    case 'png':
-      return 'image/png';
-    case 'webp':
-      return 'image/webp';
-  }
-  if (bytes.length >= 3 &&
-      bytes[0] == 0xFF &&
-      bytes[1] == 0xD8 &&
-      bytes[2] == 0xFF) {
-    return 'image/jpeg';
-  }
-  if (bytes.length >= 8 &&
-      bytes[0] == 0x89 &&
-      bytes[1] == 0x50 &&
-      bytes[2] == 0x4E &&
-      bytes[3] == 0x47) {
-    return 'image/png';
-  }
-  return 'application/octet-stream';
 }
 
 /// 图片批量上传的事务化异常

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/core/analytics/client_identity_store.dart';
 import 'package:xiaobaihe_app/features/ads/application/ads_providers.dart';
@@ -84,9 +86,20 @@ void main() {
   });
 
   test('asset mime falls back to the file extension', () {
-    expect(adAssetMimeType('a.PDF', null), 'application/pdf');
-    expect(adAssetMimeType('a.webp', ''), 'image/webp');
-    expect(adAssetMimeType('a.bin', 'image/png'), 'image/png');
+    expect(adAssetMimeType('a.PDF', null, const []), 'application/pdf');
+    expect(adAssetMimeType('a.webp', '', const []), 'image/webp');
+    expect(adAssetMimeType('a.bin', 'image/png', const []), 'image/png');
+  });
+
+  test('asset mime sniffs headers instead of assuming jpeg', () {
+    final webp = utf8.encode('RIFF\x00\x00\x00\x00WEBP');
+    final png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    final pdf = utf8.encode('%PDF-1.7');
+
+    expect(adAssetMimeType('creative', null, webp), 'image/webp');
+    expect(adAssetMimeType('creative.bin', '', png), 'image/png');
+    expect(adAssetMimeType('license', null, pdf), 'application/pdf');
+    expect(adAssetMimeType('creative', null, const [1, 2, 3]), 'image/jpeg');
   });
 
   test(
