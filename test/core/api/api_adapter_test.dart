@@ -27,16 +27,17 @@ void main() {
       }
     });
 
-    test('fail 回调带普通字符串时 code 为 null', () async {
+    test('fail 回调带客户端异常文本时换成中文文案并保留原文', () async {
       try {
         await apiCall<String>((ok, fail, eventually) {
-          fail('plain error');
+          fail('ClientException: XMLHttpRequest error.');
           eventually();
         });
         fail('should have thrown');
       } on ApiException catch (e) {
         expect(e.code, isNull);
-        expect(e.message, 'plain error');
+        expect(e.message, '网络连接失败，请检查网络后重试');
+        expect(e.detail, 'ClientException: XMLHttpRequest error.');
       }
     });
 

@@ -217,7 +217,7 @@ void main() {
           isA<ApiException>().having(
             (error) => error.message,
             'message',
-            contains('missing url'),
+            '上传响应缺少图片地址',
           ),
         ),
       );

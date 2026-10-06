@@ -1,4 +1,5 @@
 import '../../../core/api/api_adapter.dart';
+import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/image_mime.dart';
 import '../../../sdk/api/gateway.dart' as gw;
 import '../../../sdk/data/gateway.dart';
@@ -67,7 +68,7 @@ class PostRepository {
       decodeData: (data) {
         final url = data['url'] as String? ?? '';
         if (url.isEmpty) {
-          throw const FormatException('upload response missing url');
+          throw const ApiException('上传响应缺少图片地址');
         }
         return UploadedImage(
           mediaId: data['mediaId'] ?? 0,

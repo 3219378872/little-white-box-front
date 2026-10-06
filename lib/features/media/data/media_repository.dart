@@ -64,7 +64,7 @@ class MediaRepository {
             !['http', 'https'].contains(uri.scheme) ||
             uri.host.isEmpty ||
             (kind != MediaKind.image && data['fileType'] != kind.path)) {
-          throw const FormatException('上传响应缺少有效媒体标识或地址');
+          throw const ApiException('上传响应缺少有效媒体标识或地址');
         }
         return UploadedMedia(mediaId: id!, url: url);
       },

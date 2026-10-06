@@ -62,7 +62,8 @@ Future<T> apiCallWithTimeout<T>(
 ///
 /// 文件来源二选一：小文件直接给 [bytes]，大文件给 [openRead] 与 [length] 流式发送
 /// （每次重试都会重新打开流）。[isCurrent] 由调用方提供，返回 false 时放弃本次上传
-/// 且不交付结果；[decodeData] 把网关信封中的 `data` 解成业务类型。
+/// 且不交付结果；[decodeData] 把网关信封中的 `data` 解成业务类型，缺字段时抛带中文
+/// 文案的 [ApiException]，其余解码异常统一按「无法识别的数据」处理。
 Future<T> apiPostMultipart<T>({
   required String path,
   required String fieldName,
@@ -184,7 +185,8 @@ Future<T> apiPostMultipart<T>({
         }
 
         // 认证失败且无法刷新：仅当本地凭据仍是发起时那份才清会话，避免误伤新登录。
-        final ex = ApiException(msg, code: code);
+        // 无业务码的英文文本（裸状态码、代理错误页）由 ApiException.http 换成中文。
+        final ex = ApiException.http(msg, code: code);
         if (session != null &&
             (ex.isAuthError || (code == null && rp.statusCode == 401))) {
           await sdk_api.invalidateSessionIfCredentialsMatch(session);
@@ -205,6 +207,7 @@ Future<T> apiPostMultipart<T>({
   } on ApiException {
     rethrow;
   } catch (e) {
-    throw ApiException(e.toString());
+    // 网络异常与响应解码错误按类别转成中文文案，英文原文只留在 detail。
+    throw ApiException.fromClientError(e);
   }
 }

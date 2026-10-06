@@ -190,7 +190,7 @@ class AdsRepository {
       decodeData: (data) {
         final asset = AdAssetResp.fromJson(data);
         if (!jsonInt64IsPositive(asset.assetId)) {
-          throw const FormatException('上传响应缺少素材标识');
+          throw const ApiException('上传响应缺少素材标识');
         }
         return asset;
       },
