@@ -20,6 +20,7 @@ import 'assistant_page_controls.dart';
 import 'assistant_runtime_widgets.dart';
 import 'assistant_research_widgets.dart';
 import 'streaming_markdown.dart';
+import '../../../core/router/app_routes.dart';
 
 part 'assistant_message_widgets.dart';
 
@@ -334,7 +335,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
       return;
     }
     if (source.isVerifiedPost) {
-      context.push('/post/${jsonInt64Id(source.authorityId)}');
+      context.push(AppRoutes.postDetail(source.authorityId));
     }
   }
 

@@ -19,6 +19,7 @@ import '../../../behavior/application/behavior_tracker.dart';
 import '../../data/feed_models.dart';
 import '../../../interaction/application/interaction_notifier.dart';
 import '../../../../sdk/data/gateway.dart';
+import '../../../../core/router/app_routes.dart';
 
 class PostCard extends ConsumerStatefulWidget {
   final PostItem post;
@@ -102,7 +103,7 @@ class _PostCardState extends ConsumerState<PostCard>
 
   Future<void> _toggleLike() async {
     if (!ref.read(authNotifierProvider).isAuthenticated) {
-      context.push('/auth/login');
+      context.push(AppRoutes.login);
       return;
     }
     final id = jsonInt64Id(post.id);
@@ -128,7 +129,7 @@ class _PostCardState extends ConsumerState<PostCard>
       );
     }
     _endVisibilitySession();
-    context.push('/post/${jsonInt64Id(post.id)}');
+    context.push(AppRoutes.postDetail(post.id));
   }
 
   /// 由 [VisibilityDetector] 在布局变化时回调，取代原先每卡 100ms 的
@@ -273,7 +274,7 @@ class _PostCardState extends ConsumerState<PostCard>
                 children: [
                   FTappable(
                     onPress: () =>
-                        context.push('/user/${jsonInt64Id(post.authorId)}'),
+                        context.push(AppRoutes.userProfile(post.authorId)),
                     semanticsLabel: '查看作者 ${post.authorName}',
                     child: CachedAvatar(
                       url: post.authorAvatar,

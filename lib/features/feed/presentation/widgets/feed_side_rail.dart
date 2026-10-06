@@ -8,6 +8,7 @@ import '../../../auth/application/auth_notifier.dart';
 import '../../../review/application/reviewer_access.dart';
 import '../../../search/application/search_notifier.dart';
 import '../../application/trending_tags.dart';
+import '../../../../core/router/app_routes.dart';
 
 /// Desktop-only right column next to the feed: compose entry, Agent entry and
 /// tags ranked from the already loaded recommend feed.
@@ -16,7 +17,7 @@ class FeedSideRail extends ConsumerWidget {
 
   void _requireLogin(BuildContext context, WidgetRef ref, String location) {
     if (!ref.read(authNotifierProvider).isAuthenticated) {
-      context.push('/auth/login');
+      context.push(AppRoutes.login);
       return;
     }
     context.go(location);
@@ -40,7 +41,7 @@ class FeedSideRail extends ConsumerWidget {
         FButton(
           key: const Key('feed-rail-compose'),
           prefix: const Icon(FLucideIcons.squarePen),
-          onPress: () => _requireLogin(context, ref, '/post/new'),
+          onPress: () => _requireLogin(context, ref, AppRoutes.postNew),
           child: const Text('发布帖子'),
         ),
         const SizedBox(height: AppTheme.space4),
@@ -61,8 +62,7 @@ class FeedSideRail extends ConsumerWidget {
                 key: const Key('feed-rail-agent'),
                 variant: FButtonVariant.outline,
                 size: FButtonSizeVariant.sm,
-                onPress: () =>
-                    _requireLogin(context, ref, '/messages/assistant'),
+                onPress: () => _requireLogin(context, ref, AppRoutes.assistant),
                 // Accent text keeps the outline action from reading as
                 // disabled on the muted rail card.
                 child: Text(
@@ -90,7 +90,7 @@ class FeedSideRail extends ConsumerWidget {
                   variant: FButtonVariant.outline,
                   size: FButtonSizeVariant.sm,
                   prefix: const Icon(FLucideIcons.megaphone),
-                  onPress: () => context.push('/ads'),
+                  onPress: () => context.push(AppRoutes.ads),
                   child: const Text('广告主控制台'),
                 ),
                 if (canReview)
@@ -99,7 +99,7 @@ class FeedSideRail extends ConsumerWidget {
                     variant: FButtonVariant.outline,
                     size: FButtonSizeVariant.sm,
                     prefix: const Icon(FLucideIcons.clipboardCheck),
-                    onPress: () => context.push('/review'),
+                    onPress: () => context.push(AppRoutes.review),
                     child: const Text('审核工作台'),
                   ),
               ],
@@ -123,7 +123,7 @@ class FeedSideRail extends ConsumerWidget {
                       ref
                           .read(searchNotifierProvider.notifier)
                           .search(tag.name);
-                      context.go('/search');
+                      context.go(AppRoutes.search);
                     },
                   ),
               ],

@@ -11,6 +11,7 @@ import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../application/profile_dependencies.dart';
+import '../../../core/router/app_routes.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -97,7 +98,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           );
       if (mounted) {
         showAppSuccess(context, '保存成功');
-        context.canPop() ? context.pop() : context.go('/profile');
+        context.canPop() ? context.pop() : context.go(AppRoutes.profile);
       }
     } catch (e) {
       if (mounted) {
@@ -119,8 +120,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         title: const Text('编辑资料'),
         prefixes: [
           FHeaderAction.back(
-            onPress: () =>
-                context.canPop() ? context.pop() : context.go('/profile'),
+            onPress: () => context.canPop()
+                ? context.pop()
+                : context.go(AppRoutes.profile),
           ),
         ],
         suffixes: [

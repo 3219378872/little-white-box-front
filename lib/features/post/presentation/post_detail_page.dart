@@ -23,6 +23,7 @@ import '../../interaction/application/interaction_notifier.dart';
 import '../../profile/application/follow_controller.dart';
 import '../../profile/application/user_profile_providers.dart';
 import '../application/post_detail_provider.dart';
+import '../../../core/router/app_routes.dart';
 
 part 'post_detail_content.dart';
 part 'post_detail_comments.dart';
@@ -72,7 +73,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
 
   Future<void> _toggleLike(GetPostResp post) async {
     if (!ref.read(authNotifierProvider).isAuthenticated) {
-      context.push('/auth/login');
+      context.push(AppRoutes.login);
       return;
     }
     try {
@@ -91,7 +92,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     final follow = followControllerProvider(jsonInt64Id(post.authorId));
     if (ref.read(follow).isBusy) return;
     if (!ref.read(authNotifierProvider).isAuthenticated) {
-      context.push('/auth/login');
+      context.push(AppRoutes.login);
       return;
     }
     try {
@@ -104,7 +105,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
 
   Future<void> _toggleFavorite(GetPostResp post) async {
     if (!ref.read(authNotifierProvider).isAuthenticated) {
-      context.push('/auth/login');
+      context.push(AppRoutes.login);
       return;
     }
     try {
@@ -145,7 +146,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   Future<void> _submitComment(String content) async {
     final auth = ref.read(authNotifierProvider);
     if (!auth.isAuthenticated) {
-      context.push('/auth/login');
+      context.push(AppRoutes.login);
       throw const ApiException('请先登录');
     }
     try {
@@ -189,7 +190,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
         prefixes: [
           FHeaderAction.back(
             onPress: () =>
-                context.canPop() ? context.pop() : context.go('/feed'),
+                context.canPop() ? context.pop() : context.go(AppRoutes.feed),
           ),
         ],
       ),

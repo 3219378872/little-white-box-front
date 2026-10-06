@@ -13,6 +13,7 @@ import '../../../core/widgets/loading_view.dart';
 import '../application/search_notifier.dart';
 import '../data/search_models.dart';
 import 'search_highlight.dart';
+import '../../../core/router/app_routes.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   final ValueChanged<Object>? onOpenPost;
@@ -72,12 +73,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   void _openPost(Object id) {
     final callback = widget.onOpenPost;
-    callback == null ? context.push('/post/${jsonInt64Id(id)}') : callback(id);
+    callback == null ? context.push(AppRoutes.postDetail(id)) : callback(id);
   }
 
   void _openUser(Object id) {
     final callback = widget.onOpenUser;
-    callback == null ? context.push('/user/${jsonInt64Id(id)}') : callback(id);
+    callback == null ? context.push(AppRoutes.userProfile(id)) : callback(id);
   }
 
   @override

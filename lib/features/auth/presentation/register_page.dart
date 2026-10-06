@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../application/auth_notifier.dart';
 import 'widgets/verify_code_button.dart';
+import '../../../core/router/app_routes.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -62,7 +63,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           );
       // Pushed register keeps the public URL; redirect will not pop this page.
       if (!started || !mounted || !_ownsRegisterMutation(attempt)) return;
-      context.go('/feed');
+      context.go(AppRoutes.feed);
     } catch (e) {
       if (mounted && attempt == _registerAttempt) _showError(e.toString());
     } finally {
@@ -94,7 +95,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 ? null
                 : () => context.canPop()
                       ? context.pop()
-                      : context.go('/auth/login'),
+                      : context.go(AppRoutes.login),
           ),
         ],
       ),
@@ -174,7 +175,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               const SizedBox(height: 16),
               FButton(
                 variant: .ghost,
-                onPress: _isLoading ? null : () => context.go('/auth/login'),
+                onPress: _isLoading ? null : () => context.go(AppRoutes.login),
                 child: const Text('已有账号？去登录'),
               ),
             ],

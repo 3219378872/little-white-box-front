@@ -12,6 +12,7 @@ import '../../../core/widgets/loading_view.dart';
 import '../application/assistant_notifier.dart';
 import '../application/memory_notifier.dart';
 import '../data/assistant_models.dart';
+import '../../../core/router/app_routes.dart';
 
 class MemoryPage extends ConsumerStatefulWidget {
   const MemoryPage({super.key});
@@ -51,7 +52,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
           FHeaderAction.back(
             onPress: () => context.canPop()
                 ? context.pop()
-                : context.go('/messages/assistant'),
+                : context.go(AppRoutes.assistant),
           ),
         ],
         suffixes: [

@@ -14,6 +14,7 @@ import '../../../sdk/data/gateway.dart';
 import '../application/ads_providers.dart';
 import 'ad_labels.dart';
 import 'ad_status_badges.dart';
+import '../../../core/router/app_routes.dart';
 
 /// 广告主控制台首页：广告主状态与广告列表（FX-110）。
 class AdsPage extends ConsumerWidget {
@@ -58,7 +59,7 @@ class AdsPage extends ConsumerWidget {
                   key: const Key('ads-new'),
                   prefix: const Icon(FLucideIcons.plus),
                   onPress: () async {
-                    await context.push('/ads/new');
+                    await context.push(AppRoutes.adNew);
                     ref.read(adsListProvider.notifier).loadInitial();
                   },
                   child: const Text('新建广告'),
@@ -102,7 +103,7 @@ class _AdvertiserSummary extends StatelessWidget {
             const SizedBox(height: AppTheme.space3),
             FButton(
               key: const Key('ads-apply'),
-              onPress: () => context.push('/ads/advertiser'),
+              onPress: () => context.push(AppRoutes.advertiser),
               child: const Text('申请成为广告主'),
             ),
           ],
@@ -134,7 +135,7 @@ class _AdvertiserSummary extends StatelessWidget {
           FButton(
             key: const Key('ads-advertiser'),
             variant: FButtonVariant.outline,
-            onPress: () => context.push('/ads/advertiser'),
+            onPress: () => context.push(AppRoutes.advertiser),
             child: const Text('主体与资质'),
           ),
         ],
@@ -197,7 +198,7 @@ class _AdsList extends ConsumerWidget {
                 ),
                 suffix: const Icon(FLucideIcons.chevronRight),
                 onPress: () async {
-                  await context.push('/ads/${jsonInt64Id(ad.adId)}');
+                  await context.push(AppRoutes.adDetail(ad.adId));
                   notifier.loadInitial();
                 },
               ),

@@ -15,6 +15,7 @@ import '../../../sdk/data/gateway.dart';
 import '../application/ad_commands.dart';
 import '../application/ads_providers.dart';
 import 'ad_labels.dart';
+import '../../../core/router/app_routes.dart';
 
 /// 创建或编辑广告；提交带 expectedRevision 与幂等键（FX-110）。
 class AdEditorPage extends ConsumerWidget {
@@ -33,7 +34,7 @@ class AdEditorPage extends ConsumerWidget {
         prefixes: [
           FHeaderAction.back(
             onPress: () =>
-                context.canPop() ? context.pop() : context.go('/ads'),
+                context.canPop() ? context.pop() : context.go(AppRoutes.ads),
           ),
         ],
       ),
@@ -169,7 +170,7 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
         // The detail page below refreshes itself when the editor closes.
         context.pop();
       } else {
-        context.pushReplacement('/ads/$id');
+        context.pushReplacement(AppRoutes.adDetail(id));
       }
     } on AdFormInvalidException catch (error) {
       if (mounted) showAppError(context, error.message);

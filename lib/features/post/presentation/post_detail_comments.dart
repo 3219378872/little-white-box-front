@@ -78,7 +78,7 @@ extension _PostDetailComments on _PostDetailPageState {
             mainAxisSize: MainAxisSize.min,
             onPress: () {
               if (!ref.read(authNotifierProvider).isAuthenticated) {
-                context.push('/auth/login');
+                context.push(AppRoutes.login);
                 return;
               }
               _commentFocus.requestFocus();

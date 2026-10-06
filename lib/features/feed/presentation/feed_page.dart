@@ -22,6 +22,7 @@ import 'widgets/feed_side_rail.dart';
 import 'widgets/post_card.dart';
 import 'widgets/sponsored_ad_card.dart';
 import '../../ads/application/ads_dependencies.dart';
+import '../../../core/router/app_routes.dart';
 
 class FeedPage extends ConsumerStatefulWidget {
   const FeedPage({super.key});
@@ -109,12 +110,12 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                 AppIconButton(
                   icon: FLucideIcons.search,
                   label: '搜索',
-                  onPress: () => context.go('/search'),
+                  onPress: () => context.go(AppRoutes.search),
                 ),
                 AppIconButton(
                   icon: FLucideIcons.messageSquare,
                   label: '消息',
-                  onPress: () => context.go('/messages'),
+                  onPress: () => context.go(AppRoutes.messages),
                 ),
               ],
             ),
@@ -362,7 +363,7 @@ class _FollowLoginRequired extends StatelessWidget {
             Text('登录后查看关注动态', style: theme.typography.body.lg),
             const SizedBox(height: 16),
             FButton(
-              onPress: () => context.push('/auth/login'),
+              onPress: () => context.push(AppRoutes.login),
               child: const Text('登录'),
             ),
           ],

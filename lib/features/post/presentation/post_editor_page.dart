@@ -12,6 +12,7 @@ import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../application/post_editor_controller.dart';
 import 'widgets/image_picker_grid.dart';
+import '../../../core/router/app_routes.dart';
 
 /// 发帖与编辑页：持有标题/正文输入框，草稿、上传与提交命令交给 [PostEditorController]。
 class PostEditorPage extends ConsumerStatefulWidget {
@@ -88,7 +89,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
         case PostPublishOutcome.updated:
           context.pop();
         case PostPublishOutcome.created:
-          context.go('/feed');
+          context.go(AppRoutes.feed);
       }
     } on PostDraftInvalidException catch (e) {
       if (mounted) showAppError(context, e.message);
@@ -131,7 +132,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
         prefixes: [
           FHeaderAction.back(
             onPress: () =>
-                context.canPop() ? context.pop() : context.go('/feed'),
+                context.canPop() ? context.pop() : context.go(AppRoutes.feed),
           ),
         ],
         suffixes: [

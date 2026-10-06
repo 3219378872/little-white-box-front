@@ -16,6 +16,7 @@ import '../application/ads_providers.dart';
 import 'ad_labels.dart';
 import 'ad_status_badges.dart';
 import 'qualification_form.dart';
+import '../../../core/router/app_routes.dart';
 
 /// 申请或修改广告主主体，并管理行业资质（FX-110）。
 class AdvertiserPage extends ConsumerWidget {
@@ -30,7 +31,7 @@ class AdvertiserPage extends ConsumerWidget {
         prefixes: [
           FHeaderAction.back(
             onPress: () =>
-                context.canPop() ? context.pop() : context.go('/ads'),
+                context.canPop() ? context.pop() : context.go(AppRoutes.ads),
           ),
         ],
       ),

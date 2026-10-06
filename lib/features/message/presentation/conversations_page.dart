@@ -12,6 +12,7 @@ import '../../assistant/application/assistant_thread_notifier.dart';
 import '../../assistant/data/assistant_models.dart';
 import '../application/message_providers.dart';
 import '../data/message_models.dart';
+import '../../../core/router/app_routes.dart';
 
 class MessagesShell extends StatelessWidget {
   final Widget? thread;
@@ -85,7 +86,7 @@ class ConversationsPage extends ConsumerWidget {
         _AssistantPin(
           thread: assistant.thread,
           selected: selected,
-          onPress: () => context.go('/messages/assistant'),
+          onPress: () => context.go(AppRoutes.assistant),
         ),
         Expanded(
           child: state.error != null && state.conversations.isEmpty
@@ -139,7 +140,7 @@ class ConversationsPage extends ConsumerWidget {
     final route = GoRouter.maybeOf(context);
     if (route == null) return assistantSelected;
     return route.routerDelegate.currentConfiguration.uri.path.startsWith(
-      '/messages/assistant',
+      AppRoutes.assistant,
     );
   }
 
@@ -150,13 +151,11 @@ class ConversationsPage extends ConsumerWidget {
       return;
     }
     context.push(
-      Uri(
-        path: '/messages/${conversation.id}',
-        queryParameters: {
-          'targetUserId': '${conversation.targetUserId}',
-          'targetUserName': conversation.targetUserName,
-        },
-      ).toString(),
+      AppRoutes.messageThread(
+        conversation.id,
+        targetUserId: conversation.targetUserId,
+        targetUserName: conversation.targetUserName,
+      ),
     );
   }
 }

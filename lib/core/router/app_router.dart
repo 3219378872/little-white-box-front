@@ -25,6 +25,7 @@ import '../shell/auth_frame.dart';
 import '../shell/main_shell.dart';
 import 'app_route_observer.dart';
 import 'public_routes.dart';
+import 'app_routes.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -34,7 +35,7 @@ final _shellNavigatorKey = GlobalKey<NavigatorState>();
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/feed',
+    initialLocation: AppRoutes.feed,
     observers: [ref.read(appRouteObserverProvider)],
     refreshListenable: ref.read(authListenableProvider),
     redirect: (context, state) {
@@ -46,20 +47,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuthRoute = location.startsWith('/auth');
 
       if (!isLoggedIn && !isPublicRoute(location)) {
-        return '/auth/login';
+        return AppRoutes.login;
       }
       if (isLoggedIn && isAuthRoute) {
-        return '/feed';
+        return AppRoutes.feed;
       }
       return null;
     },
     routes: [
       GoRoute(
-        path: '/auth/login',
+        path: AppRoutes.login,
         builder: (context, state) => const AuthFrame(child: LoginPage()),
       ),
       GoRoute(
-        path: '/auth/register',
+        path: AppRoutes.register,
         builder: (context, state) => const AuthFrame(child: RegisterPage()),
       ),
       ShellRoute(
@@ -68,29 +69,29 @@ final routerProvider = Provider<GoRouter>((ref) {
             MainShell(location: state.uri.path, child: child),
         routes: [
           GoRoute(
-            path: '/feed',
+            path: AppRoutes.feed,
             pageBuilder: (context, state) =>
                 const NoTransitionPage(child: FeedPage()),
           ),
           GoRoute(
-            path: '/search',
+            path: AppRoutes.search,
             pageBuilder: (context, state) =>
                 const NoTransitionPage(child: SearchPage()),
           ),
           GoRoute(
-            path: '/messages',
+            path: AppRoutes.messages,
             pageBuilder: (context, state) =>
                 const NoTransitionPage(child: MessagesShell()),
           ),
           GoRoute(
-            path: '/messages/assistant/memory',
+            path: AppRoutes.assistantMemory,
             builder: (context, state) => const MessagesShell(
               assistantSelected: true,
               thread: MemoryPage(),
             ),
           ),
           GoRoute(
-            path: '/messages/assistant',
+            path: AppRoutes.assistant,
             builder: (context, state) => MessagesShell(
               assistantSelected: true,
               thread: AssistantPage(
@@ -99,7 +100,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: '/messages/:conversationId',
+            path: AppRoutes.messageThreadPattern,
             redirect: (context, state) {
               final conversationId = int.tryParse(
                 state.pathParameters['conversationId'] ?? '',
@@ -111,7 +112,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                       conversationId <= 0 ||
                       targetUserId == null ||
                       targetUserId <= 0
-                  ? '/messages'
+                  ? AppRoutes.messages
                   : null;
             },
             builder: (context, state) => MessagesShell(
@@ -124,73 +125,78 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: '/assistant/memory',
-            redirect: (context, state) => '/messages/assistant/memory',
+            path: AppRoutes.legacyAssistantMemory,
+            redirect: (context, state) => AppRoutes.assistantMemory,
           ),
           GoRoute(
-            path: '/assistant',
-            redirect: (context, state) => '/messages/assistant',
+            path: AppRoutes.legacyAssistant,
+            redirect: (context, state) => AppRoutes.assistant,
           ),
           GoRoute(
-            path: '/post/new',
+            path: AppRoutes.postNew,
             pageBuilder: (context, state) =>
                 const NoTransitionPage(child: PostEditorPage()),
           ),
           GoRoute(
-            path: '/profile',
+            path: AppRoutes.profile,
             pageBuilder: (context, state) =>
                 const NoTransitionPage(child: ProfilePage()),
           ),
           GoRoute(
-            path: '/post/edit/:postId',
+            path: AppRoutes.postEditPattern,
             builder: (context, state) =>
                 PostEditorPage(postId: state.pathParameters['postId']),
           ),
           GoRoute(
-            path: '/post/:postId',
+            path: AppRoutes.postDetailPattern,
             builder: (context, state) =>
                 PostDetailPage(postId: state.pathParameters['postId']!),
           ),
           GoRoute(
-            path: '/user/:userId',
+            path: AppRoutes.userProfilePattern,
             builder: (context, state) =>
                 ProfilePage(userId: state.pathParameters['userId']!),
           ),
           GoRoute(
-            path: '/profile/edit',
+            path: AppRoutes.profileEdit,
             builder: (context, state) => const EditProfilePage(),
           ),
-          GoRoute(path: '/ads', builder: (context, state) => const AdsPage()),
           GoRoute(
-            path: '/ads/new',
+            path: AppRoutes.ads,
+            builder: (context, state) => const AdsPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.adNew,
             builder: (context, state) => const AdEditorPage(),
           ),
           GoRoute(
-            path: '/ads/advertiser',
+            path: AppRoutes.advertiser,
             builder: (context, state) => const AdvertiserPage(),
           ),
           GoRoute(
-            path: '/ads/:adId',
+            path: AppRoutes.adDetailPattern,
             redirect: (context, state) =>
-                _positiveIdOrNull(state.pathParameters['adId'], '/ads'),
+                _positiveIdOrNull(state.pathParameters['adId'], AppRoutes.ads),
             builder: (context, state) =>
                 AdDetailPage(adId: state.pathParameters['adId']!),
           ),
           GoRoute(
-            path: '/ads/:adId/edit',
+            path: AppRoutes.adEditPattern,
             redirect: (context, state) =>
-                _positiveIdOrNull(state.pathParameters['adId'], '/ads'),
+                _positiveIdOrNull(state.pathParameters['adId'], AppRoutes.ads),
             builder: (context, state) =>
                 AdEditorPage(adId: state.pathParameters['adId']),
           ),
           GoRoute(
-            path: '/review',
+            path: AppRoutes.review,
             builder: (context, state) => const ReviewHomePage(),
           ),
           GoRoute(
-            path: '/review/tasks/:taskId',
-            redirect: (context, state) =>
-                _positiveIdOrNull(state.pathParameters['taskId'], '/review'),
+            path: AppRoutes.reviewTaskPattern,
+            redirect: (context, state) => _positiveIdOrNull(
+              state.pathParameters['taskId'],
+              AppRoutes.review,
+            ),
             builder: (context, state) =>
                 ReviewTaskPage(taskId: state.pathParameters['taskId']!),
           ),

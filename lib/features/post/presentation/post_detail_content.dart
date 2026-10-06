@@ -94,7 +94,7 @@ extension _PostDetailContent on _PostDetailPageState {
       children: [
         Expanded(
           child: FTappable(
-            onPress: () => context.push('/user/${jsonInt64Id(post.authorId)}'),
+            onPress: () => context.push(AppRoutes.userProfile(post.authorId)),
             child: Row(
               children: [
                 CachedAvatar(

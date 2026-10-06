@@ -7,6 +7,7 @@ import '../../../core/api/api_exceptions.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../application/auth_notifier.dart';
 import 'widgets/verify_code_button.dart';
+import '../../../core/router/app_routes.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -78,7 +79,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       );
       // Pushed login keeps the public URL; redirect will not pop this page.
       if (!started || !mounted || !_ownsLoginMutation(attempt)) return;
-      context.go('/feed');
+      context.go(AppRoutes.feed);
     } catch (e) {
       if (mounted && attempt == _loginAttempt) {
         _showError(friendlyErrorMessage(e));
@@ -110,7 +111,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         prefixes: [
           FHeaderAction.back(
             onPress: () =>
-                context.canPop() ? context.pop() : context.go('/feed'),
+                context.canPop() ? context.pop() : context.go(AppRoutes.feed),
           ),
         ],
       ),
@@ -192,7 +193,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         const SizedBox(height: 16),
         FButton(
           variant: .ghost,
-          onPress: _isLoading ? null : () => context.go('/auth/register'),
+          onPress: _isLoading ? null : () => context.go(AppRoutes.register),
           child: const Text('没有账号？去注册'),
         ),
       ],
@@ -232,7 +233,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         const SizedBox(height: 16),
         FButton(
           variant: .ghost,
-          onPress: _isLoading ? null : () => context.go('/auth/register'),
+          onPress: _isLoading ? null : () => context.go(AppRoutes.register),
           child: const Text('没有账号？去注册'),
         ),
       ],

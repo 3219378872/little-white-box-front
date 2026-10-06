@@ -7,6 +7,7 @@ import '../../../../core/api/json_int64.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../sdk/vars/vars.dart';
 import '../../data/assistant_models.dart';
+import '../../../../core/router/app_routes.dart';
 
 /// 研究回答的单个来源卡片：社区帖子走站内路由，外部网页只以安全的 http(s) 外链打开。
 class AssistantResearchSourceCard extends StatefulWidget {
@@ -39,7 +40,7 @@ class _AssistantResearchSourceCardState
     final source = widget.source;
     if (!source.available) return;
     if (source.kind == 'post' && jsonInt64IsPositive(source.authorityId)) {
-      context.push('/post/${jsonInt64Id(source.authorityId)}');
+      context.push(AppRoutes.postDetail(source.authorityId));
       return;
     }
     final uri = Uri.tryParse(source.url);

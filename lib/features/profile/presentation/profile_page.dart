@@ -16,6 +16,7 @@ import '../application/personalization_controller.dart';
 import '../application/user_posts_notifier.dart';
 import '../application/user_profile_providers.dart';
 import 'widgets/user_post_list.dart';
+import '../../../core/router/app_routes.dart';
 
 class ProfilePage extends ConsumerWidget {
   final Object? userId;
@@ -36,7 +37,7 @@ class ProfilePage extends ConsumerWidget {
               const Text('请先登录'),
               const SizedBox(height: 16),
               FButton(
-                onPress: () => context.push('/auth/login'),
+                onPress: () => context.push(AppRoutes.login),
                 child: const Text('去登录'),
               ),
             ],
@@ -121,7 +122,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
     final follow = followControllerProvider(widget.userId);
     if (ref.read(follow).isBusy) return;
     if (!ref.read(authNotifierProvider).isAuthenticated) {
-      context.push('/auth/login');
+      context.push(AppRoutes.login);
       return;
     }
     try {
@@ -231,13 +232,13 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                             _shortcut(
                               FLucideIcons.userRoundPen,
                               '编辑资料',
-                              '/profile/edit',
+                              AppRoutes.profileEdit,
                             ),
                             const SizedBox(width: 8),
                             _shortcut(
                               FLucideIcons.notebook,
                               '记忆',
-                              '/messages/assistant/memory',
+                              AppRoutes.assistantMemory,
                             ),
                           ],
                         ),
@@ -394,7 +395,7 @@ class BusinessEntries extends ConsumerWidget {
               prefix: const Icon(FLucideIcons.megaphone),
               title: const Text('广告主控制台'),
               suffix: const Icon(FLucideIcons.chevronRight),
-              onPress: () => context.push('/ads'),
+              onPress: () => context.push(AppRoutes.ads),
             ),
             if (canReview)
               FItem(
@@ -402,7 +403,7 @@ class BusinessEntries extends ConsumerWidget {
                 prefix: const Icon(FLucideIcons.clipboardCheck),
                 title: const Text('审核工作台'),
                 suffix: const Icon(FLucideIcons.chevronRight),
-                onPress: () => context.push('/review'),
+                onPress: () => context.push(AppRoutes.review),
               ),
           ],
         ),

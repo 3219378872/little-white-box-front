@@ -16,6 +16,7 @@ import '../application/ad_commands.dart';
 import '../application/ads_providers.dart';
 import 'ad_labels.dart';
 import 'ad_status_badges.dart';
+import '../../../core/router/app_routes.dart';
 
 /// 最新版本与过审版本之间不同的字段（FX-110）。
 class AdContentDiff {
@@ -67,7 +68,7 @@ class AdDetailPage extends ConsumerWidget {
         prefixes: [
           FHeaderAction.back(
             onPress: () =>
-                context.canPop() ? context.pop() : context.go('/ads'),
+                context.canPop() ? context.pop() : context.go(AppRoutes.ads),
           ),
         ],
         suffixes: [
@@ -290,7 +291,7 @@ class _AdDetailState extends ConsumerState<_AdDetail> {
           prefix: const Icon(FLucideIcons.pencil),
           onPress: editable
               ? () async {
-                  await context.push('/ads/${jsonInt64Id(ad.adId)}/edit');
+                  await context.push(AppRoutes.adEdit(ad.adId));
                   ref.invalidate(adDetailProvider(jsonInt64Id(ad.adId)));
                 }
               : null,

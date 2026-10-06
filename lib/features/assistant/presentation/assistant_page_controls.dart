@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_routes.dart';
 import '../application/agent_consent_notifier.dart';
 import '../application/assistant_state.dart';
 import '../data/assistant_models.dart';
@@ -60,7 +61,7 @@ class AssistantPageHeader extends StatelessWidget {
       prefixes: [
         FHeaderAction.back(
           onPress: () =>
-              context.canPop() ? context.pop() : context.go('/messages'),
+              context.canPop() ? context.pop() : context.go(AppRoutes.messages),
         ),
       ],
       suffixes: [
@@ -69,7 +70,7 @@ class AssistantPageHeader extends StatelessWidget {
           child: FHeaderAction(
             icon: const Icon(FLucideIcons.notebookText),
             semanticsLabel: '记忆',
-            onPress: () => context.push('/messages/assistant/memory'),
+            onPress: () => context.push(AppRoutes.assistantMemory),
           ),
         ),
         FPopoverMenu(

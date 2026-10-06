@@ -9,6 +9,7 @@ import '../../features/message/application/message_providers.dart';
 import '../../features/review/application/reviewer_access.dart';
 import '../theme/app_theme.dart';
 import '../widgets/content_constraint.dart';
+import '../router/app_routes.dart';
 
 // 主导航的五个入口；桌面侧栏与移动底栏共用，顺序即移动底栏顺序。
 enum _AppDestination { feed, search, create, messages, profile }
@@ -41,15 +42,15 @@ class MainShell extends ConsumerWidget {
         destination != _AppDestination.feed &&
         destination != _AppDestination.search;
     if (protected && !isLoggedIn) {
-      context.push('/auth/login');
+      context.push(AppRoutes.login);
       return;
     }
     context.go(switch (destination) {
-      _AppDestination.feed => '/feed',
-      _AppDestination.search => '/search',
-      _AppDestination.create => '/post/new',
-      _AppDestination.messages => '/messages',
-      _AppDestination.profile => '/profile',
+      _AppDestination.feed => AppRoutes.feed,
+      _AppDestination.search => AppRoutes.search,
+      _AppDestination.create => AppRoutes.postNew,
+      _AppDestination.messages => AppRoutes.messages,
+      _AppDestination.profile => AppRoutes.profile,
     });
   }
 
@@ -113,14 +114,17 @@ class MainShell extends ConsumerWidget {
 
   // 子路由归属的高亮入口：广告与审核挂在“我的”下，发帖/编辑挂在“发布”下。
   _AppDestination _destinationFor(String location) {
-    if (location.startsWith('/search')) return _AppDestination.search;
-    if (location.startsWith('/messages')) return _AppDestination.messages;
-    if (location.startsWith('/profile') ||
-        location.startsWith('/ads') ||
-        location.startsWith('/review')) {
+    if (location.startsWith(AppRoutes.search)) return _AppDestination.search;
+    if (location.startsWith(AppRoutes.messages)) {
+      return _AppDestination.messages;
+    }
+    if (location.startsWith(AppRoutes.profile) ||
+        location.startsWith(AppRoutes.ads) ||
+        location.startsWith(AppRoutes.review)) {
       return _AppDestination.profile;
     }
-    if (location.startsWith('/post/new') || location.startsWith('/post/edit')) {
+    if (location.startsWith(AppRoutes.postNew) ||
+        location.startsWith('/post/edit')) {
       return _AppDestination.create;
     }
     return _AppDestination.feed;
@@ -128,23 +132,24 @@ class MainShell extends ConsumerWidget {
 
   // 只有一级页显示移动底栏，详情等子页面全屏。
   bool _isPrimaryRoute(String location) {
-    return location == '/feed' ||
-        location == '/search' ||
-        location == '/messages' ||
-        location == '/profile';
+    return location == AppRoutes.feed ||
+        location == AppRoutes.search ||
+        location == AppRoutes.messages ||
+        location == AppRoutes.profile;
   }
 
   // 按路由给内容列定宽：编辑器、详情、消息双栏、资料编辑与首页各有固定宽度。
   double _contentMaxWidth(String location, double width) {
-    if (location.startsWith('/post/new') || location.startsWith('/post/edit')) {
+    if (location.startsWith(AppRoutes.postNew) ||
+        location.startsWith('/post/edit')) {
       return 760;
     }
     if (location.startsWith('/post/')) return 720;
-    if (location == '/messages' || location.startsWith('/messages/')) {
+    if (location == AppRoutes.messages || location.startsWith('/messages/')) {
       return width >= 1024 ? 1100 : 720;
     }
-    if (location == '/profile/edit') return 560;
-    if (location == '/feed') {
+    if (location == AppRoutes.profileEdit) return 560;
+    if (location == AppRoutes.feed) {
       // Wide desktops add the side rail next to the fixed-width feed column.
       return width >= 1280
           ? AppTheme.feedColumnWidth + AppTheme.space6 + AppTheme.sideRailWidth

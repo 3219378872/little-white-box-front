@@ -20,6 +20,7 @@ import '../application/reviewer_access.dart';
 import 'review_decision_form.dart';
 import 'review_evidence.dart';
 import 'review_home_page.dart';
+import '../../../core/router/app_routes.dart';
 
 /// 剩余持有时间低于该值时提示续期（FX-111）。
 const reviewLeaseWarning = Duration(minutes: 2);
@@ -85,7 +86,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
   }
 
   Future<void> _release() async {
-    if (await _controller.release() && mounted) context.go('/review');
+    if (await _controller.release() && mounted) context.go(AppRoutes.review);
   }
 
   @override
@@ -101,7 +102,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
         prefixes: [
           FHeaderAction.back(
             onPress: () =>
-                context.canPop() ? context.pop() : context.go('/review'),
+                context.canPop() ? context.pop() : context.go(AppRoutes.review),
           ),
         ],
       ),
@@ -172,7 +173,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
         else if (state.closure != null || state.decision != null)
           FButton(
             variant: FButtonVariant.outline,
-            onPress: () => context.go('/review'),
+            onPress: () => context.go(AppRoutes.review),
             child: const Text('返回队列'),
           ),
         const SizedBox(height: AppTheme.space6),
@@ -286,7 +287,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
         const SizedBox(height: AppTheme.space3),
         FButton(
           variant: FButtonVariant.outline,
-          onPress: () => context.go('/review'),
+          onPress: () => context.go(AppRoutes.review),
           child: const Text('返回队列'),
         ),
       ],

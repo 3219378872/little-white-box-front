@@ -23,6 +23,7 @@ import 'widgets/inline_error_bar.dart';
 import 'widgets/media_picker_bar.dart';
 import 'widgets/pending_media_row.dart';
 import 'widgets/thread_composer.dart';
+import '../../../core/router/app_routes.dart';
 
 /// 与单个用户的私信线程页：消息列表、文本与媒体发送、发送/已读失败的重试入口。
 ///
@@ -187,8 +188,9 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
           title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
           prefixes: [
             FHeaderAction.back(
-              onPress: () =>
-                  context.canPop() ? context.pop() : context.go('/messages'),
+              onPress: () => context.canPop()
+                  ? context.pop()
+                  : context.go(AppRoutes.messages),
             ),
           ],
         ),
@@ -207,8 +209,9 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
         title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
         prefixes: [
           FHeaderAction.back(
-            onPress: () =>
-                context.canPop() ? context.pop() : context.go('/messages'),
+            onPress: () => context.canPop()
+                ? context.pop()
+                : context.go(AppRoutes.messages),
           ),
         ],
       ),

@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/error_codes.dart';
-import '../../../core/api/json_int64.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../core/widgets/app_toast.dart';
@@ -15,6 +14,7 @@ import '../../../sdk/data/gateway.dart';
 import '../../ads/presentation/ad_labels.dart';
 import '../application/review_queue.dart';
 import '../application/reviewer_access.dart';
+import '../../../core/router/app_routes.dart';
 
 /// 审核工作台首页：授权范围、各队列待处理数量与「领取下一单」（FX-111）。
 class ReviewHomePage extends ConsumerStatefulWidget {
@@ -39,7 +39,7 @@ class _ReviewHomePageState extends ConsumerState<ReviewHomePage> {
         showAppSuccess(context, '队列暂无可领取的任务');
         return;
       }
-      await context.push('/review/tasks/${jsonInt64Id(task.taskId)}');
+      await context.push(AppRoutes.reviewTask(task.taskId));
       if (mounted) commands.refreshQueue();
     } catch (error) {
       if (!mounted) return;
