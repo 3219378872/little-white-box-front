@@ -98,14 +98,11 @@ AssistantRunEvent _tool(
   AssistantEventType type,
   String callId, {
   String summary = '',
+  String tool = 'search_posts',
 }) => AssistantRunEvent(
   type: type,
   runId: _runId,
-  toolCall: AssistantToolCall(
-    callId: callId,
-    tool: 'search_posts',
-    summary: summary,
-  ),
+  toolCall: AssistantToolCall(callId: callId, tool: tool, summary: summary),
 );
 
 const _done = AssistantRunEvent(type: AssistantEventType.done, runId: _runId);
@@ -218,6 +215,44 @@ final _runEventScenarios = <_RunScenario>[
         '参数无效',
         '工具执行失败',
         '找到 3 篇帖子',
+      ]);
+    },
+  ),
+  // ask_questions 的 tool_result 携带追问状态（questions.go closeQuestionTx）；
+  // 过期或取消不是工具故障，一律记为完成，只换成中文说明。
+  _RunScenario(
+    'ask_questions results show the question status in Chinese',
+    events: [
+      for (final status in ['answered', 'superseded', 'expired', 'cancelled'])
+        _tool(
+          AssistantEventType.toolCall,
+          status,
+          summary: 'ask_questions',
+          tool: 'ask_questions',
+        ),
+      for (final status in ['answered', 'superseded', 'expired', 'cancelled'])
+        _tool(
+          AssistantEventType.toolResult,
+          status,
+          summary: status,
+          tool: 'ask_questions',
+        ),
+      // 其他工具的同名 summary 不按追问状态解释。
+      _tool(AssistantEventType.toolCall, 'other', summary: 'search_posts'),
+      _tool(AssistantEventType.toolResult, 'other', summary: 'answered'),
+    ],
+    verify: (state, initial) {
+      final steps = _response(state).toolSteps;
+      expect(
+        steps.map((step) => step.status),
+        everyElement(AssistantToolStatus.completed),
+      );
+      expect(steps.map((step) => step.summary), [
+        '已回答',
+        '已被新的提问取代',
+        '已过期',
+        '已取消',
+        'answered',
       ]);
     },
   ),

@@ -257,8 +257,9 @@ AssistantRunReduction reduceAssistantRunEvent(
 }
 
 // tool_result 的 summary 是后端执行结果码而非说明：成功与重放记为完成并保留原说明
-// （空 summary 不覆盖），参数无效与执行失败记为失败并换成中文说明；其他值视为
-// 真正的摘要，按原样覆盖。
+// （空 summary 不覆盖），参数无效与执行失败记为失败并换成中文说明；ask_questions
+// 携带的是追问状态，过期或取消不是工具故障，一律记为完成并换成中文说明；其他值
+// 视为真正的摘要，按原样覆盖。
 (AssistantToolStatus, AssistantToolCall) _toolResultOutcome(
   AssistantToolCall call,
 ) {
@@ -268,6 +269,18 @@ AssistantRunReduction reduceAssistantRunEvent(
     summary: summary,
     payloadJson: call.payloadJson,
   );
+  if (call.tool == 'ask_questions') {
+    final label = switch (call.summary) {
+      'answered' => '已回答',
+      'superseded' => '已被新的提问取代',
+      'expired' => '已过期',
+      'cancelled' => '已取消',
+      _ => null,
+    };
+    if (label != null) {
+      return (AssistantToolStatus.completed, withSummary(label));
+    }
+  }
   return switch (call.summary) {
     'success' || 'replay' => (AssistantToolStatus.completed, withSummary('')),
     'invalid' => (AssistantToolStatus.failed, withSummary('参数无效')),
