@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
 import '../../../core/widgets/app_badge.dart';
-import '../data/ad_labels.dart';
+import 'ad_labels.dart';
 
 /// 审核状态标签：文字表达状态，颜色只作辅助（FQ-010）。
 class ReviewStatusBadge extends StatelessWidget {

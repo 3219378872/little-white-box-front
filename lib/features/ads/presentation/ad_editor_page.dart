@@ -1,13 +1,9 @@
-import 'dart:typed_data';
-
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_exceptions.dart';
-import '../../../core/api/error_codes.dart';
-import '../../../core/api/idempotency.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_choice_button.dart';
@@ -16,40 +12,9 @@ import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
+import '../application/ad_commands.dart';
 import '../application/ads_providers.dart';
-import '../data/ad_labels.dart';
-import '../data/ads_repository.dart';
-import '../application/ads_dependencies.dart';
-
-/// 单条广告最多 3 张创意图（与 ad-rpc 一致）。
-const maxAdCreatives = 3;
-
-final adAssetBytesProvider = FutureProvider.autoDispose
-    .family<Uint8List, String>((ref, assetId) {
-      return ref.read(adsRepositoryProvider).readAsset(assetId);
-    });
-
-/// 广告文案的客户端校验；返回首个错误，服务端仍做最终校验。
-String? validateAdDraft({
-  required String title,
-  required String body,
-  required String cta,
-  required String landingUrl,
-}) {
-  int length(String value) => value.trim().runes.length;
-  if (length(title) < 1 || length(title) > 100) return '标题须为 1～100 个字符';
-  if (length(body) < 1 || length(body) > 500) return '正文须为 1～500 个字符';
-  if (length(cta) < 1 || length(cta) > 32) return '行动按钮须为 1～32 个字符';
-  final uri = Uri.tryParse(landingUrl.trim());
-  if (landingUrl.trim().length > 2048 ||
-      uri == null ||
-      uri.scheme != 'https' ||
-      uri.host.isEmpty ||
-      uri.userInfo.isNotEmpty) {
-    return '落地页须为 https 地址';
-  }
-  return null;
-}
+import 'ad_labels.dart';
 
 /// 创建或编辑广告；提交带 expectedRevision 与幂等键（FX-110）。
 class AdEditorPage extends ConsumerWidget {
@@ -119,8 +84,6 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
   late List<Object> _mediaIds;
   bool _busy = false;
   bool _uploading = false;
-  String? _key;
-  String? _fingerprint;
   int _uploadGeneration = 0;
 
   AdItem? get _existing => widget.existing;
@@ -153,23 +116,24 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
     super.dispose();
   }
 
+  AdEditorCommands get _commands =>
+      ref.read(adEditorCommandsProvider(_existingId));
+
+  String? get _existingId =>
+      _existing == null ? null : jsonInt64Id(_existing!.adId);
+
+  // 选择并上传一张创意图；离开页面或再次选择后，旧上传结果不再写回表单。
   Future<void> _addCreative() async {
     if (_mediaIds.length >= maxAdCreatives) return;
-    final file = await ref
-        .read(adAssetPickerProvider)
-        .pick(AdAssetKind.creative);
+    final file = await _commands.pickCreative();
     if (file == null || !mounted) return;
     final generation = ++_uploadGeneration;
     setState(() => _uploading = true);
     try {
-      final asset = await ref
-          .read(adsRepositoryProvider)
-          .uploadAsset(
-            kind: AdAssetKind.creative,
-            file: file,
-            idempotencyKey: newIdempotencyKey(24),
-            isCurrent: () => mounted && generation == _uploadGeneration,
-          );
+      final asset = await _commands.uploadCreative(
+        file,
+        isCurrent: () => mounted && generation == _uploadGeneration,
+      );
       if (!mounted || generation != _uploadGeneration) return;
       setState(() => _mediaIds = [..._mediaIds, asset.assetId]);
     } catch (error) {
@@ -183,83 +147,33 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
     }
   }
 
+  // 校验、幂等键与详情刷新由 AdEditorCommands 负责；页面只管忙碌态、提示与导航。
   Future<void> _submit() async {
-    final invalid = validateAdDraft(
+    final existing = _existing;
+    final draft = AdDraft(
       title: _title.text,
       body: _body.text,
       cta: _cta.text,
       landingUrl: _landing.text,
+      market: _market,
+      industry: _industry,
+      mediaIds: _mediaIds,
     );
-    if (invalid != null) {
-      showAppError(context, invalid);
-      return;
-    }
-    final existing = _existing;
-    final fingerprint = [
-      existing?.revision ?? 0,
-      _title.text.trim(),
-      _body.text.trim(),
-      _cta.text.trim(),
-      _landing.text.trim(),
-      _market,
-      _industry,
-      _mediaIds.map(jsonInt64Id).join(','),
-    ].join('|');
-    if (fingerprint != _fingerprint) {
-      _fingerprint = fingerprint;
-      _key = newIdempotencyKey(24);
-    }
     setState(() => _busy = true);
     try {
-      final repository = ref.read(adsRepositoryProvider);
-      final AdItem saved;
-      if (existing == null) {
-        saved = await repository.createAd(
-          CreateAdReq(
-            title: _title.text.trim(),
-            body: _body.text.trim(),
-            cta: _cta.text.trim(),
-            landingUrl: _landing.text.trim(),
-            mediaIds: _mediaIds,
-            market: _market,
-            industry: _industry,
-            startMs: 0,
-            endMs: 0,
-            idempotencyKey: _key!,
-          ),
-        );
-      } else {
-        saved = await repository.updateAd(
-          existing.adId,
-          UpdateAdReq(
-            adId: existing.adId,
-            expectedRevision: existing.revision,
-            title: _title.text.trim(),
-            body: _body.text.trim(),
-            cta: _cta.text.trim(),
-            landingUrl: _landing.text.trim(),
-            mediaIds: _mediaIds,
-            market: _market,
-            industry: _industry,
-            startMs: existing.startMs,
-            endMs: existing.endMs,
-            idempotencyKey: _key!,
-          ),
-        );
-      }
-      _fingerprint = null;
+      final saved = await _commands.save(draft, existing: existing);
       if (!mounted) return;
       showAppSuccess(context, '已提交审核');
       final id = jsonInt64Id(saved.adId);
-      ref.invalidate(adDetailProvider(id));
       if (existing != null && context.canPop()) {
         // The detail page below refreshes itself when the editor closes.
         context.pop();
       } else {
         context.pushReplacement('/ads/$id');
       }
+    } on AdFormInvalidException catch (error) {
+      if (mounted) showAppError(context, error.message);
     } on ApiException catch (error) {
-      if (error.code != null) _fingerprint = null;
       if (mounted) showAppError(context, adWriteErrorMessage(error));
     } catch (error) {
       if (mounted) showAppError(context, '提交失败：${friendlyErrorMessage(error)}');
@@ -271,8 +185,11 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final catalog =
-        ref.watch(adPolicyCatalogProvider).value ?? AdPolicyCatalog.fallback;
+    final catalog = resolveAdPolicyCatalog(
+      ref.watch(adPolicyCatalogProvider).value,
+    );
+    // 保持本编辑器的命令实例存活，失败重试才能复用同一幂等键。
+    ref.watch(adEditorCommandsProvider(_existingId));
     final existing = _existing;
     final servingApproved = existing != null && existing.approvedRevision > 0;
     return ListView(
@@ -411,18 +328,6 @@ class _AdEditorFormState extends ConsumerState<_AdEditorForm> {
     );
   }
 }
-
-/// 广告写操作的错误提示；版本冲突保留输入，提示刷新（沿用帖子编辑）。
-String adWriteErrorMessage(ApiException error) => switch (error.code) {
-  ErrorCodes.contentVersionConflict => '广告已在别处更新，已保留你的输入，请刷新后再提交',
-  ErrorCodes.advertiserRequired => '请先申请成为广告主并通过审核',
-  ErrorCodes.adQualificationRequired => '该行业需要目标市场的有效资质',
-  ErrorCodes.adLandingInvalid => '落地页地址不合规',
-  ErrorCodes.adIndustryUnsupported => '该市场不支持此行业',
-  ErrorCodes.adMediaInvalid => '图片无效或不属于你',
-  ErrorCodes.idempotencyConflict => '重复提交的内容不一致，请重试',
-  _ => '提交失败：${error.message}',
-};
 
 class _CreativeTile extends ConsumerWidget {
   final String assetId;

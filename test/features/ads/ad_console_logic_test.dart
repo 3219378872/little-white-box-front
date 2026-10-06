@@ -2,12 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/core/analytics/client_identity_store.dart';
+import 'package:xiaobaihe_app/features/ads/application/ad_commands.dart';
 import 'package:xiaobaihe_app/features/ads/application/ads_providers.dart';
-import 'package:xiaobaihe_app/features/ads/data/ad_labels.dart';
+import 'package:xiaobaihe_app/features/ads/presentation/ad_labels.dart';
 import 'package:xiaobaihe_app/features/ads/data/ads_repository.dart';
 import 'package:xiaobaihe_app/features/ads/presentation/ad_detail_page.dart';
-import 'package:xiaobaihe_app/features/ads/presentation/ad_editor_page.dart';
-import 'package:xiaobaihe_app/features/ads/presentation/qualification_form.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
 
 AdContentItem content({String title = 'T', String landing = 'https://a.com'}) =>
@@ -27,8 +26,8 @@ void main() {
   test('policy codes map to Chinese and unknown codes stay raw', () {
     expect(adPolicyLabel('LANDING.MISMATCH'), '落地页与广告内容、语言或目标市场不一致');
     expect(adPolicyLabel('FUTURE.CODE'), 'FUTURE.CODE');
-    expect(AdPolicyCatalog.fallback.titleOf('CONTENT.IP'), '知识产权侵权');
-    expect(AdPolicyCatalog.fallback.titleOf('X.Y'), 'X.Y');
+    expect(fallbackAdPolicyCatalog.titleOf('CONTENT.IP'), '知识产权侵权');
+    expect(fallbackAdPolicyCatalog.titleOf('X.Y'), 'X.Y');
     expect(adPauseReasonLabel('qa'), '质检复审判定违规');
     expect(adPauseReasonLabel('rescan'), '政策回扫判定疑似违规');
     expect(adPauseReasonLabel('report'), '用户举报经复审成立');

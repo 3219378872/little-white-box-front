@@ -12,7 +12,7 @@ import '../../../core/widgets/load_more_footer.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../application/ads_providers.dart';
-import '../data/ad_labels.dart';
+import 'ad_labels.dart';
 import 'ad_status_badges.dart';
 
 /// 广告主控制台首页：广告主状态与广告列表（FX-110）。

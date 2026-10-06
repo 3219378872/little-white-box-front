@@ -1,3 +1,6 @@
+import '../../../sdk/data/gateway.dart';
+import '../application/ads_providers.dart';
+
 /// 广告与审核界面的本地化文案，集中维护在此（DES-sponsored-ads-client「广告主控制台」）。
 ///
 /// 政策码与后端 `pkg/adpolicy` 的演示配置一致；未知代码原样显示而不报错。
@@ -36,6 +39,40 @@ const adPolicyLabels = <String, String>{
 
 /// 政策码的中文说明；未知代码返回原始代码。
 String adPolicyLabel(String code) => adPolicyLabels[code] ?? code;
+
+/// 由本地演示配置构成的政策目录；目录加载中或接口不可用时使用。
+final fallbackAdPolicyCatalog = AdPolicyCatalog(
+  policyVersion: '',
+  codes: [
+    for (final entry in adPolicyLabels.entries)
+      AdPolicyCodeItem(code: entry.key, title: entry.value, category: ''),
+  ],
+  markets: adMarketLabels.keys.toList(),
+  industries: adIndustryLabels.keys.toList(),
+  demo: true,
+);
+
+/// 页面使用的政策目录：没有服务端目录时用本地演示配置，服务端缺省的市场或行业列表同样回退。
+AdPolicyCatalog resolveAdPolicyCatalog(AdPolicyCatalog? remote) {
+  if (remote == null) return fallbackAdPolicyCatalog;
+  if (remote.markets.isNotEmpty && remote.industries.isNotEmpty) return remote;
+  return AdPolicyCatalog(
+    policyVersion: remote.policyVersion,
+    codes: remote.codes,
+    markets: remote.markets.isEmpty
+        ? fallbackAdPolicyCatalog.markets
+        : remote.markets,
+    industries: remote.industries.isEmpty
+        ? fallbackAdPolicyCatalog.industries
+        : remote.industries,
+    demo: remote.demo,
+  );
+}
+
+/// 政策码的展示标题：优先服务端标题，其次本地中文说明，未知代码原样显示。
+extension AdPolicyCatalogLabels on AdPolicyCatalog {
+  String titleOf(String code) => titleFor(code) ?? adPolicyLabel(code);
+}
 
 const adMarketLabels = <String, String>{
   'US': '美国（英语）',

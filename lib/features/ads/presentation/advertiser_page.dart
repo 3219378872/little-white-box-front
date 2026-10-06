@@ -4,8 +4,6 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_exceptions.dart';
-import '../../../core/api/error_codes.dart';
-import '../../../core/api/idempotency.dart';
 import '../../../core/formatters/time_formatter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_section.dart';
@@ -13,11 +11,11 @@ import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
+import '../application/ad_commands.dart';
 import '../application/ads_providers.dart';
-import '../data/ad_labels.dart';
+import 'ad_labels.dart';
 import 'ad_status_badges.dart';
 import 'qualification_form.dart';
-import '../application/ads_dependencies.dart';
 
 /// 申请或修改广告主主体，并管理行业资质（FX-110）。
 class AdvertiserPage extends ConsumerWidget {
@@ -72,8 +70,6 @@ class _AdvertiserFormState extends ConsumerState<_AdvertiserForm> {
   late final TextEditingController _name;
   late Set<String> _markets;
   bool _busy = false;
-  String? _key;
-  String? _fingerprint;
 
   @override
   void initState() {
@@ -88,47 +84,24 @@ class _AdvertiserFormState extends ConsumerState<_AdvertiserForm> {
     super.dispose();
   }
 
+  // 校验、幂等键与刷新由 AdvertiserCommands 负责；页面只管忙碌态与提示。
   Future<void> _submit() async {
-    final name = _name.text.trim();
-    if (name.runes.length < 2 || name.runes.length > 64) {
-      showAppError(context, '主体名称须为 2～64 个字符');
-      return;
-    }
-    if (_markets.isEmpty) {
-      showAppError(context, '至少选择一个投放市场');
-      return;
-    }
-    final revision = widget.advertiser?.revision ?? 0;
-    final markets = _markets.toList()..sort();
-    final fingerprint = '$revision|$name|${markets.join(',')}';
-    if (fingerprint != _fingerprint) {
-      _fingerprint = fingerprint;
-      _key = newIdempotencyKey(24);
-    }
     setState(() => _busy = true);
     try {
       await ref
-          .read(adsRepositoryProvider)
-          .applyAdvertiser(
-            ApplyAdvertiserReq(
-              name: name,
-              markets: markets,
-              expectedRevision: revision,
-              idempotencyKey: _key!,
-            ),
+          .read(advertiserCommandsProvider)
+          .apply(
+            name: _name.text,
+            markets: _markets,
+            current: widget.advertiser,
           );
-      _fingerprint = null;
       if (!mounted) return;
       showAppSuccess(context, '已提交审核');
-      ref.invalidate(myAdvertiserProvider);
+    } on AdFormInvalidException catch (error) {
+      if (mounted) showAppError(context, error.message);
     } on ApiException catch (error) {
-      if (error.code != null) _fingerprint = null;
       if (!mounted) return;
-      showAppError(context, switch (error.code) {
-        ErrorCodes.contentVersionConflict => '主体信息已在别处更新，请刷新后再提交',
-        ErrorCodes.advertiserExists => '你已经是广告主，请刷新后修改',
-        _ => '提交失败：${error.message}',
-      });
+      showAppError(context, advertiserWriteErrorMessage(error));
     } catch (error) {
       if (mounted) showAppError(context, '提交失败：${friendlyErrorMessage(error)}');
     } finally {
@@ -140,8 +113,11 @@ class _AdvertiserFormState extends ConsumerState<_AdvertiserForm> {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final advertiser = widget.advertiser;
-    final catalog =
-        ref.watch(adPolicyCatalogProvider).value ?? AdPolicyCatalog.fallback;
+    final catalog = resolveAdPolicyCatalog(
+      ref.watch(adPolicyCatalogProvider).value,
+    );
+    // 保持命令实例存活，失败重试才能复用同一幂等键。
+    ref.watch(advertiserCommandsProvider);
     return AppSection(
       title: advertiser == null ? '申请成为广告主' : '广告主主体',
       trailing: advertiser == null

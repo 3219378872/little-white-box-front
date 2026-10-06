@@ -3,30 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 
 import '../../../core/api/api_exceptions.dart';
-import '../../../core/api/error_codes.dart';
-import '../../../core/api/idempotency.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_choice_button.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../sdk/data/gateway.dart';
-import '../application/ads_providers.dart';
-import '../data/ad_labels.dart';
-import '../data/ads_repository.dart';
-import '../application/ads_dependencies.dart';
-
-/// 解析 `YYYY-MM-DD` 为当日 UTC 结束时刻；格式错误或不晚于 [now] 时返回 null。
-int? parseQualificationValidUntil(String raw, DateTime now) {
-  final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(raw.trim());
-  if (match == null) return null;
-  final year = int.parse(match.group(1)!);
-  final month = int.parse(match.group(2)!);
-  final day = int.parse(match.group(3)!);
-  final date = DateTime.utc(year, month, day, 23, 59, 59);
-  if (date.year != year || date.month != month || date.day != day) return null;
-  if (!date.isAfter(now.toUtc())) return null;
-  return date.millisecondsSinceEpoch;
-}
+import '../application/ad_commands.dart';
+import 'ad_labels.dart';
 
 /// 上传证件并提交一份目标市场的行业资质（FX-110）。
 class QualificationForm extends ConsumerStatefulWidget {
@@ -51,8 +34,6 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
   String _documentName = '';
   bool _uploading = false;
   bool _busy = false;
-  String? _key;
-  String? _fingerprint;
   int _uploadGeneration = 0;
 
   @override
@@ -78,22 +59,19 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
     super.dispose();
   }
 
+  AdvertiserCommands get _commands => ref.read(advertiserCommandsProvider);
+
+  // 选择并上传证件；离开页面或再次选择后，旧上传结果不再写回表单。
   Future<void> _pickDocument() async {
-    final file = await ref
-        .read(adAssetPickerProvider)
-        .pick(AdAssetKind.document);
+    final file = await _commands.pickDocument();
     if (file == null || !mounted) return;
     final generation = ++_uploadGeneration;
     setState(() => _uploading = true);
     try {
-      final asset = await ref
-          .read(adsRepositoryProvider)
-          .uploadAsset(
-            kind: AdAssetKind.document,
-            file: file,
-            idempotencyKey: newIdempotencyKey(24),
-            isCurrent: () => mounted && generation == _uploadGeneration,
-          );
+      final asset = await _commands.uploadDocument(
+        file,
+        isCurrent: () => mounted && generation == _uploadGeneration,
+      );
       if (!mounted || generation != _uploadGeneration) return;
       setState(() {
         _document = asset;
@@ -110,48 +88,18 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
     }
   }
 
+  // 校验、幂等键与刷新由 AdvertiserCommands 负责；页面只管表单、忙碌态与提示。
   Future<void> _submit() async {
-    final market = _market;
-    final document = _document;
-    final validUntil = parseQualificationValidUntil(
-      _validUntil.text,
-      widget.now(),
-    );
-    if (market == null) {
-      showAppError(context, '请选择目标市场');
-      return;
-    }
-    if (document == null) {
-      showAppError(context, '请先上传资质证件');
-      return;
-    }
-    if (validUntil == null) {
-      showAppError(context, '有效期须为今天之后的日期，格式 YYYY-MM-DD');
-      return;
-    }
-    final revision = widget.advertiser.revision;
-    final fingerprint =
-        '$revision|$market|$_industry|${document.assetId}|'
-        '$validUntil';
-    if (fingerprint != _fingerprint) {
-      _fingerprint = fingerprint;
-      _key = newIdempotencyKey(24);
-    }
     setState(() => _busy = true);
     try {
-      await ref
-          .read(adsRepositoryProvider)
-          .addQualification(
-            AddQualificationReq(
-              market: market,
-              industry: _industry,
-              documentAssetId: document.assetId,
-              validUntilMs: validUntil,
-              expectedRevision: revision,
-              idempotencyKey: _key!,
-            ),
-          );
-      _fingerprint = null;
+      await _commands.addQualification(
+        advertiser: widget.advertiser,
+        market: _market,
+        industry: _industry,
+        document: _document,
+        validUntil: _validUntil.text,
+        now: widget.now(),
+      );
       if (!mounted) return;
       // A fresh form prevents a second tap from filing the same document again.
       setState(() {
@@ -160,16 +108,11 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
         _validUntil.clear();
       });
       showAppSuccess(context, '资质已提交，将与主体一起审核');
-      ref.invalidate(myAdvertiserProvider);
+    } on AdFormInvalidException catch (error) {
+      if (mounted) showAppError(context, error.message);
     } on ApiException catch (error) {
-      if (error.code != null) _fingerprint = null;
       if (!mounted) return;
-      showAppError(
-        context,
-        error.code == ErrorCodes.contentVersionConflict
-            ? '主体信息已更新，请刷新后再提交'
-            : '提交失败：${error.message}',
-      );
+      showAppError(context, qualificationWriteErrorMessage(error));
     } catch (error) {
       if (mounted) showAppError(context, '提交失败：${friendlyErrorMessage(error)}');
     } finally {
@@ -180,6 +123,8 @@ class _QualificationFormState extends ConsumerState<QualificationForm> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    // 保持命令实例存活，失败重试才能复用同一幂等键。
+    ref.watch(advertiserCommandsProvider);
     return AppSection(
       title: '提交行业资质',
       child: Column(

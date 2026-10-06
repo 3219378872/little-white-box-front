@@ -12,13 +12,9 @@ import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
-import '../../ads/data/ad_labels.dart';
+import '../../ads/presentation/ad_labels.dart';
+import '../application/review_queue.dart';
 import '../application/reviewer_access.dart';
-import '../application/review_dependencies.dart';
-
-final reviewQueueProvider = FutureProvider.autoDispose<ReviewQueueResp>((ref) {
-  return ref.read(reviewRepositoryProvider).getQueue();
-});
 
 /// 审核工作台首页：授权范围、各队列待处理数量与「领取下一单」（FX-111）。
 class ReviewHomePage extends ConsumerStatefulWidget {
@@ -31,27 +27,22 @@ class ReviewHomePage extends ConsumerStatefulWidget {
 class _ReviewHomePageState extends ConsumerState<ReviewHomePage> {
   bool _claiming = false;
 
+  // 领取与授权/队列刷新由 ReviewQueueCommands 负责；页面只管忙碌态、导航与提示。
   Future<void> _claim([String purpose = '']) async {
     if (_claiming) return;
     setState(() => _claiming = true);
+    final commands = ref.read(reviewQueueCommandsProvider);
     try {
-      final task = await ref
-          .read(reviewRepositoryProvider)
-          .claim(purpose: purpose);
+      final task = await commands.claim(purpose: purpose);
       if (!mounted) return;
       if (task == null) {
         showAppSuccess(context, '队列暂无可领取的任务');
-        ref.invalidate(reviewQueueProvider);
         return;
       }
       await context.push('/review/tasks/${jsonInt64Id(task.taskId)}');
-      if (mounted) ref.invalidate(reviewQueueProvider);
+      if (mounted) commands.refreshQueue();
     } catch (error) {
       if (!mounted) return;
-      if (error is ApiException &&
-          error.code == ErrorCodes.reviewRoleRequired) {
-        ref.invalidate(reviewerAccessProvider);
-      }
       showAppError(context, '领取失败：${friendlyErrorMessage(error)}');
     } finally {
       if (mounted) setState(() => _claiming = false);
@@ -61,6 +52,7 @@ class _ReviewHomePageState extends ConsumerState<ReviewHomePage> {
   @override
   Widget build(BuildContext context) {
     final access = ref.watch(reviewerAccessProvider);
+    ref.watch(reviewQueueCommandsProvider);
     return FScaffold(
       header: FHeader.nested(
         title: const Text('审核工作台'),

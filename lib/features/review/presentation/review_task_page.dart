@@ -14,7 +14,7 @@ import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../ads/application/ads_providers.dart';
-import '../../ads/data/ad_labels.dart';
+import '../../ads/presentation/ad_labels.dart';
 import '../application/review_task_controller.dart';
 import '../application/reviewer_access.dart';
 import 'review_decision_form.dart';
@@ -122,8 +122,9 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
               onRetry: _controller.load,
             );
     }
-    final policies =
-        ref.watch(adPolicyCatalogProvider).value ?? AdPolicyCatalog.fallback;
+    final policies = resolveAdPolicyCatalog(
+      ref.watch(adPolicyCatalogProvider).value,
+    );
     return ListView(
       padding: const EdgeInsets.all(AppTheme.pageInset),
       children: [

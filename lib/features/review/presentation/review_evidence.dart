@@ -10,15 +10,9 @@ import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
-import '../../ads/data/ad_labels.dart';
-import '../data/review_repository.dart';
+import '../../ads/presentation/ad_labels.dart';
+import '../application/review_queue.dart';
 import '../data/review_snapshot.dart';
-import '../application/review_dependencies.dart';
-
-final reviewMediaProvider = FutureProvider.autoDispose
-    .family<ReviewMediaContent, (String, String)>((ref, key) {
-      return ref.read(reviewRepositoryProvider).media(key.$1, key.$2);
-    });
 
 /// 快照与机审证据，分段折叠以适配移动端单列（FX-111、FQ-005）。
 class ReviewEvidence extends StatelessWidget {

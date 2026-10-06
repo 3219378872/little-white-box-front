@@ -12,7 +12,7 @@ import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_icon_button.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../behavior/application/behavior_tracker.dart';
-import '../../../ads/data/ad_labels.dart';
+import '../../../ads/presentation/ad_labels.dart';
 import '../../../behavior/data/behavior_event.dart';
 import '../../data/feed_models.dart';
 import 'post_media_preview.dart';

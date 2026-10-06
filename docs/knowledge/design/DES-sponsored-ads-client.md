@@ -117,7 +117,7 @@ updated_at: 2026-10-01
 CTA 1～32 字符与 https 落地页，最终以服务端为准；常见业务错误码（7101、7103～7105、7107、2007、2008）映射为
 中文提示。
 
-政策码到中文说明的映射集中维护在 `lib/features/ads/data/ad_labels.dart`，未知政策码显示原始代码而不报错；
+政策码到中文说明的映射集中维护在 `lib/features/ads/presentation/ad_labels.dart`，未知政策码显示原始代码而不报错；
 工作台与详情页优先使用 `/api/v2/ads/policies` 返回的标题，请求失败时退回本地映射。
 
 ## 审核工作台

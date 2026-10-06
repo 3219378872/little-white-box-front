@@ -4,8 +4,6 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_exceptions.dart';
-import '../../../core/api/error_codes.dart';
-import '../../../core/api/idempotency.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_dialog.dart';
@@ -14,10 +12,10 @@ import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
+import '../application/ad_commands.dart';
 import '../application/ads_providers.dart';
-import '../data/ad_labels.dart';
+import 'ad_labels.dart';
 import 'ad_status_badges.dart';
-import '../application/ads_dependencies.dart';
 
 /// 最新版本与过审版本之间不同的字段（FX-110）。
 class AdContentDiff {
@@ -104,12 +102,9 @@ class _AdDetail extends ConsumerStatefulWidget {
 class _AdDetailState extends ConsumerState<_AdDetail> {
   bool _appealing = false;
 
-  /// 网络失败（无错误码）重试时复用，服务端返回业务错误后作废。
-  String? _appealKey;
-
   AdItem get ad => widget.ad;
 
-  /// 每个被拒或被下线的版本可申诉一次，复审结论为最终结论（FX-110、ADS-014）。
+  // 二次确认后交给 AdAppealCommands：幂等键复用与详情刷新都在命令内完成（FX-110、ADS-014）。
   Future<void> _appeal() async {
     final confirmed = await showAppConfirm(
       context: context,
@@ -119,21 +114,13 @@ class _AdDetailState extends ConsumerState<_AdDetail> {
     );
     if (!confirmed || !mounted) return;
     setState(() => _appealing = true);
-    final adId = jsonInt64Id(ad.adId);
     try {
-      _appealKey ??= newIdempotencyKey(24);
-      await ref.read(adsRepositoryProvider).appealAd(adId, _appealKey!);
-      _appealKey = null;
+      await ref.read(adAppealCommandsProvider(jsonInt64Id(ad.adId))).appeal();
       if (!mounted) return;
       showAppSuccess(context, '已提交申诉');
-      ref.invalidate(adDetailProvider(adId));
     } on ApiException catch (error) {
-      if (error.code != null) _appealKey = null;
       if (!mounted) return;
       showAppError(context, adAppealErrorMessage(error));
-      if (error.code == ErrorCodes.adAppealNotAllowed) {
-        ref.invalidate(adDetailProvider(adId));
-      }
     } finally {
       if (mounted) setState(() => _appealing = false);
     }
@@ -142,8 +129,11 @@ class _AdDetailState extends ConsumerState<_AdDetail> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final catalog =
-        ref.watch(adPolicyCatalogProvider).value ?? AdPolicyCatalog.fallback;
+    final catalog = resolveAdPolicyCatalog(
+      ref.watch(adPolicyCatalogProvider).value,
+    );
+    // 保持申诉命令存活，网络失败后的重试复用同一幂等键。
+    ref.watch(adAppealCommandsProvider(jsonInt64Id(ad.adId)));
     final approved = ad.approved;
     final diffs = approved == null || ad.revision == ad.approvedRevision
         ? const <AdContentDiff>[]
@@ -311,10 +301,3 @@ class _AdDetailState extends ConsumerState<_AdDetail> {
     );
   }
 }
-
-/// 申诉的错误提示（ADS-014）。
-String adAppealErrorMessage(ApiException error) => switch (error.code) {
-  ErrorCodes.adAppealNotAllowed => '当前版本不可申诉（每个版本只能申诉一次）',
-  ErrorCodes.idempotencyConflict => '重复提交的内容不一致，请重试',
-  _ => '申诉失败：${error.message}',
-};

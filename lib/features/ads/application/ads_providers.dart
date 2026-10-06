@@ -6,11 +6,13 @@ import '../../../core/api/json_int64.dart';
 import '../../../core/collections/unique_by.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
-import '../data/ad_labels.dart';
 import '../data/ads_repository.dart';
 import 'ads_dependencies.dart';
 
-/// 政策码定义与可选市场、行业；请求失败时退回本地演示配置。
+/// 政策码定义与可选市场、行业。
+///
+/// 接口不可用时的本地演示配置与中文标题回退属于展示文案，由 presentation 的
+/// `resolveAdPolicyCatalog` 与 `titleOf` 补齐，本层只承载服务端结果。
 class AdPolicyCatalog {
   final String policyVersion;
   final List<AdPolicyCodeItem> codes;
@@ -26,45 +28,33 @@ class AdPolicyCatalog {
     required this.demo,
   });
 
-  static final fallback = AdPolicyCatalog(
-    policyVersion: '',
-    codes: [
-      for (final entry in adPolicyLabels.entries)
-        AdPolicyCodeItem(code: entry.key, title: entry.value, category: ''),
-    ],
-    markets: adMarketLabels.keys.toList(),
-    industries: adIndustryLabels.keys.toList(),
-    demo: true,
-  );
-
-  String titleOf(String code) {
+  /// 目录内 [code] 的非空标题；没有时返回 null，由调用方选择回退文案。
+  String? titleFor(String code) {
     for (final item in codes) {
       if (item.code == code && item.title.isNotEmpty) return item.title;
     }
-    return adPolicyLabel(code);
+    return null;
   }
 }
 
-final adPolicyCatalogProvider = FutureProvider.autoDispose<AdPolicyCatalog>((
+/// 服务端政策目录；请求失败或没有政策码时为 null，展示层退回本地演示配置。
+final adPolicyCatalogProvider = FutureProvider.autoDispose<AdPolicyCatalog?>((
   ref,
 ) async {
   ref.watch(authenticatedSessionIdentityProvider);
   try {
     final resp = await ref.read(adsRepositoryProvider).listPolicies();
-    if (resp.codes.isEmpty) return AdPolicyCatalog.fallback;
+    if (resp.codes.isEmpty) return null;
     return AdPolicyCatalog(
       policyVersion: resp.policyVersion,
       codes: resp.codes,
-      markets: resp.markets.isEmpty
-          ? AdPolicyCatalog.fallback.markets
-          : resp.markets,
-      industries: resp.industries.isEmpty
-          ? AdPolicyCatalog.fallback.industries
-          : resp.industries,
+      markets: resp.markets,
+      industries: resp.industries,
       demo: resp.demo,
     );
   } catch (_) {
-    return AdPolicyCatalog.fallback;
+    // 目录只影响文案与可选项，失败不阻断页面。
+    return null;
   }
 });
 
