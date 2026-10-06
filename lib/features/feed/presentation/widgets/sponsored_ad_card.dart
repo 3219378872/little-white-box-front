@@ -8,15 +8,17 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../../core/api/media_url.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_icon_button.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../behavior/application/behavior_tracker.dart';
-import '../../../ads/presentation/ad_labels.dart';
 import '../../../behavior/data/behavior_event.dart';
 import '../../data/feed_models.dart';
 import 'post_media_preview.dart';
+import 'sponsored_ad_sheets.dart';
+import 'sponsored_badge.dart';
+import 'sponsored_exposure_timer.dart';
 
+/// 打开外部落地页的注入点；测试替换它以避免真正拉起浏览器。
 typedef ExternalUriOpener = Future<bool> Function(Uri uri);
 
 /// 推荐流广告卡片（FX-100～FX-102、FX-104）。
@@ -45,12 +47,7 @@ class SponsoredAdCard extends ConsumerStatefulWidget {
 
 class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
     with WidgetsBindingObserver {
-  static const _visibilityThreshold = 0.5;
-  static const _exposureThreshold = Duration(seconds: 1);
-
-  Timer? _exposureTimer;
-  bool _exposureReported = false;
-  double _lastVisibleFraction = 0;
+  final _exposure = SponsoredExposureTimer();
 
   SponsoredAd get ad => widget.slot.ad;
 
@@ -63,58 +60,48 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
   @override
   void didUpdateWidget(covariant SponsoredAdCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // 换了广告位允许重新曝光；追踪开关切换时暂停或恢复计时。
     if (oldWidget.slot.key != widget.slot.key) {
-      _cancelExposure();
-      _exposureReported = false;
+      _exposure.reset();
     }
     if (!widget.trackingActive) {
-      _cancelExposure();
+      _exposure.cancel();
     } else if (!oldWidget.trackingActive) {
       _scheduleExposure();
     }
   }
 
+  // 切到后台时暂停曝光计时，回到前台再按最近一次可见比例恢复。
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _scheduleExposure();
     } else {
-      _cancelExposure();
+      _exposure.cancel();
     }
   }
 
   @override
   void dispose() {
-    _cancelExposure();
+    _exposure.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
-    _lastVisibleFraction = info.visibleFraction;
-    if (info.visibleFraction < _visibilityThreshold) {
-      _cancelExposure();
-      return;
+    if (_exposure.updateVisibility(info.visibleFraction)) {
+      _scheduleExposure();
     }
-    _scheduleExposure();
   }
 
+  // 计时开始时锁定当前广告位；到点时广告位已变或追踪关闭则不上报。
   void _scheduleExposure() {
-    if (!mounted ||
-        !widget.trackingActive ||
-        _exposureReported ||
-        _exposureTimer != null ||
-        _lastVisibleFraction < _visibilityThreshold) {
-      return;
-    }
+    if (!mounted || !widget.trackingActive) return;
     final slot = widget.slot;
-    _exposureTimer = Timer(_exposureThreshold, () {
-      _exposureTimer = null;
-      if (!mounted || !widget.trackingActive || widget.slot.key != slot.key) {
-        return;
-      }
-      _exposureReported = true;
-      _trackSafely(
+    _exposure.schedule(
+      stillValid: () =>
+          mounted && widget.trackingActive && widget.slot.key == slot.key,
+      onExposed: () => _trackSafely(
         () => ref
             .read(behaviorTrackerProvider)
             .trackExposure(
@@ -122,13 +109,8 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
               slot.context,
               targetType: behaviorTargetAd,
             ),
-      );
-    });
-  }
-
-  void _cancelExposure() {
-    _exposureTimer?.cancel();
-    _exposureTimer = null;
+      ),
+    );
   }
 
   void _trackSafely(Future<void> Function() track) {
@@ -141,6 +123,7 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
     }());
   }
 
+  // 点击卡片或 CTA：先记点击，再尝试外部打开落地页，失败时提示域名。
   Future<void> _openLanding() async {
     _trackSafely(
       () => ref
@@ -165,8 +148,9 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
     }
   }
 
+  // 隐藏/举报前停止曝光计时，避免被移除的广告仍补报曝光。
   void _hide() {
-    _cancelExposure();
+    _exposure.cancel();
     unawaited(widget.onHide());
   }
 
@@ -177,7 +161,7 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
       builder: (context) => SponsoredReportSheet(ad: ad),
     );
     if (reason == null || !mounted) return;
-    _cancelExposure();
+    _exposure.cancel();
     await widget.onReport(reason);
   }
 
@@ -364,152 +348,6 @@ class _SponsoredAdCardState extends ConsumerState<SponsoredAdCard>
         icon: FLucideIcons.ellipsis,
         label: '广告选项',
         onPress: controller.toggle,
-      ),
-    );
-  }
-}
-
-/// 文本「广告」与图标并列的标识，辅助技术读作「广告」（FX-100、FQ-010）。
-class SponsoredBadge extends StatelessWidget {
-  const SponsoredBadge({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppBadge(
-      variant: AppTheme.sponsoredBadgeVariant,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const ExcludeSemantics(
-            child: Icon(
-              FLucideIcons.megaphone,
-              size: AppTheme.sponsoredBadgeIconSize,
-            ),
-          ),
-          const SizedBox(width: 3),
-          const Text('广告'),
-        ],
-      ),
-    );
-  }
-}
-
-/// 「为什么看到这条广告」：展示服务端返回的市场、场景与是否个性化（FX-101）。
-class SponsoredWhySheet extends StatelessWidget {
-  final SponsoredAd ad;
-
-  const SponsoredWhySheet({super.key, required this.ad});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    final why = ad.why;
-    Widget row(String label, String value) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppTheme.space1),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 96,
-            child: Text(
-              label,
-              style: theme.typography.body.sm.copyWith(
-                color: theme.colors.mutedForeground,
-              ),
-            ),
-          ),
-          Expanded(child: Text(value, style: theme.typography.body.sm)),
-        ],
-      ),
-    );
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colors.background,
-        border: Border(top: BorderSide(color: theme.colors.border)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.space6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Semantics(
-                header: true,
-                child: Text('为什么看到这条广告', style: theme.typography.display.sm),
-              ),
-              const SizedBox(height: AppTheme.space3),
-              row('广告主', ad.advertiserName),
-              row('投放市场', why.market.isEmpty ? '未提供' : why.market),
-              row('展示场景', why.scene == 'home' ? '首页推荐' : why.scene),
-              row('个性化', why.personalized ? '是' : '否'),
-              const SizedBox(height: AppTheme.space2),
-              Text(
-                why.personalized
-                    ? '这条广告参考了你的个性化信息。'
-                    : '这条广告按投放市场与场景展示，没有根据你的个人兴趣定向。',
-                style: theme.typography.body.xs.copyWith(
-                  color: theme.colors.mutedForeground,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 举报原因选择（FX-101）：选择即提交，关闭面板不提交。原因只取结构化选项，不收集自由文本。
-class SponsoredReportSheet extends StatelessWidget {
-  final SponsoredAd ad;
-
-  const SponsoredReportSheet({super.key, required this.ad});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colors.background,
-        border: Border(top: BorderSide(color: theme.colors.border)),
-      ),
-      child: SafeArea(
-        top: false,
-        // 面板高度受限（矮屏或横屏），选项过多时滚动而不是溢出。
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppTheme.space6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Semantics(
-                header: true,
-                child: Text('举报这条广告', style: theme.typography.display.sm),
-              ),
-              const SizedBox(height: AppTheme.space1),
-              Text(
-                '举报后这条广告将不再向你展示，并由审核员复核。',
-                style: theme.typography.body.xs.copyWith(
-                  color: theme.colors.mutedForeground,
-                ),
-              ),
-              const SizedBox(height: AppTheme.space3),
-              FItemGroup(
-                children: [
-                  for (final (code, label) in adReportReasons)
-                    FItem(
-                      key: Key('ad-report-reason-$code'),
-                      title: Text(label),
-                      suffix: const Icon(FLucideIcons.chevronRight),
-                      onPress: () => Navigator.of(context).pop(code),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
