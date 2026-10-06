@@ -63,6 +63,88 @@ void main() {
     },
   );
 
+  group('late pending copies of a resolved question', () {
+    // 构造一条问题事件帧；[id] 区分问题，[status] 决定是否仍待回答。
+    String questionFrame(String type, String id, String status, int seq) {
+      final payload = jsonEncode({
+        'type': type,
+        'runId': 21,
+        'seq': seq,
+        'questionRequest': {
+          'id': id,
+          'runId': 21,
+          'messageId': 31,
+          'status': status,
+          'deadlineMs': 4102444800000,
+          'questions': [
+            {
+              'id': 'q',
+              'text': '优先级？',
+              'selection': 'single',
+              'options': [
+                {'id': 'a', 'label': '成本'},
+              ],
+            },
+          ],
+          'answers': [],
+        },
+      });
+      return 'id: $seq\ndata: $payload\n\n';
+    }
+
+    // 以给定帧序列作为一次 SSE 响应体，流在最后一帧后直接结束。
+    AssistantRepository repositoryFor(List<String> frames) =>
+        AssistantRepository(
+          client: _CapturingClient(
+            (_) => http.StreamedResponse(
+              Stream.value(utf8.encode(frames.join())),
+              200,
+            ),
+          ),
+          baseUrl: 'http://gateway.test',
+          loadAccessToken: () async => 'test-token',
+        );
+
+    test('do not let an unterminated stream end silently', () async {
+      final repository = repositoryFor([
+        questionFrame('questions_required', 'q1', 'pending', 1),
+        questionFrame('questions_resolved', 'q1', 'answered', 2),
+        questionFrame('questions_required', 'q1', 'pending', 3),
+      ]);
+      await expectLater(
+        repository.runEvents(runId: 21).toList(),
+        throwsA(
+          isA<AssistantStreamException>()
+              .having((error) => error.message, 'message', 'Assistant 连接意外中断')
+              .having((error) => error.retryable, 'retryable', isTrue),
+        ),
+      );
+    });
+
+    test(
+      'a late copy does not clear waiting for another open question',
+      () async {
+        final repository = repositoryFor([
+          questionFrame('questions_required', 'q1', 'pending', 1),
+          questionFrame('questions_resolved', 'q1', 'answered', 2),
+          questionFrame('questions_required', 'q2', 'pending', 3),
+          questionFrame('questions_required', 'q1', 'pending', 4),
+        ]);
+        final events = await repository.runEvents(runId: 21).toList();
+        expect(events, hasLength(4));
+      },
+    );
+
+    test('a new pending question may still suspend the stream', () async {
+      final repository = repositoryFor([
+        questionFrame('questions_required', 'q1', 'answered', 1),
+        questionFrame('questions_required', 'q2', 'pending', 2),
+      ]);
+      final events = await repository.runEvents(runId: 21).toList();
+      expect(events, hasLength(2));
+    });
+  });
+
   for (final status in [403, 404, 429, 503]) {
     test('HTTP $status subscription rejection keeps retryability', () async {
       final repository = AssistantRepository(

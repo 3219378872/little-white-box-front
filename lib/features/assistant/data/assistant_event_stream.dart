@@ -111,6 +111,8 @@ class AssistantEventStreamClient {
     // 解码：逐帧转为事件，记录是否以终止事件或待答问题合法结束。
     var terminal = false;
     var waiting = false;
+    // 已离开 pending 的问题 ID：同一问题迟到的 pending 副本不能让流合法挂起。
+    final settledQuestionIds = <String>{};
     try {
       await for (final frame in _sseFrames(response.stream)) {
         if (frame.data.trim().isEmpty) continue;
@@ -138,11 +140,20 @@ class AssistantEventStreamClient {
         }
         final event = AssistantRunEvent.fromJson(json);
         if (event.type == AssistantEventType.unknown) continue;
-        if (event.type == AssistantEventType.questionsRequired) {
-          waiting = event.questionRequest?.isPending == true;
+        final question = event.questionRequest;
+        // 已结清问题的迟到副本完全不改动 waiting，以免覆盖另一个仍待回答的问题。
+        if (event.type == AssistantEventType.questionsRequired &&
+            !(question != null && settledQuestionIds.contains(question.id))) {
+          waiting = question?.isPending == true;
         }
         if (event.type == AssistantEventType.questionsResolved) {
           waiting = false;
+        }
+        if ((event.type == AssistantEventType.questionsRequired ||
+                event.type == AssistantEventType.questionsResolved) &&
+            question != null &&
+            !question.isPending) {
+          settledQuestionIds.add(question.id);
         }
         yield event;
         if (event.isTerminal) {
