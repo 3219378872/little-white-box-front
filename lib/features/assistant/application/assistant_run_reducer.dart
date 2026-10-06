@@ -183,7 +183,10 @@ AssistantRunReduction reduceAssistantRunEvent(
     case AssistantEventType.questionsRequired:
     case AssistantEventType.questionsResolved:
       final question = event.questionRequest;
-      if (question == null || !_sameRun(question.runId, runId)) {
+      // 迟到的 pending 不得重开已离开 pending 的问题，也不改阶段与占位。
+      if (question == null ||
+          !_sameRun(question.runId, runId) ||
+          _isStalePendingQuestion(state.messages, question)) {
         return reduction;
       }
       state = _applyQuestion(state, question, responseId, runId, sessionId);

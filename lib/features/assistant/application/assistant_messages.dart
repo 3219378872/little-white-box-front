@@ -3,21 +3,31 @@ part of 'assistant_notifier.dart';
 // Pure message-list transforms shared by the run reducer and the commands;
 // each takes the current list and returns the next one without touching state.
 
+// True when [question] is a late pending copy of a request the list already
+// shows as answered, superseded or expired; such copies must not reopen it.
+bool _isStalePendingQuestion(
+  List<AssistantMessage> messages,
+  AssistantQuestionRequest question,
+) {
+  if (!question.isPending) return false;
+  final known = messages
+      .map((message) => message.questionRequest)
+      .where((request) => request?.id == question.id)
+      .firstOrNull;
+  return known != null && !known.isPending;
+}
+
 // Inserts or refreshes the question card; a late pending copy never reopens a
 // request that has already left pending.
 List<AssistantMessage> _questionMessages(
   List<AssistantMessage> messages,
   AssistantQuestionRequest question,
 ) {
+  if (_isStalePendingQuestion(messages, question)) return messages;
   final id = jsonInt64Id(question.messageId);
   final existing = messages
       .where((message) => message.questionRequest?.id == question.id)
       .firstOrNull;
-  if (existing?.questionRequest?.status != 'pending' &&
-      existing?.questionRequest != null &&
-      question.isPending) {
-    return messages;
-  }
   if (existing != null) {
     return [
       for (final message in messages)

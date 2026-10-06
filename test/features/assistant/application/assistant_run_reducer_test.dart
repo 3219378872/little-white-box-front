@@ -411,9 +411,11 @@ final _runEventScenarios = <_RunScenario>[
         (m) => m.questionRequest != null,
       );
       expect(question.questionRequest!.status, 'answered');
-      // 现状：迟到的 pending 仍把阶段切回等待输入并移除空占位。
-      expect(state.activeRunPhase, 'waiting_input');
-      expect(state.messages.any((m) => m.id == _responseId), isFalse);
+      // 迟到的 pending 被整体忽略：保持续跑阶段与刚恢复的回复占位。
+      expect(state.activeRunPhase, 'queued');
+      expect(state.isStreaming, isTrue);
+      expect(_response(state).isStreaming, isTrue);
+      expect(_response(state).text, isEmpty);
     },
   ),
   _RunScenario(
