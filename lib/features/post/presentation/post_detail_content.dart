@@ -83,11 +83,13 @@ extension _PostDetailContent on _PostDetailPageState {
     final theme = context.theme;
     final auth = ref.watch(authNotifierProvider);
     final own = _isOwnPost(post);
-    final authorKey = jsonInt64Id(post.authorId).toString();
+    final authorKey = jsonInt64Id(post.authorId);
+    // 关注态未读到前（null）禁用按钮，避免基于猜测的值发出反向请求。
     final following = auth.isAuthenticated && !own
-        ? ref.watch(_authorFollowingProvider(authorKey)).value
+        ? ref.watch(userFollowingProvider(authorKey)).value
         : false;
-    final isFollowing = _followOverride ?? following ?? false;
+    final follow = ref.watch(followControllerProvider(authorKey));
+    final isFollowing = follow.following ?? following ?? false;
     return Row(
       children: [
         Expanded(
@@ -142,7 +144,8 @@ extension _PostDetailContent on _PostDetailPageState {
               isFollowing ? FLucideIcons.check : FLucideIcons.plus,
               size: 16,
             ),
-            onPress: _followBusy || (auth.isAuthenticated && following == null)
+            onPress:
+                follow.isBusy || (auth.isAuthenticated && following == null)
                 ? null
                 : () => _toggleFollow(post, isFollowing),
             child: Text(isFollowing ? '已关注' : '关注'),

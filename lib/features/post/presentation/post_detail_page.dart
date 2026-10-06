@@ -20,28 +20,13 @@ import '../../comment/application/comment_notifier.dart';
 import '../../comment/presentation/widgets/comment_input.dart';
 import '../../comment/presentation/widgets/comment_item.dart';
 import '../../interaction/application/interaction_notifier.dart';
-import '../../profile/application/profile_dependencies.dart';
-import '../application/post_dependencies.dart';
+import '../../profile/application/follow_controller.dart';
+import '../../profile/application/user_profile_providers.dart';
+import '../application/post_detail_provider.dart';
 
 part 'post_detail_content.dart';
 part 'post_detail_comments.dart';
 part 'post_detail_actions.dart';
-
-/// Whether the signed-in user follows [authorId]; reuses the profile endpoint.
-final _authorFollowingProvider = FutureProvider.autoDispose
-    .family<bool, String>((ref, authorId) async {
-      ref.watch(authSessionIdentityProvider);
-      final user = await ref
-          .read(userRepositoryProvider)
-          .getUserProfile(authorId);
-      return user.isFollowing;
-    });
-
-final _postDetailProvider = FutureProvider.autoDispose
-    .family<GetPostResp, String>((ref, postId) {
-      ref.watch(authSessionIdentityProvider);
-      return ref.read(postRepositoryProvider).getPostDetail(postId);
-    });
 
 class PostDetailPage extends ConsumerStatefulWidget {
   final String postId;
@@ -58,8 +43,6 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   final ScrollController _scrollCtrl = ScrollController();
   final FocusNode _commentFocus = FocusNode();
   bool _showHeaderTitle = false;
-  bool? _followOverride;
-  bool _followBusy = false;
 
   @override
   void initState() {
@@ -103,30 +86,19 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
+  // 与个人页共用 follow controller：匿名先去登录，乐观更新与回滚在 controller 内完成。
   Future<void> _toggleFollow(GetPostResp post, bool isFollowing) async {
-    if (_followBusy) return;
+    final follow = followControllerProvider(jsonInt64Id(post.authorId));
+    if (ref.read(follow).isBusy) return;
     if (!ref.read(authNotifierProvider).isAuthenticated) {
       context.push('/auth/login');
       return;
     }
-    final repo = ref.read(userRepositoryProvider);
-    final previous = _followOverride;
-    setState(() {
-      _followOverride = !isFollowing;
-      _followBusy = true;
-    });
     try {
-      if (isFollowing) {
-        await repo.unfollowUser(post.authorId);
-      } else {
-        await repo.followUser(post.authorId);
-      }
+      await ref.read(follow.notifier).toggle(isFollowing);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _followOverride = previous);
       showAppError(context, '操作失败: ${friendlyErrorMessage(e)}');
-    } finally {
-      if (mounted) setState(() => _followBusy = false);
     }
   }
 
@@ -196,7 +168,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final postAsync = ref.watch(_postDetailProvider(widget.postId));
+    final postAsync = ref.watch(postDetailProvider(widget.postId));
     final post = postAsync.value;
     final theme = context.theme;
     return FScaffold(
@@ -225,7 +197,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
           message: friendlyErrorMessage(e),
-          onRetry: () => ref.invalidate(_postDetailProvider(widget.postId)),
+          onRetry: () => ref.invalidate(postDetailProvider(widget.postId)),
         ),
         data: (post) {
           final comments = ref.watch(commentNotifierProvider(widget.postId));

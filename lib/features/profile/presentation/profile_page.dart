@@ -9,18 +9,13 @@ import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
-import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../review/application/reviewer_access.dart';
+import '../application/follow_controller.dart';
+import '../application/personalization_controller.dart';
 import '../application/user_posts_notifier.dart';
+import '../application/user_profile_providers.dart';
 import 'widgets/user_post_list.dart';
-import '../application/profile_dependencies.dart';
-
-final _userProfileProvider = FutureProvider.autoDispose
-    .family<GetUserResp, String>((ref, userId) {
-      ref.watch(authSessionIdentityProvider);
-      return ref.read(userRepositoryProvider).getUserProfile(userId);
-    });
 
 class ProfilePage extends ConsumerWidget {
   final Object? userId;
@@ -76,10 +71,6 @@ class _ProfileContent extends ConsumerStatefulWidget {
 }
 
 class _ProfileContentState extends ConsumerState<_ProfileContent> {
-  bool? _followOverride;
-  bool _followBusy = false;
-  bool? _personalizationEnabled;
-  bool _personalizationBusy = false;
   int _tabIndex = 0;
   late final PageController _pageController;
 
@@ -87,9 +78,6 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
   void initState() {
     super.initState();
     _pageController = PageController();
-    if (widget.isOwnProfile) {
-      _loadPersonalization();
-    }
   }
 
   @override
@@ -116,69 +104,42 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
     }
   }
 
-  Future<void> _loadPersonalization() async {
-    try {
-      final preference = await ref
-          .read(personalizationRepositoryProvider)
-          .getPreference();
-      if (!mounted) return;
-      setState(() => _personalizationEnabled = preference.enabled);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _personalizationEnabled = null);
-    }
-  }
-
+  // 个性化开关的写入与回滚由 controller 负责，页面只负责失败提示。
   Future<void> _setPersonalization(bool enabled) async {
-    if (_personalizationBusy) return;
-    final previous = _personalizationEnabled;
-    setState(() {
-      _personalizationEnabled = enabled;
-      _personalizationBusy = true;
-    });
     try {
       await ref
-          .read(personalizationRepositoryProvider)
-          .setPreference(enabled: enabled);
+          .read(personalizationControllerProvider.notifier)
+          .setEnabled(enabled);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _personalizationEnabled = previous);
       showAppError(context, '个性化设置失败: ${friendlyErrorMessage(e)}');
-    } finally {
-      if (mounted) setState(() => _personalizationBusy = false);
     }
   }
 
+  // 匿名用户先去登录；关注的乐观更新与回滚由共享的 follow controller 负责。
   Future<void> _toggleFollow(bool isFollowing) async {
-    if (_followBusy) return;
+    final follow = followControllerProvider(widget.userId);
+    if (ref.read(follow).isBusy) return;
     if (!ref.read(authNotifierProvider).isAuthenticated) {
       context.push('/auth/login');
       return;
     }
-    final repo = ref.read(userRepositoryProvider);
-    final previousOverride = _followOverride;
-    setState(() {
-      _followOverride = !isFollowing;
-      _followBusy = true;
-    });
     try {
-      if (isFollowing) {
-        await repo.unfollowUser(widget.userId);
-      } else {
-        await repo.followUser(widget.userId);
-      }
+      await ref.read(follow.notifier).toggle(isFollowing);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _followOverride = previousOverride);
       showAppError(context, '操作失败: ${friendlyErrorMessage(e)}');
-    } finally {
-      if (mounted) setState(() => _followBusy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final userAsync = ref.watch(_userProfileProvider(widget.userId));
+    final userAsync = ref.watch(userProfileProvider(widget.userId));
+    final follow = ref.watch(followControllerProvider(widget.userId));
+    // 只有本人主页展示个性化开关，也只在此时读取偏好。
+    final personalization = widget.isOwnProfile
+        ? ref.watch(personalizationControllerProvider)
+        : null;
     final theme = context.theme;
     final canPop = context.canPop();
 
@@ -204,10 +165,10 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
           message: friendlyErrorMessage(e),
-          onRetry: () => ref.invalidate(_userProfileProvider(widget.userId)),
+          onRetry: () => ref.invalidate(userProfileProvider(widget.userId)),
         ),
         data: (user) {
-          final isFollowing = _followOverride ?? user.isFollowing;
+          final isFollowing = follow.resolve(user.isFollowing);
           final showFavoritesTab = widget.isOwnProfile || user.favoritesVisible;
           return NestedScrollView(
             floatHeaderSlivers: false,
@@ -282,12 +243,12 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                         ),
                         const SizedBox(height: 16),
                         const BusinessEntries(),
-                        if (_personalizationEnabled != null) ...[
+                        if (personalization?.enabled case final enabled?) ...[
                           const SizedBox(height: 16),
                           FSwitch(
                             label: const Text('个性化推荐'),
-                            value: _personalizationEnabled!,
-                            enabled: !_personalizationBusy,
+                            value: enabled,
+                            enabled: !personalization!.isBusy,
                             onChange: _setPersonalization,
                           ),
                         ],
@@ -298,7 +259,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                               ? FButtonVariant.secondary
                               : FButtonVariant.primary,
                           mainAxisSize: MainAxisSize.min,
-                          onPress: _followBusy
+                          onPress: follow.isBusy
                               ? null
                               : () => _toggleFollow(isFollowing),
                           child: Text(isFollowing ? '已关注' : '关注'),
