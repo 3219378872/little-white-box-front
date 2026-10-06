@@ -7,8 +7,11 @@ import '../../auth/application/auth_notifier.dart';
 import '../data/user_repository.dart';
 import 'profile_dependencies.dart';
 
+/// 个人页列表类型：用户发布的帖子或用户的收藏。
 enum UserPostsListType { posts, favorites }
 
+/// 分页 provider 的 family 键；按 int64 规范化后的用户 ID 比较，
+/// 避免同一用户以数字与字符串两种形式出现时生成两个列表实例。
 class UserPostsKey {
   final Object userId;
   final UserPostsListType type;
@@ -32,6 +35,8 @@ class UserPostsState {
 
   /// 下一页游标；空串表示没有更多（与网关 nextCursor 语义一致）。
   final String cursor;
+
+  /// 由最近一页的 nextCursor 是否为空决定。
   final bool hasMore;
   final bool isLoading;
   final bool isLoadingMore;
@@ -50,6 +55,7 @@ class UserPostsState {
     this.error,
   });
 
+  /// 复制并覆盖字段；[error] 需显式传 `clearError` 才清空。
   UserPostsState copyWith({
     List<PostItem>? items,
     String? cursor,
@@ -72,16 +78,21 @@ class UserPostsState {
   }
 }
 
+/// 单个用户帖子或收藏列表的游标分页状态机：首屏、续翻与保留条目的刷新。
+///
+/// 首屏与刷新都会递增 `_generation`，旧请求的结果在落地前被丢弃。
 class UserPostsNotifier extends StateNotifier<UserPostsState> {
   final UserPostsRepository repo;
   final UserPostsKey key;
   final int pageSize;
   int _generation = 0;
+  // 连续遇到被滤空的页时最多向后翻的次数，防止异常游标导致无限请求。
   static const _emptyPageAdvanceLimit = 8;
 
   UserPostsNotifier({required this.repo, required this.key, this.pageSize = 20})
     : super(const UserPostsState());
 
+  // 按列表类型选择帖子或收藏接口。
   Future<GetPostListResp> _fetch(String cursor) {
     if (key.type == UserPostsListType.posts) {
       return repo.fetchUserPosts(
@@ -109,6 +120,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
     for (var attempt = 0; attempt < _emptyPageAdvanceLimit; attempt++) {
       resp = await _fetch(next);
       if (resp.list.isNotEmpty || resp.nextCursor.isEmpty) return resp;
+      // 游标没有前进时停止，避免原地反复请求同一页。
       if (resp.nextCursor == next) return resp;
       next = resp.nextCursor;
     }
@@ -147,6 +159,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
         state.isRefreshing) {
       return;
     }
+    // 续翻不开新代次：期间若发生首屏重载或刷新，本次结果作废。
     final generation = _generation;
     // 与 feed/message 的 loadMore 一致：显式重试时先清掉上一次的失败态。
     state = state.copyWith(isLoadingMore: true, clearError: true);
@@ -197,7 +210,7 @@ class UserPostsNotifier extends StateNotifier<UserPostsState> {
   }
 }
 
-/// Provider.family
+/// 按用户与列表类型提供帖子/收藏分页；创建即加载首屏，随会话身份重建，离开页面自动释放。
 final userPostsProvider = StateNotifierProvider.autoDispose
     .family<UserPostsNotifier, UserPostsState, UserPostsKey>((ref, key) {
       ref.watch(authSessionIdentityProvider);

@@ -42,6 +42,7 @@ class FollowController extends StateNotifier<FollowState> {
       } else {
         await _repository.followUser(userId);
       }
+      // 成功：保留乐观结果作为本地覆盖值，只释放忙碌标记。
       if (mounted) state = FollowState(following: state.following);
     } catch (_) {
       // 回滚到操作前的覆盖值（可能为空，即重新采用服务端值）。

@@ -11,9 +11,14 @@ import '../../../../core/widgets/loading_view.dart';
 import '../../../feed/presentation/widgets/post_card.dart';
 import '../../application/user_posts_notifier.dart';
 
+/// 个人主页里的帖子或收藏列表：游标分页、下拉刷新与触底加载更多。
+///
+/// [active] 标记当前可见的标签；只有可见列表会在切入或从子页返回时刷新。
 class UserPostList extends ConsumerStatefulWidget {
   final Object userId;
   final UserPostsListType type;
+
+  /// 是否为当前选中的标签页。
   final bool active;
 
   const UserPostList({
@@ -27,6 +32,7 @@ class UserPostList extends ConsumerStatefulWidget {
   ConsumerState<UserPostList> createState() => _UserPostListState();
 }
 
+// 订阅路由事件：从子页返回时刷新，让列表反映在子页中发生的改动。
 class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
   late final RouteObserver<ModalRoute<void>> _routeObserver;
 
@@ -37,6 +43,7 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
   void initState() {
     super.initState();
     _routeObserver = ref.read(appRouteObserverProvider);
+    // 首次显示即为当前标签时，在首帧后尝试刷新（首屏仍在加载则跳过）。
     if (widget.active) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _reloadIfActive();
@@ -56,11 +63,13 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
   @override
   void didUpdateWidget(covariant UserPostList oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // 切到本标签时刷新。
     if (widget.active && !oldWidget.active) {
       _reloadIfActive();
     }
   }
 
+  // 从压在上面的子页返回：刷新当前标签。
   @override
   void didPopNext() {
     _reloadIfActive();
@@ -72,6 +81,7 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
     super.dispose();
   }
 
+  // 仅当前标签且没有进行中的加载时刷新，避免与首屏/续翻请求叠加。
   void _reloadIfActive() {
     if (!widget.active) return;
     final state = ref.read(userPostsProvider(_key));
@@ -79,6 +89,7 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
     ref.read(userPostsProvider(_key).notifier).refresh();
   }
 
+  // 只响应本列表自身的纵向滚动，距底部 300 像素内续翻。
   bool _handleScrollNotification(ScrollNotification notification) {
     // 加载更多失败后停在原地等待用户点重试，不随滚动反复重发同一游标。
     if (ref.read(userPostsProvider(_key)).error != null) return false;
@@ -100,9 +111,11 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
         key: PageStorageKey('profile-${widget.userId}-${widget.type.name}'),
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
+          // 与页面头部的 SliverOverlapAbsorber 配对，避免内容被吸顶标签栏遮住。
           SliverOverlapInjector(
             handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
           ),
+          // 空列表的加载、失败与空态都占满剩余高度。
           if ((state.isLoading || state.isLoadingMore) && state.items.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
@@ -134,6 +147,7 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
               ),
             )
           else
+            // 有内容：帖子卡片列表，尾部按需追加状态行。
             SliverList.builder(
               itemCount:
                   state.items.length +
@@ -160,6 +174,7 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
       ),
     );
 
+    // 空列表加载中或失败时不包下拉刷新，交由加载态与重试按钮处理。
     if ((state.isLoading || state.isLoadingMore || state.error != null) &&
         state.items.isEmpty) {
       return scrollView;

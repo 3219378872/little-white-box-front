@@ -13,6 +13,7 @@ import '../../auth/application/auth_notifier.dart';
 import '../application/profile_dependencies.dart';
 import '../../../core/router/app_routes.dart';
 
+/// 编辑本人资料页：载入当前昵称与简介，保存后返回个人主页。
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
 
@@ -20,12 +21,16 @@ class EditProfilePage extends ConsumerStatefulWidget {
   ConsumerState<EditProfilePage> createState() => _EditProfilePageState();
 }
 
+// 持有表单输入与载入/保存状态。
 class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   final _nicknameCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
+  // 头像本页不可修改，只用于预览并在保存时原样回传。
   String _avatarUrl = '';
+  // 保存请求进行中。
   bool _isLoading = false;
   bool _isInitialized = false;
+  // 已安排过一次载入，防止 build 反复触发。
   bool _loadRequested = false;
   Object? _loadError;
 
@@ -42,6 +47,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     super.dispose();
   }
 
+  // 读取当前用户资料并回填表单。
   Future<void> _loadProfile() async {
     final auth = ref.read(authNotifierProvider);
     // 冷启动深链进入本页时身份可能仍在恢复中；返回后由 build 的 watch 再触发。
@@ -79,11 +85,13 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     });
   }
 
+  // 错误态重试：清掉错误后重新载入。
   void _retryLoad() {
     setState(() => _loadError = null);
     _loadProfile();
   }
 
+  // 保存资料：昵称与简介去首尾空白后提交，成功提示并返回。
   Future<void> _save() async {
     setState(() => _isLoading = true);
     try {
@@ -125,6 +133,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 : context.go(AppRoutes.profile),
           ),
         ],
+        // 保存按钮：保存中、未载入或载入失败时禁用。
         suffixes: [
           FButton(
             size: .sm,
@@ -142,6 +151,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     );
   }
 
+  // 表单区：载入失败给重试，载入中给进度，否则展示头像预览与输入框。
   Widget _buildBody() {
     if (_loadError != null) {
       return ErrorView(

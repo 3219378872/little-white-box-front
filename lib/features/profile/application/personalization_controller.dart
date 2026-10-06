@@ -6,6 +6,7 @@ import 'profile_dependencies.dart';
 
 /// 个性化推荐开关状态：[enabled] 为空表示尚未读到或读取失败，此时不展示开关。
 class PersonalizationState {
+  /// 当前偏好；为空时页面不渲染开关。
   final bool? enabled;
 
   /// 写请求进行中，开关应禁用。
@@ -35,6 +36,7 @@ class PersonalizationController extends StateNotifier<PersonalizationState> {
 
   /// 写入新偏好；失败时恢复原值并把错误抛给页面提示。
   Future<void> setEnabled(bool enabled) async {
+    // 写请求进行中忽略重复切换。
     if (state.isBusy) return;
     final previous = state.enabled;
     // 乐观更新，避免开关在请求期间回弹。

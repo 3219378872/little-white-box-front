@@ -33,6 +33,7 @@ class ProfilePage extends ConsumerWidget {
     final auth = ref.watch(authNotifierProvider);
     final targetUserId = userId ?? auth.userId;
 
+    // 目标用户无效（通常是未登录时打开本人主页）：给登录引导。
     if (!jsonInt64IsPositive(targetUserId)) {
       return FScaffold(
         header: const FHeader(title: Text('个人中心')),
@@ -52,6 +53,7 @@ class ProfilePage extends ConsumerWidget {
       );
     }
 
+    // 不带 userId，或带的正是自己的 ID，都按本人主页处理。
     final isOwnProfile =
         userId == null || jsonInt64Id(userId) == jsonInt64Id(auth.userId);
 
@@ -78,6 +80,7 @@ class _ProfileContent extends ConsumerStatefulWidget {
   ConsumerState<_ProfileContent> createState() => _ProfileContentState();
 }
 
+// 持有当前标签下标与翻页控制器，并处理关注、个性化开关的写操作。
 class _ProfileContentState extends ConsumerState<_ProfileContent> {
   int _tabIndex = 0;
   late final PageController _pageController;
@@ -107,6 +110,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
     }
   }
 
+  // 左右滑动翻页后回写选中标签。
   void _handlePageChanged(int index) {
     if (index != _tabIndex) {
       setState(() => _tabIndex = index);
@@ -149,6 +153,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
     final personalization = widget.isOwnProfile
         ? ref.watch(personalizationControllerProvider)
         : null;
+    // 没有可返回的页面（如作为底部导航根页）时不显示返回按钮。
     final canPop = context.canPop();
 
     return FScaffold(
@@ -158,6 +163,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
         prefixes: canPop
             ? [FHeaderAction.back(onPress: () => context.pop())]
             : const [],
+        // 本人主页顶栏提供退出登录。
         suffixes: widget.isOwnProfile
             ? [
                 FHeaderAction(
@@ -170,18 +176,21 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
             : const [],
       ),
       child: userAsync.when(
+        // 资料加载中与加载失败（可重试）。
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
           message: friendlyErrorMessage(e),
           onRetry: () => ref.invalidate(userProfileProvider(widget.userId)),
         ),
         data: (user) {
+          // 本地关注操作结果优先于资料接口返回的关注态。
           final isFollowing = follow.resolve(user.isFollowing);
           final showFavoritesTab = widget.isOwnProfile || user.favoritesVisible;
           // 收藏不公开的他人主页只有帖子列表，不显示标签栏。
           return NestedScrollView(
             floatHeaderSlivers: false,
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              // 头部：资料、计数与按身份区分的操作区。
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
@@ -196,6 +205,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                         const ProfileShortcuts(),
                         const SizedBox(height: 16),
                         const BusinessEntries(),
+                        // 偏好读取成功后才显示个性化开关。
                         if (personalization?.enabled case final enabled?) ...[
                           const SizedBox(height: 16),
                           FSwitch(
@@ -221,6 +231,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                   ),
                 ),
               ),
+              // 吸顶标签栏；收藏不可见时放空 sliver，吸收器始终存在以与列表里的 SliverOverlapInjector 配对。
               SliverOverlapAbsorber(
                 handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
                   context,
@@ -236,6 +247,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
                     : const SliverToBoxAdapter(child: SizedBox.shrink()),
               ),
             ],
+            // 可切换的帖子/收藏页，或只有帖子列表。
             body: showFavoritesTab
                 ? ProfileTabPages(
                     userId: widget.userId,
