@@ -159,7 +159,7 @@ Map<String, dynamic> _postAssistantMessage(
 
 // 一次性生成整个运行的 SSE 事件序列：开始、按 6 个字素切块的回答 token、来源卡片，
 // 消息含「删除/delete」时追加工具调用与待确认，含 `memory` 时追加记忆变更；
-// 含 `steer-me` 或 `hang` 时不发 done，用于模拟仍在进行的运行。
+// 含 `steer-me` 或 `hang` 时不发 done 且状态记为 running，用于模拟仍在进行的运行。
 void _startRun(int userId, int runId, int sessionId, String message) {
   final sourcePost = _publishedPosts().isEmpty
       ? <String, dynamic>{'id': 1, 'title': '示例帖', 'revision': 1, 'authorId': 2}
@@ -240,7 +240,8 @@ void _startRun(int userId, int runId, int sessionId, String message) {
       'changeId': 1,
     });
   }
-  if (!message.contains('steer-me') && !message.contains('hang')) {
+  final finished = !message.contains('steer-me') && !message.contains('hang');
+  if (finished) {
     events.add({
       'seq': events.length + 1,
       'type': 'done',
@@ -252,7 +253,7 @@ void _startRun(int userId, int runId, int sessionId, String message) {
   _assistantRuns[runId] = {
     'userId': userId,
     'sessionId': sessionId,
-    'status': message.contains('hang') ? 'running' : 'completed',
+    'status': finished ? 'completed' : 'running',
     'phase': message.contains('steer-me') ? 'tool_executing' : 'model_request',
   };
 }
@@ -293,7 +294,8 @@ MockRouterResponse _streamAssistantRunEvents(
   );
 }
 
-// 取消运行：调研运行进入 cancelled 终态，普通运行结束并清除线程上的活动运行。
+// 取消运行：调研运行进入 cancelled 终态；普通运行仍在进行时以 cancelled 终结，
+// 并清除线程上的活动运行。
 void _cancelAssistantRun(int userId, int runId) {
   final run = _assistantRuns[runId];
   if (run == null || run['userId'] != userId) {
@@ -303,8 +305,13 @@ void _cancelAssistantRun(int userId, int runId) {
     _terminateResearch(runId, 'cancelled', 'CANCELLED', '已停止');
     return;
   }
-  run['status'] = 'cancelled';
-  _completeRun(runId);
+  // 与服务端一致：进行中的运行记为 cancelled 并追加 CANCELLED 终止事件；
+  // 已终结的运行保持原状态，不重复追加。
+  if (run['status'] == 'running') {
+    run['status'] = 'cancelled';
+    _researchEvent(runId, 'error', {'text': '已停止', 'errorCode': 'CANCELLED'});
+  }
+  _clearActiveRun(runId);
 }
 
 // 确认待执行的工具调用：只校验参数与运行归属，不产生后续事件。
@@ -322,6 +329,13 @@ void _completeRun(int runId) {
   final run = _assistantRuns[runId];
   if (run == null) return;
   run['status'] = 'completed';
+  _clearActiveRun(runId);
+}
+
+// 若 [runId] 仍是其线程的活动运行，清除线程上的活动运行摘要。
+void _clearActiveRun(int runId) {
+  final run = _assistantRuns[runId];
+  if (run == null) return;
   final userId = run['userId'] as int;
   final thread = _assistantThreads[userId];
   if (thread != null && thread['activeRunId'] == runId) {
