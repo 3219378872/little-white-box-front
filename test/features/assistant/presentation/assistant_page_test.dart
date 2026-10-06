@@ -732,6 +732,62 @@ void main() {
     expect(find.byKey(const Key('assistant-revoke-consent')), findsNothing);
   });
 
+  testWidgets('confirmation buttons are labelled per tool', (tester) async {
+    // 删除类工具保留「确认删除」，其他需确认的工具只显示「确认」。
+    final events = StreamController<AssistantRunEvent>.broadcast();
+    addTearDown(events.close);
+    final source = FakeAssistantSource()
+      ..eventsHandler = ({required runId, required afterSeq}) => events.stream;
+    await tester.pumpWidget(
+      AppProviderScope(
+        overrides: [
+          assistantUserKeyProvider.overrideWithValue('test-user'),
+          assistantRepositoryProvider.overrideWithValue(source),
+        ],
+        child: const MaterialApp(
+          builder: foruiTestBuilder,
+          home: AssistantPage(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.enterText(find.byType(EditableText), 'tidy up');
+    await tester.tap(find.byKey(const Key('assistant-send-or-stop')));
+    await tester.pump();
+    await tester.pump();
+
+    events
+      ..add(
+        const AssistantRunEvent(
+          type: AssistantEventType.confirmRequired,
+          toolCall: AssistantToolCall(
+            callId: 'c1',
+            tool: 'delete_post',
+            summary: '请求删除帖子 #9',
+          ),
+          seq: 1,
+        ),
+      )
+      ..add(
+        const AssistantRunEvent(
+          type: AssistantEventType.confirmRequired,
+          toolCall: AssistantToolCall(
+            callId: 'c2',
+            tool: 'update_post',
+            summary: '请求修改帖子 #9',
+          ),
+          seq: 2,
+        ),
+      );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('确认删除'), findsOneWidget);
+    expect(find.text('确认'), findsOneWidget);
+    expect(find.text('取消'), findsNWidgets(2));
+  });
+
   testWidgets('memory_changed offers retryable undo', (tester) async {
     final source = FakeAssistantSource()
       ..eventsHandler = ({required runId, required afterSeq}) =>

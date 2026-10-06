@@ -12,6 +12,15 @@ IconData _toolIcon(String tool) {
   };
 }
 
+// Confirm button for a tool awaiting approval: deletions keep the explicit,
+// destructive wording; any other tool gets a neutral confirm.
+(String, FButtonVariant) _toolConfirmAction(String tool) {
+  return switch (tool) {
+    'delete_post' => ('确认删除', FButtonVariant.destructive),
+    _ => ('确认', FButtonVariant.primary),
+  };
+}
+
 // Status text beside a tool step that is not running.
 String _toolStatusLabel(AssistantToolStatus status) {
   return switch (status) {
@@ -217,8 +226,8 @@ class _AssistantMessageBubble extends StatelessWidget {
   }
 }
 
-// One tool step row; a step awaiting confirmation adds cancel and confirm
-// buttons, and delete_post gets a warning icon.
+// One tool step row; a step awaiting confirmation adds cancel and a
+// tool-specific confirm button, and delete_post gets a warning icon.
 class _ToolStepEntry extends StatelessWidget {
   final AssistantToolStep step;
   final void Function(String callId, bool approved)? onConfirm;
@@ -229,6 +238,7 @@ class _ToolStepEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final awaiting = step.status == AssistantToolStatus.awaitingConfirmation;
+    final (confirmLabel, confirmVariant) = _toolConfirmAction(step.tool);
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: DecoratedBox(
@@ -284,12 +294,12 @@ class _ToolStepEntry extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     FButton(
-                      variant: .destructive,
+                      variant: confirmVariant,
                       size: .sm,
                       onPress: onConfirm == null
                           ? null
                           : () => onConfirm!(step.callId, true),
-                      child: const Text('确认删除'),
+                      child: Text(confirmLabel),
                     ),
                   ],
                 ),
