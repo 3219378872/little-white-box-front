@@ -14,6 +14,7 @@ import '../../../core/widgets/app_choice_button.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../application/ads_providers.dart';
 import '../data/ad_labels.dart';
@@ -75,7 +76,7 @@ class AdEditorPage extends ConsumerWidget {
     final loading =
         advertiser.isLoading || (existing != null && existing.isLoading);
     final error = advertiser.error ?? existing?.error;
-    if (loading) return scaffold(const Center(child: FCircularProgress()));
+    if (loading) return scaffold(const LoadingView());
     if (error != null) {
       return scaffold(
         ErrorView(
@@ -445,7 +446,7 @@ class _CreativeTile extends ConsumerWidget {
             child: ColoredBox(
               color: theme.colors.muted,
               child: bytes.when(
-                loading: () => const Center(child: FCircularProgress()),
+                loading: () => const LoadingView(),
                 error: (_, _) =>
                     const Center(child: Icon(FLucideIcons.circleAlert)),
                 data: (data) => Image.memory(

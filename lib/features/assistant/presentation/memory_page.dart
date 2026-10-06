@@ -8,6 +8,7 @@ import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../application/assistant_notifier.dart';
 import '../application/memory_notifier.dart';
 import '../data/assistant_models.dart';
@@ -103,7 +104,7 @@ class _MemoryPageState extends ConsumerState<MemoryPage> {
             ),
           Expanded(
             child: state.loading && state.items.isEmpty
-                ? const Center(child: FCircularProgress())
+                ? const LoadingView()
                 : state.error != null && state.items.isEmpty
                 ? ErrorView(
                     message: state.error!,

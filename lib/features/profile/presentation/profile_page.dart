@@ -7,6 +7,7 @@ import '../../../core/api/json_int64.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../review/application/reviewer_access.dart';
@@ -205,7 +206,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
             : const [],
       ),
       child: userAsync.when(
-        loading: () => const Center(child: FCircularProgress()),
+        loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
           message: e.toString(),
           onRetry: () => ref.invalidate(_userProfileProvider(widget.userId)),

@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../ads/data/ads_repository.dart';
 import '../../behavior/application/behavior_tracker.dart';
 import '../../behavior/data/behavior_event.dart';
@@ -156,7 +157,7 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
     if (widget.kind == FeedKind.follow) {
       final auth = ref.watch(authNotifierProvider);
       if (auth.isLoading) {
-        return const Center(child: FCircularProgress());
+        return const LoadingView();
       }
       if (!auth.isAuthenticated) return const _FollowLoginRequired();
     }
@@ -263,10 +264,7 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
 
   Widget _feedFooter(FeedState state, FeedNotifier notifier) {
     if (state.isLoadingMore) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Center(child: FCircularProgress()),
-      );
+      return const Padding(padding: EdgeInsets.all(16), child: LoadingView());
     }
     if (state.error != null && state.entries.isNotEmpty) {
       final theme = context.theme;

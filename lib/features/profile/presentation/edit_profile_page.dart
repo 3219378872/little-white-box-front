@@ -7,6 +7,7 @@ import '../../../core/api/api_exceptions.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/user_repository.dart';
@@ -149,7 +150,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       );
     }
     if (!_isInitialized) {
-      return const Center(child: FCircularProgress());
+      return const LoadingView();
     }
     return ListView(
       padding: const EdgeInsets.all(16),

@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import '../api/api_exceptions.dart';
 import 'error_view.dart';
 import 'forui_pull_to_refresh.dart';
+import 'loading_view.dart';
 
 class PaginatedListView<T> extends StatefulWidget {
   final List<T> items;
@@ -60,7 +61,7 @@ class _PaginatedListViewState<T> extends State<PaginatedListView<T>> {
   @override
   Widget build(BuildContext context) {
     if (widget.isLoading && widget.items.isEmpty) {
-      return const Center(child: FCircularProgress());
+      return const LoadingView();
     }
 
     if (widget.items.isEmpty) {
@@ -95,7 +96,7 @@ class _PaginatedListViewState<T> extends State<PaginatedListView<T>> {
             if (widget.isLoadingMore) {
               return const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(child: FCircularProgress()),
+                child: LoadingView(),
               );
             }
             if (widget.error != null) {
@@ -124,7 +125,7 @@ class _PaginatedListViewState<T> extends State<PaginatedListView<T>> {
             if (widget.hasMore) {
               return const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(child: FCircularProgress()),
+                child: LoadingView(),
               );
             }
           }

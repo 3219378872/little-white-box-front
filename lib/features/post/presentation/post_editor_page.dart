@@ -15,6 +15,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_dialog.dart';
 import '../../../core/widgets/app_tag_badge.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../data/post_repository.dart';
 import 'widgets/image_picker_grid.dart';
@@ -332,7 +333,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
         ],
       ),
       child: !_isInitialized
-          ? const Center(child: FCircularProgress())
+          ? const LoadingView()
           : ListView(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
               children: [

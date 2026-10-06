@@ -12,6 +12,7 @@ import '../../../core/widgets/app_tag_badge.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../comment/application/comment_notifier.dart';
@@ -222,7 +223,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
         ],
       ),
       child: postAsync.when(
-        loading: () => const Center(child: FCircularProgress()),
+        loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
           message: friendlyErrorMessage(e),
           onRetry: () => ref.invalidate(_postDetailProvider(widget.postId)),

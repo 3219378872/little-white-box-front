@@ -12,6 +12,7 @@ import '../../../core/api/json_int64.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../post/data/post_repository.dart';
 import '../application/assistant_notifier.dart';
 import '../application/assistant_thread_notifier.dart';
@@ -381,10 +382,7 @@ class _AssistantPageState extends ConsumerState<AssistantPage> {
 
   Widget _buildConversationBody(AssistantState state) {
     if (!state.isLoaded || (state.isLoadingHistory && state.messages.isEmpty)) {
-      return const Center(
-        key: Key('assistant-initial-loading'),
-        child: FCircularProgress(),
-      );
+      return const LoadingView(key: Key('assistant-initial-loading'));
     }
     if (state.messages.isEmpty) {
       final error = state.connectionError;

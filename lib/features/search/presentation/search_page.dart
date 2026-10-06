@@ -8,6 +8,7 @@ import '../../../core/api/json_int64.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../application/search_notifier.dart';
 import '../data/search_models.dart';
 import 'search_highlight.dart';
@@ -216,7 +217,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Widget _buildBody(SearchState state) {
     return switch (state.phase) {
       SearchPhase.idle => _buildIdle(state),
-      SearchPhase.loading => const Center(child: FCircularProgress()),
+      SearchPhase.loading => const LoadingView(),
       SearchPhase.failure => ErrorView(
         message: state.error ?? '搜索失败',
         onRetry: state.keyword.isEmpty
@@ -336,7 +337,7 @@ class _SearchResultList extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(top: 16),
           child: isLoadingMore
-              ? const Center(child: FCircularProgress())
+              ? const LoadingView()
               : FButton(
                   onPress: onLoadMore,
                   child: Text(loadMoreError == null ? '加载更多' : '加载更多失败，重试'),

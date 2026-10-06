@@ -8,6 +8,7 @@ import '../../../core/api/json_int64.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../application/ads_providers.dart';
 import '../data/ad_labels.dart';
@@ -40,7 +41,7 @@ class AdsPage extends ConsumerWidget {
         ],
       ),
       child: advertiser.when(
-        loading: () => const Center(child: FCircularProgress()),
+        loading: () => const LoadingView(),
         error: (error, _) => ErrorView(
           message: friendlyErrorMessage(error),
           onRetry: () => ref.invalidate(myAdvertiserProvider),
@@ -151,7 +152,7 @@ class _AdsList extends ConsumerWidget {
     final theme = context.theme;
     final notifier = ref.read(adsListProvider.notifier);
     if (state.loading && state.ads.isEmpty) {
-      return const Center(child: FCircularProgress());
+      return const LoadingView();
     }
     if (state.error != null && state.ads.isEmpty) {
       return ErrorView(message: state.error!, onRetry: notifier.refresh);

@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../ads/data/ad_labels.dart';
 import '../application/reviewer_access.dart';
@@ -79,7 +80,7 @@ class _ReviewHomePageState extends ConsumerState<ReviewHomePage> {
         ],
       ),
       child: access.when(
-        loading: () => const Center(child: FCircularProgress()),
+        loading: () => const LoadingView(),
         error: (error, _) => ErrorView(
           message: friendlyErrorMessage(error),
           onRetry: () => ref.invalidate(reviewerAccessProvider),
@@ -126,7 +127,7 @@ class _ReviewHomePageState extends ConsumerState<ReviewHomePage> {
         queue.when(
           loading: () => const Padding(
             padding: EdgeInsets.all(AppTheme.space4),
-            child: Center(child: FCircularProgress()),
+            child: LoadingView(),
           ),
           error: (error, _) {
             if (error is ApiException &&

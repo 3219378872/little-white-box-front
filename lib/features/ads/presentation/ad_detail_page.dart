@@ -12,6 +12,7 @@ import '../../../core/widgets/app_dialog.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../application/ads_providers.dart';
 import '../data/ad_labels.dart';
@@ -80,7 +81,7 @@ class AdDetailPage extends ConsumerWidget {
         ],
       ),
       child: ad.when(
-        loading: () => const Center(child: FCircularProgress()),
+        loading: () => const LoadingView(),
         error: (error, _) => ErrorView(
           message: friendlyErrorMessage(error),
           onRetry: () => ref.invalidate(adDetailProvider(adId)),

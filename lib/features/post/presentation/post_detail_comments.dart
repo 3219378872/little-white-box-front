@@ -26,7 +26,7 @@ extension _PostDetailComments on _PostDetailPageState {
               if (comments.isLoading) {
                 return const Padding(
                   padding: EdgeInsets.all(16),
-                  child: Center(child: FCircularProgress()),
+                  child: LoadingView(),
                 );
               }
               if (comments.hasError) {

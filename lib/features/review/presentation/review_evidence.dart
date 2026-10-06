@@ -8,6 +8,7 @@ import '../../../core/formatters/time_formatter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_section.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../ads/data/ad_labels.dart';
 import '../data/review_repository.dart';
@@ -196,7 +197,7 @@ class ReviewMediaTile extends ConsumerWidget {
       ),
     );
     return media.when(
-      loading: () => frame(const Center(child: FCircularProgress())),
+      loading: () => frame(const LoadingView()),
       error: (error, _) => frame(
         Center(
           child: Text(

@@ -11,6 +11,7 @@ import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../ads/application/ads_providers.dart';
 import '../../ads/data/ad_labels.dart';
@@ -111,7 +112,7 @@ class _ReviewTaskPageState extends ConsumerState<ReviewTaskPage> {
   Widget _body(ReviewTaskState state) {
     final task = state.task;
     if (state.loading && task == null) {
-      return const Center(child: FCircularProgress());
+      return const LoadingView();
     }
     if (task == null) {
       return state.closure != null

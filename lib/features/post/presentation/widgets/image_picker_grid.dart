@@ -5,6 +5,8 @@ import 'package:forui/forui.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import '../../../../core/widgets/loading_view.dart';
+
 class ImagePickerGrid extends StatelessWidget {
   final List<String> networkImages;
   final List<XFile> localImages;
@@ -60,7 +62,7 @@ class ImagePickerGrid extends StatelessWidget {
               future: localImages[localIndex].readAsBytes(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: FCircularProgress());
+                  return const LoadingView();
                 }
                 return Image.memory(
                   snapshot.data!,

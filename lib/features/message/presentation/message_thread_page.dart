@@ -10,6 +10,7 @@ import '../../../core/api/json_int64.dart';
 import '../../../core/formatters/time_formatter.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../media/data/media_repository.dart';
 import '../application/media_send_controller.dart';
@@ -191,7 +192,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
             ),
           ],
         ),
-        child: const Center(child: FCircularProgress()),
+        child: const LoadingView(),
       );
     }
     final key = _key(currentUserId!);
@@ -385,7 +386,7 @@ class _MessageThreadPageState extends ConsumerState<MessageThreadPage> {
     Object currentUserId,
   ) {
     if (state.isLoading && state.messages.isEmpty) {
-      return const Center(child: FCircularProgress());
+      return const LoadingView();
     }
     if (state.error != null && state.messages.isEmpty) {
       return ErrorView(message: state.error!, onRetry: notifier.refresh);

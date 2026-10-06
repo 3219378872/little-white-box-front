@@ -6,6 +6,7 @@ import '../../../../core/api/api_exceptions.dart';
 import '../../../../core/router/app_route_observer.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/forui_pull_to_refresh.dart';
+import '../../../../core/widgets/loading_view.dart';
 import '../../../feed/presentation/widgets/post_card.dart';
 import '../../application/user_posts_notifier.dart';
 
@@ -104,7 +105,7 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
           if (state.isLoading && state.items.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
-              child: Center(child: FCircularProgress()),
+              child: LoadingView(),
             )
           else if (state.error != null && state.items.isEmpty)
             SliverFillRemaining(
@@ -143,7 +144,7 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
                   if (state.isLoading) {
                     return const Padding(
                       padding: EdgeInsets.all(16),
-                      child: Center(child: FCircularProgress()),
+                      child: LoadingView(),
                     );
                   }
                   if (state.error != null) {
