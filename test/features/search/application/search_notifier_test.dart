@@ -55,6 +55,23 @@ void main() {
     expect(repository.pages, [1, 2]);
   });
 
+  test('deduplicates pages by canonical int64 ids', () async {
+    // 同一实体在不同页可能以 int、double 或带空白的十进制串出现，按 jsonInt64Id 归一后去重。
+    final repository = _MixedIdSearchSource();
+    final notifier = SearchNotifier(repository);
+
+    await notifier.search('query');
+    await notifier.loadMore();
+    expect(notifier.state.results.posts, hasLength(21));
+    expect(notifier.state.results.posts.last.id, '21');
+
+    notifier.selectScope(SearchScope.users);
+    await Future<void>.delayed(Duration.zero);
+    await notifier.loadMore();
+    expect(notifier.state.results.users, hasLength(21));
+    expect(notifier.state.results.users.last.id, '21');
+  });
+
   test('remembers recent keywords, newest first and deduplicated', () async {
     final notifier = SearchNotifier(_RecordingSearchSource());
 
@@ -142,6 +159,50 @@ class _PagedSearchSource implements SearchDataSource {
           commentCount: 0,
           createdAt: 0,
         ),
+      ],
+    );
+  }
+}
+
+// 首页返回 1..20 的 int ID；第二页用 double 与带空白的字符串重复第 20 条，并新增第 21 条。
+class _MixedIdSearchSource implements SearchDataSource {
+  @override
+  Future<SearchResults> search({
+    required SearchScope scope,
+    required String keyword,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final ids = page == 1
+        ? <Object>[for (var i = 1; i <= pageSize; i++) i]
+        : <Object>[20.0, ' 20', '21'];
+    return SearchResults(
+      posts: [
+        if (scope == SearchScope.all)
+          for (final id in ids)
+            SearchPostResult(
+              id: id,
+              title: 'p$id',
+              contentHighlight: '',
+              authorId: 1,
+              authorName: 'a',
+              authorAvatar: '',
+              likeCount: 0,
+              commentCount: 0,
+              createdAt: 0,
+            ),
+      ],
+      users: [
+        if (scope == SearchScope.users)
+          for (final id in ids)
+            SearchUserResult(
+              id: id,
+              username: 'u$id',
+              nickname: '',
+              avatarUrl: '',
+              bio: '',
+              followerCount: 0,
+            ),
       ],
     );
   }
