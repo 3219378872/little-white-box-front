@@ -23,6 +23,8 @@ class PostDetailArticle extends StatelessWidget {
 
   /// 当前评论排序（1 最新、2 最热），用于高亮排序栏。
   final int commentSortBy;
+
+  /// 选择评论排序。
   final ValueChanged<int> onSelectSort;
 
   /// 切换关注；参数是点击时界面展示的关注态。
@@ -52,6 +54,7 @@ class PostDetailArticle extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 标题（标记为语义 header），无标题时省略。
               if (post.title.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppTheme.space4),
@@ -60,12 +63,14 @@ class PostDetailArticle extends StatelessWidget {
                     child: Text(post.title, style: theme.typography.display.md),
                   ),
                 ),
+              // 作者行与正文
               PostAuthorRow(post: post, onToggleFollow: onToggleFollow),
               const SizedBox(height: AppTheme.space4),
               Text(
                 post.content,
                 style: theme.typography.body.md.copyWith(height: 1.75),
               ),
+              // 配图按原比例铺满宽度依次排列。
               if (post.images.isNotEmpty) ...[
                 const SizedBox(height: AppTheme.space4),
                 ...post.images.map(
@@ -82,6 +87,7 @@ class PostDetailArticle extends StatelessWidget {
                   ),
                 ),
               ],
+              // 标签
               if (post.tags.isNotEmpty) ...[
                 const SizedBox(height: AppTheme.space3),
                 Wrap(
@@ -142,10 +148,12 @@ class PostAuthorRow extends ConsumerWidget {
     final following = auth.isAuthenticated && !own
         ? ref.watch(userFollowingProvider(authorKey)).value
         : false;
+    // 本页刚操作过的乐观关注态优先于服务端读到的值。
     final follow = ref.watch(followControllerProvider(authorKey));
     final isFollowing = follow.following ?? following ?? false;
     return Row(
       children: [
+        // 作者信息区：整块点击进入作者主页。
         Expanded(
           child: FTappable(
             onPress: () => context.push(AppRoutes.userProfile(post.authorId)),
@@ -185,6 +193,7 @@ class PostAuthorRow extends ConsumerWidget {
             ),
           ),
         ),
+        // 关注按钮：操作中或关注态未知时禁用。
         if (!own) ...[
           const SizedBox(width: AppTheme.space2),
           FButton(
@@ -227,6 +236,7 @@ class _CommentSortBar extends StatelessWidget {
     final theme = context.theme;
     return Row(
       children: [
+        // 标题「评论」与评论数。
         Semantics(
           header: true,
           child: Text.rich(
@@ -246,6 +256,7 @@ class _CommentSortBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
+        // 排序值与评论接口的 sortBy 一致：1 最新、2 最热。
         for (final (sort, label) in const [(1, '最新'), (2, '最热')])
           _CommentSortChip(
             key: ValueKey('comment-sort-$sort'),
@@ -288,6 +299,7 @@ class _CommentSortChip extends StatelessWidget {
       child: FTappable(
         onPress: onPress,
         builder: (context, variants, _) {
+          // 未选中时悬停/按下给浅底反馈；选中态始终用强调色。
           final hovered =
               !selected &&
               (variants.contains(FTappableVariant.hovered) ||

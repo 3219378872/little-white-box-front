@@ -18,6 +18,8 @@ class PostDetailCommentBar extends ConsumerWidget {
 
   /// 正在回复的用户名；为空时是对帖子本身评论。
   final String? replyTo;
+
+  /// 提交评论；抛错时输入框保留草稿。
   final Future<void> Function(String content) onSubmit;
   final VoidCallback onToggleLike;
   final VoidCallback onToggleFavorite;
@@ -48,6 +50,7 @@ class PostDetailCommentBar extends ConsumerWidget {
       count: post.favoriteCount.toInt(),
       isFavorited: post.isFavorited,
     );
+    // 输入框空闲时，右侧显示点赞与收藏按钮。
     return CommentInput(
       focusNode: focusNode,
       replyTo: replyTo,

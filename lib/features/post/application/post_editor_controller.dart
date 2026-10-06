@@ -40,6 +40,8 @@ class PostEditorState {
 
   /// 编辑时乐观并发控制使用的原帖版本。
   final int revision;
+
+  /// 已添加的标签，按添加顺序提交。
   final List<String> tags;
 
   /// 已在服务端的图片 URL（编辑模式原有图片）。
@@ -59,6 +61,7 @@ class PostEditorState {
     this.localImages = const [],
   });
 
+  /// 复制并覆盖字段；`original` 与 `loadError` 只会被设置、不会被清空。
   PostEditorState copyWith({
     bool? isInitialized,
     bool? isSubmitting,
@@ -96,6 +99,7 @@ class PostDraftInvalidException implements Exception {
 
 /// 图片批量上传的事务化异常：任一张失败则整帖不提交，已选图片保留供重试。
 class PostImageUploadException implements Exception {
+  /// 失败图片在本地选择列表中的序号（从 0 开始）。
   final int failedIndex;
   final String reason;
   const PostImageUploadException(this.failedIndex, this.reason);
@@ -114,8 +118,10 @@ class PostEditorController extends StateNotifier<PostEditorState> {
   /// 编辑的帖子 ID；为空表示新建。
   final Object? postId;
 
+  // 新建帖子的幂等键与生成它时的命令指纹。
   String? _createIdempotencyKey;
   String? _createCommandFingerprint;
+  // 上一次全部上传成功的本地图片选择指纹及其结果，用于重试时跳过重复上传。
   String? _uploadedSelectionFingerprint;
   List<UploadedImage>? _uploadedLocalImages;
 
@@ -125,6 +131,7 @@ class PostEditorController extends StateNotifier<PostEditorState> {
     if (postId != null) _loadExistingPost(postId!);
   }
 
+  /// 是否为编辑已有帖子。
   bool get isEditMode => postId != null;
 
   // 编辑模式先读原帖：回填草稿并记录版本，失败交给页面提示并退出。
@@ -157,20 +164,24 @@ class PostEditorController extends StateNotifier<PostEditorState> {
     return true;
   }
 
+  /// 移除第 [index] 个标签。
   void removeTag(int index) {
     state = state.copyWith(tags: [...state.tags]..removeAt(index));
   }
 
+  /// 追加一张本地选择的图片，提交时才上传。
   void addLocalImage(XFile file) {
     state = state.copyWith(localImages: [...state.localImages, file]);
   }
 
+  /// 移除第 [index] 张尚未上传的本地图片。
   void removeLocalImage(int index) {
     state = state.copyWith(
       localImages: [...state.localImages]..removeAt(index),
     );
   }
 
+  /// 移除第 [index] 张原帖已有图片；提交时不再带上它。
   void removeNetworkImage(int index) {
     state = state.copyWith(
       networkImages: [...state.networkImages]..removeAt(index),
@@ -196,6 +207,7 @@ class PostEditorController extends StateNotifier<PostEditorState> {
     final tags = List<String>.of(state.tags);
     final networkImages = List<String>.of(state.networkImages);
     final localImages = List<XFile>.of(state.localImages);
+    // 客户端校验与后端长度约束一致，不合法直接抛出、不发请求。
     if (trimmedTitle.isEmpty || trimmedTitle.length > postTitleMaxLength) {
       throw const PostDraftInvalidException('标题需为 1～$postTitleMaxLength 个字符');
     }
@@ -205,6 +217,7 @@ class PostEditorController extends StateNotifier<PostEditorState> {
     }
     state = state.copyWith(isSubmitting: true);
     try {
+      // 先上传全部本地图片，再与原有图片按「原图在前、新图在后」组装。
       final uploaded = await _uploadLocalImages(localImages);
       if (!mounted) return null;
       final allImages = [...networkImages, ...uploaded.map((item) => item.url)];

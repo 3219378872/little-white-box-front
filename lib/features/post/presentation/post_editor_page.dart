@@ -23,6 +23,7 @@ class PostEditorPage extends ConsumerStatefulWidget {
   ConsumerState<PostEditorPage> createState() => _PostEditorPageState();
 }
 
+// 持有标题、正文与标签输入框；controller 按页面会话键获取。
 class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   final _titleCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
@@ -31,8 +32,10 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
   // 每个页面实例（及每次切换 postId）独占一个 controller，旧编辑器的迟到结果随之失效。
   Object _session = Object();
 
+  // 有 postId 即编辑模式：不提供存草稿，成功后返回上一页。
   bool get _isEditMode => widget.postId != null;
 
+  // 当前页面实例对应的 controller 键。
   PostEditorKey get _editorKey => (postId: widget.postId, session: _session);
 
   @override
@@ -66,6 +69,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
     }
   }
 
+  // 添加标签：controller 接受后才清空输入，拒绝时保留以便修改。
   void _addTag() {
     final added = ref
         .read(postEditorControllerProvider(_editorKey).notifier)
@@ -105,6 +109,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
       if (mounted) {
         showAppError(
           context,
+          // 版本冲突（原帖已被修改）单独提示刷新。
           e.code == ErrorCodes.contentVersionConflict
               ? '内容已被更新，请刷新后再提交'
               : '发布失败: ${friendlyErrorMessage(e)}',
@@ -124,6 +129,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
     final editor = ref.watch(postEditorControllerProvider(key));
     final controller = ref.read(postEditorControllerProvider(key).notifier);
     ref.listen(postEditorControllerProvider(key), _onEditorChanged);
+    // 提交中或编辑模式原帖未载入时禁用提交按钮。
     final canSubmit = !editor.isSubmitting && editor.isInitialized;
     return FScaffold(
       childPad: false,
@@ -135,6 +141,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                 context.canPop() ? context.pop() : context.go(AppRoutes.feed),
           ),
         ],
+        // 顶栏操作：新建模式可存草稿（status 0），发布按钮提交中显示进度。
         suffixes: [
           if (!_isEditMode)
             FButton(
@@ -154,11 +161,13 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
           ),
         ],
       ),
+      // 编辑模式原帖载入前显示加载态。
       child: !editor.isInitialized
           ? const LoadingView()
           : ListView(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
               children: [
+                // 标题与正文输入框，长度上限与 controller 校验共用常量。
                 Semantics(
                   label: '帖子标题',
                   child: FTextField.multiline(
@@ -210,6 +219,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                     ),
                   ],
                 ),
+                // 已添加标签，可逐个移除。
                 if (editor.tags.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Wrap(
@@ -227,6 +237,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                   ),
                 ],
                 const SizedBox(height: 16),
+                // 图片区标题与已选数量（上限 9 张）。
                 Row(
                   children: [
                     Icon(
@@ -246,6 +257,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
                   ],
                 ),
                 const SizedBox(height: 8),
+                // 原有图片与本地新选图片的网格。
                 ImagePickerGrid(
                   networkImages: editor.networkImages,
                   localImages: editor.localImages,

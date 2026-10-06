@@ -31,6 +31,7 @@ class PostDetailPage extends ConsumerStatefulWidget {
   ConsumerState<PostDetailPage> createState() => _PostDetailPageState();
 }
 
+// 持有滚动、评论焦点与顶栏标题显隐，并把子组件的回调转成 notifier 调用。
 class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   /// Scroll offset after which the title moves into the header.
   static const _titleCollapseOffset = 72.0;
@@ -60,6 +61,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     if (showTitle != _showHeaderTitle) {
       setState(() => _showHeaderTitle = showTitle);
     }
+    // 距底部 300 像素内预取下一页评论；notifier 自身会忽略重复或不该发起的请求。
     final threshold = _scrollCtrl.position.maxScrollExtent - 300;
     if (_scrollCtrl.position.pixels >= threshold) {
       ref.read(commentNotifierProvider(widget.postId).notifier).loadMore();
@@ -99,6 +101,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
+  // 收藏：与点赞相同的登录拦截与失败提示。
   Future<void> _toggleFavorite(GetPostResp post) async {
     if (!ref.read(authNotifierProvider).isAuthenticated) {
       context.push(AppRoutes.login);
@@ -128,6 +131,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
+  // 楼中楼加载更多，失败同样只提示。
   Future<void> _onLoadMoreReplies(CommentItem comment) async {
     try {
       await ref
@@ -143,6 +147,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
   // 提交评论；失败时 rethrow 让输入框保留草稿。
   Future<void> _submitComment(String content) async {
     final auth = ref.read(authNotifierProvider);
+    // 匿名用户先去登录，并抛错让输入框保留草稿。
     if (!auth.isAuthenticated) {
       context.push(AppRoutes.login);
       throw const ApiException('请先登录');
@@ -201,6 +206,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                 ),
               )
             : const SizedBox.shrink(),
+        // 返回：没有可回退的页面（如直接打开链接）时回到信息流。
         prefixes: [
           FHeaderAction.back(
             onPress: () =>
@@ -209,6 +215,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
         ],
       ),
       child: postAsync.when(
+        // 帖子加载中与加载失败（可重试）。
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
           message: friendlyErrorMessage(e),
@@ -245,6 +252,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                           onStartComment: _startFirstComment,
                         ),
                       ),
+                    // 顶级评论列表及其尾部状态
                     PostDetailCommentList(
                       comments: comments,
                       onRetry: () => _commentNotifier.retry(),
@@ -255,6 +263,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                   ],
                 ),
               ),
+              // 底部评论栏：输入框与点赞/收藏按钮
               PostDetailCommentBar(
                 postId: widget.postId,
                 post: post,

@@ -29,6 +29,7 @@ class PostDetailCommentsEmpty extends StatelessWidget {
     if (hasError) {
       return ErrorView(message: '评论加载失败', onRetry: onRetry);
     }
+    // 无评论：图标、文案与「来抢沙发」入口。
     final theme = context.theme;
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -106,6 +107,7 @@ class PostDetailCommentList extends StatelessWidget {
           }
           return _buildComment(topLevel[index]);
         },
+        // 有加载中、错误或已到底时额外留一个尾部位置。
         childCount:
             topLevel.length +
             ((comments.isLoading ||
