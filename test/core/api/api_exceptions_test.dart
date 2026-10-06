@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
 
 void main() {
@@ -115,6 +116,28 @@ void main() {
 
     test('非 Exception 对象返回 toString', () {
       expect(friendlyErrorMessage('some error'), 'some error');
+    });
+
+    test('漏到界面的解码错误按无法识别的数据提示', () {
+      expect(
+        friendlyErrorMessage(const FormatException('missing list')),
+        '服务返回了无法识别的数据',
+      );
+      Object notAString = 1;
+      try {
+        notAString as String;
+        fail('cast should throw');
+      } on TypeError catch (error) {
+        expect(friendlyErrorMessage(error), '服务返回了无法识别的数据');
+      }
+    });
+
+    test('漏到界面的网络与超时异常复用 fromClientError 的分类', () {
+      expect(
+        friendlyErrorMessage(http.ClientException('Connection refused')),
+        '网络连接失败，请检查网络后重试',
+      );
+      expect(friendlyErrorMessage(TimeoutException('slow')), '请求超时，请重试');
     });
   });
 }

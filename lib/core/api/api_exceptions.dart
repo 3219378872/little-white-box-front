@@ -95,9 +95,20 @@ class ApiException implements Exception {
 }
 
 /// 把任意异常转成可展示的提示文本，去掉 Dart 默认的 `Exception: ` 前缀。
+///
+/// 仓储边界之外漏到界面的解码、网络与超时异常，按 [ApiException.fromClientError]
+/// 同一套分类换成中文，避免英文诊断直接展示。
 String friendlyErrorMessage(Object error) {
   if (error is ApiException) return error.message;
+  if (_isClientError(error)) return ApiException.fromClientError(error).message;
   final str = error.toString();
   if (str.startsWith('Exception: ')) return str.substring(11);
   return str;
 }
+
+// 需要按客户端失败分类的异常：解码错误、类型转换错误、超时与网络异常。
+bool _isClientError(Object error) =>
+    error is FormatException ||
+    error is TypeError ||
+    error is TimeoutException ||
+    _networkError.hasMatch(error.toString());
