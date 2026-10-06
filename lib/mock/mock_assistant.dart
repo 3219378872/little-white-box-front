@@ -158,8 +158,10 @@ Map<String, dynamic> _postAssistantMessage(
 }
 
 // 一次性生成整个运行的 SSE 事件序列：开始、按 6 个字素切块的回答 token、来源卡片，
-// 消息含「删除/delete」时追加工具调用与待确认，含 `memory` 时追加记忆变更；
-// 含 `steer-me` 或 `hang` 时不发 done 且状态记为 running，用于模拟仍在进行的运行。
+// 消息含「删除/delete」时追加工具调用与待确认，并像服务端一样停在 waiting_confirm 等待
+// 确认（再含 `expire-confirm` 时确认期限已过，用于手动验证过期分支）；含 `memory` 时
+// 追加记忆变更；含 `steer-me` 或 `hang` 时不发 done 且状态记为 running，用于模拟仍在
+// 进行的运行。
 void _startRun(int userId, int runId, int sessionId, String message) {
   final sourcePost = _publishedPosts().isEmpty
       ? <String, dynamic>{'id': 1, 'title': '示例帖', 'revision': 1, 'authorId': 2}
@@ -205,7 +207,8 @@ void _startRun(int userId, int runId, int sessionId, String message) {
       'revision': sourcePost['revision'] ?? 1,
     },
   });
-  if (message.contains('删除') || message.contains('delete')) {
+  final confirmsDelete = message.contains('删除') || message.contains('delete');
+  if (confirmsDelete) {
     events.addAll([
       {
         'seq': events.length + 1,
@@ -240,7 +243,10 @@ void _startRun(int userId, int runId, int sessionId, String message) {
       'changeId': 1,
     });
   }
-  final finished = !message.contains('steer-me') && !message.contains('hang');
+  final finished =
+      !confirmsDelete &&
+      !message.contains('steer-me') &&
+      !message.contains('hang');
   if (finished) {
     events.add({
       'seq': events.length + 1,
@@ -253,9 +259,52 @@ void _startRun(int userId, int runId, int sessionId, String message) {
   _assistantRuns[runId] = {
     'userId': userId,
     'sessionId': sessionId,
-    'status': finished ? 'completed' : 'running',
+    'status': confirmsDelete
+        ? 'waiting_confirm'
+        : (finished ? 'completed' : 'running'),
     'phase': message.contains('steer-me') ? 'tool_executing' : 'model_request',
+    if (confirmsDelete)
+      'confirmation': {
+        'callId': 'mock-call-delete',
+        'status': 'pending',
+        'deadlineMs': message.contains('expire-confirm')
+            ? 0
+            : DateTime.now().millisecondsSinceEpoch + _confirmationWaitMs,
+      },
   };
+}
+
+// 删帖确认的等待期限，与服务端 confirmationWait（2 分钟）一致。
+const _confirmationWaitMs = 2 * 60 * 1000;
+
+// 删帖确认超过期限时按过期收尾；在读取事件流或提交确认时惰性检查。
+void _expireDeleteConfirmation(int runId) {
+  final confirmation =
+      _assistantRuns[runId]?['confirmation'] as Map<String, dynamic>?;
+  if (confirmation == null ||
+      confirmation['status'] != 'pending' ||
+      DateTime.now().millisecondsSinceEpoch <
+          (confirmation['deadlineMs'] as int)) {
+    return;
+  }
+  _settleDeleteConfirmation(runId, 'expired');
+}
+
+// 结清删帖确认：与服务端一致，同意记 success，拒绝或过期记 rejected / expired 且
+// 不执行删除；都以该调用的 tool_result 交还模型，随后运行正常 done。
+void _settleDeleteConfirmation(int runId, String outcome) {
+  final run = _assistantRuns[runId]!;
+  final confirmation = run['confirmation'] as Map<String, dynamic>;
+  confirmation['status'] = outcome;
+  _researchEvent(runId, 'tool_result', {
+    'toolCall': {
+      'callId': confirmation['callId'],
+      'tool': 'delete_post',
+      'summary': outcome,
+    },
+  });
+  _researchEvent(runId, 'done', {});
+  _completeRun(runId);
 }
 
 // 以 SSE 返回运行事件；afterSeq 查询参数或 Last-Event-ID 头指定断线续传起点，只补发其后的事件。
@@ -272,6 +321,7 @@ MockRouterResponse _streamAssistantRunEvents(
   if (run['research'] == true) {
     _expireResearch(runId);
   }
+  _expireDeleteConfirmation(runId);
   final lastHeader = headers['last-event-id'] ?? headers['Last-Event-ID'] ?? '';
   final afterSeq = int.tryParse(query['afterSeq'] ?? lastHeader) ?? 0;
   final events = [
@@ -305,16 +355,21 @@ void _cancelAssistantRun(int userId, int runId) {
     _terminateResearch(runId, 'cancelled', 'CANCELLED', '已停止');
     return;
   }
-  // 与服务端一致：进行中的运行记为 cancelled 并追加 CANCELLED 终止事件；
+  // 与服务端一致：进行中或等待确认的运行记为 cancelled 并追加 CANCELLED 终止事件；
   // 已终结的运行保持原状态，不重复追加。
-  if (run['status'] == 'running') {
+  if (run['status'] == 'running' || run['status'] == 'waiting_confirm') {
+    final confirmation = run['confirmation'] as Map<String, dynamic>?;
+    if (confirmation?['status'] == 'pending') {
+      confirmation!['status'] = 'cancelled';
+    }
     run['status'] = 'cancelled';
     _researchEvent(runId, 'error', {'text': '已停止', 'errorCode': 'CANCELLED'});
   }
   _clearActiveRun(runId);
 }
 
-// 确认待执行的工具调用：只校验参数与运行归属，不产生后续事件。
+// 提交删帖确认：只接受仍在等待的同一调用（已过期、已结清或调用不符时与服务端一样
+// 返回参数错误），随后按同意或拒绝结清；同意时 mock 不真正删帖。
 void _confirmAssistantRun(int userId, int runId, Map<String, dynamic> body) {
   final callId = body['callId']?.toString() ?? '';
   if (callId.isEmpty) throw const _MockBiz(400, 2, '参数错误');
@@ -322,6 +377,17 @@ void _confirmAssistantRun(int userId, int runId, Map<String, dynamic> body) {
   if (run == null || run['userId'] != userId) {
     throw const _MockBiz(404, 4, '资源不存在');
   }
+  _expireDeleteConfirmation(runId);
+  final confirmation = run['confirmation'] as Map<String, dynamic>?;
+  if (confirmation == null ||
+      confirmation['callId'] != callId ||
+      confirmation['status'] != 'pending') {
+    throw const _MockBiz(400, 2, '参数错误');
+  }
+  _settleDeleteConfirmation(
+    runId,
+    body['approved'] == true ? 'success' : 'rejected',
+  );
 }
 
 // 标记运行完成，若它仍是线程的活动运行则一并清除。
