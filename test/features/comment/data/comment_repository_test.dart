@@ -123,17 +123,4 @@ void main() {
     });
     expect(resp.commentId, 55);
   });
-
-  test('deleteExistingComment targets the comment id path', () async {
-    final client = ScriptedGatewayClient.always(<String, dynamic>{});
-    setApiClient(client);
-    final repository = CommentRepository();
-
-    await repository.deleteExistingComment('55');
-
-    final request = client.requests.single as http.Request;
-    expect(request.method, 'DELETE');
-    expect(request.url.path, '/api/v1/comment/55');
-    expect(jsonBodyOf(request), {'commentId': '55'});
-  });
 }

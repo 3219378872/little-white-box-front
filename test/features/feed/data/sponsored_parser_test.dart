@@ -57,19 +57,17 @@ SponsoredSlot slot(String id, int after, {String requestId = 'r1'}) =>
       [slotJson(slotId: id, afterPosition: after)],
       requestId: requestId,
       scene: 'home',
-    ).slots.single;
+    ).single;
 
 void main() {
   group('parseSponsoredSlots', () {
     test('parses a valid slot with tracking context and safe images', () {
-      final result = parseSponsoredSlots(
+      final parsed = parseSponsoredSlots(
         [slotJson()],
         requestId: 'r1',
         scene: 'home',
-      );
+      ).single;
 
-      expect(result.dropped, 0);
-      final parsed = result.slots.single;
       expect(parsed.key, 'ad-r1-4-slot-4');
       expect(parsed.context.position, 4);
       expect(parsed.context.requestId, 'r1');
@@ -79,8 +77,8 @@ void main() {
       expect(parsed.ad.why.personalized, isFalse);
     });
 
-    test('drops each malformed slot independently and counts it', () {
-      final result = parseSponsoredSlots(
+    test('drops each malformed slot independently', () {
+      final slots = parseSponsoredSlots(
         [
           slotJson(slotId: 'ok'),
           slotJson(slotId: 'no-disclosure', ad: {'disclosure': ''}),
@@ -108,18 +106,12 @@ void main() {
         scene: 'home',
       );
 
-      expect(result.slots.map((slot) => slot.slotId), ['ok']);
-      expect(result.dropped, 11);
+      expect(slots.map((slot) => slot.slotId), ['ok']);
     });
 
-    test('absent sponsored is empty, a non-list counts as one drop', () {
-      expect(
-        parseSponsoredSlots(null, requestId: 'r', scene: 'home').dropped,
-        0,
-      );
-      final invalid = parseSponsoredSlots('x', requestId: 'r', scene: 'home');
-      expect(invalid.slots, isEmpty);
-      expect(invalid.dropped, 1);
+    test('absent or non-list sponsored yields no slots', () {
+      expect(parseSponsoredSlots(null, requestId: 'r', scene: 'home'), isEmpty);
+      expect(parseSponsoredSlots('x', requestId: 'r', scene: 'home'), isEmpty);
     });
   });
 

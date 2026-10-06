@@ -96,9 +96,6 @@ class _FakeCommentRepository implements CommentRepository {
     }
     return CreateCommentResp.fromJson({'commentId': 777});
   }
-
-  @override
-  Future<void> deleteExistingComment(Object commentId) async {}
 }
 
 void main() {

@@ -159,9 +159,6 @@ class FeedPageResult {
   final FollowFeedCursor followCursor;
   final List<SponsoredSlot> sponsored;
 
-  /// 本页因格式错误被丢弃的广告槽位数（FX-103）。
-  final int droppedSponsored;
-
   const FeedPageResult({
     required this.items,
     required this.hasMore,
@@ -169,6 +166,5 @@ class FeedPageResult {
     this.recommendCursor = '',
     this.followCursor = const FollowFeedCursor(),
     this.sponsored = const [],
-    this.droppedSponsored = 0,
   });
 }

@@ -32,7 +32,7 @@ final slot = parseSponsoredSlots(
   ],
   requestId: 'request-1',
   scene: 'home',
-).slots.single;
+).single;
 
 void main() {
   setUp(() {

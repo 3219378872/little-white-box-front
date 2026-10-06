@@ -114,19 +114,6 @@ void main() {
     },
   );
 
-  test('deleteExistingPost passes the expected revision in the body', () async {
-    final client = ScriptedGatewayClient.always(<String, dynamic>{});
-    setApiClient(client);
-    final repository = PostRepository();
-
-    await repository.deleteExistingPost('7', expectedRevision: 3);
-
-    final request = client.requests.single as http.Request;
-    expect(request.method, 'DELETE');
-    expect(request.url.path, '/api/v2/post/7');
-    expect(jsonBodyOf(request), {'postId': '7', 'expectedRevision': 3});
-  });
-
   group('uploadImageMultipart', () {
     const uploadPayload = {
       'mediaId': 11,

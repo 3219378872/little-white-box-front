@@ -229,7 +229,6 @@ void main() {
       expect(result.sponsored.single.slotId, 'slot-2');
       expect(result.sponsored.single.context.requestId, 'request-1');
       expect(result.sponsored.single.context.position, 2);
-      expect(result.droppedSponsored, 1);
     },
   );
 
@@ -257,7 +256,6 @@ void main() {
 
     expect(result.items.single.post.id, 3);
     expect(result.sponsored, isEmpty);
-    expect(result.droppedSponsored, 1);
   });
 
   test('contract errors surface as Chinese user-facing messages', () async {

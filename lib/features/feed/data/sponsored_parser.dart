@@ -1,42 +1,27 @@
 import '../../../core/api/json_int64.dart';
 import 'feed_models.dart';
 
-/// 推荐流 `sponsored` 的逐槽解析结果。
-class SponsoredParseResult {
-  final List<SponsoredSlot> slots;
-
-  /// 被丢弃的槽位数（格式错误或重复）。
-  final int dropped;
-
-  const SponsoredParseResult(this.slots, this.dropped);
-}
-
 /// 逐槽容错解析广告槽位（FX-103、FQ-011）。
 ///
-/// 与 `items` 的严格解析相互独立：单个槽位格式错误只丢弃该槽并计数，永不抛出。字段缺失、
+/// 与 `items` 的严格解析相互独立：单个槽位格式错误只丢弃该槽，永不抛出。字段缺失、
 /// 标识不是 `sponsored`、落地页不是 https 或域名与地址不一致时都视为格式错误，避免展示
 /// 无法标识或会误导的广告。
-SponsoredParseResult parseSponsoredSlots(
+List<SponsoredSlot> parseSponsoredSlots(
   Object? raw, {
   required String requestId,
   required String scene,
 }) {
-  // 字段缺失表示本页没有广告；类型不对时整体计为一个丢弃。
-  if (raw == null) return const SponsoredParseResult([], 0);
-  if (raw is! List) return const SponsoredParseResult([], 1);
+  // 字段缺失表示本页没有广告；类型不对时整体丢弃。
+  if (raw is! List) return const [];
   final slots = <SponsoredSlot>[];
   final seen = <String>{};
-  var dropped = 0;
   for (final item in raw) {
     final slot = _parseSlot(item, requestId: requestId, scene: scene);
     // 同一页内重复的 slotId 只保留第一个。
-    if (slot == null || !seen.add(slot.slotId)) {
-      dropped++;
-      continue;
-    }
+    if (slot == null || !seen.add(slot.slotId)) continue;
     slots.add(slot);
   }
-  return SponsoredParseResult(slots, dropped);
+  return slots;
 }
 
 // 解析单个槽位：slotId 非空、afterPosition 为正整数且 ad 是对象，否则丢弃。

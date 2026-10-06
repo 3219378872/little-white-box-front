@@ -41,8 +41,8 @@ updated_at: 2026-10-01
   客户端不发送 `market`，由后端按缺省演示市场 US 投放；关注流不声明广告槽位。
 - **解析**（`FX-103`、`FQ-011`）：`FeedRepository` 对 `items` 保持现有的严格解析
   （`lib/features/feed/data/feed_repository.dart`）。`sponsored` 由独立解析器
-  （`lib/features/feed/data/sponsored_parser.dart`）逐槽解析，单槽格式错误只丢弃该槽并计入
-  `FeedPageResult.droppedSponsored`，不抛出页面错误。以下情况视为格式错误：缺少 slotId、afterPosition 非正
+  （`lib/features/feed/data/sponsored_parser.dart`）逐槽解析，单槽格式错误只丢弃该槽，不抛出页面
+  错误。以下情况视为格式错误：缺少 slotId、afterPosition 非正
   整数、广告 ID 或 revision 无效、缺广告主或标题、标识不是 `sponsored`、落地页不是不带用户信息的 https
   地址、`landingDomain` 与落地页主机不一致、同页 slotId 重复。图片只保留 http(s) 或同源相对地址。
 - **模型**（实现调整）：`FeedEntry` 保持自然内容条目不变，广告以独立的 `SponsoredSlot` 存放在

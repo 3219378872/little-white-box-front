@@ -48,17 +48,4 @@ class CommentRepository {
           gw.createComment(req, ok: ok, fail: fail, eventually: eventually),
     );
   }
-
-  /// 删除评论（`DELETE /api/v1/comment/{id}`）。
-  Future<void> deleteExistingComment(Object commentId) {
-    return apiCall<DeleteCommentResp>(
-      (ok, fail, eventually) => gw.deleteComment(
-        commentId,
-        DeleteCommentReq(commentId: commentId),
-        ok: ok,
-        fail: fail,
-        eventually: eventually,
-      ),
-    );
-  }
 }

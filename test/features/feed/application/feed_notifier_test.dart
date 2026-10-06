@@ -451,7 +451,7 @@ SponsoredSlot adSlot(String slotId, int after, {required int adId}) =>
       ],
       requestId: 'request',
       scene: 'home',
-    ).slots.single;
+    ).single;
 
 Future<FeedNotifier> _notifierWithSlots({int extraPages = 0}) async {
   final notifier = FeedNotifier(

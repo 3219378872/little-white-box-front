@@ -108,8 +108,7 @@ class FeedRepository implements FeedPageRepository {
       hasMore: response['hasMore'] == true,
       requestId: effectiveRequestId,
       recommendCursor: _string(response['nextCursor']),
-      sponsored: sponsored.slots,
-      droppedSponsored: sponsored.dropped,
+      sponsored: sponsored,
     );
   }
 

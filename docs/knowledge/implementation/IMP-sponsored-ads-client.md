@@ -33,7 +33,7 @@ updated_at: 2026-10-04
 | FX-100 | DES-sponsored-ads-client | unknown | gap: 已实现带「广告」文字与图标标识、广告主名称与可访问标签的广告卡片，按 afterPosition 插入；Widget 与 Mock 页面测试通过，尚无 EVD 覆盖组。 |
 | FX-101 | DES-sponsored-ads-client | unknown | gap: 已实现「为什么看到这条广告」、隐藏与举报（结构化原因、选择即提交；本地先移除、失败按原位置恢复并提示）；Widget 测试 `menu reports the ad with a structured reason` 与推荐流测试 `reporting removes the ad and thanks the user`、`a failed report restores the ad` 通过；未与真实后端联调；尚无 EVD 覆盖组。 |
 | FX-102 | DES-sponsored-ads-client | unknown | gap: 已实现 CTA 行常显落地页域名、只接受 https 且域名与地址一致的落地页、以外部方式打开；Widget 测试通过，尚无 EVD 覆盖组。 |
-| FX-103 | DES-sponsored-ads-client | unknown | gap: 已实现逐槽容错解析与计数、广告不参与帖子去重、位置只按自然条目计数；单元与 Mock 页面测试通过，尚无 EVD 覆盖组。 |
+| FX-103 | DES-sponsored-ads-client | unknown | gap: 已实现逐槽容错解析、广告不参与帖子去重、位置只按自然条目计数；单元与 Mock 页面测试通过，尚无 EVD 覆盖组。 |
 | FX-104 | DES-sponsored-ads-client | unknown | gap: 已实现 50% 可见连续 1 秒的广告曝光、`ad` 目标类型的曝光/点击/隐藏上报与 `<requestId>:<targetType>:<targetId>` 去重键（旧两段键按帖子迁移）；单元与 Widget 测试通过，尚无 EVD 覆盖组。 |
 | FX-105 | DES-sponsored-ads-client | unknown | gap: 已实现推荐请求声明 `adSlots=1` 与 Mock 的成功、格式错误槽位、隐藏分支；单元与 Mock 契约测试通过，尚无 EVD 覆盖组。 |
 | FX-110 | DES-sponsored-ads-client | unknown | gap: 已实现申请广告主、上传证件并提交资质、创建与编辑广告、上传创意图片、送审、状态与政策码原因（含暂停与下线原因）、过审版本差异、「审核期间继续投放上一过审版本」提示与申诉入口（`appealable` 驱动、二次确认、7106 提示）；页面测试 `an offline ad can be appealed once after confirming` 等通过；未与真实后端联调；尚无 EVD 覆盖组。 |

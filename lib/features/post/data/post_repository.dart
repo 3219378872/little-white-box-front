@@ -52,22 +52,6 @@ class PostRepository {
     );
   }
 
-  /// 删除帖子（`DELETE /api/v2/post/{id}`），同样以 [expectedRevision] 防止误删已被修改的版本。
-  Future<void> deleteExistingPost(
-    Object postId, {
-    required int expectedRevision,
-  }) {
-    return apiCall<DeletePostResp>(
-      (ok, fail, eventually) => gw.deletePostV2(
-        postId,
-        DeletePostV2Req(postId: postId, expectedRevision: expectedRevision),
-        ok: ok,
-        fail: fail,
-        eventually: eventually,
-      ),
-    );
-  }
-
   /// 以 multipart 协议上传单张图片，返回媒体标识和 URL。
   Future<UploadedImage> uploadImageMultipart({
     required List<int> bytes,
