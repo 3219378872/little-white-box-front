@@ -3,10 +3,16 @@ import 'package:gpt_markdown/gpt_markdown.dart';
 
 import 'streaming_reveal.dart';
 
+// 光标闪烁的半周期；同一个动画控制器也驱动逐帧露出。
 const _caretDuration = Duration(milliseconds: 530);
+// response_reset 时旧正文的淡出时长。
 const _resetDuration = Duration(milliseconds: 120);
+
+/// 追赶积压时尾部 Markdown 的最短重新解析间隔，降低高速露出时的解析开销。
 const tailMarkdownMinInterval = Duration(milliseconds: 125);
 
+/// 流式助手回复的打字机渲染：[committedText] 是已收到的全部文本，逐字露出并在
+/// 末尾显示光标；每露出新字调用 [onRevealed]，供会话页贴底滚动。
 class StreamingMarkdownBody extends StatefulWidget {
   const StreamingMarkdownBody({
     super.key,
@@ -27,8 +33,10 @@ class StreamingMarkdownBody extends StatefulWidget {
   State<StreamingMarkdownBody> createState() => _StreamingMarkdownBodyState();
 }
 
+// revealing 正常露出；resetting 正在淡出被重置的旧正文。
 enum _RevealMode { revealing, resetting }
 
+// 用动画控制器的帧回调推进 [StreamingRevealController]，并记住尾部的发布节奏。
 class _StreamingMarkdownBodyState extends State<StreamingMarkdownBody>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
@@ -96,6 +104,7 @@ class _StreamingMarkdownBodyState extends State<StreamingMarkdownBody>
     _startRevealingIfNeeded();
   }
 
+  // 流式且允许动画时启动往返动画：既让光标闪烁，也提供逐帧推进的时钟。
   void _startRevealingIfNeeded() {
     if (!widget.isStreaming || _reveal.reduceMotion) {
       _controller.stop();
@@ -111,6 +120,7 @@ class _StreamingMarkdownBodyState extends State<StreamingMarkdownBody>
     }
   }
 
+  // 正文被重置：先淡出已露出的旧文本，再从头开始；减少动画或无旧文本时立即重来。
   void _startReset(bool reduceMotion) {
     _fadingOut = _reveal.revealedString();
     if (reduceMotion || _fadingOut == null || _fadingOut!.isEmpty) {
@@ -128,6 +138,7 @@ class _StreamingMarkdownBodyState extends State<StreamingMarkdownBody>
     _controller.animateTo(0, curve: Curves.easeOut).whenComplete(_finishReset);
   }
 
+  // 淡出结束后清空光标，恢复正常露出。
   void _finishReset() {
     if (!mounted || _mode != _RevealMode.resetting) return;
     _fadingOut = null;
@@ -139,10 +150,12 @@ class _StreamingMarkdownBodyState extends State<StreamingMarkdownBody>
     setState(() {});
   }
 
+  // 控制器重启后对齐计时起点，避免第一帧算出过大的时间差。
   void _syncLastElapsed() {
     _lastElapsed = _controller.lastElapsedDuration;
   }
 
+  // 每帧按时间差推进光标；露出新字时通知外层。
   void _onControllerTick() {
     if (_mode == _RevealMode.resetting) {
       setState(() {});
@@ -163,6 +176,8 @@ class _StreamingMarkdownBodyState extends State<StreamingMarkdownBody>
     }
   }
 
+  // 决定本帧尾部渲染的文本：围栏尾部按纯文本实时更新；切分变化或未在追赶时立即
+  // 发布；追赶期间按 [tailMarkdownMinInterval] 节流 Markdown 重解析。
   String _tailDataForBuild({
     required String pendingTail,
     required bool tailIsFence,
@@ -199,6 +214,7 @@ class _StreamingMarkdownBodyState extends State<StreamingMarkdownBody>
 
   @override
   Widget build(BuildContext context) {
+    // 重置淡出中：只渲染旧正文。
     if (_mode == _RevealMode.resetting && _fadingOut != null) {
       return Opacity(
         opacity: _controller.value,
@@ -206,6 +222,7 @@ class _StreamingMarkdownBodyState extends State<StreamingMarkdownBody>
       );
     }
 
+    // 切分稳定前缀与尾部，光标只在流式、允许动画且已露出内容时显示。
     final revealed = _reveal.revealedString();
     final split = splitMarkdownReveal(revealed);
     final clock = _controller.lastElapsedDuration ?? Duration.zero;
@@ -233,6 +250,7 @@ class _StreamingMarkdownBodyState extends State<StreamingMarkdownBody>
       tail = GptMarkdown(tailData, style: widget.style);
     }
 
+    // 读屏只播报整段已露出文本，不逐块播报。
     return MergeSemantics(
       child: Semantics(
         container: true,
@@ -242,12 +260,14 @@ class _StreamingMarkdownBodyState extends State<StreamingMarkdownBody>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 稳定前缀以内容为 key，内容不变时不重新解析。
               if (split.stablePrefix.isNotEmpty)
                 GptMarkdown(
                   split.stablePrefix,
                   key: ValueKey<String>(split.stablePrefix),
                   style: widget.style,
                 ),
+              // 尾部与光标同一行。
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
