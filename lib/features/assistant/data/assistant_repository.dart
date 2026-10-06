@@ -1,32 +1,19 @@
-import 'dart:async';
-import 'dart:convert';
-
 import 'package:http/http.dart' as http;
 
 import '../../../core/api/api_adapter.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/api/v2_api_client.dart';
-import '../../../sdk/api/api.dart' as sdk_api;
 import '../../../sdk/api/gateway.dart' as gw;
 import '../../../sdk/data/gateway.dart'
     show GetAgentConsentResp, SetAgentConsentReq, SetAgentConsentResp;
-import '../../../sdk/vars/kv.dart';
 import '../../../sdk/vars/vars.dart';
+import 'assistant_event_stream.dart';
 import 'assistant_models.dart';
 
-class AssistantStreamException extends ApiException {
-  final bool retryable;
+export 'assistant_event_stream.dart' show AssistantStreamException;
 
-  const AssistantStreamException(
-    super.message, {
-    this.retryable = true,
-    super.code,
-  });
-
-  @override
-  String toString() => message;
-}
+part 'assistant_memory_mapping.dart';
 
 class AgentConsentStatus {
   final bool granted;
@@ -139,11 +126,11 @@ abstract interface class AssistantDataSource {
   });
 }
 
+/// Gateway-backed [AssistantDataSource]: REST calls go through [V2ApiClient],
+/// run events are delegated to [AssistantEventStreamClient], and memory
+/// response parsing lives in assistant_memory_mapping.dart.
 class AssistantRepository implements AssistantDataSource {
-  final http.Client? _client;
-  final String _baseUrl;
-  final Future<String?> Function() _loadAccessToken;
-  final bool _usesStoredAccessToken;
+  final AssistantEventStreamClient _events;
   final V2ApiClient _api;
 
   AssistantRepository({
@@ -151,13 +138,12 @@ class AssistantRepository implements AssistantDataSource {
     String baseUrl = serverHost,
     Future<String?> Function()? loadAccessToken,
     V2ApiClient api = const V2ApiClient(),
-  }) : _client = client,
-       _baseUrl = baseUrl,
-       _loadAccessToken = loadAccessToken ?? _defaultAccessToken,
-       _usesStoredAccessToken = loadAccessToken == null,
+  }) : _events = AssistantEventStreamClient(
+         client: client,
+         baseUrl: baseUrl,
+         loadAccessToken: loadAccessToken,
+       ),
        _api = api;
-
-  http.Client get _httpClient => _client ?? sdk_api.apiClient;
 
   @override
   Future<AgentConsentStatus> loadAgentConsent() async {
@@ -290,121 +276,7 @@ class AssistantRepository implements AssistantDataSource {
   Stream<AssistantRunEvent> runEvents({
     required Object runId,
     Object afterSeq = 0,
-  }) async* {
-    if (!jsonInt64IsPositive(runId)) {
-      throw const ApiException('Assistant run 标识无效');
-    }
-    late http.StreamedResponse response;
-    final initialContext = _usesStoredAccessToken
-        ? await getTokenSessionContext()
-        : null;
-    for (var attempt = 1; ; attempt++) {
-      final requestContext = await _buildEventsRequest(
-        runId: runId,
-        afterSeq: afterSeq,
-        expectedSessionRevision: initialContext?.revision,
-      );
-      final request = requestContext.$1;
-      final session = requestContext.$2;
-      try {
-        response = await _httpClient.send(request);
-      } catch (error) {
-        throw AssistantStreamException('无法连接 Assistant: $error');
-      }
-      if (response.statusCode >= 200 && response.statusCode < 300) break;
-
-      final body = await response.stream.bytesToString();
-      final exception = _httpError(response.statusCode, body);
-      final canRetry =
-          attempt == 1 &&
-          session != null &&
-          (exception.isAuthError || response.statusCode == 401) &&
-          session.tokens.refreshToken.trim().isNotEmpty;
-      if (canRetry) {
-        final refreshResult = await sdk_api.refreshSessionTokensFor(session);
-        if (refreshResult == sdk_api.SessionRefreshResult.refreshed) continue;
-        if (refreshResult == sdk_api.SessionRefreshResult.unavailable) {
-          throw const ApiException('会话刷新失败，请重试');
-        }
-        if (refreshResult == sdk_api.SessionRefreshResult.stale) {
-          throw const ApiException('请求会话已变化，请重试');
-        }
-      }
-      if (session != null &&
-          (exception.isAuthError || response.statusCode == 401)) {
-        await sdk_api.invalidateSessionIfCredentialsMatch(session);
-      }
-      if (response.statusCode >= 500 || response.statusCode == 429) {
-        throw const AssistantStreamException('Assistant 服务暂时不可用');
-      }
-      throw AssistantStreamException(
-        exception.message,
-        code: exception.code,
-        retryable: false,
-      );
-    }
-
-    var terminal = false;
-    var waiting = false;
-    try {
-      await for (final frame in _sseFrames(response.stream)) {
-        if (frame.data.trim().isEmpty) continue;
-        final decoded = decodeApiJson(frame.data);
-        if (decoded is! Map) {
-          throw const FormatException('assistant event is not an object');
-        }
-        final json = Map<String, dynamic>.from(decoded);
-        // Connection failures are not persisted run events: never advance seq
-        // or mark the run failed merely because its subscription failed.
-        if (json['type'] == 'transport_error') {
-          final error = json['error'];
-          if (error is! Map ||
-              error['message'] is! String ||
-              json['retryable'] is! bool) {
-            throw const FormatException('invalid assistant transport error');
-          }
-          throw AssistantStreamException(
-            error['message'] as String,
-            retryable: json['retryable'] as bool,
-          );
-        }
-        if (frame.id.isNotEmpty && json['seq'] == null) {
-          json['seq'] = int.tryParse(frame.id) ?? 0;
-        }
-        final event = AssistantRunEvent.fromJson(json);
-        if (event.type == AssistantEventType.unknown) continue;
-        if (event.type == AssistantEventType.questionsRequired) {
-          waiting = event.questionRequest?.isPending == true;
-        }
-        if (event.type == AssistantEventType.questionsResolved) {
-          waiting = false;
-        }
-        yield event;
-        if (event.isTerminal) {
-          terminal = true;
-          break;
-        }
-      }
-    } on FormatException {
-      throw const AssistantStreamException(
-        'Assistant 返回了无效事件',
-        retryable: false,
-      );
-    } on JsonUnsupportedObjectError {
-      throw const AssistantStreamException(
-        'Assistant 返回了无效事件',
-        retryable: false,
-      );
-    } on AssistantStreamException {
-      rethrow;
-    } catch (error) {
-      throw AssistantStreamException('Assistant 连接中断: $error');
-    }
-
-    if (!terminal && !waiting) {
-      throw const AssistantStreamException('Assistant 连接意外中断');
-    }
-  }
+  }) => _events.runEvents(runId: runId, afterSeq: afterSeq);
 
   @override
   Future<int> markThreadRead() async {
@@ -453,36 +325,7 @@ class AssistantRepository implements AssistantDataSource {
       '/api/v2/assistant/memory',
       query: {if (target.isNotEmpty) 'target': target},
     );
-    final items = <MemoryRecord>[];
-    final rawItems = _requiredList(response, 'items');
-    for (final item in rawItems) {
-      final map = _requiredObject(item);
-      final entryTarget = map['target']?.toString() ?? '';
-      if (!memoryTargets.contains(entryTarget)) continue;
-      items.add(
-        MemoryRecord(
-          id: map['id'] ?? 0,
-          target: entryTarget,
-          content: map['content']?.toString() ?? '',
-          version: _asInt(map['version']),
-          createdAtMs: _asInt(map['createdAtMs']),
-          updatedAtMs: _asInt(map['updatedAtMs']),
-        ),
-      );
-    }
-    final capacities = <MemoryCapacity>[];
-    final rawCaps = _requiredList(response, 'capacities');
-    for (final item in rawCaps) {
-      final map = _requiredObject(item);
-      capacities.add(
-        MemoryCapacity(
-          target: map['target']?.toString() ?? '',
-          used: _asInt(map['used']),
-          limit: _asInt(map['limit']),
-        ),
-      );
-    }
-    return (items, capacities);
+    return _memoryListFromResponse(response);
   }
 
   @override
@@ -497,7 +340,7 @@ class AssistantRepository implements AssistantDataSource {
       'content': content,
       if (requestId.isNotEmpty) 'requestId': requestId,
     });
-    return _memoryWrite(response);
+    return _memoryWriteFromResponse(response);
   }
 
   @override
@@ -515,7 +358,7 @@ class AssistantRepository implements AssistantDataSource {
         if (requestId.isNotEmpty) 'requestId': requestId,
       },
     );
-    return _memoryWrite(response);
+    return _memoryWriteFromResponse(response);
   }
 
   @override
@@ -540,19 +383,7 @@ class AssistantRepository implements AssistantDataSource {
       '/api/v2/assistant/memory/changes/${jsonInt64Id(changeId)}/undo',
       {},
     );
-    final raw = response['entry'];
-    if (raw is! Map) {
-      throw const ApiException('撤销记忆响应格式无效');
-    }
-    final map = Map<String, dynamic>.from(raw);
-    return MemoryRecord(
-      id: map['id'] ?? 0,
-      target: map['target']?.toString() ?? '',
-      content: map['content']?.toString() ?? '',
-      version: _asInt(map['version']),
-      createdAtMs: _asInt(map['createdAtMs']),
-      updatedAtMs: _asInt(map['updatedAtMs']),
-    );
+    return _undoneMemoryFromResponse(response);
   }
 
   @override
@@ -571,154 +402,29 @@ class AssistantRepository implements AssistantDataSource {
       'reason': normalizedReason,
     });
   }
-
-  static void _requireMemoryTarget(String target) {
-    if (!memoryTargets.contains(target)) {
-      throw const ApiException('未知的记忆目标');
-    }
-  }
-
-  static List<dynamic> _requiredList(
-    Map<String, dynamic> response,
-    String key,
-  ) {
-    if (!response.containsKey(key)) {
-      throw const ApiException('Assistant 列表响应缺少字段');
-    }
-    final raw = response[key];
-    // Go nil slices are encoded as explicit JSON null.
-    if (raw == null) return const [];
-    if (raw is! List) throw const ApiException('Assistant 列表响应格式无效');
-    return raw;
-  }
-
-  static Map<String, dynamic> _requiredObject(Object? raw) {
-    if (raw is! Map<String, dynamic>) {
-      throw const ApiException('Assistant 列表项格式无效');
-    }
-    return raw;
-  }
-
-  static MemoryWriteResult _memoryWrite(Map<String, dynamic> response) {
-    final raw = response['entry'];
-    MemoryRecord? entry;
-    if (raw is Map) {
-      final map = Map<String, dynamic>.from(raw);
-      entry = MemoryRecord(
-        id: map['id'] ?? 0,
-        target: map['target']?.toString() ?? '',
-        content: map['content']?.toString() ?? '',
-        version: _asInt(map['version']),
-        createdAtMs: _asInt(map['createdAtMs']),
-        updatedAtMs: _asInt(map['updatedAtMs']),
-      );
-    }
-    return MemoryWriteResult(entry: entry, changeId: response['changeId'] ?? 0);
-  }
-
-  Future<(http.Request, SessionTokenSnapshot?)> _buildEventsRequest({
-    required Object runId,
-    required Object afterSeq,
-    int? expectedSessionRevision,
-  }) async {
-    final seq = _asInt(afterSeq);
-    final path = gw.assistantRunEventsPath(jsonInt64Id(runId));
-    final uri = apiUri(seq > 0 ? '$path?afterSeq=$seq' : path, host: _baseUrl);
-    final request = http.Request('GET', uri);
-    request.headers.addAll({
-      'Accept': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-    });
-    if (seq > 0) {
-      request.headers['Last-Event-ID'] = '$seq';
-    }
-    final context = _usesStoredAccessToken
-        ? await getTokenSessionContext()
-        : null;
-    if (context != null && context.revision != expectedSessionRevision) {
-      throw const ApiException('请求会话已变化，请重试');
-    }
-    final session = context?.snapshot;
-    final token =
-        (_usesStoredAccessToken
-                ? session?.tokens.accessToken
-                : await _loadAccessToken())
-            ?.trim() ??
-        '';
-    if (token.isNotEmpty) {
-      request.headers['Authorization'] =
-          token.toLowerCase().startsWith('bearer ') ? token : 'Bearer $token';
-    }
-    return (request, session);
-  }
-
-  static Stream<_SseFrame> _sseFrames(Stream<List<int>> bytes) async* {
-    final dataLines = <String>[];
-    var id = '';
-    await for (final line
-        in bytes.transform(utf8.decoder).transform(const LineSplitter())) {
-      if (line.isEmpty) {
-        if (dataLines.isNotEmpty) {
-          yield _SseFrame(id: id, data: dataLines.join('\n'));
-          dataLines.clear();
-          id = '';
-        }
-        continue;
-      }
-      if (line.startsWith(':')) continue;
-      if (line.startsWith('id:')) {
-        id = line.substring(3).trim();
-        continue;
-      }
-      if (!line.startsWith('data:')) continue;
-      var value = line.substring(5);
-      if (value.startsWith(' ')) value = value.substring(1);
-      dataLines.add(value);
-    }
-    if (dataLines.isNotEmpty) {
-      yield _SseFrame(id: id, data: dataLines.join('\n'));
-    }
-  }
-
-  static ApiException _httpError(int statusCode, String body) {
-    try {
-      final decoded = decodeApiJson(body);
-      if (decoded is Map) {
-        final codeValue = decoded['code'];
-        final message =
-            decoded['message'] ??
-            decoded['msg'] ??
-            decoded['error'] ??
-            'Assistant 请求失败';
-        return ApiException(
-          message.toString(),
-          code: codeValue is int ? codeValue : null,
-        );
-      }
-    } catch (_) {
-      // Fall back to a bounded plain-text error below.
-    }
-    final normalized = body.trim();
-    return ApiException(
-      normalized.isEmpty
-          ? 'Assistant 请求失败 (HTTP $statusCode)'
-          : normalized.substring(0, normalized.length.clamp(0, 200)),
-    );
-  }
-
-  static int _asInt(Object? value) {
-    if (value is num) return value.toInt();
-    return int.tryParse(value?.toString() ?? '') ?? 0;
-  }
-
-  static Future<String?> _defaultAccessToken() async {
-    return (await getTokens())?.accessToken;
-  }
 }
 
-class _SseFrame {
-  final String id;
-  final String data;
+// List fields must be present; Go nil slices are encoded as explicit JSON null.
+List<dynamic> _requiredList(Map<String, dynamic> response, String key) {
+  if (!response.containsKey(key)) {
+    throw const ApiException('Assistant 列表响应缺少字段');
+  }
+  final raw = response[key];
+  if (raw == null) return const [];
+  if (raw is! List) throw const ApiException('Assistant 列表响应格式无效');
+  return raw;
+}
 
-  const _SseFrame({required this.id, required this.data});
+// List items must already be JSON objects.
+Map<String, dynamic> _requiredObject(Object? raw) {
+  if (raw is! Map<String, dynamic>) {
+    throw const ApiException('Assistant 列表项格式无效');
+  }
+  return raw;
+}
+
+// Lenient int decoding shared with memory mapping; numeric strings are accepted.
+int _asInt(Object? value) {
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
 }
