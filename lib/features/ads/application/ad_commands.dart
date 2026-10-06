@@ -74,6 +74,8 @@ String? validateAdDraft({
 }
 
 /// 解析 `YYYY-MM-DD` 为当日 UTC 结束时刻；格式错误或不晚于 [now] 时返回 null。
+///
+/// 后端只要求有效期晚于提交时刻，取当日结束后选今天（UTC）也能通过，早于今天才被拒。
 int? parseQualificationValidUntil(String raw, DateTime now) {
   final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(raw.trim());
   if (match == null) return null;
@@ -185,7 +187,7 @@ class AdvertiserCommands {
       throw const AdFormInvalidException('请先上传资质证件');
     }
     if (validUntilMs == null) {
-      throw const AdFormInvalidException('有效期须为今天之后的日期，格式 YYYY-MM-DD');
+      throw const AdFormInvalidException('有效期不能早于今天，格式 YYYY-MM-DD');
     }
     final revision = advertiser.revision;
     await _qualification.run(

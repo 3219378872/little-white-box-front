@@ -63,11 +63,16 @@ void main() {
     expect(check(landing: 'https://${'a' * 2048}.com'), contains('https'));
   });
 
-  test('qualification dates must be valid and in the future', () {
+  test('qualification dates must be valid and not before today', () {
     final now = DateTime.utc(2026, 10, 1, 12);
     expect(
       parseQualificationValidUntil('2027-02-28', now),
       DateTime.utc(2027, 2, 28, 23, 59, 59).millisecondsSinceEpoch,
+    );
+    // 今天的 UTC 当日结束仍晚于当前时刻，昨天则已过期。
+    expect(
+      parseQualificationValidUntil('2026-10-01', now),
+      DateTime.utc(2026, 10, 1, 23, 59, 59).millisecondsSinceEpoch,
     );
     expect(parseQualificationValidUntil('2027-02-30', now), isNull);
     expect(parseQualificationValidUntil('2026-09-30', now), isNull);

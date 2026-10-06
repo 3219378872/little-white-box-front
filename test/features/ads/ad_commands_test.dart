@@ -36,6 +36,12 @@ class _ScriptedAdsRepository extends AdsRepository {
     await _next(idempotencyKey);
     return AdItem.fromJson({'adId': adId});
   }
+
+  @override
+  Future<AdvertiserItem> addQualification(AddQualificationReq req) async {
+    await _next(req.idempotencyKey);
+    return AdvertiserItem.fromJson({'name': '主体甲'});
+  }
 }
 
 void main() {
@@ -95,6 +101,39 @@ void main() {
       throwsA(isA<AdFormInvalidException>()),
     );
     expect(repository.keys, isEmpty);
+  });
+
+  test('qualification accepts today and rejects yesterday', () async {
+    final repository = _ScriptedAdsRepository([null]);
+    final container = containerWith(repository);
+    final commands = container.read(advertiserCommandsProvider);
+    final advertiser = AdvertiserItem.fromJson({'name': '主体甲', 'revision': 1});
+    final document = AdAssetResp.fromJson({'assetId': 9});
+    // 有效期取所选日期的 UTC 当日结束，选今天仍晚于当前时刻，可以提交。
+    final now = DateTime.utc(2026, 10, 1, 12);
+
+    Future<void> submit(String validUntil) => commands.addQualification(
+      advertiser: advertiser,
+      market: 'US',
+      industry: 'FINANCIAL',
+      document: document,
+      validUntil: validUntil,
+      now: now,
+    );
+
+    await expectLater(
+      submit('2026-09-30'),
+      throwsA(
+        isA<AdFormInvalidException>().having(
+          (error) => error.message,
+          'message',
+          '有效期不能早于今天，格式 YYYY-MM-DD',
+        ),
+      ),
+    );
+    expect(repository.keys, isEmpty);
+    await submit('2026-10-01');
+    expect(repository.keys, hasLength(1));
   });
 
   test('appeal reuses the key only across network failures', () async {

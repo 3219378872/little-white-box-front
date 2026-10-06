@@ -301,7 +301,7 @@ void main() {
     await settle(tester, frames: 60);
   });
 
-  testWidgets('a qualification needs a document and a future date', (
+  testWidgets('a qualification needs a document and a date from today', (
     tester,
   ) async {
     await signIn(1);
@@ -317,7 +317,7 @@ void main() {
     await enter(tester, 'qualification-valid-until', '2000-01-01');
     await tester.tap(find.byKey(const Key('qualification-submit')));
     await settle(tester);
-    expect(find.text('有效期须为今天之后的日期，格式 YYYY-MM-DD'), findsOneWidget);
+    expect(find.text('有效期不能早于今天，格式 YYYY-MM-DD'), findsOneWidget);
     await settle(tester, frames: 60);
   });
 
