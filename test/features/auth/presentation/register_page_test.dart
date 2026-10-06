@@ -3,20 +3,38 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/features/auth/application/auth_dependencies.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
+import 'package:xiaobaihe_app/features/auth/data/auth_repository.dart';
 import 'package:xiaobaihe_app/features/auth/presentation/register_page.dart';
 import 'package:xiaobaihe_app/sdk/api/api.dart';
+import 'package:xiaobaihe_app/sdk/data/gateway.dart';
 
 import '../../../helpers/forui_test_builder.dart';
 import '../../../helpers/gateway_fake.dart';
 
-Future<Widget> _page() async {
+// 注册时抛出非 ApiException 的异常，验证页面提示去掉 Dart 默认前缀。
+class _ThrowingAuthRepository extends AuthRepository {
+  @override
+  Future<RegisterResp> registerUser({
+    required String username,
+    required String password,
+    required String phone,
+    required String verifyCode,
+  }) async {
+    throw Exception('注册服务暂不可用');
+  }
+}
+
+Future<Widget> _page({List<Override> overrides = const []}) async {
   return AppProviderScope(
+    overrides: overrides,
     child: MaterialApp.router(
       routerConfig: GoRouter(
         initialLocation: '/auth/register',
@@ -40,8 +58,11 @@ Future<Widget> _page() async {
   );
 }
 
-Future<void> pumpRegister(WidgetTester tester) async {
-  final widget = await _page();
+Future<void> pumpRegister(
+  WidgetTester tester, {
+  List<Override> overrides = const [],
+}) async {
+  final widget = await _page(overrides: overrides);
   await tester.pumpWidget(widget);
   await tester.pumpAndSettle();
 }
@@ -118,6 +139,31 @@ void main() {
       'verifyCode': '123456',
     });
     expect(find.text('信息流占位'), findsOneWidget);
+  });
+
+  testWidgets('shows a friendly message when registration fails', (
+    tester,
+  ) async {
+    await pumpRegister(
+      tester,
+      overrides: [
+        authRepositoryProvider.overrideWithValue(_ThrowingAuthRepository()),
+      ],
+    );
+
+    await tester.enterText(find.byType(EditableText).at(0), 'neo');
+    await tester.enterText(find.byType(EditableText).at(1), 'secret');
+    await tester.enterText(find.byType(EditableText).at(2), 'secret');
+    await tester.enterText(find.byType(EditableText).at(3), '13800000000');
+    await tester.enterText(find.byType(EditableText).at(4), '123456');
+    await tester.tap(find.widgetWithText(FButton, '注册'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('注册服务暂不可用'), findsOneWidget);
+    expect(find.textContaining('Exception:'), findsNothing);
+
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('sends the verify code for the entered phone number', (

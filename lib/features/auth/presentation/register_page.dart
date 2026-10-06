@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/api/api_exceptions.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../application/auth_notifier.dart';
 import 'widgets/verify_code_button.dart';
@@ -69,7 +70,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       if (!started || !mounted || !_ownsRegisterMutation(attempt)) return;
       context.go(AppRoutes.feed);
     } catch (e) {
-      if (mounted && attempt == _registerAttempt) _showError(e.toString());
+      // 统一转成可展示文案，去掉 Dart 默认的 `Exception: ` 前缀。
+      if (mounted && attempt == _registerAttempt) {
+        _showError(friendlyErrorMessage(e));
+      }
     } finally {
       if (mounted && attempt == _registerAttempt) {
         setState(() => _isLoading = false);
