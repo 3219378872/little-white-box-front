@@ -159,25 +159,7 @@ class _PostCardState extends ConsumerState<PostCard>
       return;
     }
 
-    final now = DateTime.now();
-    _visibleSince ??= now;
-    _dwellStartedAt ??= now;
-    if (_exposureReported || _exposureTimer != null) return;
-    _exposureTimer = Timer(_exposureThreshold, () {
-      _exposureTimer = null;
-      if (!mounted ||
-          !widget.trackingActive ||
-          _visibleSince == null ||
-          widget.recommendationContext == null) {
-        return;
-      }
-      _exposureReported = true;
-      _trackSafely(
-        () => ref
-            .read(behaviorTrackerProvider)
-            .trackExposure(post.id, trackingContext),
-      );
-    });
+    _startVisibilitySession(trackingContext);
   }
 
   // 恢复追踪（回到前台或标签重新可见）：若卡片仍足够可见，重新开始停留与曝光计时。
@@ -188,13 +170,19 @@ class _PostCardState extends ConsumerState<PostCard>
         _lastVisibleFraction < _visibilityThreshold) {
       return;
     }
+    _startVisibilitySession(widget.recommendationContext!);
+  }
+
+  // 开始（或延续）一段可见会话：记下停留起点，尚未曝光时开始 1 秒曝光计时。
+  // 曝光与停留共用这段会话，因此不复用只管曝光的 SponsoredExposureTimer。
+  void _startVisibilitySession(FeedRecommendationContext trackingContext) {
     final now = DateTime.now();
     _visibleSince ??= now;
     _dwellStartedAt ??= now;
     if (_exposureReported || _exposureTimer != null) return;
-    final trackingContext = widget.recommendationContext!;
     _exposureTimer = Timer(_exposureThreshold, () {
       _exposureTimer = null;
+      // 到点复核：卡片仍挂载、追踪仍开启且会话未被结束才算曝光。
       if (!mounted ||
           !widget.trackingActive ||
           _visibleSince == null ||
