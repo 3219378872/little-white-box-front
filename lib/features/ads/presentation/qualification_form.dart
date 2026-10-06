@@ -13,6 +13,7 @@ import '../../../sdk/data/gateway.dart';
 import '../application/ads_providers.dart';
 import '../data/ad_labels.dart';
 import '../data/ads_repository.dart';
+import '../application/ads_dependencies.dart';
 
 /// 解析 `YYYY-MM-DD` 为当日 UTC 结束时刻；格式错误或不晚于 [now] 时返回 null。
 int? parseQualificationValidUntil(String raw, DateTime now) {

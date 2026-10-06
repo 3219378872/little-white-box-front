@@ -5,10 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/app_toast.dart';
 import '../application/auth_notifier.dart';
-import '../data/auth_repository.dart';
 import 'widgets/verify_code_button.dart';
-
-final _authRepoProvider = Provider((ref) => AuthRepository());
+import '../application/auth_dependencies.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -54,7 +52,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     setState(() => _isLoading = true);
     try {
       final resp = await ref
-          .read(_authRepoProvider)
+          .read(authRepositoryProvider)
           .registerUser(
             username: _usernameCtrl.text,
             password: _passwordCtrl.text,
@@ -166,8 +164,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               const SizedBox(height: 16),
               VerifyCodeField(
                 controller: _codeCtrl,
-                onSend: () =>
-                    ref.read(_authRepoProvider).sendCode(_phoneCtrl.text, 1),
+                onSend: () => ref
+                    .read(authRepositoryProvider)
+                    .sendCode(_phoneCtrl.text, 1),
               ),
               const SizedBox(height: 24),
               FButton(

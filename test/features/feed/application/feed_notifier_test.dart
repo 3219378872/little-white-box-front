@@ -4,6 +4,7 @@ import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
+import 'package:xiaobaihe_app/features/feed/application/feed_dependencies.dart';
 import 'package:xiaobaihe_app/features/feed/application/feed_notifier.dart';
 import 'package:xiaobaihe_app/features/feed/data/feed_models.dart';
 import 'package:xiaobaihe_app/features/feed/data/feed_repository.dart';

@@ -19,14 +19,13 @@ import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../data/post_repository.dart';
 import 'widgets/image_picker_grid.dart';
+import '../application/post_dependencies.dart';
 
 const _maxTitleLength = 120;
 const _maxContentLength = 20000;
 const _maxTagCount = 10;
 const _maxTagLength = 32;
 const _maxImageBytes = 10 * 1024 * 1024;
-
-final _postRepoProvider = Provider((ref) => PostRepository());
 
 class PostEditorPage extends ConsumerStatefulWidget {
   final Object? postId;
@@ -100,7 +99,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
     final generation = _editorGeneration;
     final postId = widget.postId!;
     try {
-      final post = await ref.read(_postRepoProvider).getPostDetail(postId);
+      final post = await ref.read(postRepositoryProvider).getPostDetail(postId);
       if (!_ownsEditor(generation)) return;
       setState(() {
         _titleCtrl.text = post.title;
@@ -199,7 +198,7 @@ class _PostEditorPageState extends ConsumerState<PostEditorPage> {
     final generation = _editorGeneration;
     final postId = widget.postId;
     final revision = _revision;
-    final repo = ref.read(_postRepoProvider);
+    final repo = ref.read(postRepositoryProvider);
     final title = _titleCtrl.text.trim();
     final content = _contentCtrl.text.trim();
     final tags = List<String>.of(_tags);

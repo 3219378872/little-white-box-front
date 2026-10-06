@@ -8,6 +8,7 @@ import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/ad_labels.dart';
 import '../data/ads_repository.dart';
+import 'ads_dependencies.dart';
 
 /// 政策码定义与可选市场、行业；请求失败时退回本地演示配置。
 class AdPolicyCatalog {

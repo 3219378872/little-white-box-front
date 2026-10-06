@@ -3,7 +3,6 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart' show ImagePicker, ImageSource;
 
 import '../../../core/analytics/client_identity_store.dart';
@@ -268,11 +267,3 @@ class AdAssetPicker {
     };
   }
 }
-
-final adsRepositoryProvider = Provider<AdsRepository>((ref) {
-  return AdsRepository(identityStore: ref.read(clientIdentityStoreProvider));
-});
-
-final adAssetPickerProvider = Provider<AdAssetPicker>(
-  (ref) => const AdAssetPicker(),
-);

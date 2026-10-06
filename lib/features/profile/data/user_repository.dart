@@ -4,7 +4,22 @@ import '../../../core/api/json_int64.dart';
 import '../../../sdk/api/api.dart';
 import '../../../sdk/api/gateway.dart' as gw;
 import '../../../sdk/data/gateway.dart';
-import '../application/user_posts_notifier.dart';
+
+/// 用户帖子/收藏分页读取接口；分页 notifier 只依赖它，测试可替换分页行为。
+abstract class UserPostsRepository {
+  Future<GetPostListResp> fetchUserPosts({
+    required Object userId,
+    required String cursor,
+    required int pageSize,
+    int sortBy = 1,
+  });
+
+  Future<GetPostListResp> fetchUserFavorites({
+    required Object userId,
+    required String cursor,
+    required int pageSize,
+  });
+}
 
 class UserRepository implements UserPostsRepository {
   Future<GetUserResp> getUserProfile(Object userId) {

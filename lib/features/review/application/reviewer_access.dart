@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/auth_notifier.dart';
-import '../data/review_repository.dart';
+import 'review_dependencies.dart';
 
 /// 可处理审核任务的角色；`policy_admin` 只管理政策，不进入工作台。
 const reviewWorkbenchRoles = {'reviewer', 'qa', 'qualification_reviewer'};

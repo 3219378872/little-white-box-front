@@ -20,29 +20,27 @@ import '../../comment/application/comment_notifier.dart';
 import '../../comment/presentation/widgets/comment_input.dart';
 import '../../comment/presentation/widgets/comment_item.dart';
 import '../../interaction/application/interaction_notifier.dart';
-import '../../profile/data/user_repository.dart';
-import '../data/post_repository.dart';
+import '../../profile/application/profile_dependencies.dart';
+import '../application/post_dependencies.dart';
 
 part 'post_detail_content.dart';
 part 'post_detail_comments.dart';
 part 'post_detail_actions.dart';
 
-final _postRepoProvider = Provider((ref) => PostRepository());
-
-final _authorRepoProvider = Provider((ref) => UserRepository());
-
 /// Whether the signed-in user follows [authorId]; reuses the profile endpoint.
 final _authorFollowingProvider = FutureProvider.autoDispose
     .family<bool, String>((ref, authorId) async {
       ref.watch(authSessionIdentityProvider);
-      final user = await ref.read(_authorRepoProvider).getUserProfile(authorId);
+      final user = await ref
+          .read(userRepositoryProvider)
+          .getUserProfile(authorId);
       return user.isFollowing;
     });
 
 final _postDetailProvider = FutureProvider.autoDispose
     .family<GetPostResp, String>((ref, postId) {
       ref.watch(authSessionIdentityProvider);
-      return ref.read(_postRepoProvider).getPostDetail(postId);
+      return ref.read(postRepositoryProvider).getPostDetail(postId);
     });
 
 class PostDetailPage extends ConsumerStatefulWidget {
@@ -111,7 +109,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
       context.push('/auth/login');
       return;
     }
-    final repo = ref.read(_authorRepoProvider);
+    final repo = ref.read(userRepositoryProvider);
     final previous = _followOverride;
     setState(() {
       _followOverride = !isFollowing;

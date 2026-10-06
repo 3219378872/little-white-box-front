@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
+import 'package:xiaobaihe_app/features/ads/application/ads_dependencies.dart';
 import 'package:xiaobaihe_app/features/ads/data/ads_repository.dart';
 import 'package:xiaobaihe_app/features/ads/presentation/ad_detail_page.dart';
 import 'package:xiaobaihe_app/features/ads/presentation/ad_editor_page.dart';

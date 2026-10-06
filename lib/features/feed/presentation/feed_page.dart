@@ -11,7 +11,6 @@ import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/load_more_footer.dart';
 import '../../../core/widgets/loading_view.dart';
-import '../../ads/data/ads_repository.dart';
 import '../../behavior/application/behavior_tracker.dart';
 import '../../behavior/data/behavior_event.dart';
 import '../../../core/widgets/forui_pull_to_refresh.dart';
@@ -22,6 +21,7 @@ import '../data/feed_models.dart';
 import 'widgets/feed_side_rail.dart';
 import 'widgets/post_card.dart';
 import 'widgets/sponsored_ad_card.dart';
+import '../../ads/application/ads_dependencies.dart';
 
 class FeedPage extends ConsumerStatefulWidget {
   const FeedPage({super.key});

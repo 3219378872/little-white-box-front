@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../../core/api/api_adapter.dart';
 import '../../../sdk/api/gateway.dart' as gw;
 import '../../../sdk/data/gateway.dart';
@@ -112,7 +110,3 @@ class ReviewMediaContent {
 
   bool get isImage => mimeType.startsWith('image/');
 }
-
-final reviewRepositoryProvider = Provider<ReviewRepository>(
-  (ref) => const ReviewRepository(),
-);

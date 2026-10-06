@@ -10,9 +10,7 @@ import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
-import '../data/user_repository.dart';
-
-final _userRepoProvider = Provider((ref) => UserRepository());
+import '../application/profile_dependencies.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -52,7 +50,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     }
     try {
       final user = await ref
-          .read(_userRepoProvider)
+          .read(userRepositoryProvider)
           .getUserProfile(auth.userId!);
       if (!mounted) return;
       setState(() {
@@ -89,7 +87,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     setState(() => _isLoading = true);
     try {
       await ref
-          .read(_userRepoProvider)
+          .read(userRepositoryProvider)
           .updateUserProfile(
             UpdateProfileReq(
               nickname: _nicknameCtrl.text.trim(),

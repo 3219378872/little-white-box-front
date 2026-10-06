@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/api_exceptions.dart';
@@ -10,6 +9,7 @@ import '../../../core/collections/unique_by.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/message_models.dart';
 import '../data/message_repository.dart';
+import 'message_dependencies.dart';
 
 typedef IdempotencyKeyFactory = String Function();
 
@@ -492,10 +492,6 @@ class UnreadSummaryNotifier extends StateNotifier<UnreadSummaryState> {
     }
   }
 }
-
-final messageRepositoryProvider = Provider<MessageDataSource>((ref) {
-  return const MessageRepository();
-});
 
 final conversationListProvider =
     StateNotifierProvider<ConversationListNotifier, ConversationListState>((

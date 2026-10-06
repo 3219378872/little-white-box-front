@@ -11,6 +11,7 @@ import 'package:xiaobaihe_app/features/assistant/presentation/assistant_page.dar
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/auth/presentation/login_page.dart';
 import 'package:xiaobaihe_app/features/feed/presentation/feed_page.dart';
+import 'package:xiaobaihe_app/features/message/application/message_dependencies.dart';
 import 'package:xiaobaihe_app/features/message/application/message_notifiers.dart';
 import 'package:xiaobaihe_app/features/message/data/message_models.dart';
 import 'package:xiaobaihe_app/features/message/data/message_repository.dart';

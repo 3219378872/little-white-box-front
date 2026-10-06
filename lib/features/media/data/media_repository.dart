@@ -1,5 +1,4 @@
 import 'package:file_selector/file_selector.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart' show ImagePicker, ImageSource;
 
 import '../../../core/api/api_adapter.dart';
@@ -96,8 +95,3 @@ class MediaPicker {
     }
   }
 }
-
-final mediaRepositoryProvider = Provider<MediaRepository>(
-  (ref) => MediaRepository(),
-);
-final mediaPickerProvider = Provider<MediaPicker>((ref) => MediaPicker());

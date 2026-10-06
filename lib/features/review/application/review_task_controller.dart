@@ -6,6 +6,7 @@ import '../../../core/api/idempotency.dart';
 import '../../../sdk/data/gateway.dart';
 import '../data/review_repository.dart';
 import 'reviewer_access.dart';
+import 'review_dependencies.dart';
 
 /// 任务不可再操作的原因；出现后界面只允许返回队列，不自动重试（FX-111）。
 enum ReviewTaskClosure { leaseLost, superseded, decided, forbidden, released }

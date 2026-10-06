@@ -10,7 +10,7 @@ import 'package:xiaobaihe_app/features/behavior/application/behavior_tracker.dar
 import 'package:xiaobaihe_app/features/behavior/data/behavior_event.dart';
 import 'package:xiaobaihe_app/features/feed/data/feed_models.dart';
 import 'package:xiaobaihe_app/features/feed/presentation/widgets/post_card.dart';
-import 'package:xiaobaihe_app/features/interaction/application/interaction_notifier.dart';
+import 'package:xiaobaihe_app/features/interaction/application/interaction_dependencies.dart';
 import 'package:xiaobaihe_app/features/interaction/data/interaction_repository.dart';
 import 'package:xiaobaihe_app/mock/mock_router.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
@@ -203,7 +203,6 @@ void main() {
     final container = createAppProviderContainer(
       overrides: [
         behaviorTrackerProvider.overrideWithValue(tracker),
-        postCardInteractionRepositoryProvider.overrideWithValue(interactions),
         interactionRepositoryProvider.overrideWithValue(interactions),
       ],
     );

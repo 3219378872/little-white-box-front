@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/idempotency.dart';
@@ -9,6 +8,7 @@ import '../../../core/collections/unique_by.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/comment_repository.dart';
+import 'comment_dependencies.dart';
 
 /// 帖子详情页评论区状态：顶级评论分页、楼中楼按需展开、回复目标。
 ///
@@ -325,10 +325,6 @@ class CommentNotifier extends StateNotifier<CommentState> {
     await loadInitial();
   }
 }
-
-final commentRepositoryProvider = Provider<CommentRepository>((ref) {
-  return CommentRepository();
-});
 
 final commentNotifierProvider = StateNotifierProvider.autoDispose
     .family<CommentNotifier, CommentState, String>((ref, postId) {

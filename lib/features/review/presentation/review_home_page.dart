@@ -14,7 +14,7 @@ import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../ads/data/ad_labels.dart';
 import '../application/reviewer_access.dart';
-import '../data/review_repository.dart';
+import '../application/review_dependencies.dart';
 
 final reviewQueueProvider = FutureProvider.autoDispose<ReviewQueueResp>((ref) {
   return ref.read(reviewRepositoryProvider).getQueue();

@@ -13,6 +13,7 @@ import '../../../sdk/data/gateway.dart';
 import '../../ads/data/ad_labels.dart';
 import '../data/review_repository.dart';
 import '../data/review_snapshot.dart';
+import '../application/review_dependencies.dart';
 
 final reviewMediaProvider = FutureProvider.autoDispose
     .family<ReviewMediaContent, (String, String)>((ref, key) {

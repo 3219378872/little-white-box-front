@@ -16,6 +16,7 @@ import '../../media/data/media_repository.dart';
 import '../application/media_send_controller.dart';
 import '../application/message_notifiers.dart';
 import '../data/message_models.dart';
+import '../../media/application/media_dependencies.dart';
 
 class MessageThreadPage extends ConsumerStatefulWidget {
   final Object conversationId;

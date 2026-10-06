@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/core/widgets/cached_avatar.dart';
-import 'package:xiaobaihe_app/features/search/application/search_notifier.dart';
+import 'package:xiaobaihe_app/features/search/application/search_dependencies.dart';
 import 'package:xiaobaihe_app/features/search/data/search_models.dart';
 import 'package:xiaobaihe_app/features/search/data/search_repository.dart';
 import 'package:xiaobaihe_app/features/search/presentation/search_page.dart';

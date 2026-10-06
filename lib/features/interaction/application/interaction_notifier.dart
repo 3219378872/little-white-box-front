@@ -1,9 +1,9 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/interaction_repository.dart';
+import 'interaction_dependencies.dart';
 
 /// 单帖点赞/收藏的乐观关系；计数按各消费端的服务器快照对账。
 /// 服务端失败时回滚并抛出，由 UI 层提示。
@@ -111,10 +111,6 @@ class InteractionNotifier extends StateNotifier<InteractionState> {
     }
   }
 }
-
-final interactionRepositoryProvider = Provider<InteractionRepository>((ref) {
-  return InteractionRepository();
-});
 
 final interactionNotifierProvider = StateNotifierProvider.autoDispose
     .family<InteractionNotifier, InteractionState, String>((ref, postId) {

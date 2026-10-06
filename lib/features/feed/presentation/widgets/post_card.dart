@@ -18,12 +18,7 @@ import '../../../auth/application/auth_notifier.dart';
 import '../../../behavior/application/behavior_tracker.dart';
 import '../../data/feed_models.dart';
 import '../../../interaction/application/interaction_notifier.dart';
-import '../../../interaction/data/interaction_repository.dart';
 import '../../../../sdk/data/gateway.dart';
-
-final postCardInteractionRepositoryProvider = Provider<InteractionRepository>(
-  (ref) => InteractionRepository(),
-);
 
 class PostCard extends ConsumerStatefulWidget {
   final PostItem post;

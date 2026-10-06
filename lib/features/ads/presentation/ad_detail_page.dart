@@ -16,8 +16,8 @@ import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../application/ads_providers.dart';
 import '../data/ad_labels.dart';
-import '../data/ads_repository.dart';
 import 'ad_status_badges.dart';
+import '../application/ads_dependencies.dart';
 
 /// 最新版本与过审版本之间不同的字段（FX-110）。
 class AdContentDiff {

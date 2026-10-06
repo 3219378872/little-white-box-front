@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/api_exceptions.dart';
@@ -8,6 +7,7 @@ import '../../../core/collections/unique_by.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/search_models.dart';
 import '../data/search_repository.dart';
+import 'search_dependencies.dart';
 
 enum SearchPhase { idle, loading, success, failure }
 
@@ -218,10 +218,6 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
   Future<void> retry() => search(state.keyword);
 }
-
-final searchRepositoryProvider = Provider<SearchDataSource>((ref) {
-  return const SearchRepository();
-});
 
 final searchNotifierProvider =
     StateNotifierProvider<SearchNotifier, SearchState>((ref) {

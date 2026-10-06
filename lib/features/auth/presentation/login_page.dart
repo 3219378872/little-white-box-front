@@ -6,10 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../application/auth_notifier.dart';
-import '../data/auth_repository.dart';
 import 'widgets/verify_code_button.dart';
-
-final _authRepoProvider = Provider((ref) => AuthRepository());
+import '../application/auth_dependencies.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -47,7 +45,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
     await _doLogin(
       () => ref
-          .read(_authRepoProvider)
+          .read(authRepositoryProvider)
           .loginWithPassword(_usernameCtrl.text, _passwordCtrl.text),
     );
   }
@@ -59,7 +57,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
     await _doLogin(
       () => ref
-          .read(_authRepoProvider)
+          .read(authRepositoryProvider)
           .loginWithVerifyCode(_phoneCtrl.text, _codeCtrl.text),
     );
   }
@@ -220,7 +218,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         VerifyCodeField(
           controller: _codeCtrl,
           onSend: () =>
-              ref.read(_authRepoProvider).sendCode(_phoneCtrl.text, 2),
+              ref.read(authRepositoryProvider).sendCode(_phoneCtrl.text, 2),
         ),
         const SizedBox(height: 24),
         FButton(

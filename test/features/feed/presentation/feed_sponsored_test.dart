@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:xiaobaihe_app/core/analytics/client_identity_store.dart';
 import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
+import 'package:xiaobaihe_app/features/ads/application/ads_dependencies.dart';
 import 'package:xiaobaihe_app/features/ads/data/ads_repository.dart';
 import 'package:xiaobaihe_app/features/behavior/application/behavior_tracker.dart';
 import 'package:xiaobaihe_app/features/behavior/data/behavior_event.dart';

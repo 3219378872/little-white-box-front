@@ -15,9 +15,9 @@ import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../application/ads_providers.dart';
 import '../data/ad_labels.dart';
-import '../data/ads_repository.dart';
 import 'ad_status_badges.dart';
 import 'qualification_form.dart';
+import '../application/ads_dependencies.dart';
 
 /// 申请或修改广告主主体，并管理行业资质（FX-110）。
 class AdvertiserPage extends ConsumerWidget {

@@ -1,15 +1,14 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
-import '../../../core/analytics/client_identity_store.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
 import '../../../core/collections/unique_by.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/feed_models.dart';
 import '../data/feed_repository.dart';
+import 'feed_dependencies.dart';
 
 class FeedState {
   final List<FeedEntry> entries;
@@ -280,10 +279,6 @@ class AdHideFailure implements Exception {
   @override
   String toString() => 'AdHideFailure(restored: $restored, cause: $cause)';
 }
-
-final feedRepositoryProvider = Provider<FeedPageRepository>((ref) {
-  return FeedRepository(identityStore: ref.read(clientIdentityStoreProvider));
-});
 
 final feedNotifierProvider = StateNotifierProvider.autoDispose
     .family<FeedNotifier, FeedState, FeedKind>((ref, kind) {

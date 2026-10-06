@@ -13,19 +13,13 @@ import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../review/application/reviewer_access.dart';
 import '../application/user_posts_notifier.dart';
-import '../data/personalization_repository.dart';
-import '../data/user_repository.dart';
 import 'widgets/user_post_list.dart';
-
-final _userRepoProvider = Provider((ref) => UserRepository());
-final _personalizationRepoProvider = Provider(
-  (ref) => PersonalizationRepository(),
-);
+import '../application/profile_dependencies.dart';
 
 final _userProfileProvider = FutureProvider.autoDispose
     .family<GetUserResp, String>((ref, userId) {
       ref.watch(authSessionIdentityProvider);
-      return ref.read(_userRepoProvider).getUserProfile(userId);
+      return ref.read(userRepositoryProvider).getUserProfile(userId);
     });
 
 class ProfilePage extends ConsumerWidget {
@@ -125,7 +119,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
   Future<void> _loadPersonalization() async {
     try {
       final preference = await ref
-          .read(_personalizationRepoProvider)
+          .read(personalizationRepositoryProvider)
           .getPreference();
       if (!mounted) return;
       setState(() => _personalizationEnabled = preference.enabled);
@@ -144,7 +138,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
     });
     try {
       await ref
-          .read(_personalizationRepoProvider)
+          .read(personalizationRepositoryProvider)
           .setPreference(enabled: enabled);
     } catch (e) {
       if (!mounted) return;
@@ -161,7 +155,7 @@ class _ProfileContentState extends ConsumerState<_ProfileContent> {
       context.push('/auth/login');
       return;
     }
-    final repo = ref.read(_userRepoProvider);
+    final repo = ref.read(userRepositoryProvider);
     final previousOverride = _followOverride;
     setState(() {
       _followOverride = !isFollowing;

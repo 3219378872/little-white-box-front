@@ -1,4 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/json_int64.dart';
@@ -6,6 +5,7 @@ import '../../../core/collections/unique_by.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../data/user_repository.dart';
+import 'profile_dependencies.dart';
 
 enum UserPostsListType { posts, favorites }
 
@@ -23,21 +23,6 @@ class UserPostsKey {
 
   @override
   int get hashCode => Object.hash(jsonInt64Id(userId), type);
-}
-
-abstract class UserPostsRepository {
-  Future<GetPostListResp> fetchUserPosts({
-    required Object userId,
-    required String cursor,
-    required int pageSize,
-    int sortBy = 1,
-  });
-
-  Future<GetPostListResp> fetchUserFavorites({
-    required Object userId,
-    required String cursor,
-    required int pageSize,
-  });
 }
 
 class UserPostsState {
@@ -209,7 +194,3 @@ final userPostsProvider = StateNotifierProvider.autoDispose
       notifier.loadFirstPage();
       return notifier;
     });
-
-final userPostsRepositoryProvider = Provider<UserPostsRepository>((ref) {
-  return UserRepository();
-});

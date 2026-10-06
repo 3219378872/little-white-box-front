@@ -19,6 +19,7 @@ import '../../../sdk/data/gateway.dart';
 import '../application/ads_providers.dart';
 import '../data/ad_labels.dart';
 import '../data/ads_repository.dart';
+import '../application/ads_dependencies.dart';
 
 /// 单条广告最多 3 张创意图（与 ad-rpc 一致）。
 const maxAdCreatives = 3;

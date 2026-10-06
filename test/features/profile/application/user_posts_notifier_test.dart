@@ -4,6 +4,8 @@ import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
+import 'package:xiaobaihe_app/features/profile/application/profile_dependencies.dart';
+import 'package:xiaobaihe_app/features/profile/data/user_repository.dart';
 import 'package:xiaobaihe_app/features/profile/application/user_posts_notifier.dart';
 import 'package:xiaobaihe_app/sdk/data/gateway.dart';
 

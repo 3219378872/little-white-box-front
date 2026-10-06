@@ -13,7 +13,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
-import '../../post/data/post_repository.dart';
 import '../application/assistant_notifier.dart';
 import '../application/assistant_thread_notifier.dart';
 import '../data/assistant_models.dart';
@@ -42,14 +41,6 @@ final RegExp _repeatedSpacePattern = RegExp(r' {2,}');
 final RegExp _repeatedBlankLinePattern = RegExp(r'\n{3,}');
 
 const _maxImageBytes = 10 * 1024 * 1024;
-
-final assistantImagePickerProvider = Provider<ImagePicker>((ref) {
-  return ImagePicker();
-});
-
-final assistantAttachmentRepositoryProvider = Provider<PostRepository>((ref) {
-  return PostRepository();
-});
 
 String stripCitationMarkers(String text) {
   final withoutEvidenceBlocks = text

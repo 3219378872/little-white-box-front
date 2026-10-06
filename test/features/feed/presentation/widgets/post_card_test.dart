@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
 import 'package:xiaobaihe_app/features/feed/presentation/widgets/post_card.dart';
+import 'package:xiaobaihe_app/features/interaction/application/interaction_dependencies.dart';
 import 'package:xiaobaihe_app/features/interaction/application/interaction_notifier.dart';
 import 'package:xiaobaihe_app/features/interaction/data/interaction_repository.dart';
 import 'package:xiaobaihe_app/mock/mock_router.dart';
@@ -59,10 +60,7 @@ void main() {
       );
     }
     final container = createAppProviderContainer(
-      overrides: [
-        postCardInteractionRepositoryProvider.overrideWithValue(repository),
-        interactionRepositoryProvider.overrideWithValue(repository),
-      ],
+      overrides: [interactionRepositoryProvider.overrideWithValue(repository)],
     );
     addTearDown(container.dispose);
     container.read(authNotifierProvider);
