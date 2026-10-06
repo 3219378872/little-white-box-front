@@ -8,11 +8,14 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/application/auth_notifier.dart';
 import 'features/behavior/application/behavior_tracker.dart';
 
+/// 应用根组件：装配全局绑定、路由与主题，并在 Material 应用壳之上注入 Forui 主题、
+/// toast 与 tooltip 能力。
 class XiaobaiheApp extends ConsumerWidget {
   const XiaobaiheApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 启动即装配：传输层会话失效回调、行为队列恢复。
     ref.watch(authTransportBindingProvider);
     ref.watch(behaviorInitializationProvider);
     final router = ref.watch(routerProvider);
@@ -33,6 +36,7 @@ class XiaobaiheApp extends ConsumerWidget {
       ],
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      // 按系统亮暗选择 Forui 主题，全局 toast 与 tooltip 分组包住所有页面。
       builder: (context, child) => FTheme(
         data: Theme.brightnessOf(context) == Brightness.light
             ? AppTheme.foruiLight

@@ -7,6 +7,8 @@ import 'app.dart';
 import 'core/error/global_error_handlers.dart';
 import 'core/state/app_provider_scope.dart';
 
+/// 真实网关入口：在受保护的 zone 中启动，并把框架、平台与 zone 三类未捕获异常
+/// 统一交给全局错误处理。
 void main() {
   runZonedGuarded(() {
     WidgetsFlutterBinding.ensureInitialized();

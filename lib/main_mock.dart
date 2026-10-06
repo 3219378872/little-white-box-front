@@ -16,7 +16,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   setApiClient(MockHttpClient());
 
-  // Mock web development starts as user 1, matching seedUsers['1'].
+  // Mock web development starts as user 1, matching seedUsers[1].
   await setTokens(
     buildStoredTokens(
       accessToken: mock_router.mockAccessTokenForUser(1),
