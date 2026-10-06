@@ -52,7 +52,7 @@ class AssistantRunReduction {
     );
   }
 
-  // 终止事件结束 run：清空流跟踪、待重试命令与历史下限。
+  // 终止事件结束 run：清空流跟踪、活动命令与历史下限。
   AssistantRunReduction _endRun(AssistantState state) => AssistantRunReduction(
     state: state,
     streams: AssistantStreamTracking.idle,

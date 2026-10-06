@@ -3,8 +3,8 @@ part of 'assistant_notifier.dart';
 // Pure message-list transforms shared by the run reducer and the commands;
 // each takes the current list and returns the next one without touching state.
 
-// Inserts or refreshes the question card; a late pending copy never reopens an
-// answered or superseded request.
+// Inserts or refreshes the question card; a late pending copy never reopens a
+// request that has already left pending.
 List<AssistantMessage> _questionMessages(
   List<AssistantMessage> messages,
   AssistantQuestionRequest question,

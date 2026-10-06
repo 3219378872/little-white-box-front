@@ -1,8 +1,12 @@
 import '../../../core/api/json_int64.dart';
 import '../data/assistant_models.dart';
 
+/// 会话气泡的角色；system 用于记忆变更等系统提示。
 enum AssistantMessageRole { user, assistant, system }
 
+/// 工具步骤的生命周期：running 结束为 completed/failed；需确认的调用经
+/// awaitingConfirmation → confirming 落为 confirmed/declined，run 结束时仍未
+/// 确认则为 expired。
 enum AssistantToolStatus {
   running,
   awaitingConfirmation,
@@ -14,6 +18,7 @@ enum AssistantToolStatus {
   failed,
 }
 
+/// 回复气泡内展示的一步工具调用。
 class AssistantToolStep {
   final String callId;
   final String tool;
@@ -37,6 +42,7 @@ class AssistantToolStep {
   }
 }
 
+/// 已上传、等待随下一条消息发送的图片；[thumbnailUrl] 只用于界面预览。
 class PendingChatImage {
   final Object mediaId;
   final String url;
@@ -49,6 +55,7 @@ class PendingChatImage {
   });
 }
 
+/// 一次发送命令的快照；[requestId] 在重试之间保持不变，保证服务端幂等。
 class PendingAssistantCommand {
   final String message;
   final String requestId;
@@ -62,12 +69,16 @@ class PendingAssistantCommand {
     this.contextPostId = 0,
   });
 
+  /// 用户重发同一文本与上下文时复用本命令（及其 requestId）。
   bool matches(String message, Object contextPostId) {
     return this.message == message &&
         jsonInt64Id(this.contextPostId) == jsonInt64Id(contextPostId);
   }
 }
 
+/// 会话页的一条消息：已持久化消息用数字 ID，乐观用户消息为
+/// `user-<requestId>`，流式回复占位为 `run-<runId>`，记忆变更提示为
+/// `memory-<changeId>-<seq>`。
 class AssistantMessage {
   final AssistantQuestionRequest? questionRequest;
   final AssistantAnswerPresentation? answerPresentation;
@@ -84,6 +95,8 @@ class AssistantMessage {
   final bool isCanceled;
   final bool degraded;
   final String errorCode;
+
+  /// 事件流已送达 done/error 或本地已取消，持久化对账时据此保留错误标记。
   final bool terminalEventReceived;
   final bool memoryUndoing;
   final bool memoryUndone;
@@ -109,10 +122,12 @@ class AssistantMessage {
     this.memoryUndone = false,
   });
 
+  /// 有工具调用正在等待用户确认。
   bool get hasPendingConfirmation => toolSteps.any(
     (step) => step.status == AssistantToolStatus.awaitingConfirmation,
   );
 
+  /// 记忆变更系统提示，可撤销。
   bool get isMemoryChanged => kind == 'memory_changed';
 
   AssistantMessage copyWith({
@@ -157,24 +172,39 @@ class AssistantMessage {
   }
 }
 
+/// Assistant 会话页状态：历史分页、活跃 run 的流式进度、发送中的命令与错误。
 class AssistantState {
   final Object sessionId;
   final Object activeRunId;
+
+  /// 服务端 run 阶段：queued、model_request、tool_executing、waiting_input 等。
   final String activeRunPhase;
+
+  /// 最近一次发送的处置结果，run 开始处理或结束后清除。
   final AssistantDisposition? lastDisposition;
   final List<AssistantMessage> messages;
   final bool isStreaming;
   final bool isSending;
+
+  /// 当前 run 或新消息仍在排队，尚未开始处理。
   final bool isQueued;
   final String? connectionError;
   final List<PendingChatImage> pendingAttachments;
+
+  /// 服务端以 AGENT_NOT_AUTHORIZED 拒绝，需要用户先授权。
   final bool agentAuthorizationRequired;
+
+  /// 在途或失败、可原样重发的命令：发送成功后清除，run 因未授权失败时恢复。
   final PendingAssistantCommand? pendingRetryCommand;
   final bool isLoaded;
   final bool isLoadingHistory;
   final bool hasMoreHistory;
+
+  /// 向前翻页的游标；[hasMoreHistory] 为 false 时无意义。
   final Object nextBeforeId;
   final bool isLoadingOlder;
+
+  /// 加载更早历史失败的错误，独立于 [connectionError]。
   final String? historyError;
 
   const AssistantState({
@@ -198,10 +228,13 @@ class AssistantState {
     this.historyError,
   });
 
+  /// 当前跟随着一个未结束的 run（含排队与等待作答）。
   bool get hasActiveRun => jsonInt64IsPositive(activeRunId);
 
+  /// 发送请求不在途即可再发；活跃 run 期间如何处置由服务端决定。
   bool get canSend => !isSending;
 
+  /// 待重试命令的文本，没有时为空串。
   String get pendingRetryMessage => pendingRetryCommand?.message ?? '';
 
   AssistantState copyWith({

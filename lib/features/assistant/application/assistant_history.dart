@@ -1,6 +1,10 @@
 part of 'assistant_notifier.dart';
 
+// History loading and thread reconciliation: full load, older pages,
+// incremental refresh and settling runs the thread summary reports finished.
 extension _AssistantHistory on AssistantNotifier {
+  // Full reload: thread summary first, then the latest page; resumes the active
+  // run from seq 0 unless history already holds its answer.
   Future<void> _loadHistory() async {
     if (_identityKey.isEmpty || _value.isSending || _value.isLoadingHistory) {
       return;
@@ -16,6 +20,7 @@ extension _AssistantHistory on AssistantNotifier {
     try {
       final thread = await _repository.getThread();
       if (!mounted || generation != _loadGeneration) return;
+      // A different session means the current stream follows stale history.
       if (_value.isLoaded && !_sameRun(thread.sessionId, _value.sessionId)) {
         await _cancelSubscription();
         if (!mounted || generation != _loadGeneration) return;
@@ -25,6 +30,7 @@ extension _AssistantHistory on AssistantNotifier {
       final history = page.messages;
       _lastMessageId = history.isEmpty ? 0 : history.last.id;
       final loadedMessages = [for (final item in history) _fromHistory(item)];
+      // Resume only a run whose terminal answer is not persisted yet.
       final resumeRun =
           thread.hasActiveRun &&
           !_hasPersistedTerminalResponseForRun(
@@ -78,6 +84,9 @@ extension _AssistantHistory on AssistantNotifier {
     }
   }
 
+  // Applies a polled thread summary. Session or active-run changes trigger a
+  // full reload; otherwise sync the run phase, auto-reconnect a dropped stream,
+  // pull newer messages and settle a run the server reports finished.
   Future<bool> _refreshThread(AssistantThreadSummary thread) async {
     if (_identityKey.isEmpty || !_value.isLoaded || _value.isLoadingHistory) {
       return false;
@@ -94,10 +103,12 @@ extension _AssistantHistory on AssistantNotifier {
       await load();
       return mounted && _value.connectionError == null;
     }
+    // Same run: sync phase and queued flag from the summary.
     final observedRunId = _value.activeRunId;
     var changed = false;
     if (thread.hasActiveRun && _sameRun(thread.activeRunId, observedRunId)) {
       final phase = thread.activeRunPhase.trim();
+      // The queue is consumed once the run reaches the model or tool phase.
       final queuedConsumed =
           phase == 'model_request' || phase == 'tool_executing';
       final preserveQueued =
@@ -122,6 +133,7 @@ extension _AssistantHistory on AssistantNotifier {
         changed = true;
       }
     }
+    // Pull messages newer than the local cursor.
     final needsMessageRefresh =
         jsonInt64IsPositive(thread.lastMessageId) &&
         _idIsAfter(thread.lastMessageId, _lastMessageId);
@@ -136,6 +148,8 @@ extension _AssistantHistory on AssistantNotifier {
     return await _settleRunFromThread(thread, observedRunId) || changed;
   }
 
+  // Prepends the previous page (beforeId cursor), skipping ids already shown;
+  // failures go to historyError instead of the connection error.
   Future<bool> _loadOlderHistory() async {
     if (_identityKey.isEmpty ||
         _value.isLoadingHistory ||
@@ -182,6 +196,7 @@ extension _AssistantHistory on AssistantNotifier {
     }
   }
 
+  // Coalesces callers: a request during a running drain triggers one more pass.
   Future<bool> _refreshHistory() {
     if (_identityKey.isEmpty ||
         _value.isLoadingHistory ||
@@ -192,6 +207,7 @@ extension _AssistantHistory on AssistantNotifier {
     return _refreshFuture ??= _drainMessageRefreshes();
   }
 
+  // Runs refresh passes until no new request arrived during the last one.
   Future<bool> _drainMessageRefreshes() async {
     var lastRefreshSucceeded = false;
     try {
@@ -208,12 +224,15 @@ extension _AssistantHistory on AssistantNotifier {
     }
   }
 
+  // Pages forward from the message cursor until caught up, merges the result,
+  // then advances the cursor and marks the thread read.
   Future<bool> _refreshMessagesOnce() async {
     final generation = ++_refreshGeneration;
     final sessionId = _value.sessionId;
     try {
       final history = <AssistantHistoryMessage>[];
       var cursor = _lastMessageId;
+      // Stop when the server reports no more or the cursor fails to advance.
       while (true) {
         final page = await _repository.listMessages(
           sessionId: sessionId,
@@ -230,6 +249,8 @@ extension _AssistantHistory on AssistantNotifier {
         if (!_idIsAfter(nextCursor, cursor)) break;
         cursor = nextCursor;
       }
+      // Merge, then clear the connection error unless a pending retry or a
+      // blocked automatic reconnect still needs it shown.
       final messages = history.isEmpty
           ? _value.messages
           : _mergeHistory(history);
@@ -254,10 +275,14 @@ extension _AssistantHistory on AssistantNotifier {
     }
   }
 
+  // Merges persisted messages into the live list; anything not matched below is
+  // inserted by numeric id.
   List<AssistantMessage> _mergeHistory(List<AssistantHistoryMessage> history) {
     final messages = [..._value.messages];
     for (final item in history) {
       final persisted = _fromHistory(item);
+      // Question cards: match by message or request id; a settled card is never
+      // reopened by a pending copy.
       if (persisted.questionRequest != null) {
         final index = messages.indexWhere(
           (message) =>
@@ -280,6 +305,8 @@ extension _AssistantHistory on AssistantNotifier {
         }
         continue;
       }
+      // Terminal answer: replace the run-<id> placeholder, keeping streamed
+      // extras.
       if (_isTerminalAssistantResponse(persisted) &&
           jsonInt64IsPositive(persisted.runId)) {
         final responseId = 'run-${jsonInt64Id(persisted.runId)}';
@@ -299,6 +326,8 @@ extension _AssistantHistory on AssistantNotifier {
         }
       }
       if (messages.any((message) => message.id == persisted.id)) continue;
+      // Memory notice: swap the event-built notice for the persisted one,
+      // keeping its undo flags.
       if (persisted.isMemoryChanged &&
           jsonInt64IsPositive(persisted.changeId)) {
         final existingIndex = messages.indexWhere(
@@ -329,6 +358,9 @@ extension _AssistantHistory on AssistantNotifier {
     return messages;
   }
 
+  // Persisted text and presentation win; sources, tool steps and attachments
+  // seen while streaming are kept, and error flags survive only if the stream
+  // itself delivered a terminal event.
   AssistantMessage _reconcilePersistedAssistant(
     AssistantMessage existing,
     AssistantMessage persisted,
@@ -359,6 +391,9 @@ extension _AssistantHistory on AssistantNotifier {
     );
   }
 
+  // Ends a run the thread summary no longer reports as active, unless a send is
+  // in flight, a live stream still follows it, or the summary predates messages
+  // already seen for the run.
   Future<bool> _settleRunFromThread(
     AssistantThreadSummary thread,
     Object observedRunId,
@@ -406,18 +441,21 @@ extension _AssistantHistory on AssistantNotifier {
     return true;
   }
 
+  // Raises the active run's floor message id; never lowers it.
   void _advanceActiveRunFloor(Object id) {
     if (jsonInt64IsPositive(id) && _idIsAfter(id, _activeRunFloorMessageId)) {
       _activeRunFloorMessageId = id;
     }
   }
 
+  // Raises the incremental refresh cursor; never lowers it.
   void _advanceMessageCursor(Object id) {
     if (jsonInt64IsPositive(id) && _idIsAfter(id, _lastMessageId)) {
       _lastMessageId = id;
     }
   }
 
+  // Best-effort read receipt after history changes.
   Future<void> _markRead() async {
     try {
       await _repository.markThreadRead();

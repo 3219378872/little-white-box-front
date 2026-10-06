@@ -6,6 +6,7 @@ import '../../../core/api/api_exceptions.dart';
 import '../data/assistant_repository.dart';
 import 'assistant_dependencies.dart';
 
+/// Agent 授权状态；授权版本与当前披露版本比较，决定是否需要重新确认。
 class AgentConsentState {
   final bool loading;
   final bool loaded;
@@ -21,14 +22,17 @@ class AgentConsentState {
     this.currentVersion = 0,
   });
 
+  /// 已授权，但授权版本落后于当前披露版本。
   bool get needsUpgrade =>
       loaded &&
       granted &&
       currentVersion > 0 &&
       consentVersion < currentVersion;
 
+  /// 记忆页可写；否则只读。
   bool get canUseMemory => loaded && granted && !needsUpgrade;
 
+  /// 允许发起 Agent run；否则发送前先弹出授权确认。
   bool get canStartRun => loaded && granted && !needsUpgrade;
 
   AgentConsentState copyWith({
@@ -48,6 +52,7 @@ class AgentConsentState {
   }
 }
 
+/// 按登录身份加载与修改 Agent 授权；并发的 reload 合并为同一个请求。
 class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
   final AssistantDataSource _repository;
   final String _identityKey;
@@ -61,11 +66,13 @@ class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
        _identityKey = identityKey,
        super(const AgentConsentState());
 
+  /// 首次需要授权信息时加载；已加载则不重复请求。
   Future<void> ensureLoaded() {
     if (_identityKey.isEmpty || state.loaded) return Future<void>.value();
     return reload();
   }
 
+  /// 重新拉取授权；已有在途请求时复用它。
   Future<void> reload() {
     if (_identityKey.isEmpty || !mounted) return Future<void>.value();
     final active = _loadFuture;
@@ -78,6 +85,7 @@ class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
     return future;
   }
 
+  // 单次拉取；接口失败时按未授权处理，避免误放行。
   Future<void> _reloadOnce() async {
     final generation = ++_generation;
     state = state.copyWith(loading: true);
@@ -96,6 +104,7 @@ class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
     }
   }
 
+  /// 授予授权后重载；读回仍未反映时，本地先视为已授权。
   Future<void> grant() async {
     if (_identityKey.isEmpty || !mounted) return;
     await _repository.setAgentConsent(granted: true);
@@ -109,6 +118,7 @@ class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
     }
   }
 
+  /// 撤销授权后重载；读回仍为已授权时，本地强制置为未授权。
   Future<void> revoke() async {
     if (_identityKey.isEmpty || !mounted) return;
     await _repository.setAgentConsent(granted: false);
@@ -126,6 +136,7 @@ class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
   }
 }
 
+/// 按登录身份重建；已登录则立即加载。
 final agentConsentNotifierProvider =
     StateNotifierProvider<AgentConsentNotifier, AgentConsentState>((ref) {
       final identityKey = ref.watch(assistantUserKeyProvider);

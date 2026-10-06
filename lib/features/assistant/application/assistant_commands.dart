@@ -1,6 +1,8 @@
 part of 'assistant_notifier.dart';
 
+// 用户触发的命令：发送/重试、答题、工具确认、停止、清空历史与撤销记忆变更。
 extension _AssistantCommands on AssistantNotifier {
+  // 校验后决定复用失败的待重试命令（同文本、同上下文且没有新附件）还是新建命令。
   Future<bool> _sendCommand(String message, {Object contextPostId = 0}) async {
     final normalized = message.trim();
     if (_identityKey.isEmpty ||
@@ -26,6 +28,8 @@ extension _AssistantCommands on AssistantNotifier {
     return _submit(command, addOptimisticMessage: true);
   }
 
+  // 提交命令：乐观插入用户消息，受理后按处置结果对账并决定是否订阅事件流；
+  // 失败时保留为待重试命令。
   Future<bool> _submit(
     PendingAssistantCommand command, {
     required bool addOptimisticMessage,
@@ -33,6 +37,7 @@ extension _AssistantCommands on AssistantNotifier {
     if (_identityKey.isEmpty || _value.isSending || _value.isLoadingHistory) {
       return false;
     }
+    // 乐观更新：以 user-<requestId> 占位，重试同一命令时不重复插入。
     final optimisticId = 'user-${command.requestId}';
     final messages =
         addOptimisticMessage &&
@@ -67,6 +72,7 @@ extension _AssistantCommands on AssistantNotifier {
         contextPostId: command.contextPostId,
       );
       if (!mounted) return false;
+      // 会话切换时作废在途的增量刷新与翻页，并重置消息游标与 run 下限。
       final acceptedMessageId = jsonInt64Id(accepted.messageId);
       final hasAcceptedMessageId = jsonInt64IsPositive(accepted.messageId);
       final sessionChanged = !_sameRun(accepted.sessionId, _value.sessionId);
@@ -79,6 +85,7 @@ extension _AssistantCommands on AssistantNotifier {
         _activeRunFloorMessageId = 0;
       }
       _advanceActiveRunFloor(accepted.messageId);
+      // 把乐观消息换成服务端 ID 并按 ID 顺序就位。
       final userMessages = hasAcceptedMessageId
           ? _reconcileAcceptedUserMessage(
               _value.messages,
@@ -87,6 +94,7 @@ extension _AssistantCommands on AssistantNotifier {
               acceptedRunId: accepted.runId,
             )
           : [..._value.messages];
+      // 历史已带回该 run 的终态回复时不再跟随；否则按处置决定是否流式订阅。
       final queued = accepted.disposition == AssistantDisposition.queued;
       final persistedResponse = _hasPersistedTerminalResponseForRun(
         userMessages,
@@ -101,6 +109,7 @@ extension _AssistantCommands on AssistantNotifier {
               accepted.disposition == AssistantDisposition.redirected ||
               accepted.disposition == AssistantDisposition.steered ||
               queued);
+      // 排队的消息暂不建回复占位，等 run_started 再建。
       final responseId = 'run-${jsonInt64Id(accepted.runId)}';
       final nextMessages = queued || terminalResponse
           ? userMessages
@@ -132,6 +141,7 @@ extension _AssistantCommands on AssistantNotifier {
       );
       _activeCommand = terminalResponse ? null : command;
       if (terminalResponse) _activeRunFloorMessageId = 0;
+      // 不再流式时，断开仍在跟随其他 run 的旧订阅。
       if (!shouldStream &&
           _subscription != null &&
           !_sameRun(_subscribedRunId, accepted.runId)) {
@@ -144,6 +154,7 @@ extension _AssistantCommands on AssistantNotifier {
       return true;
     } on ApiException catch (error) {
       if (!mounted) return false;
+      // 失败：保留命令供重试；Agent 未授权时提示用户先授权。
       final unauthorized = error.message.contains('AGENT_NOT_AUTHORIZED');
       _value = _value.copyWith(
         isSending: false,
@@ -163,12 +174,15 @@ extension _AssistantCommands on AssistantNotifier {
     }
   }
 
+  // 原样重发待重试命令：沿用 requestId，不再插入乐观消息。
   Future<bool> _retryPendingCommand() async {
     final pending = _value.pendingRetryCommand;
     if (pending == null) return false;
     return _submit(pending, addOptimisticMessage: false);
   }
 
+  // 提交提问卡答案：过期问题以新消息续答并重载历史；未过期则回到排队阶段并
+  // 订阅该 run。
   Future<bool> _answerQuestionCommand(
     AssistantQuestionRequest question,
     List<AssistantQuestionAnswer> answers, {
@@ -181,6 +195,7 @@ extension _AssistantCommands on AssistantNotifier {
       _value = _value.copyWith(connectionError: '当前任务结束后再继续此问题');
       return false;
     }
+    // 幂等：同一问题、同一答案在成功前的重试都使用同一个 requestId。
     final fingerprint = jsonEncode([
       question.id,
       continueExpired,
@@ -208,6 +223,7 @@ extension _AssistantCommands on AssistantNotifier {
           answers: answers,
         );
         if (!mounted) return false;
+        // run 已有终态回复：只更新提问卡，不再订阅。
         if (_hasPersistedTerminalResponseForRun(
               _value.messages,
               question.runId,
@@ -245,6 +261,8 @@ extension _AssistantCommands on AssistantNotifier {
     }
   }
 
+  // 工具确认：先乐观置为 confirming，成功落为 confirmed/declined，失败回滚为
+  // 待确认；期间 run 已切换则丢弃结果。
   Future<bool> _respondToConfirmationCommand(
     String callId,
     bool approved,
@@ -309,6 +327,7 @@ extension _AssistantCommands on AssistantNotifier {
     }
   }
 
+  // 停止活跃 run：取消请求成功后断开订阅，把回复标为已取消并结算未完成的工具步骤。
   Future<bool> _stopCommand() async {
     if (!_value.hasActiveRun && !_value.isStreaming) return true;
     final runId = _value.activeRunId;
@@ -353,6 +372,8 @@ extension _AssistantCommands on AssistantNotifier {
     return true;
   }
 
+  // 清空历史：先作废在途加载并停止 run，停止失败则放弃删除；成功后重置为空会话，
+  // 只保留待发附件。
   Future<void> _clearHistoryCommand() async {
     if (_value.isSending || _value.isLoadingHistory) return;
     _loadGeneration++;
@@ -384,6 +405,7 @@ extension _AssistantCommands on AssistantNotifier {
     }
   }
 
+  // 撤销记忆变更：提示上先显示撤销中，成功标为已撤销，失败恢复并报错。
   Future<bool> _undoMemoryChangeCommand(Object changeId) async {
     if (!jsonInt64IsPositive(changeId)) return false;
     _value = _value.copyWith(

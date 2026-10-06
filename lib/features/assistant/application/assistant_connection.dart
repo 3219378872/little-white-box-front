@@ -30,6 +30,8 @@ extension _AssistantConnection on AssistantNotifier {
     );
   }
 
+  // Starts a fresh subscription from [afterSeq]; bumping the generation makes
+  // callbacks of the previous one inert, and stream ids reset on a run change.
   void _subscribe(Object runId, {required Object afterSeq}) {
     // A new subscription comes from an explicit action/new run or from the
     // automatic reconnect gate above. A manual retry may try the same run.

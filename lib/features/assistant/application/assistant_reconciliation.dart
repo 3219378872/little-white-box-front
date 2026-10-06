@@ -1,5 +1,6 @@
 part of 'assistant_notifier.dart';
 
+// 确保 run 有流式回复占位（run-<runId>）；已有占位或已有持久化终态回复时不动。
 List<AssistantMessage> _ensureAssistantIn(
   List<AssistantMessage> messages,
   String id,
@@ -21,10 +22,12 @@ List<AssistantMessage> _ensureAssistantIn(
   ];
 }
 
+// 按消息 ID 精确定位，找不到为 -1。
 int _exactMessageIndex(List<AssistantMessage> messages, String responseId) {
   return messages.indexWhere((message) => message.id == responseId);
 }
 
+// 定位该 run 已持久化（数字 ID）的终态回复，找不到为 -1。
 int _persistedTerminalResponseIndex(
   List<AssistantMessage> messages,
   Object runId,
@@ -38,6 +41,8 @@ int _persistedTerminalResponseIndex(
   );
 }
 
+// run 结束时结算未完成的工具步骤：运行中按 [terminal] 成功或失败，
+// 待确认与确认中一律过期。
 List<AssistantToolStep> _settleSteps(
   List<AssistantToolStep> steps,
   AssistantToolStatus terminal,
@@ -61,6 +66,7 @@ List<AssistantToolStep> _settleSteps(
   ];
 }
 
+// 对指定 ID 的消息应用 [update]。
 List<AssistantMessage> _updateAll(
   List<AssistantMessage> messages,
   String id,
@@ -72,6 +78,7 @@ List<AssistantMessage> _updateAll(
   ];
 }
 
+// 按数字 ID 顺序插入；非数字 ID 的占位直接追加到末尾。
 void _insertNumericMessage(
   List<AssistantMessage> messages,
   AssistantMessage message,
@@ -90,6 +97,7 @@ void _insertNumericMessage(
   }
 }
 
+// 历史中已有该 run 的终态回复（数字 ID），说明 run 已结束、无需再跟随。
 bool _hasPersistedTerminalResponseForRun(
   List<AssistantMessage> messages,
   Object runId,
@@ -103,6 +111,7 @@ bool _hasPersistedTerminalResponseForRun(
   );
 }
 
+// 该 run 的回复已收到终止事件或被本地取消（可能尚未持久化）。
 bool _hasTerminalEventResponseForRun(
   List<AssistantMessage> messages,
   Object runId,
@@ -116,11 +125,14 @@ bool _hasTerminalEventResponseForRun(
   );
 }
 
+// 助手的正式回复（kind 为空或 message），区别于提问卡与系统提示。
 bool _isTerminalAssistantResponse(AssistantMessage message) {
   return message.role == AssistantMessageRole.assistant &&
       (message.kind.isEmpty || message.kind == 'message');
 }
 
+// 发送受理后把乐观消息换成服务端 ID：历史刷新已先带回该消息时停在它的位置，
+// 否则按数字 ID 插入。
 List<AssistantMessage> _reconcileAcceptedUserMessage(
   List<AssistantMessage> messages, {
   required String optimisticId,
@@ -169,6 +181,7 @@ List<AssistantMessage> _reconcileAcceptedUserMessage(
   return result;
 }
 
+// int64 ID 比较：[candidate] 严格大于 [current]；[current] 无效时视为最小。
 bool _idIsAfter(Object candidate, Object current) {
   final next = BigInt.tryParse(jsonInt64Id(candidate));
   final previous = BigInt.tryParse(jsonInt64Id(current));
@@ -176,10 +189,12 @@ bool _idIsAfter(Object candidate, Object current) {
   return previous == null || next > previous;
 }
 
+// 按 int64 文本比较两个 ID（run、会话、变更 ID 通用）。
 bool _sameRun(Object left, Object right) {
   return jsonInt64Id(left) == jsonInt64Id(right);
 }
 
+// 历史消息转为界面消息；未知角色按助手处理。
 AssistantMessage _fromHistory(AssistantHistoryMessage item) {
   final role = switch (item.role) {
     'user' => AssistantMessageRole.user,
@@ -198,6 +213,7 @@ AssistantMessage _fromHistory(AssistantHistoryMessage item) {
   );
 }
 
+// 宽松解析 seq 游标。
 int _asInt(Object? value) {
   if (value is num) return value.toInt();
   return int.tryParse(value?.toString() ?? '') ?? 0;
