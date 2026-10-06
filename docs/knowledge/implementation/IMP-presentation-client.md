@@ -8,11 +8,13 @@ code_paths:
 - lib/core/theme
 - lib/core/widgets
 - lib/core/router/app_router.dart
+- lib/core/shell/main_shell.dart
+- lib/core/shell/auth_frame.dart
 - test/helpers/forui_test_builder.dart
 - tools/heybox_visual_check.mjs
 - tools/heybox_android_check.py
 - tools/redesign_compare_capture.mjs
-updated_at: '2026-10-04'
+updated_at: '2026-10-06'
 ---
 
 # 客户端展示系统实现映射

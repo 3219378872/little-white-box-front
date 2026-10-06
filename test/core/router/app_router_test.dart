@@ -6,6 +6,7 @@ import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xiaobaihe_app/core/router/app_router.dart';
+import 'package:xiaobaihe_app/core/shell/main_shell.dart';
 import 'package:xiaobaihe_app/core/theme/app_theme.dart';
 import 'package:xiaobaihe_app/features/assistant/presentation/assistant_page.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
