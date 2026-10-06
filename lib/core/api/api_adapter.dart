@@ -24,6 +24,7 @@ Future<T> apiCall<T>(
   caller,
 ) {
   final completer = Completer<T>();
+  // 三个回调都只认第一次完成，SDK 先 ok/fail 再 eventually 时不会重复完成。
   caller(
     (data) {
       if (!completer.isCompleted) completer.complete(data);
@@ -35,6 +36,7 @@ Future<T> apiCall<T>(
       }
     },
     () {
+      // ok/fail 都未触发就收尾时视为失败，避免调用方永远等待。
       if (!completer.isCompleted) {
         completer.completeError(const ApiException('请求未返回结果'));
       }
@@ -43,7 +45,7 @@ Future<T> apiCall<T>(
   return completer.future;
 }
 
-/// 带超时的 API 调用
+/// 带超时的 API 调用；超时统一转成 [ApiException]，便于页面按同一路径展示错误。
 Future<T> apiCallWithTimeout<T>(
   void Function(Function(T) ok, Function(String) fail, Function eventually)
   caller, {
@@ -57,6 +59,10 @@ Future<T> apiCallWithTimeout<T>(
 ///
 /// [contentType] 为该 part 的 MIME，如 `image/jpeg`；服务端常对此做白名单校验。
 /// 认证失败时尝试换发令牌并恰好重试一次，与传输层行为一致。
+///
+/// 文件来源二选一：小文件直接给 [bytes]，大文件给 [openRead] 与 [length] 流式发送
+/// （每次重试都会重新打开流）。[isCurrent] 由调用方提供，返回 false 时放弃本次上传
+/// 且不交付结果；[decodeData] 把网关信封中的 `data` 解成业务类型。
 Future<T> apiPostMultipart<T>({
   required String path,
   required String fieldName,
@@ -74,6 +80,7 @@ Future<T> apiPostMultipart<T>({
     throw const ApiException('缺少上传文件');
   }
   try {
+    // 以发起时的会话 revision 为准：期间登出或换号都中止，不把文件传到别的账号下。
     final initialContext = await getTokenSessionContext();
     for (var attempt = 1; ; attempt++) {
       if (isCurrent != null && !isCurrent()) {
@@ -87,12 +94,14 @@ Future<T> apiPostMultipart<T>({
       }
       final session = context.snapshot;
       final tokens = session?.tokens;
+      // 超时时通过 abortTrigger 真正中断底层连接，而不只是丢弃 Future。
       final abort = Completer<void>();
       final req = http.AbortableMultipartRequest(
         'POST',
         apiUri(path),
         abortTrigger: abort.future,
       );
+      // 兼容存储里已带或未带 `Bearer ` 前缀的访问令牌。
       if (tokens != null) {
         final token = tokens.accessToken.trim();
         if (token.isNotEmpty) {
@@ -132,6 +141,7 @@ Future<T> apiPostMultipart<T>({
           );
       final respBody = utf8.decode(rp.bodyBytes);
 
+      // 错误响应可能不是 JSON（如网关/代理页面），解析失败时按无业务码处理。
       dynamic decoded;
       try {
         decoded = respBody.isEmpty ? null : decodeApiJson(respBody);
@@ -140,6 +150,7 @@ Future<T> apiPostMultipart<T>({
       }
 
       if (rp.statusCode < 200 || rp.statusCode >= 300) {
+        // 依次兼容网关与中间层常见的错误消息字段。
         int? code;
         String msg = 'http ${rp.statusCode}';
         if (decoded is Map<String, dynamic>) {
@@ -152,6 +163,7 @@ Future<T> apiPostMultipart<T>({
           if (errMsg != null) msg = errMsg.toString();
         }
 
+        // 仅首轮、且持有 refresh token 的认证失败才换发令牌重试一次。
         final canRetry =
             attempt == 1 &&
             session != null &&
@@ -171,6 +183,7 @@ Future<T> apiPostMultipart<T>({
           }
         }
 
+        // 认证失败且无法刷新：仅当本地凭据仍是发起时那份才清会话，避免误伤新登录。
         final ex = ApiException(msg, code: code);
         if (session != null &&
             (ex.isAuthError || (code == null && rp.statusCode == 401))) {
@@ -178,6 +191,7 @@ Future<T> apiPostMultipart<T>({
         }
         throw ex;
       }
+      // 成功响应也要复核会话与调用方是否仍有效，过期结果按失败处理不交付。
       final latest = await getTokenSessionContext();
       if (latest.revision != initialContext.revision ||
           (isCurrent != null && !isCurrent())) {

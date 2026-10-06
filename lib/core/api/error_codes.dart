@@ -1,3 +1,5 @@
+/// 前端需要按码区分处理的网关业务错误码，数值以后端错误码表为准；按千位分段
+/// 对应通用、用户、内容、互动、媒体、搜索与审核/广告域。
 abstract final class ErrorCodes {
   static const int unknownError = 1;
   static const int paramError = 2;
@@ -45,6 +47,7 @@ abstract final class ErrorCodes {
   static const int adAppealNotAllowed = 7106;
   static const int adMediaInvalid = 7107;
 
+  /// 需要刷新令牌或重新登录的认证类错误码。
   static bool isAuthError(int? code) =>
       code == tokenExpired || code == tokenInvalid || code == loginRequired;
 }

@@ -10,6 +10,7 @@ List<dynamic> requiredResponseList(Map<String, dynamic> response, String key) {
   return value;
 }
 
+/// 读取必填的非负计数字段；缺失、类型不符或为负都视为契约错误抛 [FormatException]。
 int requiredResponseCount(Map<String, dynamic> response, String key) {
   final value = response[key];
   if (value is! int || value < 0) {

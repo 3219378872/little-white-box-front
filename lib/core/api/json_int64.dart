@@ -9,11 +9,14 @@ const jsonInt64DigitThreshold = 16;
 
 final _digitsOnly = RegExp(r'^-?\d+$');
 
+/// 解码网关响应体：先把长整数字面量转成字符串再 [jsonDecode]，空串视为无响应体。
 dynamic decodeApiJson(String source) {
   if (source.isEmpty) return null;
   return jsonDecode(quoteLargeJsonInts(source));
 }
 
+/// 编码请求体：[jsonEncode] 后把 ID 字段里的长数字字符串还原为 JSON number；
+/// null 编码为空串（无请求体）。
 String encodeApiJson(Object? data) {
   if (data == null) return '';
   return unquoteLargeJsonIntStrings(jsonEncode(data));
@@ -38,6 +41,7 @@ String jsonInt64Id(Object? value) {
   return value.toString();
 }
 
+/// 判断实体 ID 是否为正整数；用于区分「未设置/0」与有效 ID，不经过 [int] 以免 Web 端丢位。
 bool jsonInt64IsPositive(Object? value) {
   final id = jsonInt64Id(value);
   if (id.startsWith('-') || id == '0') return false;
@@ -60,6 +64,8 @@ Object jsonInt64JsonValue(Object? value) {
   return id;
 }
 
+/// 把 JSON 文本中位数达到 [jsonInt64DigitThreshold] 的整数字面量加上引号，
+/// 字符串内部、小数与科学计数法保持原样；供 [decodeApiJson] 在解码前调用。
 String quoteLargeJsonInts(String source) {
   final out = StringBuffer();
   var i = 0;
@@ -67,6 +73,7 @@ String quoteLargeJsonInts(String source) {
   var escaped = false;
   while (i < source.length) {
     final unit = source.codeUnitAt(i);
+    // 字符串内部原样复制，只跟踪转义与结束引号。
     if (inString) {
       out.writeCharCode(unit);
       if (escaped) {
@@ -85,6 +92,7 @@ String quoteLargeJsonInts(String source) {
       i++;
       continue;
     }
+    // 只有数字或紧跟数字的负号才开始一个数字字面量。
     final negative = unit == 0x2d;
     final isDigit = unit >= 0x30 && unit <= 0x39;
     if (!negative && !isDigit) {
@@ -160,6 +168,7 @@ String quoteLargeJsonInts(String source) {
         }
       }
     }
+    // 纯整数：位数（不含负号）达到阈值才加引号，短整数仍按 number 解码。
     if (i > digitStart && i - digitStart >= jsonInt64DigitThreshold) {
       out.write('"');
       out.write(source.substring(start, i));
@@ -245,6 +254,7 @@ String unquoteLargeJsonIntStrings(String source) {
   return out.toString();
 }
 
+// 跳过 JSON 空白后是否紧跟冒号，用来判断刚结束的字符串是键名还是值。
 bool _nextNonSpaceIsColon(String source, int i) {
   while (i < source.length) {
     final unit = source.codeUnitAt(i);

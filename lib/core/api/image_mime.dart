@@ -30,6 +30,7 @@ String inferImageMime(String filename, List<int> head) {
   return detectImageMime(filename, head) ?? 'image/jpeg';
 }
 
+// 判断 [bytes] 在 [offset] 处是否以 [magic] 开头；头部字节不足时视为不匹配。
 bool _startsWith(List<int> bytes, List<int> magic, {int offset = 0}) {
   if (bytes.length < offset + magic.length) return false;
   for (var i = 0; i < magic.length; i++) {
