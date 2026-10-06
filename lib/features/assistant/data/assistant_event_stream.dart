@@ -19,6 +19,7 @@ class AssistantStreamException extends ApiException {
     super.message, {
     this.retryable = true,
     super.code,
+    super.detail,
   });
 
   @override
@@ -71,7 +72,12 @@ class AssistantEventStreamClient {
       try {
         response = await _httpClient.send(request);
       } catch (error) {
-        throw AssistantStreamException('无法连接 Assistant: $error');
+        // 网络异常的英文原文只留在 detail，提示按类别给中文。
+        final cause = ApiException.fromClientError(error);
+        throw AssistantStreamException(
+          '无法连接 Assistant：${cause.message}',
+          detail: cause.detail,
+        );
       }
       if (response.statusCode >= 200 && response.statusCode < 300) break;
 
@@ -105,6 +111,7 @@ class AssistantEventStreamClient {
         exception.message,
         code: exception.code,
         retryable: false,
+        detail: exception.detail,
       );
     }
 
@@ -174,7 +181,11 @@ class AssistantEventStreamClient {
     } on AssistantStreamException {
       rethrow;
     } catch (error) {
-      throw AssistantStreamException('Assistant 连接中断: $error');
+      // 读流中途断开仍可续订；底层异常文本不展示给用户。
+      throw AssistantStreamException(
+        'Assistant 连接中断，请重试',
+        detail: error.toString(),
+      );
     }
 
     // 既没终止也没等待用户回答就断开，交给连接层按可重试处理。
@@ -250,7 +261,8 @@ class AssistantEventStreamClient {
     }
   }
 
-  // 把握手失败的响应体转成 ApiException，非 JSON 时截断为有限长度文本。
+  // 把握手失败的响应体转成 ApiException：无业务码的英文文本（代理错误页等）由
+  // ApiException.http 换成中文，原文截断后只留在 detail。
   static ApiException _httpError(int statusCode, String body) {
     try {
       final decoded = decodeApiJson(body);
@@ -261,7 +273,7 @@ class AssistantEventStreamClient {
             decoded['msg'] ??
             decoded['error'] ??
             'Assistant 请求失败';
-        return ApiException(
+        return ApiException.http(
           message.toString(),
           code: codeValue is int ? codeValue : null,
         );
@@ -270,10 +282,11 @@ class AssistantEventStreamClient {
       // 解析失败时落到下方的有界纯文本错误。
     }
     final normalized = body.trim();
-    return ApiException(
-      normalized.isEmpty
-          ? 'Assistant 请求失败 (HTTP $statusCode)'
-          : normalized.substring(0, normalized.length.clamp(0, 200)),
+    if (normalized.isEmpty) {
+      return ApiException('Assistant 请求失败 (HTTP $statusCode)');
+    }
+    return ApiException.http(
+      normalized.substring(0, normalized.length.clamp(0, 200)),
     );
   }
 

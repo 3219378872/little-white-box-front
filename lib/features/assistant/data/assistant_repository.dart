@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/api/api_adapter.dart';
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
+import '../../../core/api/response_fields.dart';
 import '../../../core/api/v2_api_client.dart';
 import '../../../sdk/api/gateway.dart' as gw;
 import '../../../sdk/data/gateway.dart'
@@ -202,7 +203,11 @@ class AssistantRepository implements AssistantDataSource {
     if (raw is! Map) {
       throw const ApiException('Assistant 线程响应格式无效');
     }
-    return AssistantThreadSummary.fromJson(Map<String, dynamic>.from(raw));
+    // 线程里嵌套的提问卡解析失败同样按线程响应无效提示。
+    return decodeResponse(
+      'Assistant 线程响应格式无效',
+      () => AssistantThreadSummary.fromJson(Map<String, dynamic>.from(raw)),
+    );
   }
 
   // GET /api/v2/assistant/messages; only positive ids are sent as cursors.
@@ -226,10 +231,14 @@ class AssistantRepository implements AssistantDataSource {
       },
     );
     final raw = _requiredList(response, 'messages');
-    final messages = [
-      for (final item in raw)
-        AssistantHistoryMessage.fromJson(_requiredObject(item)),
-    ];
+    // 任一历史消息不符合契约都使整页失败，而不是静默丢消息。
+    final messages = decodeResponse(
+      'Assistant 消息响应格式无效',
+      () => [
+        for (final item in raw)
+          AssistantHistoryMessage.fromJson(_requiredObject(item)),
+      ],
+    );
     return AssistantMessagePage(
       messages: messages,
       hasMore: response['hasMore'] == true,
@@ -281,8 +290,12 @@ class AssistantRepository implements AssistantDataSource {
         'answers': [for (final answer in answers) answer.toJson()],
       },
     );
-    return AssistantQuestionRequest.fromJson(
-      Map<String, dynamic>.from(response['questionRequest'] as Map),
+    // 响应必须带回更新后的提问卡；缺失或格式不对都按无效响应提示。
+    return decodeResponse(
+      'Assistant 提问响应格式无效',
+      () => AssistantQuestionRequest.fromJson(
+        Map<String, dynamic>.from(response['questionRequest'] as Map),
+      ),
     );
   }
 
