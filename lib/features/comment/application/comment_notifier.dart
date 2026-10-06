@@ -15,6 +15,7 @@ import 'comment_dependencies.dart';
 ///
 /// 后端契约：列表只含顶级评论，子评论经内嵌预览 + 楼中楼接口按需加载。
 class CommentState {
+  /// 已加载的顶级评论，按页顺序追加。
   final List<CommentItem> comments;
 
   /// 首屏（含重试、切排序）加载中。
@@ -28,17 +29,25 @@ class CommentState {
 
   /// 失败发生在首屏：重试应从第 1 页重建，而不是续拉下一页。
   final bool initialLoadFailed;
+
+  /// 上一页是否满页；满页才认为可能还有下一页。
   final bool hasMore;
+
+  /// 排序方式，原样透传给评论列表接口的 `sortBy` 参数。
   final int sortBy;
 
   // 楼中楼展开状态：key 为顶级评论 id 字符串
   final Set<String> expandedReplies;
+  // 已拉取的楼中楼全量结果；缺失时界面退回评论自带的内嵌预览。
   final Map<String, List<CommentItem>> threadReplies;
+  // 每个楼中楼已加载到的页码，加载更多时据此续拉。
   final Map<String, int> threadPage;
+  // 正在拉取楼中楼的顶级评论 id。
   final Set<String> loadingReplies;
 
   // 回复目标（输入框 @ 展示与创建参数）
   final String? replyToUser;
+  // 为 0 表示直接评论帖子；回复时为被回复的评论 id。
   final Object replyParentId;
   final Object replyUserId;
 
@@ -59,6 +68,7 @@ class CommentState {
     this.replyUserId = 0,
   });
 
+  /// 复制并覆盖字段；可空字段需借 `clearError`/`clearReplyToUser` 显式清空。
   CommentState copyWith({
     List<CommentItem>? comments,
     bool? isLoading,
@@ -96,15 +106,22 @@ class CommentState {
   }
 }
 
+/// 单个帖子评论区的状态机（按 postId 区分实例）：首屏、触底翻页、切排序、楼中楼与发表评论。
+///
+/// `_generation` 标记列表代次，首屏重载后旧的翻页/楼中楼结果一律丢弃；
+/// `_replyGenerations` 再按顶级评论区分楼中楼请求，收起或重复展开都会使旧请求失效。
 class CommentNotifier extends StateNotifier<CommentState> {
   final CommentRepository _repository;
   final String postId;
   static const _pageSize = 20;
   static const _replyPageSize = 10;
 
+  // 已成功加载的最后一页页码。
   int _page = 0;
   int _generation = 0;
   final Map<String, int> _replyGenerations = {};
+  // 发表评论的幂等键与对应命令指纹：同一内容失败重试时复用同一个键，
+  // 避免服务端已落库但响应丢失时重复发表。
   String? _submitIdempotencyKey;
   String? _submitCommandFingerprint;
 
@@ -135,6 +152,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
         pageSize: _pageSize,
         sortBy: state.sortBy,
       );
+      // 已被更新的首屏请求取代或页面已销毁：丢弃结果。
       if (!mounted || generation != _generation) return;
       _page = 1;
       state = state.copyWith(
@@ -163,6 +181,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
         state.error != null) {
       return;
     }
+    // 续拉下一页；只在列表代次未变时追加。
     final page = _page + 1;
     final generation = _generation;
     state = state.copyWith(isLoadingMore: true);
@@ -189,8 +208,10 @@ class CommentNotifier extends StateNotifier<CommentState> {
     }
   }
 
+  /// 错误态的重试入口：已有列表且失败发生在翻页时续拉下一页，否则从第 1 页重建。
   Future<void> retry() async {
     if (state.comments.isNotEmpty && !state.initialLoadFailed) {
+      // 先清掉错误，否则 loadMore 会因未处理的失败而直接返回。
       if (state.error != null) {
         state = state.copyWith(clearError: true);
       }
@@ -200,6 +221,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
     await loadInitial();
   }
 
+  /// 切换排序：清空当前列表后按新排序重新加载首屏。
   Future<void> selectSort(int value) async {
     if (value == state.sortBy) return;
     state = state.copyWith(
@@ -211,11 +233,12 @@ class CommentNotifier extends StateNotifier<CommentState> {
     await loadInitial();
   }
 
-  /// 展开/收起楼中楼。首次展开用内嵌预览即时渲染，同时拉取第一页全量数据。
-  /// 拉取失败时回滚展开态并抛出，由 UI 提示。
+  /// 展开/收起楼中楼。展开时先用内嵌预览即时渲染，同时拉取第一页全量数据。
+  /// 拉取失败时保持展开态（继续展示内嵌预览）并抛出，由 UI 提示。
   Future<void> toggleReplies(CommentItem comment) async {
     final id = jsonInt64Id(comment.id);
     final expanded = {...state.expandedReplies};
+    // 已展开则收起：作废该楼的在途请求并清除加载标记。
     if (!expanded.add(id)) {
       expanded.remove(id);
       _replyGenerations[id] = (_replyGenerations[id] ?? 0) + 1;
@@ -225,6 +248,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
       );
       return;
     }
+    // 展开：丢弃旧的全量缓存让界面先显示内嵌预览，再拉第一页。
     final threadReplies = Map<String, List<CommentItem>>.of(state.threadReplies)
       ..remove(id);
     final threadPage = Map<String, int>.of(state.threadPage)..remove(id);
@@ -237,6 +261,9 @@ class CommentNotifier extends StateNotifier<CommentState> {
     await _fetchReplyThread(comment, page: 1, append: false);
   }
 
+  /// 加载楼中楼下一页；未展开或正在加载时忽略。
+  ///
+  /// 首页曾拉取失败（无页码记录）时从第 1 页重新拉取而不是追加。
   Future<void> loadMoreReplies(CommentItem comment) async {
     final id = jsonInt64Id(comment.id);
     if (!state.expandedReplies.contains(id) ||
@@ -252,6 +279,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
     );
   }
 
+  // 拉取一页楼中楼并写回缓存；用列表代次、楼中楼代次与展开态共同判断结果是否仍然有效。
   Future<void> _fetchReplyThread(
     CommentItem comment, {
     required int page,
@@ -273,6 +301,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
         pageSize: _replyPageSize,
       );
       if (!isCurrent()) return;
+      // 追加模式在已有全量结果后拼接，首页则整体替换内嵌预览。
       final existing = append
           ? (state.threadReplies[id] ?? const <CommentItem>[])
           : const <CommentItem>[];
@@ -298,6 +327,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
     }
   }
 
+  /// 设置回复目标：输入框据此显示「回复 xxx」，提交时带上父评论与被回复用户。
   void setReplyTarget({
     required String? userName,
     required Object parentId,
@@ -313,6 +343,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
   /// 创建评论；成功后清空回复目标并从第 1 页刷新。
   /// 失败时抛出由 UI 提示，本地回复目标保持不变。
   Future<void> submit(String content) async {
+    // 命令指纹覆盖帖子、回复目标与内容；任一变化都视为新命令，换新的幂等键。
     final normalized = content.trim();
     final commandFingerprint = [
       postId,
@@ -325,6 +356,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
       _submitIdempotencyKey = newIdempotencyKey();
       _submitCommandFingerprint = commandFingerprint;
     }
+    // 发表成功后才释放幂等键；失败时异常直接抛给 UI，键保留给下一次重试。
     await _repository.createNewComment(
       CreateCommentReq(
         postId: postId,
@@ -351,6 +383,7 @@ class CommentNotifier extends StateNotifier<CommentState> {
   }
 }
 
+/// 按帖子 id 提供评论区状态；离开详情页自动释放，登录身份变化时重建。
 final commentNotifierProvider = StateNotifierProvider.autoDispose
     .family<CommentNotifier, CommentState, String>((ref, postId) {
       ref.watch(authSessionIdentityProvider);

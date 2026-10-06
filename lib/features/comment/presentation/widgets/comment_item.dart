@@ -6,6 +6,9 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/cached_avatar.dart';
 import '../../../../sdk/data/gateway.dart';
 
+/// 评论区中的一条顶级评论及其楼中楼区块，供帖子详情页的评论列表使用。
+///
+/// 收起时最多展示两条预览回复，展开后展示 [replies] 全部内容与「加载更多回复」。
 class CommentItemWidget extends StatelessWidget {
   final CommentItem comment;
 
@@ -16,10 +19,14 @@ class CommentItemWidget extends StatelessWidget {
   final num replyCount;
   final bool expanded;
   final bool loadingReplies;
+
+  /// 展开且还有未加载的回复时为 true，显示「加载更多回复」。
   final bool hasMoreReplies;
   final VoidCallback? onToggleReplies;
   final VoidCallback? onLoadMoreReplies;
   final VoidCallback? onReply;
+
+  /// 点楼中楼某条回复时回复该用户。
   final ValueChanged<CommentItem>? onReplyToReply;
   final VoidCallback? onLike;
 
@@ -47,6 +54,7 @@ class CommentItemWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildComment(context, comment),
+          // 楼中楼区块：有回复数或预览时才显示。
           if (replyCount > 0 || replies.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 44, top: 8, bottom: 12),
@@ -58,6 +66,7 @@ class CommentItemWidget extends StatelessWidget {
                 padding: const EdgeInsets.all(8),
                 child: Column(
                   children: [
+                    // 回复列表：收起时只取前两条且截断为三行。
                     for (final reply in expanded ? replies : replies.take(2))
                       FTappable(
                         onPress: onReplyToReply == null
@@ -91,6 +100,7 @@ class CommentItemWidget extends StatelessWidget {
                           ),
                         ),
                       ),
+                    // 加载中指示或「加载更多回复」入口。
                     if (loadingReplies)
                       const Padding(
                         padding: EdgeInsets.all(8),
@@ -106,6 +116,7 @@ class CommentItemWidget extends StatelessWidget {
                           ),
                         ),
                       ),
+                    // 展开/收起切换。
                     FTappable(
                       onPress: onToggleReplies,
                       child: ConstrainedBox(
@@ -142,6 +153,7 @@ class CommentItemWidget extends StatelessWidget {
     );
   }
 
+  // 评论主体：头像、昵称与点赞、时间、正文和回复按钮。
   Widget _buildComment(BuildContext context, CommentItem item) {
     final theme = context.theme;
     final muted = theme.colors.mutedForeground;
