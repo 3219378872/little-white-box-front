@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/assistant/application/assistant_thread_notifier.dart';
 import '../../features/auth/application/auth_notifier.dart';
 import '../../features/message/application/message_providers.dart';
-import '../../features/review/application/reviewer_access.dart';
+import '../../features/review/presentation/reviewer_access_refresh_binding.dart';
 import '../theme/app_theme.dart';
 import '../widgets/content_constraint.dart';
 import '../router/app_routes.dart';

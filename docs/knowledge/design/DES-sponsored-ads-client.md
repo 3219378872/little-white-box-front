@@ -150,7 +150,7 @@ CTA 1～32 字符与 https 落地页，最终以服务端为准；常见业务�
   主导航保持 5 项。广告主控制台对已认证用户可见，审核工作台只对 reviewer、qa 或 qualification_reviewer
   可见（`policy_admin` 只管理政策，不进入工作台）。
 - 角色来自登录后请求的审核员信息接口，存放在 Riverpod provider（`reviewerAccessProvider`）中；应用回到前台
-  （`MainShell` 中的 `ReviewerAccessRefreshBinding`）或审核接口返回 7003 时刷新。
+  （`MainShell` 中的 `ReviewerAccessRefreshBinding`，位于 review/presentation）或审核接口返回 7003 时刷新。
 - `/review*` 在非审核员访问时显示无权限页；服务端仍是唯一权限依据。
 
 ## 接口与 SDK
