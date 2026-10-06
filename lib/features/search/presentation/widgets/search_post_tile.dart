@@ -69,6 +69,7 @@ class SearchPostTile extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
+            // 标题：按用户关键词本地高亮，无标题时给占位文案。
             Text.rich(
               TextSpan(
                 children: highlightKeyword(
@@ -83,6 +84,7 @@ class SearchPostTile extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
+            // 正文命中片段：服务端未给片段时整行省略。
             if (highlight.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text.rich(
@@ -96,6 +98,7 @@ class SearchPostTile extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 10),
+            // 互动计数，右对齐弱化展示。
             Align(
               alignment: Alignment.centerRight,
               child: Text(

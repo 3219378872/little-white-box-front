@@ -25,6 +25,7 @@ class SearchPage extends ConsumerStatefulWidget {
   ConsumerState<SearchPage> createState() => _SearchPageState();
 }
 
+// 持有搜索框控制器与焦点，把输入事件转交给 SearchNotifier。
 class _SearchPageState extends ConsumerState<SearchPage> {
   late final TextEditingController _controller;
   final _focusNode = FocusNode();
@@ -40,6 +41,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     _focusNode.addListener(_refresh);
   }
 
+  // 输入或焦点变化时重建，以更新「取消」按钮的显隐。
   void _refresh() => setState(() {});
 
   @override
@@ -49,33 +51,39 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     super.dispose();
   }
 
+  // 提交搜索：键盘提交传入当前值，其他入口读取输入框文本。
   void _submit([String? value]) {
     ref.read(searchNotifierProvider.notifier).search(value ?? _controller.text);
   }
 
+  // 点最近搜索或标签：回填输入框、收起键盘后直接搜索。
   void _searchFor(String keyword) {
     _controller.text = keyword;
     _focusNode.unfocus();
     _submit(keyword);
   }
 
+  // 取消：清空输入、收起键盘并回到空闲页。
   void _cancel() {
     _controller.clear();
     _focusNode.unfocus();
     ref.read(searchNotifierProvider.notifier).clear();
   }
 
+  // 标签页下标与 SearchScope 枚举顺序一致。
   void _selectScope(int index) {
     ref
         .read(searchNotifierProvider.notifier)
         .selectScope(SearchScope.values[index]);
   }
 
+  // 打开帖子详情；测试注入回调时不走路由。
   void _openPost(Object id) {
     final callback = widget.onOpenPost;
     callback == null ? context.push(AppRoutes.postDetail(id)) : callback(id);
   }
 
+  // 打开用户主页；测试注入回调时不走路由。
   void _openUser(Object id) {
     final callback = widget.onOpenUser;
     callback == null ? context.push(AppRoutes.userProfile(id)) : callback(id);
@@ -84,6 +92,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(searchNotifierProvider);
+    // 关键词由别处改写（如点标签再搜）时同步回输入框；与输入框去空白后相同则不覆盖。
     ref.listen<String>(
       searchNotifierProvider.select((state) => state.keyword),
       (previous, next) {
@@ -92,12 +101,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         }
       },
     );
+    // 有焦点、有输入或已离开空闲态时才显示「取消」，否则留出右侧间距。
     final showCancel =
         _focusNode.hasFocus ||
         _controller.text.isNotEmpty ||
         state.phase != SearchPhase.idle;
     return Column(
       children: [
+        // 顶部搜索栏：输入框 + 取消按钮。
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppTheme.pageInset,
@@ -141,6 +152,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ],
           ),
         ),
+        // 范围标签页：只用作切换器，内容统一由下方结果区渲染。
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppTheme.pageInset),
           child: FTabs(
@@ -155,6 +167,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ],
           ),
         ),
+        // 结果区随搜索阶段切换。
         Expanded(child: _buildBody(state)),
       ],
     );
@@ -174,6 +187,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         AppTheme.space6,
       ),
       children: [
+        // 标题行：「最近搜索」与清空按钮。
         Row(
           children: [
             Expanded(
@@ -198,6 +212,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ],
         ),
         const SizedBox(height: AppTheme.space2),
+        // 历史关键词按钮，点击即重搜。
         Wrap(
           spacing: AppTheme.space2,
           runSpacing: AppTheme.space2,
@@ -230,6 +245,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       ),
       SearchPhase.success => Column(
         children: [
+          // 降级横幅：列出未能返回的结果类型。
           if (state.results.degraded)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -243,6 +259,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ),
             ),
           Expanded(
+            // 零命中给空态，否则交给结果列表（含加载更多）。
             child: state.results.isEmpty
                 ? EmptyView(
                     message: _emptySearchMessage(state.results),

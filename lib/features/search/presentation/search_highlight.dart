@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 
+// A balanced, non-greedy `<em>…</em>` pair; the group is the highlighted hit.
 final _emTag = RegExp(r'<em>(.*?)</em>', caseSensitive: false, dotAll: true);
+// Any stray `<em>` or `</em>` left over from unbalanced markup.
 final _anyTag = RegExp(r'</?em>', caseSensitive: false);
 
 /// Turns the server highlight markup (`<em>` around matches) into spans.
@@ -10,6 +12,7 @@ final _anyTag = RegExp(r'</?em>', caseSensitive: false);
 List<InlineSpan> parseEmHighlight(String source, TextStyle mark) {
   final spans = <InlineSpan>[];
   var cursor = 0;
+  // Alternate plain text and highlighted hits, stripping stray tags from both.
   for (final match in _emTag.allMatches(source)) {
     if (match.start > cursor) {
       final plain = source
@@ -21,6 +24,7 @@ List<InlineSpan> parseEmHighlight(String source, TextStyle mark) {
     if (hit.isNotEmpty) spans.add(TextSpan(text: hit, style: mark));
     cursor = match.end;
   }
+  // Trailing plain text after the last hit.
   if (cursor < source.length) {
     final rest = source.substring(cursor).replaceAll(_anyTag, '');
     if (rest.isNotEmpty) spans.add(TextSpan(text: rest));
@@ -43,6 +47,7 @@ List<InlineSpan> highlightKeyword(String text, String keyword, TextStyle mark) {
   }
   final spans = <InlineSpan>[];
   var cursor = 0;
+  // Walk every non-overlapping occurrence, emitting plain gaps and marked hits.
   while (true) {
     final index = haystack.indexOf(needle, cursor);
     if (index < 0) break;
