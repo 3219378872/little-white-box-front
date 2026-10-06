@@ -190,6 +190,50 @@ final _runEventScenarios = <_RunScenario>[
       expect(steps[1].status, AssistantToolStatus.running);
     },
   ),
+  // tool_result 的 summary 是后端执行结果码（tool_execution.go 的 outcome），
+  // 不是给用户看的说明。
+  _RunScenario(
+    'tool_result outcomes set the step status without leaking the code',
+    events: [
+      for (final id in ['ok', 'again', 'bad', 'down', 'text'])
+        _tool(AssistantEventType.toolCall, id, summary: 'search_posts'),
+      _tool(AssistantEventType.toolResult, 'ok', summary: 'success'),
+      _tool(AssistantEventType.toolResult, 'again', summary: 'replay'),
+      _tool(AssistantEventType.toolResult, 'bad', summary: 'invalid'),
+      _tool(AssistantEventType.toolResult, 'down', summary: 'unavailable'),
+      _tool(AssistantEventType.toolResult, 'text', summary: '找到 3 篇帖子'),
+    ],
+    verify: (state, initial) {
+      final steps = _response(state).toolSteps;
+      expect(steps.map((step) => step.status), [
+        AssistantToolStatus.completed,
+        AssistantToolStatus.completed,
+        AssistantToolStatus.failed,
+        AssistantToolStatus.failed,
+        AssistantToolStatus.completed,
+      ]);
+      expect(steps.map((step) => step.summary), [
+        'search_posts',
+        'search_posts',
+        '参数无效',
+        '工具执行失败',
+        '找到 3 篇帖子',
+      ]);
+    },
+  ),
+  _RunScenario(
+    'a failed tool step stays failed when the run completes',
+    events: [
+      _tool(AssistantEventType.toolCall, 'down', summary: 'search_posts'),
+      _tool(AssistantEventType.toolResult, 'down', summary: 'unavailable'),
+      _done,
+    ],
+    verify: (state, initial) {
+      final step = _response(state).toolSteps.single;
+      expect(step.status, AssistantToolStatus.failed);
+      expect(step.summary, '工具执行失败');
+    },
+  ),
   _RunScenario(
     'confirm_required waits for user confirmation',
     events: [_tool(AssistantEventType.confirmRequired, 'c1', summary: '写入记忆')],

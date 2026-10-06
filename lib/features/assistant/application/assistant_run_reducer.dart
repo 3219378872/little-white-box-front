@@ -129,15 +129,10 @@ AssistantRunReduction reduceAssistantRunEvent(
         ),
       );
     case AssistantEventType.toolResult:
+      final (status, call) = _toolResultOutcome(event.toolCall!);
       state = state.copyWith(
         sessionId: sessionId,
-        messages: _upsertTool(
-          state.messages,
-          responseId,
-          runId,
-          event.toolCall!,
-          AssistantToolStatus.completed,
-        ),
+        messages: _upsertTool(state.messages, responseId, runId, call, status),
       );
     case AssistantEventType.confirmRequired:
       state = state.copyWith(
@@ -259,6 +254,26 @@ AssistantRunReduction reduceAssistantRunEvent(
       );
   }
   return reduction.copyWith(state: state);
+}
+
+// tool_result 的 summary 是后端执行结果码而非说明：成功与重放记为完成并保留原说明
+// （空 summary 不覆盖），参数无效与执行失败记为失败并换成中文说明；其他值视为
+// 真正的摘要，按原样覆盖。
+(AssistantToolStatus, AssistantToolCall) _toolResultOutcome(
+  AssistantToolCall call,
+) {
+  AssistantToolCall withSummary(String summary) => AssistantToolCall(
+    callId: call.callId,
+    tool: call.tool,
+    summary: summary,
+    payloadJson: call.payloadJson,
+  );
+  return switch (call.summary) {
+    'success' || 'replay' => (AssistantToolStatus.completed, withSummary('')),
+    'invalid' => (AssistantToolStatus.failed, withSummary('参数无效')),
+    'unavailable' => (AssistantToolStatus.failed, withSummary('工具执行失败')),
+    _ => (AssistantToolStatus.completed, call),
+  };
 }
 
 // 问题事件：pending 时暂停流并移除仅含提问步骤的空占位；已回答/被取代时

@@ -325,11 +325,12 @@ void _finishResearch(int runId) {
       'summary': '检索社区资料',
     },
   });
+  // 与服务端一致：tool_result 的 summary 是执行结果码，不是说明文字。
   _researchEvent(runId, 'tool_result', {
     'toolCall': {
       'callId': 'search-$runId',
       'tool': 'search_posts',
-      'summary': '已取得社区资料',
+      'summary': 'success',
     },
   });
   _researchEvent(runId, 'answer_committed', {
