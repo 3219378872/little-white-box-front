@@ -9,6 +9,8 @@ import '../../../core/api/json_int64.dart';
 import '../../../core/auth/jwt_decoder.dart';
 import '../../../core/auth/session_tokens.dart';
 import '../../../sdk/api/api.dart' as sdk_api;
+import '../data/auth_repository.dart';
+import 'auth_dependencies.dart';
 
 class AuthState {
   final bool isAuthenticated;
@@ -47,11 +49,23 @@ class AuthChangeNotifier extends ChangeNotifier {
   void notify() => notifyListeners();
 }
 
+/// 验证码用途，取值与网关 `SendVerifyCodeReq.type` 一致。
+enum VerifyCodePurpose {
+  register(1),
+  login(2);
+
+  final int wireType;
+  const VerifyCodePurpose(this.wireType);
+}
+
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthChangeNotifier _changeNotifier;
+  final AuthRepository _repository;
   Future<void> _operationTail = Future<void>.value();
 
-  AuthNotifier(this._changeNotifier) : super(const AuthState()) {
+  AuthNotifier(this._changeNotifier, {AuthRepository? repository})
+    : _repository = repository ?? AuthRepository(),
+      super(const AuthState()) {
     unawaited(_serialize(_restoreSession));
   }
 
@@ -112,6 +126,78 @@ class AuthNotifier extends StateNotifier<AuthState> {
     });
   }
 
+  /// 用户名密码登录；返回是否已开启新会话。
+  ///
+  /// [isCurrent] 在登录响应返回后复核发起页面仍在前台：用户已离开时迟到的成功响应
+  /// 不得替换当前会话。
+  Future<bool> loginWithPassword(
+    String username,
+    String password, {
+    required bool Function() isCurrent,
+  }) async {
+    final resp = await _repository.loginWithPassword(username, password);
+    return _startSessionIfCurrent(
+      resp.userId,
+      resp.token,
+      resp.refreshToken,
+      isCurrent,
+    );
+  }
+
+  /// 手机验证码登录；迟到响应的处理同 [loginWithPassword]。
+  Future<bool> loginWithVerifyCode(
+    String phone,
+    String code, {
+    required bool Function() isCurrent,
+  }) async {
+    final resp = await _repository.loginWithVerifyCode(phone, code);
+    return _startSessionIfCurrent(
+      resp.userId,
+      resp.token,
+      resp.refreshToken,
+      isCurrent,
+    );
+  }
+
+  /// 注册并直接以新账号登录；迟到响应的处理同 [loginWithPassword]。
+  Future<bool> register({
+    required String username,
+    required String password,
+    required String phone,
+    required String verifyCode,
+    required bool Function() isCurrent,
+  }) async {
+    final resp = await _repository.registerUser(
+      username: username,
+      password: password,
+      phone: phone,
+      verifyCode: verifyCode,
+    );
+    return _startSessionIfCurrent(
+      resp.userId,
+      resp.token,
+      resp.refreshToken,
+      isCurrent,
+    );
+  }
+
+  /// 向 [phone] 发送指定用途的短信验证码。
+  Future<void> sendVerifyCode(String phone, VerifyCodePurpose purpose) {
+    return _repository.sendCode(phone, purpose.wireType);
+  }
+
+  // 认证接口成功后，只有发起页面仍是当前页面才写入令牌并开启会话。
+  Future<bool> _startSessionIfCurrent(
+    Object userId,
+    String token,
+    String refreshToken,
+    bool Function() isCurrent,
+  ) async {
+    if (!isCurrent()) return false;
+    await onLoginSuccess(userId, token, refreshToken: refreshToken);
+    return true;
+  }
+
   Future<void> logout() => _serialize(_resetSession);
 
   /// Only clears the in-memory identity that owned the rejected credentials.
@@ -166,7 +252,10 @@ final _authChangeNotifierProvider = Provider((ref) => AuthChangeNotifier());
 final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((
   ref,
 ) {
-  return AuthNotifier(ref.read(_authChangeNotifierProvider));
+  return AuthNotifier(
+    ref.read(_authChangeNotifierProvider),
+    repository: ref.read(authRepositoryProvider),
+  );
 });
 
 /// 供 GoRouter refreshListenable 使用

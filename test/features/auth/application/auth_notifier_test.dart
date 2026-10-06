@@ -1,15 +1,112 @@
 import 'dart:convert';
 
 import 'package:xiaobaihe_app/core/state/app_provider_scope.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xiaobaihe_app/features/auth/application/auth_dependencies.dart';
 import 'package:xiaobaihe_app/features/auth/application/auth_notifier.dart';
+import 'package:xiaobaihe_app/features/auth/data/auth_repository.dart';
+import 'package:xiaobaihe_app/sdk/data/gateway.dart';
 import 'package:xiaobaihe_app/sdk/api/api.dart' as sdk_api;
 import 'package:xiaobaihe_app/sdk/vars/kv.dart';
+
+// 固定返回同一账号的登录/注册响应，并记录验证码请求。
+class _FakeAuthRepository extends AuthRepository {
+  final List<(String, int)> codes = [];
+
+  @override
+  Future<LoginResp> loginWithPassword(String username, String password) async {
+    return LoginResp(userId: 7, token: 'access-7', refreshToken: 'refresh-7');
+  }
+
+  @override
+  Future<RegisterResp> registerUser({
+    required String username,
+    required String password,
+    required String phone,
+    required String verifyCode,
+  }) async {
+    return RegisterResp(userId: 8, token: 'access-8', refreshToken: '');
+  }
+
+  @override
+  Future<SendVerifyCodeResp> sendCode(String phone, int type) async {
+    codes.add((phone, type));
+    return SendVerifyCodeResp();
+  }
+}
+
+typedef _AuthHarness = ({
+  ProviderContainer container,
+  _FakeAuthRepository repository,
+});
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   tearDown(() => sdk_api.onSessionInvalid = null);
+
+  group('auth commands', () {
+    _AuthHarness create() {
+      final repository = _FakeAuthRepository();
+      final container = createAppProviderContainer(
+        overrides: [authRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      return (container: container, repository: repository);
+    }
+
+    test('login starts a session only while the page is current', () async {
+      final (:container, repository: _) = create();
+      final notifier = container.read(authNotifierProvider.notifier);
+      await pumpEventQueue();
+
+      final stale = await notifier.loginWithPassword(
+        'neo',
+        'secret',
+        isCurrent: () => false,
+      );
+      expect(stale, isFalse);
+      expect(container.read(authNotifierProvider).isAuthenticated, isFalse);
+
+      final started = await notifier.loginWithPassword(
+        'neo',
+        'secret',
+        isCurrent: () => true,
+      );
+      expect(started, isTrue);
+      final state = container.read(authNotifierProvider);
+      expect(state.isAuthenticated, isTrue);
+      expect(state.token, 'access-7');
+    });
+
+    test('register signs in as the new account', () async {
+      final (:container, repository: _) = create();
+      final notifier = container.read(authNotifierProvider.notifier);
+      await pumpEventQueue();
+
+      final started = await notifier.register(
+        username: 'neo',
+        password: 'secret',
+        phone: '13800000000',
+        verifyCode: '123456',
+        isCurrent: () => true,
+      );
+
+      expect(started, isTrue);
+      expect(container.read(authNotifierProvider).userId, 8);
+    });
+
+    test('verify codes carry the gateway purpose type', () async {
+      final (:container, :repository) = create();
+      final notifier = container.read(authNotifierProvider.notifier);
+
+      await notifier.sendVerifyCode('138', VerifyCodePurpose.register);
+      await notifier.sendVerifyCode('139', VerifyCodePurpose.login);
+
+      expect(repository.codes, [('138', 1), ('139', 2)]);
+    });
+  });
 
   test('onLoginSuccess 持久化双令牌并解出有效期', () async {
     final container = createAppProviderContainer();

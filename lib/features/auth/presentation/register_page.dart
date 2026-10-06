@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../application/auth_notifier.dart';
 import 'widgets/verify_code_button.dart';
-import '../application/auth_dependencies.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -51,24 +50,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     final attempt = ++_registerAttempt;
     setState(() => _isLoading = true);
     try {
-      final resp = await ref
-          .read(authRepositoryProvider)
-          .registerUser(
+      // 注册成功即登录；离开页面后的迟到响应由 AuthNotifier 按 isCurrent 丢弃。
+      final started = await ref
+          .read(authNotifierProvider.notifier)
+          .register(
             username: _usernameCtrl.text,
             password: _passwordCtrl.text,
             phone: _phoneCtrl.text,
             verifyCode: _codeCtrl.text,
-          );
-      if (!_ownsRegisterMutation(attempt)) return;
-      await ref
-          .read(authNotifierProvider.notifier)
-          .onLoginSuccess(
-            resp.userId,
-            resp.token,
-            refreshToken: resp.refreshToken,
+            isCurrent: () => _ownsRegisterMutation(attempt),
           );
       // Pushed register keeps the public URL; redirect will not pop this page.
-      if (!mounted || !_ownsRegisterMutation(attempt)) return;
+      if (!started || !mounted || !_ownsRegisterMutation(attempt)) return;
       context.go('/feed');
     } catch (e) {
       if (mounted && attempt == _registerAttempt) _showError(e.toString());
@@ -165,8 +158,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               VerifyCodeField(
                 controller: _codeCtrl,
                 onSend: () => ref
-                    .read(authRepositoryProvider)
-                    .sendCode(_phoneCtrl.text, 1),
+                    .read(authNotifierProvider.notifier)
+                    .sendVerifyCode(
+                      _phoneCtrl.text,
+                      VerifyCodePurpose.register,
+                    ),
               ),
               const SizedBox(height: 24),
               FButton(
