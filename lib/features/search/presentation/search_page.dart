@@ -8,6 +8,7 @@ import '../../../core/api/json_int64.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/cached_avatar.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/load_more_footer.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../application/search_notifier.dart';
 import '../data/search_models.dart';
@@ -332,16 +333,13 @@ class _SearchResultList extends StatelessWidget {
         );
       }
     }
+    // 结果尾部：手动加载下一页，失败时原地重试。
     if (hasMore || isLoadingMore || loadMoreError != null) {
       children.add(
-        Padding(
-          padding: const EdgeInsets.only(top: 16),
-          child: isLoadingMore
-              ? const LoadingView()
-              : FButton(
-                  onPress: onLoadMore,
-                  child: Text(loadMoreError == null ? '加载更多' : '加载更多失败，重试'),
-                ),
+        LoadMoreFooter(
+          isLoading: isLoadingMore,
+          error: loadMoreError,
+          onLoadMore: onLoadMore,
         ),
       );
     }

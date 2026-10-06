@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/widgets/load_more_footer.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../ads/data/ads_repository.dart';
 import '../../behavior/application/behavior_tracker.dart';
@@ -262,46 +263,13 @@ class _FeedContentState extends ConsumerState<_FeedContent> {
         (state.error != null && state.entries.isNotEmpty);
   }
 
+  // 信息流尾部：已有内容时的失败按失败类型选择续翻或整体刷新，到底时提示结束。
   Widget _feedFooter(FeedState state, FeedNotifier notifier) {
-    if (state.isLoadingMore) {
-      return const Padding(padding: EdgeInsets.all(16), child: LoadingView());
-    }
-    if (state.error != null && state.entries.isNotEmpty) {
-      final theme = context.theme;
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: Column(
-          children: [
-            Text(
-              state.error!,
-              textAlign: TextAlign.center,
-              style: theme.typography.body.sm.copyWith(
-                color: theme.colors.mutedForeground,
-              ),
-            ),
-            const SizedBox(height: 12),
-            FButton(
-              variant: FButtonVariant.secondary,
-              onPress: state.loadMoreFailed
-                  ? notifier.loadMore
-                  : notifier.refresh,
-              child: const Text('重试'),
-            ),
-          ],
-        ),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Center(
-        child: Text(
-          '— 没有更多了 —',
-          style: TextStyle(
-            color: context.theme.colors.mutedForeground,
-            fontSize: 12,
-          ),
-        ),
-      ),
+    return LoadMoreFooter(
+      isLoading: state.isLoadingMore,
+      error: state.entries.isNotEmpty ? state.error : null,
+      onRetry: state.loadMoreFailed ? notifier.loadMore : notifier.refresh,
+      showEnd: true,
     );
   }
 

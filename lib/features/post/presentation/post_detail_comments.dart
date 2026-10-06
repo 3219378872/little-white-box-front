@@ -2,7 +2,6 @@ part of 'post_detail_page.dart';
 
 extension _PostDetailComments on _PostDetailPageState {
   List<Widget> _buildCommentSlivers(CommentState comments) {
-    final theme = context.theme;
     // The API returns top-level comments with optional reply previews.
     final topLevel = comments.comments;
     return [
@@ -22,44 +21,18 @@ extension _PostDetailComments on _PostDetailPageState {
         delegate: SliverChildBuilderDelegate(
           (context, index) {
             if (index >= topLevel.length) {
-              // tail 位置：优先显示加载中，其次加载失败重试，最后"没有更多了"
-              if (comments.isLoading) {
-                return const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: LoadingView(),
-                );
-              }
-              if (comments.hasError) {
-                return Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Center(
-                    child: FButton(
-                      variant: .ghost,
-                      size: .sm,
-                      mainAxisSize: MainAxisSize.min,
-                      onPress: () => ref
-                          .read(commentNotifierProvider(widget.postId).notifier)
-                          .retry(),
-                      child: const Text('评论加载失败，重试'),
-                    ),
-                  ),
-                );
-              }
-              if (!comments.hasMore && topLevel.isNotEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Center(
-                    child: Text(
-                      '— 没有更多了 —',
-                      style: TextStyle(
-                        color: theme.colors.mutedForeground,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                );
-              }
-              return null;
+              // tail 位置：优先显示加载中，其次加载失败重试，最后"没有更多了"；
+              // 列表为空时的失败已由上方 ErrorView 承担，尾部不再重复重试入口。
+              return LoadMoreFooter(
+                isLoading: comments.isLoading,
+                error: comments.hasError && topLevel.isNotEmpty
+                    ? '评论加载失败'
+                    : null,
+                onRetry: () => ref
+                    .read(commentNotifierProvider(widget.postId).notifier)
+                    .retry(),
+                showEnd: !comments.hasMore && topLevel.isNotEmpty,
+              );
             }
             return _buildComment(comments, topLevel[index]);
           },

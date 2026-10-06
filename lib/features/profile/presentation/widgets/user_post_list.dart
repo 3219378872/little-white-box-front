@@ -6,6 +6,7 @@ import '../../../../core/api/api_exceptions.dart';
 import '../../../../core/router/app_route_observer.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/forui_pull_to_refresh.dart';
+import '../../../../core/widgets/load_more_footer.dart';
 import '../../../../core/widgets/loading_view.dart';
 import '../../../feed/presentation/widgets/post_card.dart';
 import '../../application/user_posts_notifier.dart';
@@ -141,46 +142,13 @@ class _UserPostListState extends ConsumerState<UserPostList> with RouteAware {
                       : 0),
               itemBuilder: (context, index) {
                 if (index >= state.items.length) {
-                  if (state.isLoading) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: LoadingView(),
-                    );
-                  }
-                  if (state.error != null) {
-                    final theme = context.theme;
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                      child: Column(
-                        children: [
-                          Text(
-                            friendlyErrorMessage(state.error!),
-                            textAlign: TextAlign.center,
-                            style: theme.typography.body.sm.copyWith(
-                              color: theme.colors.mutedForeground,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          FButton(
-                            variant: FButtonVariant.secondary,
-                            onPress: notifier.loadNextPage,
-                            child: const Text('重试'),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: Center(
-                      child: Text(
-                        '— 没有更多了 —',
-                        style: TextStyle(
-                          color: context.theme.colors.mutedForeground,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
+                  // 尾部：续翻中、续翻失败重试或已到底。
+                  final error = state.error;
+                  return LoadMoreFooter(
+                    isLoading: state.isLoading,
+                    error: error == null ? null : friendlyErrorMessage(error),
+                    onRetry: notifier.loadNextPage,
+                    showEnd: true,
                   );
                 }
                 return PostCard(post: state.items[index]);

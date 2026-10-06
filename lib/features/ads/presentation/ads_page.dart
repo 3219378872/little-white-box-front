@@ -8,6 +8,7 @@ import '../../../core/api/json_int64.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_section.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/load_more_footer.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../application/ads_providers.dart';
@@ -211,14 +212,12 @@ class _AdsList extends ConsumerWidget {
             ),
           ),
         ],
-        if (state.hasMore) ...[
-          const SizedBox(height: AppTheme.space3),
-          FButton(
-            variant: FButtonVariant.outline,
-            onPress: state.loadingMore ? null : notifier.loadMore,
-            child: Text(state.loadingMore ? '加载中…' : '加载更多'),
+        // 手动翻页；失败文案已在上方展示。
+        if (state.hasMore)
+          LoadMoreFooter(
+            isLoading: state.loadingMore,
+            onLoadMore: notifier.loadMore,
           ),
-        ],
       ],
     );
   }

@@ -1,9 +1,9 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 
 import '../api/api_exceptions.dart';
 import 'error_view.dart';
 import 'forui_pull_to_refresh.dart';
+import 'load_more_footer.dart';
 import 'loading_view.dart';
 
 class PaginatedListView<T> extends StatefulWidget {
@@ -93,41 +93,14 @@ class _PaginatedListViewState<T> extends State<PaginatedListView<T>> {
         itemCount: widget.items.length + (showTail ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= widget.items.length) {
-            if (widget.isLoadingMore) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
-                child: LoadingView(),
-              );
-            }
-            if (widget.error != null) {
-              final theme = context.theme;
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                child: Column(
-                  children: [
-                    Text(
-                      friendlyErrorMessage(widget.error!),
-                      textAlign: TextAlign.center,
-                      style: theme.typography.body.sm.copyWith(
-                        color: theme.colors.mutedForeground,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    FButton(
-                      variant: FButtonVariant.secondary,
-                      onPress: widget.onLoadMore,
-                      child: const Text('重试'),
-                    ),
-                  ],
-                ),
-              );
-            }
-            if (widget.hasMore) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
-                child: LoadingView(),
-              );
-            }
+            // 尾部：加载中或仍有下一页时转圈，失败时原地重试。
+            final error = widget.error;
+            return LoadMoreFooter(
+              isLoading:
+                  widget.isLoadingMore || (error == null && widget.hasMore),
+              error: error == null ? null : friendlyErrorMessage(error),
+              onRetry: widget.onLoadMore,
+            );
           }
           return widget.itemBuilder(context, widget.items[index]);
         },
