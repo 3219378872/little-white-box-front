@@ -392,6 +392,7 @@ extension _AssistantHistory on AssistantNotifier {
     _activeRunFloorMessageId = 0;
     _value = _value.copyWith(
       messages: _updateResponseMessage(
+        _value.messages,
         'run-${jsonInt64Id(observedRunId)}',
         observedRunId,
         (message) => message.copyWith(isStreaming: false),

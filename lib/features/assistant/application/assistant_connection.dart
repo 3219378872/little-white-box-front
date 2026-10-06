@@ -1,6 +1,10 @@
 part of 'assistant_notifier.dart';
 
+// Owns the run event subscription: generations, seq cursor, reconnect timers
+// and teardown. State transitions per event live in assistant_run_reducer.dart.
 extension _AssistantConnection on AssistantNotifier {
+  // Re-attaches to the active run (manual retry or thread poll); refuses when
+  // the run already has a persisted answer or automatic retries are blocked.
   bool _reconnectRun({bool automatic = false}) {
     final runId = _value.activeRunId;
     if (_identityKey.isEmpty ||
@@ -16,6 +20,8 @@ extension _AssistantConnection on AssistantNotifier {
     return true;
   }
 
+  // Keeps an existing subscription; otherwise resumes from the last seq when
+  // the run is the one we were already following.
   void _ensureSubscribed(Object runId) {
     if (_sameRun(_subscribedRunId, runId) && _subscription != null) return;
     _subscribe(
@@ -44,6 +50,9 @@ extension _AssistantConnection on AssistantNotifier {
     _listen(runId, generation);
   }
 
+  // Opens one connection attempt. Events are de-duplicated by seq before they
+  // reach the reducer; errors and early closes decide between one in-place
+  // reconnect, a delayed waiting-input reconnect, or a transport error.
   void _listen(Object runId, int generation) {
     final connectionGeneration = ++_connectionGeneration;
     final stream = _repository.runEvents(runId: runId, afterSeq: _lastSeq);
@@ -119,12 +128,15 @@ extension _AssistantConnection on AssistantNotifier {
     );
   }
 
+  // Late callbacks from replaced or cancelled connections must not touch state.
   bool _isCurrentConnection(int generation, int connectionGeneration) {
     return mounted &&
         generation == _generation &&
         connectionGeneration == _connectionGeneration;
   }
 
+  // A run parked on user questions may legitimately close its stream; poll it
+  // again shortly while it is still waiting for input.
   void _scheduleWaitingReconnect(Object runId, int generation) {
     final ticket = ++_connectionGeneration;
     final previous = _subscription;
@@ -140,261 +152,33 @@ extension _AssistantConnection on AssistantNotifier {
     });
   }
 
+  // Folds one accepted event through the pure reducer and writes back both the
+  // visible state and the run bookkeeping the reducer owns.
   void _applyEvent(Object runId, AssistantRunEvent event) {
-    if (!_acceptEvent(event)) return;
-    final sessionId = jsonInt64IsPositive(event.sessionId)
-        ? event.sessionId
-        : _value.sessionId;
-    final responseId = 'run-${jsonInt64Id(runId)}';
-    _clearRecoveredTransportError(responseId, runId, event.isTerminal);
-    switch (event.type) {
-      case AssistantEventType.runStarted:
-        _value = _value.copyWith(
-          sessionId: sessionId,
-          activeRunId: runId,
-          activeRunPhase: 'model_request',
-          clearLastDisposition: true,
-          isQueued: false,
-          isStreaming: true,
-          messages: _ensureAssistant(responseId, runId),
-        );
-      case AssistantEventType.token:
-        _value = _value.copyWith(
-          sessionId: sessionId,
-          activeRunPhase: 'model_request',
-          clearLastDisposition: true,
-          messages: _updateResponseMessage(
-            responseId,
-            runId,
-            (message) => message.copyWith(text: '${message.text}${event.text}'),
-            createIfMissing: true,
-          ),
-          isStreaming: true,
-          isQueued: false,
-        );
-      case AssistantEventType.responseReset:
-        _value = _value.copyWith(
-          sessionId: sessionId,
-          clearLastDisposition: true,
-          messages: _clearResetResponse(responseId, runId),
-          isStreaming: true,
-          isQueued: false,
-        );
-      case AssistantEventType.toolCall:
-        _value = _value.copyWith(
-          sessionId: sessionId,
-          activeRunPhase: 'tool_executing',
-          clearLastDisposition: true,
-          messages: _upsertTool(
-            responseId,
-            runId,
-            event.toolCall!,
-            AssistantToolStatus.running,
-          ),
-        );
-      case AssistantEventType.toolResult:
-        _value = _value.copyWith(
-          sessionId: sessionId,
-          messages: _upsertTool(
-            responseId,
-            runId,
-            event.toolCall!,
-            AssistantToolStatus.completed,
-          ),
-        );
-      case AssistantEventType.confirmRequired:
-        _value = _value.copyWith(
-          sessionId: sessionId,
-          messages: _upsertTool(
-            responseId,
-            runId,
-            event.toolCall!,
-            AssistantToolStatus.awaitingConfirmation,
-          ),
-        );
-      case AssistantEventType.sourceCard:
-        _value = _value.copyWith(
-          sessionId: sessionId,
-          messages: _updateResponseMessage(
-            responseId,
-            runId,
-            (message) {
-              final source = event.sourceCard!;
-              return message.sources.contains(source)
-                  ? message
-                  : message.copyWith(sources: [...message.sources, source]);
-            },
-            createIfMissing: true,
-            matchPersistedTerminal: true,
-          ),
-        );
-      case AssistantEventType.memoryChanged:
-        _value = _value.copyWith(
-          sessionId: sessionId,
-          messages: _upsertMemoryChangedEvent(runId, event),
-        );
-      case AssistantEventType.questionsRequired:
-      case AssistantEventType.questionsResolved:
-        final question = event.questionRequest;
-        if (question == null || !_sameRun(question.runId, runId)) return;
-        var messages = _questionMessages(question);
-        final resumes =
-            question.status == 'answered' || question.status == 'superseded';
-        if (question.isPending) {
-          messages = [
-            for (final message in messages)
-              if (!(message.id == responseId &&
-                  message.text.isEmpty &&
-                  message.sources.isEmpty &&
-                  message.toolSteps.every(
-                    (step) => step.tool == 'ask_questions',
-                  )))
-                message.id == responseId
-                    ? message.copyWith(isStreaming: false)
-                    : message,
-          ];
-        } else if (resumes) {
-          messages = _ensureAssistantIn(messages, responseId, runId);
-        }
-        _value = _value.copyWith(
-          sessionId: sessionId,
-          messages: messages,
-          isStreaming: resumes,
-          activeRunPhase: resumes ? 'queued' : 'waiting_input',
-        );
-      case AssistantEventType.answerCommitted:
-        final answer = event.answerPresentation;
-        if (answer == null || !_sameRun(answer.runId, runId)) return;
-        _resetStreamTracking();
-        _value = _value.copyWith(
-          sessionId: sessionId,
-          messages: _answerMessages(responseId, answer, event.text),
-        );
-      case AssistantEventType.unknown:
-        return;
-      case AssistantEventType.done:
-        _resetStreamTracking();
-        _activeCommand = null;
-        _activeRunFloorMessageId = 0;
-        _value = _value.copyWith(
-          sessionId: sessionId,
-          messages: _updateResponseMessage(
-            responseId,
-            runId,
-            (message) => message.copyWith(
-              isStreaming: false,
-              degraded: event.degraded,
-              terminalEventReceived: true,
-              toolSteps: _settleSteps(
-                message.toolSteps,
-                AssistantToolStatus.completed,
-              ),
-            ),
-            createIfMissing: true,
-            matchPersistedTerminal: true,
-          ),
-          isStreaming: false,
-          isQueued: false,
-          clearConnectionError: _value.pendingRetryCommand == null,
-          clearActiveRun: true,
-          clearLastDisposition: true,
-        );
-      case AssistantEventType.error:
-        _resetStreamTracking();
-        final needsAuthorization = event.errorCode == 'AGENT_NOT_AUTHORIZED';
-        final retryCommand = needsAuthorization ? _activeCommand : null;
-        _activeCommand = null;
-        _activeRunFloorMessageId = 0;
-        _value = _value.copyWith(
-          sessionId: sessionId,
-          agentAuthorizationRequired: needsAuthorization,
-          messages: _updateResponseMessage(
-            responseId,
-            runId,
-            (message) => message.copyWith(
-              text: message.text.isEmpty ? event.text : message.text,
-              isStreaming: false,
-              degraded: true,
-              errorCode: event.errorCode,
-              terminalEventReceived: true,
-              toolSteps: _settleSteps(
-                message.toolSteps,
-                AssistantToolStatus.failed,
-              ),
-            ),
-            createIfMissing: true,
-            matchPersistedTerminal: true,
-          ),
-          isStreaming: false,
-          isQueued: false,
-          connectionError: event.text,
-          pendingRetryCommand: retryCommand,
-          clearActiveRun: true,
-          clearLastDisposition: true,
-        );
-    }
+    final next = reduceAssistantRunEvent(
+      AssistantRunReduction(
+        state: _value,
+        streams: _streams,
+        activeCommand: _activeCommand,
+        activeRunFloorMessageId: _activeRunFloorMessageId,
+      ),
+      runId,
+      event,
+    );
+    _streams = next.streams;
+    _activeCommand = next.activeCommand;
+    _activeRunFloorMessageId = next.activeRunFloorMessageId;
+    _value = next.state;
   }
 
-  bool _acceptEvent(AssistantRunEvent event) {
-    return switch (event.type) {
-      AssistantEventType.token => _acceptToken(event),
-      AssistantEventType.responseReset => _acceptReset(event),
-      AssistantEventType.sourceCard => event.sourceCard != null,
-      AssistantEventType.unknown => false,
-      _ => true,
-    };
-  }
-
-  void _clearRecoveredTransportError(
-    String responseId,
-    Object runId,
-    bool terminal,
-  ) {
-    var recovered = false;
-    final messages = _updateResponseMessage(responseId, runId, (message) {
-      if (message.errorCode != 'STREAM_DISCONNECTED') return message;
-      recovered = true;
-      return message.copyWith(
-        text: message.text == '响应中断' ? '' : message.text,
-        isStreaming: !terminal,
-        degraded: false,
-        errorCode: '',
-      );
-    }, matchPersistedTerminal: true);
-    if (recovered) {
-      _value = _value.copyWith(messages: messages, clearConnectionError: true);
-    }
-  }
-
-  bool _acceptToken(AssistantRunEvent event) {
-    final streamId = event.streamId.trim();
-    if (streamId.isEmpty) {
-      return !_usesStreamIds;
-    }
-    _usesStreamIds = true;
-    if (_retiredStreamIds.contains(streamId)) return false;
-    if (_activeStreamId.isEmpty) {
-      _activeStreamId = streamId;
-      return true;
-    }
-    return _activeStreamId == streamId;
-  }
-
-  bool _acceptReset(AssistantRunEvent event) {
-    final streamId = event.streamId.trim();
-    if (streamId.isEmpty || _activeStreamId != streamId) return false;
-    _retiredStreamIds.add(streamId);
-    _activeStreamId = '';
-    _usesStreamIds = true;
-    return true;
-  }
-
+  // Forgets stream ids when the followed run changes or the subscription ends.
   void _resetStreamTracking() {
-    _activeStreamId = '';
-    _retiredStreamIds.clear();
-    _usesStreamIds = false;
+    _streams = AssistantStreamTracking.idle;
   }
 
+  // Ends the current connection after a failed attempt: a run with a persisted
+  // answer is simply closed, otherwise its response is marked disconnected so
+  // the next event (or a manual retry) can recover it.
   void _finishWithTransportError(
     String error,
     Object runId,
@@ -423,6 +207,7 @@ extension _AssistantConnection on AssistantNotifier {
     final responseId = 'run-${jsonInt64Id(runId)}';
     _value = _value.copyWith(
       messages: _updateResponseMessage(
+        _value.messages,
         responseId,
         runId,
         (message) => message.copyWith(
@@ -443,6 +228,8 @@ extension _AssistantConnection on AssistantNotifier {
     );
   }
 
+  // Explicit teardown when the followed run stops, finishes elsewhere or the
+  // loaded session changes.
   Future<void> _cancelSubscription() async {
     _waitingReconnect?.cancel();
     _generation++;

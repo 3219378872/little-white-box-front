@@ -214,7 +214,7 @@ extension _AssistantCommands on AssistantNotifier {
             ) ||
             _hasTerminalEventResponseForRun(_value.messages, question.runId)) {
           _value = _value.copyWith(
-            messages: _questionMessages(updated),
+            messages: _questionMessages(_value.messages, updated),
             isSending: false,
           );
           _questionRequestIds.remove(fingerprint);
@@ -222,7 +222,7 @@ extension _AssistantCommands on AssistantNotifier {
         }
         _value = _value.copyWith(
           messages: _ensureAssistantIn(
-            _questionMessages(updated),
+            _questionMessages(_value.messages, updated),
             'run-${jsonInt64Id(question.runId)}',
             question.runId,
           ),
@@ -254,6 +254,7 @@ extension _AssistantCommands on AssistantNotifier {
     var changed = false;
     _value = _value.copyWith(
       messages: _updateResponseMessage(
+        _value.messages,
         'run-${jsonInt64Id(runId)}',
         runId,
         (message) => message.copyWith(
@@ -281,6 +282,7 @@ extension _AssistantCommands on AssistantNotifier {
       if (!mounted || !_sameRun(_value.activeRunId, runId)) return false;
       _value = _value.copyWith(
         messages: _setToolStatus(
+          _value.messages,
           runId,
           callId,
           from: const {AssistantToolStatus.confirming},
@@ -295,6 +297,7 @@ extension _AssistantCommands on AssistantNotifier {
       if (!mounted || !_sameRun(_value.activeRunId, runId)) return false;
       _value = _value.copyWith(
         messages: _setToolStatus(
+          _value.messages,
           runId,
           callId,
           from: const {AssistantToolStatus.confirming},
@@ -325,6 +328,7 @@ extension _AssistantCommands on AssistantNotifier {
     final responseId = 'run-${jsonInt64Id(runId)}';
     _value = _value.copyWith(
       messages: _updateResponseMessage(
+        _value.messages,
         responseId,
         runId,
         (message) => message.copyWith(
@@ -384,6 +388,7 @@ extension _AssistantCommands on AssistantNotifier {
     if (!jsonInt64IsPositive(changeId)) return false;
     _value = _value.copyWith(
       messages: _updateMemoryChange(
+        _value.messages,
         changeId,
         (message) => message.copyWith(memoryUndoing: true),
       ),
@@ -394,6 +399,7 @@ extension _AssistantCommands on AssistantNotifier {
       if (!mounted) return false;
       _value = _value.copyWith(
         messages: _updateMemoryChange(
+          _value.messages,
           changeId,
           (message) =>
               message.copyWith(memoryUndoing: false, memoryUndone: true),
@@ -404,6 +410,7 @@ extension _AssistantCommands on AssistantNotifier {
       if (!mounted) return false;
       _value = _value.copyWith(
         messages: _updateMemoryChange(
+          _value.messages,
           changeId,
           (message) => message.copyWith(memoryUndoing: false),
         ),

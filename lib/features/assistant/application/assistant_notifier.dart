@@ -21,6 +21,7 @@ part 'assistant_connection.dart';
 part 'assistant_history.dart';
 part 'assistant_messages.dart';
 part 'assistant_reconciliation.dart';
+part 'assistant_run_reducer.dart';
 
 class AssistantNotifier extends StateNotifier<AssistantState> {
   final AssistantDataSource _repository;
@@ -38,9 +39,8 @@ class AssistantNotifier extends StateNotifier<AssistantState> {
   int _reconnects = 0;
   Object _subscribedRunId = 0;
   Object _automaticReconnectBlockedRunId = 0;
-  String _activeStreamId = '';
-  final Set<String> _retiredStreamIds = <String>{};
-  bool _usesStreamIds = false;
+  // Stream-id bookkeeping read and replaced by the run event reducer.
+  AssistantStreamTracking _streams = AssistantStreamTracking.idle;
   Object _lastMessageId = 0;
   Object _activeRunFloorMessageId = 0;
   PendingAssistantCommand? _activeCommand;

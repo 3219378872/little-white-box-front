@@ -8,7 +8,7 @@ import 'package:xiaobaihe_app/features/assistant/data/assistant_repository.dart'
 import '../helpers/fake_assistant_source.dart';
 
 // 运行事件归并的场景表：同一组「初始状态 + 事件序列 → 期望状态」既经由真实
-// 连接驱动，也可直接喂给纯 reducer，用来锁定两种实现的行为一致。
+// 连接驱动，也直接喂给纯 reducer，锁定两条路径的行为一致。
 
 const _runId = 21;
 const _responseId = 'run-21';
@@ -584,6 +584,31 @@ Future<(AssistantState, AssistantState)> _runThroughNotifier(
   return (notifier.state, initial);
 }
 
+// 直接喂给纯 reducer：起点仍由 notifier 生成（保证与连接路径同一初始状态），
+// 之后不经过连接层，逐个折叠事件。
+Future<(AssistantState, AssistantState)> _runThroughReducer(
+  _RunScenario scenario,
+) async {
+  final source = FakeAssistantSource();
+  final notifier = AssistantNotifier(
+    repository: source,
+    createRequestId: () => 'req-1',
+  );
+  addTearDown(notifier.dispose);
+  await _startRun(notifier, source, scenario);
+  final initial = notifier.state;
+  var reduction = AssistantRunReduction(
+    state: initial,
+    activeCommand: scenario.start == _Start.send
+        ? const PendingAssistantCommand(message: _sentText, requestId: 'req-1')
+        : null,
+  );
+  for (final event in scenario.events) {
+    reduction = reduceAssistantRunEvent(reduction, _runId, event);
+  }
+  return (reduction.state, initial);
+}
+
 // 把 notifier 带到「run 已订阅、尚未收到事件」的起点。
 Future<void> _startRun(
   AssistantNotifier notifier,
@@ -615,6 +640,120 @@ void main() {
         scenario.verify(state, initial);
       });
     }
+  });
+
+  group('run event sequences via pure reducer', () {
+    for (final scenario in _runEventScenarios) {
+      test(scenario.name, () async {
+        final (state, initial) = await _runThroughReducer(scenario);
+        scenario.verify(state, initial);
+      });
+    }
+  });
+
+  group('pure reducer contract', () {
+    const streaming = AssistantState(
+      sessionId: 1,
+      activeRunId: _runId,
+      activeRunPhase: 'model_request',
+      isStreaming: true,
+      messages: [
+        AssistantMessage(
+          id: _responseId,
+          runId: _runId,
+          role: AssistantMessageRole.assistant,
+          text: '',
+          isStreaming: true,
+        ),
+      ],
+    );
+
+    test('rejected events return the same reduction', () {
+      const current = AssistantRunReduction(
+        state: streaming,
+        streams: AssistantStreamTracking(
+          activeStreamId: 's1',
+          usesStreamIds: true,
+        ),
+      );
+      expect(
+        reduceAssistantRunEvent(current, _runId, _reset('s2')),
+        same(current),
+      );
+      expect(
+        reduceAssistantRunEvent(
+          current,
+          _runId,
+          const AssistantRunEvent(type: AssistantEventType.unknown),
+        ),
+        same(current),
+      );
+    });
+
+    test('reset retires the stream without mutating the input', () {
+      final retired = <String>{'s0'};
+      final current = AssistantRunReduction(
+        state: streaming,
+        streams: AssistantStreamTracking(
+          activeStreamId: 's1',
+          retiredStreamIds: retired,
+          usesStreamIds: true,
+        ),
+      );
+      final next = reduceAssistantRunEvent(current, _runId, _reset('s1'));
+      expect(next.streams.activeStreamId, isEmpty);
+      expect(next.streams.retiredStreamIds, {'s0', 's1'});
+      expect(retired, {'s0'});
+      expect(current.streams.activeStreamId, 's1');
+    });
+
+    test('terminal events clear the run bookkeeping', () {
+      const command = PendingAssistantCommand(message: '问', requestId: 'r');
+      const current = AssistantRunReduction(
+        state: streaming,
+        streams: AssistantStreamTracking(
+          activeStreamId: 's1',
+          usesStreamIds: true,
+        ),
+        activeCommand: command,
+        activeRunFloorMessageId: 30,
+      );
+      for (final event in [
+        _done,
+        const AssistantRunEvent(type: AssistantEventType.error, runId: _runId),
+      ]) {
+        final next = reduceAssistantRunEvent(current, _runId, event);
+        expect(next.activeCommand, isNull);
+        expect(next.activeRunFloorMessageId, 0);
+        expect(next.streams.usesStreamIds, isFalse);
+        expect(next.state.activeRunId, 0);
+      }
+    });
+
+    test('any event clears a disconnected response marker', () {
+      final disconnected = streaming.copyWith(
+        connectionError: '连接中断',
+        messages: [
+          streaming.messages.single.copyWith(
+            text: '响应中断',
+            isStreaming: false,
+            degraded: true,
+            errorCode: 'STREAM_DISCONNECTED',
+          ),
+        ],
+      );
+      final next = reduceAssistantRunEvent(
+        AssistantRunReduction(state: disconnected),
+        _runId,
+        _token('续'),
+      );
+      final message = _response(next.state);
+      expect(message.text, '续');
+      expect(message.errorCode, isEmpty);
+      expect(message.degraded, isFalse);
+      expect(message.isStreaming, isTrue);
+      expect(next.state.connectionError, isNull);
+    });
   });
 
   group('run event connection', () {
