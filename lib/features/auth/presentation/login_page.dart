@@ -9,6 +9,7 @@ import '../application/auth_notifier.dart';
 import 'widgets/verify_code_button.dart';
 import '../../../core/router/app_routes.dart';
 
+/// 登录页：密码登录与手机验证码登录两个标签页，成功后进入首页。
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
@@ -16,6 +17,8 @@ class LoginPage extends ConsumerStatefulWidget {
   ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
+// 持有两套表单输入与提交中状态；[_loginAttempt] 标识最近一次提交，
+// 页面销毁或再次提交后，旧请求的结果不再生效。
 class _LoginPageState extends ConsumerState<LoginPage> {
   // 密码登录
   final _usernameCtrl = TextEditingController();
@@ -30,6 +33,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   void dispose() {
+    // 作废进行中的登录尝试，迟到的成功响应不会再开启会话。
     _loginAttempt++;
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
@@ -38,6 +42,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.dispose();
   }
 
+  // 校验必填后以用户名密码登录。
   Future<void> _loginWithPassword() async {
     if (_usernameCtrl.text.isEmpty || _passwordCtrl.text.isEmpty) {
       _showError('请填写用户名和密码');
@@ -52,6 +57,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
+  // 校验必填后以手机验证码登录。
   Future<void> _loginWithCode() async {
     if (_phoneCtrl.text.isEmpty || _codeCtrl.text.isEmpty) {
       _showError('请填写手机号和验证码');
@@ -91,6 +97,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
   }
 
+  // 本次尝试仍是最近一次、页面仍挂载且位于路由栈顶时，才允许写入会话与导航。
   bool _ownsLoginMutation(int attempt) {
     return mounted &&
         attempt == _loginAttempt &&
@@ -106,6 +113,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final theme = context.theme;
     return FScaffold(
       childPad: false,
+      // 返回：从受保护入口压入时回到原页，直接打开时回首页。
       header: FHeader.nested(
         title: const SizedBox.shrink(),
         prefixes: [
@@ -120,6 +128,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             children: [
+              // 品牌标识。
               const SizedBox(height: 16),
               Container(
                 width: 64,
@@ -137,6 +146,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               const SizedBox(height: 12),
               Text('小白盒', style: theme.typography.display.xl2),
               const SizedBox(height: 24),
+              // 两种登录方式的标签页。
               Expanded(
                 child: FTabs(
                   expands: true,
@@ -156,6 +166,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
+  // 密码登录表单与去注册入口。
   Widget _passwordForm() {
     return ListView(
       padding: const EdgeInsets.only(top: 24),
@@ -200,6 +211,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
+  // 验证码登录表单：手机号、带倒计时的验证码输入与去注册入口。
   Widget _codeForm() {
     return ListView(
       padding: const EdgeInsets.only(top: 24),

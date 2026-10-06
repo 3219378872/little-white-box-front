@@ -2,6 +2,8 @@
 const behaviorTargetPost = 'post';
 const behaviorTargetAd = 'ad';
 
+/// 一条客户端行为事件，字段与网关行为上报接口一致；[occurredAt] 为毫秒时间戳，
+/// 推荐解释字段（召回来源、模型版本、实验 ID）取自推荐响应，原样回传给服务端。
 class ClientBehaviorEvent {
   final String clientEventId;
   final int occurredAt;
@@ -48,6 +50,7 @@ class ClientBehaviorEvent {
     );
   }
 
+  /// 请求体与本地持久化共用的 JSON；空的可选字段不输出。
   Map<String, dynamic> toJson() {
     return {
       'clientEventId': clientEventId,
@@ -66,6 +69,7 @@ class ClientBehaviorEvent {
   }
 }
 
+/// 队列中的事件及其归属与客户端身份；发送时只把同一归属、同一匿名/会话 ID 的事件合批。
 class QueuedBehaviorEvent {
   final String? ownerIdentity;
   final String anonymousId;
@@ -100,6 +104,7 @@ class QueuedBehaviorEvent {
   }
 }
 
+/// 一次发送的事件批次，所有事件共享同一归属与客户端身份。
 class BehaviorBatch {
   final String? ownerIdentity;
   final String anonymousId;
@@ -114,6 +119,7 @@ class BehaviorBatch {
   });
 }
 
+/// 一次发送的逐条结果：已受理与永久拒绝的事件都可出队，其余留待重试。
 class BehaviorSendResult {
   final Set<String> acceptedEventIds;
   final Set<String> permanentlyRejectedEventIds;
@@ -123,6 +129,7 @@ class BehaviorSendResult {
     this.permanentlyRejectedEventIds = const {},
   ]);
 
+  /// 可从队列移除的事件 ID。
   Set<String> get terminalEventIds => {
     ...acceptedEventIds,
     ...permanentlyRejectedEventIds,

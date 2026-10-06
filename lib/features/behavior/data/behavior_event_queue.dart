@@ -8,19 +8,25 @@ import 'behavior_event.dart';
 import 'behavior_identity.dart';
 import 'behavior_repository.dart';
 
+// 待发送事件在本地偏好中的存储键。
 const _queueStorageKey = 'behavior.event_queue.v1';
 
+/// 网络连通性来源，供队列在离线时暂停发送、恢复时立即补发；测试可替换。
 abstract interface class ConnectivityMonitor {
   Future<bool> get isOnline;
   Stream<bool> get onStatusChanged;
 }
 
+/// 埋点入口依赖的入队能力，与发送调度解耦以便测试。
 abstract interface class BehaviorEventEnqueuer {
+  /// 恢复持久化的待发送事件；可重复调用，只执行一次。
   Future<void> initialize();
 
+  /// 持久化一条事件并安排发送。
   Future<void> enqueue(QueuedBehaviorEvent event);
 }
 
+/// 基于 connectivity_plus 的连通性实现：任一网络接口可用即视为在线。
 class PluginConnectivityMonitor implements ConnectivityMonitor {
   final Connectivity _connectivity;
 
@@ -39,6 +45,9 @@ class PluginConnectivityMonitor implements ConnectivityMonitor {
   );
 }
 
+/// 持久化的行为事件队列：入队后延迟 [flushDelay] 合批发送，失败按指数退避重试
+/// （[baseRetryDelay] 起、不超过 [maxRetryDelay]），离线暂停、恢复联网立即补发。
+/// 队列最多保留 [maxQueueSize] 条，超出时丢弃最旧的事件；只发送归属于当前会话身份的事件。
 class BehaviorEventQueue implements BehaviorEventEnqueuer {
   final BehaviorEventTransport _transport;
   final ConnectivityMonitor _connectivity;
@@ -79,8 +88,10 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
        _connectivity = connectivity ?? PluginConnectivityMonitor(),
        _preferences = preferences ?? SharedPreferences.getInstance;
 
+  /// 待发送事件数。
   int get pendingCount => _events.length;
 
+  /// 待发送事件的只读快照。
   List<QueuedBehaviorEvent> get pendingEvents => List.unmodifiable(_events);
 
   /// Legacy events have no trustworthy account attribution and stay unsent.
@@ -95,6 +106,7 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
   @override
   Future<void> enqueue(QueuedBehaviorEvent queuedEvent) async {
     await initialize();
+    // 同一 clientEventId 只入队一次；超出容量时丢弃最旧的事件后落盘。
     await _synchronized(() async {
       if (_events.any(
         (item) => item.event.clientEventId == queuedEvent.event.clientEventId,
@@ -110,6 +122,8 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
     if (autoFlush) _scheduleFlush(flushDelay);
   }
 
+  /// 发送一批事件：取当前会话身份名下、与首条同一匿名/会话 ID 的最多 [maxBatchSize] 条；
+  /// 已受理与永久拒绝的事件出队，其余保留并按退避重试。同一时刻只有一个批次在途。
   Future<void> flush() async {
     await initialize();
     if (_disposed || !_online) return;
@@ -144,6 +158,7 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
           events: batchItems.map((item) => item.event).toList(),
         ),
       );
+      // 只移除本批中有终态结果的事件。
       final batchEventIds = batchItems
           .map((item) => item.event.clientEventId)
           .toSet();
@@ -158,6 +173,7 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
         _flushInFlight = false;
       });
 
+      // 本批全部终结且还有积压时立即发下一批；有事件未终结则退避重试。
       if (_events.isEmpty) {
         _retryAttempt = 0;
       } else if (terminal.length == batchItems.length) {
@@ -172,12 +188,15 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
     }
   }
 
+  /// 停止计时器与连通性监听；已持久化的事件保留到下次启动。
   void dispose() {
     _disposed = true;
     _flushTimer?.cancel();
     _connectivitySubscription?.cancel();
   }
 
+  // 恢复持久化的事件（损坏则清空），再订阅连通性变化：离线取消待发计时，
+  // 恢复联网时重置退避并立即发送。
   Future<void> _initialize() async {
     final preferences = await _preferences();
     final encoded = preferences.getString(_queueStorageKey);
@@ -221,6 +240,7 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
     }
   }
 
+  // 把整个队列写回本地偏好。
   Future<void> _persist() async {
     final preferences = await _preferences();
     await preferences.setString(
@@ -229,6 +249,7 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
     );
   }
 
+  // 把队列读写串到同一条队尾依次执行，单个失败只反馈给它的调用方。
   Future<T> _synchronized<T>(Future<T> Function() action) {
     final completer = Completer<T>();
     _serial = _serial.then((_) async {
@@ -241,6 +262,7 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
     return completer.future;
   }
 
+  // 以 baseRetryDelay × 2^尝试次数 退避，并限制在 [baseRetryDelay, maxRetryDelay] 内。
   void _scheduleRetry() {
     final multiplier = 1 << _retryAttempt.clamp(0, 20);
     final milliseconds = baseRetryDelay.inMilliseconds * multiplier;
@@ -254,6 +276,7 @@ class BehaviorEventQueue implements BehaviorEventEnqueuer {
     _scheduleFlush(bounded);
   }
 
+  // 安排一次发送，覆盖之前的计时；离线或已销毁时不安排，关闭自动发送时只允许立即发送。
   void _scheduleFlush(Duration delay) {
     if (_disposed || !_online || !autoFlush && delay != Duration.zero) return;
     _flushTimer?.cancel();

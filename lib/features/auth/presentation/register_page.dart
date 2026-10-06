@@ -8,6 +8,7 @@ import '../application/auth_notifier.dart';
 import 'widgets/verify_code_button.dart';
 import '../../../core/router/app_routes.dart';
 
+/// 注册页：用户名、密码、手机号与短信验证码，注册成功后直接登录并进入首页。
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
 
@@ -15,6 +16,7 @@ class RegisterPage extends ConsumerStatefulWidget {
   ConsumerState<RegisterPage> createState() => _RegisterPageState();
 }
 
+// 持有表单输入与提交中状态；[_registerAttempt] 标识最近一次提交，用法同登录页。
 class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _usernameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -26,6 +28,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   @override
   void dispose() {
+    // 作废进行中的注册尝试。
     _registerAttempt++;
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
@@ -35,6 +38,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     super.dispose();
   }
 
+  // 本地校验必填与两次密码一致后提交注册。
   Future<void> _register() async {
     if (_usernameCtrl.text.isEmpty ||
         _passwordCtrl.text.isEmpty ||
@@ -73,6 +77,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     }
   }
 
+  // 本次尝试仍是最近一次、页面仍挂载且位于路由栈顶时，才允许写入会话与导航。
   bool _ownsRegisterMutation(int attempt) {
     return mounted &&
         attempt == _registerAttempt &&
@@ -87,6 +92,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   Widget build(BuildContext context) {
     return FScaffold(
       childPad: false,
+      // 提交中禁用返回，避免离开页面后才收到注册结果。
       header: FHeader.nested(
         title: const Text('注册'),
         prefixes: [
@@ -165,6 +171,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       VerifyCodePurpose.register,
                     ),
               ),
+              // 提交与去登录入口。
               const SizedBox(height: 24),
               FButton(
                 onPress: _isLoading ? null : _register,

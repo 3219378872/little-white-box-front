@@ -3,10 +3,14 @@ import '../../../core/api/v2_api_client.dart';
 import 'behavior_event.dart';
 import 'behavior_identity.dart';
 
+/// 行为批次的发送抽象，供 [BehaviorEventQueue] 依赖与测试替换。
 abstract interface class BehaviorEventTransport {
+  /// 发送一个批次并返回逐条结果；整批失败时抛错，由队列整体重试。
   Future<BehaviorSendResult> send(BehaviorBatch batch);
 }
 
+/// 经网关 `POST /api/v2/behavior/events` 批量上报行为事件，并把逐条结果归类为
+/// 已受理与永久拒绝；其余（如临时失败）留在队列中等待重试。
 class BehaviorRepository implements BehaviorEventTransport {
   final V2ApiClient _client;
 
@@ -15,6 +19,7 @@ class BehaviorRepository implements BehaviorEventTransport {
 
   @override
   Future<BehaviorSendResult> send(BehaviorBatch batch) async {
+    // 批次归属必须与当前会话一致，并把请求绑定到该会话版本，防止以其他账号身份上报。
     final identity = await loadBehaviorIdentity();
     if (batch.ownerIdentity == null ||
         batch.ownerIdentity != identity.ownerIdentity) {
