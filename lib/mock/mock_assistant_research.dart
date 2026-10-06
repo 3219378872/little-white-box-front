@@ -66,7 +66,7 @@ Map<String, dynamic> _postResearchMessage(
   Map<String, dynamic> body,
 ) {
   if (_consentOf(userId)['granted'] != true) {
-    throw const _MockBiz(403, 6001, 'AGENT_NOT_AUTHORIZED');
+    throw const _MockBiz(403, 6001, 'Agent 能力未授权');
   }
   final text = body['message']?.toString().trim() ?? '';
   final requestId = body['requestId']?.toString() ?? '';
@@ -202,7 +202,7 @@ Map<String, dynamic> _answerResearchQuestions(
     throw const _MockBiz(404, 4, '资源不存在');
   }
   if (_consentOf(userId)['granted'] != true) {
-    throw const _MockBiz(403, 6001, 'AGENT_NOT_AUTHORIZED');
+    throw const _MockBiz(403, 6001, 'Agent 能力未授权');
   }
   final question = run['question'] as Map<String, dynamic>;
   if (body['questionRequestId'] != question['id']) {

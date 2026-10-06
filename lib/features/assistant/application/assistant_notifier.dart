@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/api_exceptions.dart';
+import '../../../core/api/error_codes.dart';
 import '../../../core/api/idempotency.dart';
 import '../../../core/api/json_int64.dart';
 import '../data/assistant_models.dart';

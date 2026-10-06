@@ -282,7 +282,7 @@ void main() {
             required contextPostId,
           }) async {
             postCalls++;
-            throw const ApiException('AGENT_NOT_AUTHORIZED');
+            throw const ApiException('Agent 能力未授权', code: 6001);
           };
     final showPage = ValueNotifier(true);
     addTearDown(showPage.dispose);

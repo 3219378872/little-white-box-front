@@ -26,6 +26,11 @@ void main() {
       expect(ErrorCodes.favoritesPrivate, 3007);
     });
 
+    test('Agent 相关错误码值正确', () {
+      // 后端 pkg/errx/codes.go AgentNotAuthorized。
+      expect(ErrorCodes.agentNotAuthorized, 6001);
+    });
+
     test('isAuthError 辅助判断', () {
       expect(ErrorCodes.isAuthError(1004), isTrue);
       expect(ErrorCodes.isAuthError(1005), isTrue);

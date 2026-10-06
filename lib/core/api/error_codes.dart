@@ -1,5 +1,5 @@
 /// 前端需要按码区分处理的网关业务错误码，数值以后端错误码表为准；按千位分段
-/// 对应通用、用户、内容、互动、媒体、搜索与审核/广告域。
+/// 对应通用、用户、内容、互动、媒体、搜索、Agent 与审核/广告域。
 abstract final class ErrorCodes {
   static const int unknownError = 1;
   static const int paramError = 2;
@@ -30,6 +30,8 @@ abstract final class ErrorCodes {
   static const int mediaNotFound = 4004;
 
   static const int searchEmpty = 5001;
+
+  static const int agentNotAuthorized = 6001;
 
   static const int reviewLeaseLost = 7001;
   static const int reviewTaskSuperseded = 7002;

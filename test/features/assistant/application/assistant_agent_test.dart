@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xiaobaihe_app/core/api/api_exceptions.dart';
+import 'package:xiaobaihe_app/core/api/error_codes.dart';
 import 'package:xiaobaihe_app/features/assistant/application/assistant_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/application/assistant_thread_notifier.dart';
 import 'package:xiaobaihe_app/features/assistant/application/memory_notifier.dart';
@@ -127,6 +128,39 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(notifier.state.agentAuthorizationRequired, isTrue);
     expect(notifier.state.isStreaming, isFalse);
+  });
+
+  // 网关以业务码 6001（AgentNotAuthorized）拒绝发送，文案为中文，不含常量名。
+  test('send rejected with code 6001 asks for authorization', () async {
+    final source = FakeAssistantSource()
+      ..postHandler = ({
+        required message,
+        required requestId,
+        required attachments,
+        required contextPostId,
+      }) async => throw const ApiException('Agent 能力未授权', code: 6001);
+    final notifier = AssistantNotifier(repository: source);
+    expect(await notifier.send('hello'), isFalse);
+    expect(notifier.state.agentAuthorizationRequired, isTrue);
+    expect(notifier.state.pendingRetryCommand, isNotNull);
+  });
+
+  test('other send rejections do not ask for authorization', () async {
+    final source = FakeAssistantSource()
+      ..postHandler =
+          ({
+            required message,
+            required requestId,
+            required attachments,
+            required contextPostId,
+          }) async => throw const ApiException(
+            'AGENT_NOT_AUTHORIZED',
+            code: ErrorCodes.permissionDenied,
+          );
+    final notifier = AssistantNotifier(repository: source);
+    expect(await notifier.send('hello'), isFalse);
+    expect(notifier.state.agentAuthorizationRequired, isFalse);
+    expect(notifier.state.pendingRetryCommand, isNotNull);
   });
 
   test('unknown events are ignored while source cards apply', () async {

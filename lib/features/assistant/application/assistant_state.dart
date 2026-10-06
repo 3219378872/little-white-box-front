@@ -191,7 +191,7 @@ class AssistantState {
   final String? connectionError;
   final List<PendingChatImage> pendingAttachments;
 
-  /// 服务端以 AGENT_NOT_AUTHORIZED 拒绝，需要用户先授权。
+  /// 服务端因 Agent 未授权拒绝了请求（发送返回业务码 6001），需要用户先授权。
   final bool agentAuthorizationRequired;
 
   /// 在途或失败、可原样重发的命令：发送成功后清除，run 因未授权失败时恢复。

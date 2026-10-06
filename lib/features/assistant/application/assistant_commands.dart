@@ -154,8 +154,8 @@ extension _AssistantCommands on AssistantNotifier {
       return true;
     } on ApiException catch (error) {
       if (!mounted) return false;
-      // 失败：保留命令供重试；Agent 未授权时提示用户先授权。
-      final unauthorized = error.message.contains('AGENT_NOT_AUTHORIZED');
+      // 失败：保留命令供重试；网关以业务码 6001 拒绝时提示用户先授权。
+      final unauthorized = error.code == ErrorCodes.agentNotAuthorized;
       _value = _value.copyWith(
         isSending: false,
         agentAuthorizationRequired: unauthorized,
