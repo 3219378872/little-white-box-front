@@ -41,8 +41,9 @@ class FeedRepository implements FeedPageRepository {
     FollowFeedCursor followCursor = const FollowFeedCursor(),
     int positionOffset = 0,
   }) async {
+    // 契约错误会经 friendlyErrorMessage 直接展示给用户，消息统一用中文。
     if (pageSize <= 0 || pageSize > 100) {
-      throw const ApiException('Feed pageSize must be between 1 and 100');
+      throw const ApiException('信息流分页参数无效');
     }
 
     // 首屏生成新的请求 ID，续翻沿用调用方传入的同一个。
@@ -155,13 +156,13 @@ class FeedRepository implements FeedPageRepository {
     required bool recommendation,
   }) {
     if (rawItems is! List) {
-      throw const ApiException('Feed response is missing items');
+      throw const ApiException('信息流数据缺少内容列表');
     }
 
     return rawItems.indexed.map((indexed) {
       final (index, raw) = indexed;
       if (raw is! Map) {
-        throw const ApiException('Feed response contains an invalid item');
+        throw const ApiException('信息流包含无法识别的条目');
       }
       final item = Map<String, dynamic>.from(raw);
       final post = _parsePost(item);
@@ -214,14 +215,12 @@ class FeedRepository implements FeedPageRepository {
     };
     if (!jsonInt64IsPositive(post['id']) ||
         !requiredKeys.every(post.containsKey)) {
-      throw const ApiException(
-        'Feed item is missing the complete post payload',
-      );
+      throw const ApiException('信息流条目缺少完整的帖子信息');
     }
     try {
       return PostItem.fromJson(post);
     } catch (_) {
-      throw const ApiException('Feed item contains an invalid post payload');
+      throw const ApiException('信息流条目的帖子信息无法解析');
     }
   }
 

@@ -143,7 +143,7 @@ void main() {
           isA<ApiException>().having(
             (error) => error.message,
             'message',
-            contains('complete post'),
+            '信息流条目缺少完整的帖子信息',
           ),
         ),
       );
@@ -258,6 +258,41 @@ void main() {
     expect(result.items.single.post.id, 3);
     expect(result.sponsored, isEmpty);
     expect(result.droppedSponsored, 1);
+  });
+
+  test('contract errors surface as Chinese user-facing messages', () async {
+    // 这些消息会经 friendlyErrorMessage 原样展示给用户。
+    Future<void> expectMessage(
+      Map<String, dynamic> response,
+      String message, {
+      int pageSize = 20,
+    }) {
+      final repository = FeedRepository(
+        client: _StubV2ApiClient([response]),
+        identityStore: identityStore(),
+      );
+      return expectLater(
+        repository.fetchPage(kind: FeedKind.follow, pageSize: pageSize),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            message,
+          ),
+        ),
+      );
+    }
+
+    await expectMessage(const {}, '信息流分页参数无效', pageSize: 0);
+    await expectMessage(const {'hasMore': false}, '信息流数据缺少内容列表');
+    await expectMessage(const {
+      'items': ['not a map'],
+    }, '信息流包含无法识别的条目');
+    await expectMessage({
+      'items': [
+        {...postJson(3), 'likeCount': 'many'},
+      ],
+    }, '信息流条目的帖子信息无法解析');
   });
 
   test('follow feed does not request ad slots', () async {
