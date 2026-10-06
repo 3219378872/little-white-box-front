@@ -1,6 +1,7 @@
 part of 'mock_router.dart';
 
-// 点赞/取消点赞帖子（targetType 1）：不能赞自己的帖子，重复点赞或取消未赞的都报业务错误。
+// 点赞/取消点赞帖子（targetType 1）：与后端一致，重复点赞或取消未赞的直接成功，
+// 只在状态实际变化时调整计数；后端不限制作者给自己的帖子点赞。
 MockRouterResponse _like(
   int userId,
   Map<String, dynamic> body, {
@@ -10,17 +11,12 @@ MockRouterResponse _like(
   final targetType = (body['targetType'] as num?)?.toInt() ?? 0;
   if (targetId <= 0 || targetType != 1) throw const _MockBiz(400, 2, '参数错误');
   final post = _findPost(targetId);
-  if ((post['authorId'] as num).toInt() == userId && like) {
-    throw const _MockBiz(400, 3005, '不能点赞自己');
-  }
-  final liked = _likedByUser.putIfAbsent(userId, () => {}).contains(targetId);
+  final liked = _likedByUser.putIfAbsent(userId, () => {});
   if (like) {
-    if (liked) throw const _MockBiz(400, 3001, '已点赞');
-    _likedByUser[userId]!.add(targetId);
-    post['likeCount'] = (post['likeCount'] as num).toInt() + 1;
-  } else {
-    if (!liked) throw const _MockBiz(400, 3003, '未点赞');
-    _likedByUser[userId]!.remove(targetId);
+    if (liked.add(targetId)) {
+      post['likeCount'] = (post['likeCount'] as num).toInt() + 1;
+    }
+  } else if (liked.remove(targetId)) {
     post['likeCount'] = ((post['likeCount'] as num).toInt() - 1).clamp(
       0,
       1 << 30,
@@ -29,7 +25,7 @@ MockRouterResponse _like(
   return _jsonResponse(const {});
 }
 
-// 收藏/取消收藏：重复收藏或取消未收藏的报业务错误，收藏数不低于 0。
+// 收藏/取消收藏：重复操作幂等成功，只在状态实际变化时调整计数，收藏数不低于 0。
 MockRouterResponse _favorite(
   int userId,
   Map<String, dynamic> body, {
@@ -38,16 +34,12 @@ MockRouterResponse _favorite(
   final postId = (body['postId'] as num?)?.toInt() ?? 0;
   if (postId <= 0) throw const _MockBiz(400, 2, '参数错误');
   final post = _findPost(postId);
-  final favorited = _favoritedByUser
-      .putIfAbsent(userId, () => {})
-      .contains(postId);
+  final favorited = _favoritedByUser.putIfAbsent(userId, () => {});
   if (favorite) {
-    if (favorited) throw const _MockBiz(400, 3002, '已收藏');
-    _favoritedByUser[userId]!.add(postId);
-    post['favoriteCount'] = (post['favoriteCount'] as num).toInt() + 1;
-  } else {
-    if (!favorited) throw const _MockBiz(400, 3004, '未收藏');
-    _favoritedByUser[userId]!.remove(postId);
+    if (favorited.add(postId)) {
+      post['favoriteCount'] = (post['favoriteCount'] as num).toInt() + 1;
+    }
+  } else if (favorited.remove(postId)) {
     post['favoriteCount'] = ((post['favoriteCount'] as num).toInt() - 1).clamp(
       0,
       1 << 30,

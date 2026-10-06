@@ -23,10 +23,6 @@ void main() {
     });
 
     test('交互相关错误码值正确', () {
-      expect(ErrorCodes.alreadyLiked, 3001);
-      expect(ErrorCodes.alreadyFavorited, 3002);
-      expect(ErrorCodes.notLiked, 3003);
-      expect(ErrorCodes.notFavorited, 3004);
       expect(ErrorCodes.favoritesPrivate, 3007);
     });
 

@@ -22,10 +22,6 @@ abstract final class ErrorCodes {
   static const int contentVersionConflict = 2007;
   static const int idempotencyConflict = 2008;
 
-  static const int alreadyLiked = 3001;
-  static const int alreadyFavorited = 3002;
-  static const int notLiked = 3003;
-  static const int notFavorited = 3004;
   static const int favoritesPrivate = 3007;
 
   static const int fileTooLarge = 4001;
