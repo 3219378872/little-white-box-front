@@ -12,14 +12,15 @@ const agentConsentFallbackVersion = 3;
 
 /// Agent 授权状态；授权版本与当前披露版本比较，决定是否需要重新确认。
 class AgentConsentState {
-  final bool loading;
+  /// 正在拉取授权状态。
+  final bool isLoading;
   final bool loaded;
   final bool granted;
   final int consentVersion;
   final int currentVersion;
 
   const AgentConsentState({
-    this.loading = false,
+    this.isLoading = false,
     this.loaded = false,
     this.granted = false,
     this.consentVersion = 0,
@@ -40,14 +41,14 @@ class AgentConsentState {
   bool get canStartRun => loaded && granted && !needsUpgrade;
 
   AgentConsentState copyWith({
-    bool? loading,
+    bool? isLoading,
     bool? loaded,
     bool? granted,
     int? consentVersion,
     int? currentVersion,
   }) {
     return AgentConsentState(
-      loading: loading ?? this.loading,
+      isLoading: isLoading ?? this.isLoading,
       loaded: loaded ?? this.loaded,
       granted: granted ?? this.granted,
       consentVersion: consentVersion ?? this.consentVersion,
@@ -92,7 +93,7 @@ class AgentConsentNotifier extends StateNotifier<AgentConsentState> {
   // 单次拉取；接口失败时按未授权处理，避免误放行。
   Future<void> _reloadOnce() async {
     final generation = ++_generation;
-    state = state.copyWith(loading: true);
+    state = state.copyWith(isLoading: true);
     try {
       final status = await _repository.loadAgentConsent();
       if (!mounted || generation != _generation) return;
