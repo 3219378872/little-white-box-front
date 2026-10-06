@@ -1,89 +1,143 @@
-part of 'post_detail_page.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
+import 'package:go_router/go_router.dart';
 
-extension _PostDetailContent on _PostDetailPageState {
-  Widget _buildPostSection(GetPostResp post, CommentState comments) {
+import '../../../core/api/json_int64.dart';
+import '../../../core/formatters/time_formatter.dart';
+import '../../../core/router/app_routes.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_tag_badge.dart';
+import '../../../core/widgets/cached_avatar.dart';
+import '../../../sdk/data/gateway.dart';
+import '../../auth/application/auth_notifier.dart';
+import '../../profile/application/follow_controller.dart';
+import '../../profile/application/user_profile_providers.dart';
+
+/// 帖子详情正文区：标题、作者行、正文、配图、标签，以及与评论区之间的分隔带和排序栏。
+///
+/// 排序与关注等写操作由详情页通过回调注入，本组件只负责排版。
+class PostDetailArticle extends StatelessWidget {
+  final GetPostResp post;
+
+  /// 当前评论排序（1 最新、2 最热），用于高亮排序栏。
+  final int commentSortBy;
+  final ValueChanged<int> onSelectSort;
+
+  /// 切换关注；参数是点击时界面展示的关注态。
+  final ValueChanged<bool> onToggleFollow;
+
+  const PostDetailArticle({
+    super.key,
+    required this.post,
+    required this.commentSortBy,
+    required this.onSelectSort,
+    required this.onToggleFollow,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final theme = context.theme;
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.pageInset,
-              AppTheme.space2,
-              AppTheme.pageInset,
-              AppTheme.space6,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (post.title.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppTheme.space4),
-                    child: Semantics(
-                      header: true,
-                      child: Text(
-                        post.title,
-                        style: theme.typography.display.md,
-                      ),
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pageInset,
+            AppTheme.space2,
+            AppTheme.pageInset,
+            AppTheme.space6,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (post.title.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppTheme.space4),
+                  child: Semantics(
+                    header: true,
+                    child: Text(post.title, style: theme.typography.display.md),
                   ),
-                _buildPostAuthor(post),
-                const SizedBox(height: AppTheme.space4),
-                Text(
-                  post.content,
-                  style: theme.typography.body.md.copyWith(height: 1.75),
                 ),
-                if (post.images.isNotEmpty) ...[
-                  const SizedBox(height: AppTheme.space4),
-                  ...post.images.map(
-                    (url) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppTheme.space2),
-                      child: ClipRRect(
-                        borderRadius: AppTheme.imageRadius,
-                        child: CachedNetworkImage(
-                          imageUrl: url,
-                          width: double.infinity,
-                          fit: BoxFit.fitWidth,
-                        ),
+              PostAuthorRow(post: post, onToggleFollow: onToggleFollow),
+              const SizedBox(height: AppTheme.space4),
+              Text(
+                post.content,
+                style: theme.typography.body.md.copyWith(height: 1.75),
+              ),
+              if (post.images.isNotEmpty) ...[
+                const SizedBox(height: AppTheme.space4),
+                ...post.images.map(
+                  (url) => Padding(
+                    padding: const EdgeInsets.only(bottom: AppTheme.space2),
+                    child: ClipRRect(
+                      borderRadius: AppTheme.imageRadius,
+                      child: CachedNetworkImage(
+                        imageUrl: url,
+                        width: double.infinity,
+                        fit: BoxFit.fitWidth,
                       ),
                     ),
                   ),
-                ],
-                if (post.tags.isNotEmpty) ...[
-                  const SizedBox(height: AppTheme.space3),
-                  Wrap(
-                    spacing: AppTheme.space2,
-                    runSpacing: AppTheme.space2,
-                    children: post.tags
-                        .map((tag) => AppTagBadge(label: tag))
-                        .toList(),
-                  ),
-                ],
+                ),
               ],
-            ),
+              if (post.tags.isNotEmpty) ...[
+                const SizedBox(height: AppTheme.space3),
+                Wrap(
+                  spacing: AppTheme.space2,
+                  runSpacing: AppTheme.space2,
+                  children: post.tags
+                      .map((tag) => AppTagBadge(label: tag))
+                      .toList(),
+                ),
+              ],
+            ],
           ),
-          // Section band between the article and the discussion.
-          SizedBox(height: 8, child: ColoredBox(color: theme.colors.muted)),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.pageInset,
-              AppTheme.space3,
-              AppTheme.pageInset,
-              AppTheme.space1,
-            ),
-            child: _buildCommentSort(post, comments),
+        ),
+        // Section band between the article and the discussion.
+        SizedBox(height: 8, child: ColoredBox(color: theme.colors.muted)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.pageInset,
+            AppTheme.space3,
+            AppTheme.pageInset,
+            AppTheme.space1,
           ),
-        ],
-      ),
+          child: _CommentSortBar(
+            commentCount: post.commentCount.toInt(),
+            sortBy: commentSortBy,
+            onSelectSort: onSelectSort,
+          ),
+        ),
+      ],
     );
   }
+}
 
-  Widget _buildPostAuthor(GetPostResp post) {
+/// 作者行：头像、昵称、发布时间与浏览数（点击进入作者主页），非本人帖子时附关注按钮。
+///
+/// 关注态来自共享的 follow controller 与用户关注 provider，故自行订阅；
+/// 点击关注的登录拦截、错误提示仍由页面回调处理。
+class PostAuthorRow extends ConsumerWidget {
+  final GetPostResp post;
+  final ValueChanged<bool> onToggleFollow;
+
+  const PostAuthorRow({
+    super.key,
+    required this.post,
+    required this.onToggleFollow,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final auth = ref.watch(authNotifierProvider);
-    final own = _isOwnPost(post);
     final authorKey = jsonInt64Id(post.authorId);
+    // 已登录且作者 ID 与当前用户一致即本人帖子，不展示关注按钮。
+    final own =
+        jsonInt64IsPositive(auth.userId) &&
+        authorKey == jsonInt64Id(auth.userId);
     // 关注态未读到前（null）禁用按钮，避免基于猜测的值发出反向请求。
     final following = auth.isAuthenticated && !own
         ? ref.watch(userFollowingProvider(authorKey)).value
@@ -147,17 +201,30 @@ extension _PostDetailContent on _PostDetailPageState {
             onPress:
                 follow.isBusy || (auth.isAuthenticated && following == null)
                 ? null
-                : () => _toggleFollow(post, isFollowing),
+                : () => onToggleFollow(isFollowing),
             child: Text(isFollowing ? '已关注' : '关注'),
           ),
         ],
       ],
     );
   }
+}
 
-  Widget _buildCommentSort(GetPostResp post, CommentState comments) {
+// 评论区标题（含评论数）与「最新/最热」排序切换。
+class _CommentSortBar extends StatelessWidget {
+  final int commentCount;
+  final int sortBy;
+  final ValueChanged<int> onSelectSort;
+
+  const _CommentSortBar({
+    required this.commentCount,
+    required this.sortBy,
+    required this.onSelectSort,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final theme = context.theme;
-    final count = post.commentCount.toInt();
     return Row(
       children: [
         Semantics(
@@ -166,9 +233,9 @@ extension _PostDetailContent on _PostDetailPageState {
             TextSpan(
               children: [
                 const TextSpan(text: '评论'),
-                if (count > 0)
+                if (commentCount > 0)
                   TextSpan(
-                    text: '  $count',
+                    text: '  $commentCount',
                     style: TextStyle(color: theme.colors.mutedForeground),
                   ),
               ],
@@ -183,10 +250,8 @@ extension _PostDetailContent on _PostDetailPageState {
           _CommentSortChip(
             key: ValueKey('comment-sort-$sort'),
             label: label,
-            selected: comments.sortBy == sort,
-            onPress: () => ref
-                .read(commentNotifierProvider(widget.postId).notifier)
-                .selectSort(sort),
+            selected: sortBy == sort,
+            onPress: () => onSelectSort(sort),
           ),
       ],
     );

@@ -2,33 +2,27 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/api/api_exceptions.dart';
 import '../../../core/api/json_int64.dart';
-import '../../../core/formatters/time_formatter.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/app_tag_badge.dart';
-import '../../../core/widgets/cached_avatar.dart';
+import '../../../core/router/app_routes.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/app_toast.dart';
-import '../../../core/widgets/load_more_footer.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../sdk/data/gateway.dart';
 import '../../auth/application/auth_notifier.dart';
 import '../../comment/application/comment_notifier.dart';
-import '../../comment/presentation/widgets/comment_input.dart';
-import '../../comment/presentation/widgets/comment_item.dart';
 import '../../interaction/application/interaction_notifier.dart';
 import '../../profile/application/follow_controller.dart';
-import '../../profile/application/user_profile_providers.dart';
 import '../application/post_detail_provider.dart';
-import '../../../core/router/app_routes.dart';
+import 'post_detail_actions.dart';
+import 'post_detail_comments.dart';
+import 'post_detail_content.dart';
 
-part 'post_detail_content.dart';
-part 'post_detail_comments.dart';
-part 'post_detail_actions.dart';
-
+/// 帖子详情页：正文、评论列表与底部评论栏。
+///
+/// 页面持有滚动与评论输入焦点，并集中处理需要登录拦截、错误提示的写操作；
+/// 子组件只通过显式参数和回调与页面交互。
 class PostDetailPage extends ConsumerStatefulWidget {
   final String postId;
   const PostDetailPage({super.key, required this.postId});
@@ -59,6 +53,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     super.dispose();
   }
 
+  // 滚动驱动两件事：标题移入顶栏，以及接近底部时加载下一页评论。
   void _onScroll() {
     if (!_scrollCtrl.hasClients) return;
     final showTitle = _scrollCtrl.offset > _titleCollapseOffset;
@@ -71,6 +66,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
+  // 点赞/收藏：匿名先去登录，乐观更新与回滚在 interaction notifier 内完成。
   Future<void> _toggleLike(GetPostResp post) async {
     if (!ref.read(authNotifierProvider).isAuthenticated) {
       context.push(AppRoutes.login);
@@ -119,6 +115,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
+  // 展开/收起与翻页楼中楼回复，失败只提示不打断阅读。
   Future<void> _onToggleReplies(CommentItem comment) async {
     try {
       await ref
@@ -143,6 +140,7 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
+  // 提交评论；失败时 rethrow 让输入框保留草稿。
   Future<void> _submitComment(String content) async {
     final auth = ref.read(authNotifierProvider);
     if (!auth.isAuthenticated) {
@@ -161,10 +159,26 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
     }
   }
 
-  bool _isOwnPost(GetPostResp post) {
-    final auth = ref.read(authNotifierProvider);
-    return jsonInt64IsPositive(auth.userId) &&
-        jsonInt64Id(post.authorId) == jsonInt64Id(auth.userId);
+  // 首条评论引导：匿名先去登录，已登录则聚焦底部输入框。
+  void _startFirstComment() {
+    if (!ref.read(authNotifierProvider).isAuthenticated) {
+      context.push(AppRoutes.login);
+      return;
+    }
+    _commentFocus.requestFocus();
+  }
+
+  // 回调触发时再读取 notifier，避免持有过期实例。
+  CommentNotifier get _commentNotifier =>
+      ref.read(commentNotifierProvider(widget.postId).notifier);
+
+  // 设定回复目标：始终挂在顶级评论 thread 下，@ 的是 target 的作者。
+  void _replyTo(CommentItem thread, CommentItem target) {
+    _commentNotifier.setReplyTarget(
+      userName: target.userName,
+      parentId: thread.id,
+      userId: target.userId,
+    );
   }
 
   @override
@@ -209,12 +223,47 @@ class _PostDetailPageState extends ConsumerState<PostDetailPage> {
                 child: CustomScrollView(
                   controller: _scrollCtrl,
                   slivers: [
-                    _buildPostSection(post, comments),
-                    ..._buildCommentSlivers(comments),
+                    // 正文与评论排序栏
+                    SliverToBoxAdapter(
+                      child: PostDetailArticle(
+                        post: post,
+                        commentSortBy: comments.sortBy,
+                        onSelectSort: (sort) =>
+                            _commentNotifier.selectSort(sort),
+                        onToggleFollow: (isFollowing) =>
+                            _toggleFollow(post, isFollowing),
+                      ),
+                    ),
+                    // 评论为空且不在加载时显示空态或首屏失败重试
+                    if (comments.comments.isEmpty &&
+                        !comments.isLoading &&
+                        !comments.isLoadingMore)
+                      SliverToBoxAdapter(
+                        child: PostDetailCommentsEmpty(
+                          hasError: comments.error != null,
+                          onRetry: () => _commentNotifier.retry(),
+                          onStartComment: _startFirstComment,
+                        ),
+                      ),
+                    PostDetailCommentList(
+                      comments: comments,
+                      onRetry: () => _commentNotifier.retry(),
+                      onToggleReplies: _onToggleReplies,
+                      onLoadMoreReplies: _onLoadMoreReplies,
+                      onReply: _replyTo,
+                    ),
                   ],
                 ),
               ),
-              _buildCommentInput(post, comments),
+              PostDetailCommentBar(
+                postId: widget.postId,
+                post: post,
+                focusNode: _commentFocus,
+                replyTo: comments.replyToUser,
+                onSubmit: _submitComment,
+                onToggleLike: () => _toggleLike(post),
+                onToggleFavorite: () => _toggleFavorite(post),
+              ),
             ],
           );
         },
